@@ -1,9 +1,0 @@
-{
-  "request_id": "VSP_UIREQ_20251213_174713_e92059",
-  "req_id": "VSP_UIREQ_20251213_174713_e92059",
-  "profile": "FULL_EXT",
-  "target": "/home/test/Data/SECURITY-10-10-v4",
-  "stage_sig": "0/0||0",
-  "final": false,
-  "killed": false
-}

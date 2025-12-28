@@ -6,3 +6,9 @@ out_ci/**
 
 # local backups
 *.bak_*
+
+# commercial ops artifacts (never commit)
+out_ci/
+ui/out_ci/
+**/out_ci/
+*.bak_*
