@@ -1,0 +1,5 @@
+
+# local backups / generated
+*.bak_*
+out_ci/
+out_ci/**
