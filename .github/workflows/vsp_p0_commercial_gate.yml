@@ -10,8 +10,7 @@ on:
 jobs:
   p0_gate:
     # IMPORTANT: run on your VPS self-hosted runner
-    runs-on: self-hosted
-
+    runs-on: [self-hosted, vsp-ui]
     env:
       VSP_UI_BASE: http://127.0.0.1:8910
       VSP_UI_SVC: vsp-ui-8910.service
