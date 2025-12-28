@@ -1,0 +1,40 @@
+name: VSP UI - P0 Commercial Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  p0_gate:
+    # IMPORTANT: run on your VPS self-hosted runner
+    runs-on: self-hosted
+
+    env:
+      VSP_UI_BASE: http://127.0.0.1:8910
+      VSP_UI_SVC: vsp-ui-8910.service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show workspace
+        run: |
+          pwd
+          ls -la
+
+      - name: Run P0 Commercial Gate
+        run: |
+          cd /home/test/Data/SECURITY_BUNDLE/ui
+          bash bin/ci/vsp_ci_p0_gate.sh
+
+      - name: Upload out_ci (evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: out_ci_evidence
+          path: |
+            /home/test/Data/SECURITY_BUNDLE/ui/out_ci/**
+          if-no-files-found: warn

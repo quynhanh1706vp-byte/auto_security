@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need python3; need date; need curl
+
+TS="$(date +%Y%m%d_%H%M%S)"
+FILES=()
+[ -f wsgi_vsp_ui_gateway.py ] && FILES+=(wsgi_vsp_ui_gateway.py)
+[ -f vsp_demo_app.py ] && FILES+=(vsp_demo_app.py)
+[ "${#FILES[@]}" -gt 0 ] || { echo "[ERR] missing both wsgi_vsp_ui_gateway.py and vsp_demo_app.py"; exit 2; }
+
+for f in "${FILES[@]}"; do
+  cp -f "$f" "${f}.bak_runsmeta_${TS}"
+  echo "[BACKUP] ${f}.bak_runsmeta_${TS}"
+done
+
+python3 - <<'PY'
+from pathlib import Path
+import textwrap
+
+marker = "VSP_P1_RUNS_OPEN_AND_META_P1_V2"
+
+BLOCK = r"""
+# --- __MARKER__ ---
+# Goals:
+# 1) Ensure /api/vsp/open* exists to stop 404 spam from Runs tab (SAFE default: no xdg-open).
+# 2) Enrich /api/vsp/runs output with per-item has_gate/overall/degraded + rid_latest_gate (prefer gate run).
+
+try:
+    from flask import request, jsonify
+    import os
+    import json
+    from pathlib import Path as _Path
+    import subprocess
+except Exception:
+    request = None
+    jsonify = None
+
+def _vsp_gate_candidates():
+    return [
+        "run_gate_summary.json",
+        "reports/run_gate_summary.json",
+        "run_gate.json",
+        "reports/run_gate.json",
+    ]
+
+def _vsp_try_read_json(fp: str, max_bytes: int = 2_000_000):
+    try:
+        p = _Path(fp)
+        if (not p.exists()) or (not p.is_file()):
+            return None
+        if p.stat().st_size > max_bytes:
+            return None
+        return json.loads(p.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return None
+
+def _vsp_extract_overall_degraded(obj):
+    overall = "UNKNOWN"
+    degraded = False
+    if isinstance(obj, dict):
+        overall = obj.get("overall") or obj.get("overall_status") or obj.get("status") or "UNKNOWN"
+        if isinstance(obj.get("degraded"), bool):
+            degraded = obj.get("degraded")
+        bt = obj.get("by_type")
+        if degraded is False and isinstance(bt, dict):
+            for v in bt.values():
+                if isinstance(v, dict) and v.get("degraded") is True:
+                    degraded = True
+                    break
+    return str(overall), bool(degraded)
+
+def _vsp_roots_from_env_or_resp(resp_json=None):
+    roots = []
+    roots += [os.environ.get("VSP_RUNS_ROOT","")]
+    roots += ["/home/test/Data/SECURITY_BUNDLE/out", "/home/test/Data/SECURITY_BUNDLE/out_ci"]
+    if isinstance(resp_json, dict):
+        ru = resp_json.get("roots_used")
+        if isinstance(ru, list):
+            roots = ru + roots
+    out = []
+    for r in roots:
+        if r and r not in out:
+            out.append(r)
+    return out
+
+def _vsp_find_run_dir(rid: str, roots):
+    if not rid:
+        return None
+    for r in roots or []:
+        if not r:
+            continue
+        base = _Path(r)
+        cand = base / rid
+        if cand.exists():
+            return str(cand.resolve())
+    return None
+
+def _vsp_open_payload(rid: str, what: str, roots):
+    run_dir = _vsp_find_run_dir(rid, roots)
+    allow = os.environ.get("VSP_UI_ALLOW_XDG_OPEN", "0") == "1"
+    opened = False
+    err = None
+    if allow and run_dir and what in ("folder","dir","run_dir"):
+        try:
+            subprocess.Popen(["xdg-open", run_dir],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            opened = True
+        except Exception as e:
+            err = str(e)
+    payload = {
+        "ok": True,
+        "rid": rid,
+        "what": what,
+        "run_dir": run_dir,
+        "opened": opened,
+        "disabled": (not allow),
+        "hint": "SAFE default: opener disabled. Set VSP_UI_ALLOW_XDG_OPEN=1 to enable (dev only).",
+    }
+    if err:
+        payload["error"] = err
+    return payload
+
+def _vsp_post_mount_fixups():
+    app = globals().get("app") or globals().get("application")
+    if app is None or request is None or jsonify is None:
+        return
+
+    # 1) Ensure /api/vsp/open endpoints exist
+    rules = list(app.url_map.iter_rules())
+    has_open = any(r.rule == "/api/vsp/open" for r in rules)
+    has_open_folder = any(r.rule == "/api/vsp/open_folder" for r in rules)
+
+    if not has_open:
+        def vsp_open_p1_v2():
+            rid = (request.args.get("rid","") or "").strip()
+            what = (request.args.get("what","folder") or "folder").strip()
+            roots = _vsp_roots_from_env_or_resp(None)
+            return jsonify(_vsp_open_payload(rid, what, roots))
+        app.add_url_rule("/api/vsp/open", endpoint="vsp_open_p1_v2", view_func=vsp_open_p1_v2, methods=["GET"])
+
+    if not has_open_folder:
+        def vsp_open_folder_p1_v2():
+            rid = (request.args.get("rid","") or "").strip()
+            roots = _vsp_roots_from_env_or_resp(None)
+            return jsonify(_vsp_open_payload(rid, "folder", roots))
+        app.add_url_rule("/api/vsp/open_folder", endpoint="vsp_open_folder_p1_v2", view_func=vsp_open_folder_p1_v2, methods=["GET"])
+
+    # 2) Wrap /api/vsp/runs to enrich per-item gate/overall/degraded + rid_latest_gate
+    for r in app.url_map.iter_rules():
+        if r.rule != "/api/vsp/runs":
+            continue
+        ep = r.endpoint
+        orig = app.view_functions.get(ep)
+        if not orig or getattr(orig, "__vsp_wrapped_runsmeta_v2", False):
+            continue
+
+        def wrapped(*args, **kwargs):
+            resp = orig(*args, **kwargs)
+            status = None
+            headers = None
+            resp_obj = resp
+            if isinstance(resp, tuple) and len(resp) >= 1:
+                resp_obj = resp[0]
+                if len(resp) >= 2: status = resp[1]
+                if len(resp) >= 3: headers = resp[2]
+
+            data = None
+            if hasattr(resp_obj, "get_json"):
+                data = resp_obj.get_json(silent=True)
+            elif isinstance(resp_obj, dict):
+                data = resp_obj
+
+            if isinstance(data, dict) and isinstance(data.get("items"), list):
+                roots = _vsp_roots_from_env_or_resp(data)
+                rid_latest_gate = None
+
+                for it in data["items"]:
+                    if not isinstance(it, dict):
+                        continue
+                    rid = it.get("run_id")
+                    run_dir = _vsp_find_run_dir(rid, roots) if rid else None
+
+                    has_gate = False
+                    overall = "UNKNOWN"
+                    degraded = False
+
+                    if run_dir:
+                        for rel in _vsp_gate_candidates():
+                            obj = _vsp_try_read_json(str(_Path(run_dir) / rel))
+                            if isinstance(obj, dict):
+                                has_gate = True
+                                overall, degraded = _vsp_extract_overall_degraded(obj)
+                                break
+
+                    it.setdefault("has", {})
+                    it["has"]["gate"] = bool(has_gate)
+                    it["overall"] = str(overall)
+                    it["degraded"] = bool(degraded)
+
+                    if rid_latest_gate is None and has_gate:
+                        rid_latest_gate = rid
+
+                data["rid_latest_gate"] = rid_latest_gate
+                if rid_latest_gate:
+                    data["rid_latest"] = rid_latest_gate  # prefer gate run for UI stability
+
+                new_resp = jsonify(data)
+                if headers and hasattr(headers, "items"):
+                    for k, v in headers.items():
+                        new_resp.headers[k] = v
+                if status is not None:
+                    return new_resp, status
+                return new_resp
+
+            return resp
+
+        wrapped.__vsp_wrapped_runsmeta_v2 = True
+        app.view_functions[ep] = wrapped
+        break
+
+try:
+    _vsp_post_mount_fixups()
+except Exception:
+    pass
+"""
+
+def patch(fn: str):
+    p = Path(fn)
+    s = p.read_text(encoding="utf-8", errors="replace")
+    if marker in s:
+        print("[SKIP] already patched:", fn)
+        return
+    blk = textwrap.dedent(BLOCK.replace("__MARKER__", marker)).strip() + "\n"
+    p.write_text(s.rstrip() + "\n\n" + blk, encoding="utf-8")
+    print("[OK] patched:", fn)
+
+for fn in ["wsgi_vsp_ui_gateway.py", "vsp_demo_app.py"]:
+    if Path(fn).exists():
+        patch(fn)
+PY
+
+for f in "${FILES[@]}"; do
+  python3 -m py_compile "$f"
+done
+echo "[OK] py_compile OK"
+
+echo "== RESTART REQUIRED =="
+echo "sudo systemctl restart vsp-ui-8910.service  # if you use systemd"
+echo "or run your existing start script for :8910"
+
+echo "== AFTER restart, verify =="
+echo "curl -sS -i http://127.0.0.1:8910/api/vsp/open | sed -n '1,12p'"
+echo "curl -sS http://127.0.0.1:8910/api/vsp/runs?limit=2 | head -c 900; echo"

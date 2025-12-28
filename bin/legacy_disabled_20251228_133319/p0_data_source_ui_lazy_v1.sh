@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need python3; need date; need node
+command -v systemctl >/dev/null 2>&1 || true
+
+JS="static/js/vsp_data_source_lazy_v1.js"
+MARK="VSP_P0_DATA_SOURCE_LAZY_UI_V1"
+
+TS="$(date +%Y%m%d_%H%M%S)"
+[ -d static/js ] || mkdir -p static/js
+[ -d templates ] || mkdir -p templates
+
+cp -f "$JS" "${JS}.bak_${TS}" 2>/dev/null || true
+
+cat > "$JS" <<'JS'
+/* VSP_P0_DATA_SOURCE_LAZY_UI_V1 */
+(()=> {
+  if (window.__vsp_ds_lazy_v1) return;
+  window.__vsp_ds_lazy_v1 = true;
+
+  const $ = (sel, el=document)=> el.querySelector(sel);
+  const $$ = (sel, el=document)=> Array.from(el.querySelectorAll(sel));
+
+  function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+
+  async function getLatestRID(){
+    const r = await fetch("/api/vsp/runs?limit=1",{cache:"no-store"});
+    const j = await r.json();
+    const row = (j.runs && j.runs[0]) || {};
+    return row.rid || row.run_id || "";
+  }
+
+  async function fetchPage(rid, offset, limit, severity, tool, q){
+    const u = new URL("/api/vsp/findings_page", location.origin);
+    u.searchParams.set("rid", rid);
+    u.searchParams.set("offset", String(offset));
+    u.searchParams.set("limit", String(limit));
+    if (severity) u.searchParams.set("severity", severity);
+    if (tool) u.searchParams.set("tool", tool);
+    if (q) u.searchParams.set("q", q);
+    const r = await fetch(u.toString(), {cache:"no-store"});
+    const j = await r.json();
+    return j;
+  }
+
+  function renderTable(root, j){
+    const rows = j.page || [];
+    const tbody = rows.map(x=>`
+      <tr>
+        <td class="sev">${esc(x.severity||"")}</td>
+        <td class="tool">${esc(x.tool||"")}</td>
+        <td class="rule">${esc(x.rule_id||"")}</td>
+        <td class="title">${esc(x.title||"")}</td>
+        <td class="file">${esc(x.file||"")}</td>
+        <td class="line">${esc(x.line||"")}</td>
+      </tr>
+    `).join("");
+    $(".vsp_ds_tbody", root).innerHTML = tbody || `<tr><td colspan="6" style="opacity:.75">No data</td></tr>`;
+    $(".vsp_ds_total", root).textContent = String(j.total ?? 0);
+  }
+
+  function mount(){
+    const root = document.getElementById("vsp_ds_root");
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="vsp_ds_bar">
+        <div class="left">
+          <span class="label">RID</span>
+          <input id="vsp_ds_rid" placeholder="RID..." />
+          <button id="vsp_ds_use_latest">Latest</button>
+        </div>
+        <div class="right">
+          <input id="vsp_ds_q" placeholder="Search (title/file/rule)..." />
+          <select id="vsp_ds_sev">
+            <option value="">All Sev</option>
+            <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>INFO</option><option>TRACE</option>
+          </select>
+          <input id="vsp_ds_tool" placeholder="Tool..." style="width:140px" />
+        </div>
+      </div>
+
+      <div class="vsp_ds_meta">
+        Total: <b class="vsp_ds_total">0</b>
+        <span style="opacity:.7;margin-left:10px">Page size</span>
+        <select id="vsp_ds_limit"><option>50</option><option selected>200</option><option>500</option></select>
+      </div>
+
+      <div class="vsp_ds_table_wrap">
+        <table class="vsp_ds_table">
+          <thead><tr>
+            <th>Sev</th><th>Tool</th><th>Rule</th><th>Title</th><th>File</th><th>Line</th>
+          </tr></thead>
+          <tbody class="vsp_ds_tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="vsp_ds_pager">
+        <button id="vsp_ds_prev">Prev</button>
+        <span id="vsp_ds_page">0</span>
+        <button id="vsp_ds_next">Next</button>
+      </div>
+    `;
+
+    // minimal CSS (safe inline)
+    const style = document.createElement("style");
+    style.textContent = `
+      .vsp_ds_bar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:10px 0;}
+      .vsp_ds_bar .left,.vsp_ds_bar .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .vsp_ds_bar input,.vsp_ds_bar select{background:#0b1220;border:1px solid rgba(255,255,255,.08);color:#e8eefc;border-radius:10px;padding:8px 10px}
+      .vsp_ds_bar button{background:#0b1220;border:1px solid rgba(255,255,255,.12);color:#e8eefc;border-radius:10px;padding:8px 10px;cursor:pointer}
+      .vsp_ds_table_wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:14px}
+      .vsp_ds_table{width:100%;border-collapse:collapse;font-size:13px}
+      .vsp_ds_table th,.vsp_ds_table td{padding:10px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+      .vsp_ds_table th{position:sticky;top:0;background:#070e1a;z-index:1}
+      .vsp_ds_pager{display:flex;gap:10px;align-items:center;justify-content:center;margin:12px 0}
+    `;
+    document.head.appendChild(style);
+
+    let state = { rid:"", offset:0, limit:200, severity:"", tool:"", q:"" };
+
+    async function load(){
+      if (!state.rid) return;
+      const j = await fetchPage(state.rid, state.offset, state.limit, state.severity, state.tool, state.q);
+      if (!j.ok){
+        $(".vsp_ds_tbody", root).innerHTML = `<tr><td colspan="6" style="opacity:.8">ERR: ${esc(j.err||"unknown")}</td></tr>`;
+        $(".vsp_ds_total", root).textContent = "0";
+        return;
+      }
+      renderTable(root, j);
+      const pageIdx = Math.floor(state.offset / state.limit) + 1;
+      $("#vsp_ds_page").textContent = `Page ${pageIdx}`;
+    }
+
+    $("#vsp_ds_use_latest").onclick = async ()=>{
+      state.rid = await getLatestRID();
+      $("#vsp_ds_rid").value = state.rid;
+      state.offset = 0;
+      await load();
+    };
+
+    $("#vsp_ds_prev").onclick = async ()=>{
+      state.offset = Math.max(0, state.offset - state.limit);
+      await load();
+    };
+    $("#vsp_ds_next").onclick = async ()=>{
+      state.offset = state.offset + state.limit;
+      await load();
+    };
+
+    $("#vsp_ds_rid").addEventListener("change", async (e)=>{
+      state.rid = e.target.value.trim();
+      state.offset = 0;
+      await load();
+    });
+
+    $("#vsp_ds_limit").addEventListener("change", async (e)=>{
+      state.limit = parseInt(e.target.value,10) || 200;
+      state.offset = 0;
+      await load();
+    });
+
+    $("#vsp_ds_sev").addEventListener("change", async (e)=>{
+      state.severity = e.target.value.trim();
+      state.offset = 0;
+      await load();
+    });
+
+    $("#vsp_ds_tool").addEventListener("change", async (e)=>{
+      state.tool = e.target.value.trim();
+      state.offset = 0;
+      await load();
+    });
+
+    let t=null;
+    $("#vsp_ds_q").addEventListener("input", async (e)=>{
+      clearTimeout(t);
+      t=setTimeout(async ()=>{
+        state.q = e.target.value.trim();
+        state.offset = 0;
+        await load();
+      }, 250);
+    });
+
+    // auto latest
+    $("#vsp_ds_use_latest").click();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
+})();
+JS
+
+node --check "$JS" >/dev/null 2>&1 || { echo "[ERR] JS syntax"; exit 2; }
+echo "[OK] wrote $JS"
+
+python3 - <<'PY'
+from pathlib import Path
+import re, glob
+
+MARK="VSP_P0_DATA_SOURCE_LAZY_UI_V1"
+tpls = sorted(glob.glob("templates/*data_source*.html")) + sorted(glob.glob("templates/*datasource*.html"))
+if not tpls:
+    print("[WARN] no data_source template found to patch (ok). You can manually include /static/js/vsp_data_source_lazy_v1.js and <div id='vsp_ds_root'></div>.")
+    raise SystemExit(0)
+
+for t in tpls:
+    p=Path(t)
+    s=p.read_text(encoding="utf-8", errors="replace")
+    if MARK in s:
+        print("[SKIP] already patched:", t)
+        continue
+
+    # ensure root div
+    if "id=\"vsp_ds_root\"" not in s:
+        s = re.sub(r"(</body\s*>)", r"\n<div id=\"vsp_ds_root\"></div>\n\1", s, flags=re.I) or (s + "\n<div id=\"vsp_ds_root\"></div>\n")
+
+    # ensure script include
+    if "vsp_data_source_lazy_v1.js" not in s:
+        s = re.sub(r"(</body\s*>)", r"\n<script src=\"/static/js/vsp_data_source_lazy_v1.js\"></script>\n\1", s, flags=re.I) or (s + "\n<script src=\"/static/js/vsp_data_source_lazy_v1.js\"></script>\n")
+
+    s = s + f"\n<!-- {MARK} -->\n"
+    p.write_text(s, encoding="utf-8")
+    print("[OK] patched template:", t)
+PY
+
+echo "[DONE] Reload /data_source (Ctrl+F5)."

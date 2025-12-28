@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+# Hard gate: must pass before pack
+bash bin/ui_gate.sh
+
+echo "[pack_release] using: bin/legacy/p39_pack_commercial_release_v1b.sh"
+bash "bin/legacy/p39_pack_commercial_release_v1b.sh"
+

@@ -1,0 +1,271 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+F="static/js/vsp_c_dashboard_v1.js"
+[ -f "$F" ] || { echo "[ERR] missing $F"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$F" "${F}.bak_p118d_${TS}"
+echo "[OK] backup: ${F}.bak_p118d_${TS}"
+
+cat > "$F" <<'JS'
+/* VSP_P118D_FIX_TOPFINDINGS_TARGET_TABLE_V1
+ * - Always inject Top Findings into the REAL table (SEVERITY/TITLE/TOOL/FILE)
+ * - Never inject into KPI card that also has text "Top Findings"
+ * - Keeps rid sanitizer + auto latest + trend mini
+ */
+(() => {
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  function qparam(name){
+    try { return new URLSearchParams(location.search).get(name); } catch(e){ return null; }
+  }
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = (v === null || v === undefined) ? "" : String(v);
+  }
+  function escapeHtml(s){
+    s = String(s || "");
+    return s.replace(/[&<>"']/g, (c) => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+  function isValidRid(r){
+    if (!r) return false;
+    r = String(r).trim();
+    if (!r) return false;
+    const up = r.toUpperCase();
+    if (/FILL_REAL_DATA|\.JS|\.CSS|TABS_P1_V1/.test(up)) return false;
+    if (/^(VSP_CI_\d{8}_\d{6})$/.test(r)) return true;
+    if (/^(RUN_)/.test(r) && /\d/.test(r) && r.length > 12) return true;
+    if (/^(RUN_VSP_)/.test(r) && /\d/.test(r)) return true;
+    if (!/^(VSP_|RUN_)/.test(r)) return false;
+    if (!/\d/.test(r)) return false;
+    if (!/^[A-Za-z0-9_:-]+$/.test(r)) return false;
+    return true;
+  }
+  async function fetchJson(url){
+    const r = await fetch(url, { credentials: "same-origin" });
+    const t = await r.text();
+    let j=null; try{ j=JSON.parse(t); }catch(e){}
+    return { ok:r.ok, status:r.status, json:j, text:t };
+  }
+  async function resolveRid(){
+    let rid = qparam("rid");
+    if (rid !== null) rid = (rid || "").trim();
+    if (isValidRid(rid)) return rid;
+
+    // if URL has garbage rid => remove it
+    if (rid !== null && rid && !isValidRid(rid)) {
+      try {
+        const u = new URL(location.href);
+        u.searchParams.delete("rid");
+        location.replace(u.toString());
+        return null;
+      } catch(e){}
+    }
+
+    const runs = await fetchJson(`/api/ui/runs_v3?limit=1&include_ci=1`);
+    const latest = (runs?.json?.items?.[0]?.rid || "").trim();
+    if (isValidRid(latest)) return latest;
+
+    try {
+      const last = (localStorage.getItem("vsp_rid") || "").trim();
+      if (isValidRid(last)) return last;
+      if (last && !isValidRid(last)) localStorage.removeItem("vsp_rid");
+    } catch(e){}
+    return "";
+  }
+
+  function getFileLike(it){
+    if (!it) return "";
+    const loc = it.location;
+    if (typeof loc === "string" && loc) return loc;
+    if (loc && typeof loc === "object") return loc.path || loc.file || loc.url || loc.uri || "";
+    const comp = it.component || "";
+    const ver = it.version ? `@${it.version}` : "";
+    return (comp || "") + ver;
+  }
+  function normalizeFinding(it){
+    return {
+      severity: String(it?.severity || it?.sev || it?.level || "").toUpperCase(),
+      title: String(it?.title || it?.message || it?.id || ""),
+      tool: String(it?.tool || it?.engine || it?.source || ""),
+      file: String(getFileLike(it) || "")
+    };
+  }
+
+  // ✅ find the REAL table by header text
+  function findTopFindingsTable(){
+    const tables = $$("table");
+    const want = ["SEVERITY","TITLE","TOOL","FILE"];
+    for (const tb of tables){
+      const headTxt = (tb.querySelector("thead") || tb).textContent || "";
+      const up = headTxt.toUpperCase();
+      if (want.every(w => up.includes(w))) return tb;
+    }
+    // fallback: any element that looks like header row grid
+    const candidates = $$("*").filter(el => {
+      const t = (el.textContent || "").toUpperCase();
+      return t.includes("SEVERITY") && t.includes("TITLE") && t.includes("TOOL") && t.includes("FILE");
+    });
+    for (const c of candidates){
+      const nearTable = c.closest("table");
+      if (nearTable) return nearTable;
+    }
+    return null;
+  }
+
+  function renderTopFindings(items){
+    const rows = (Array.isArray(items) ? items : [])
+      .map(normalizeFinding)
+      .filter(r => r && (r.title || r.severity || r.tool || r.file))
+      .slice(0, 50);
+
+    const table = findTopFindingsTable();
+    if (!table) return;
+
+    let body = table.querySelector("tbody");
+    if (!body) {
+      body = document.createElement("tbody");
+      table.appendChild(body);
+    }
+    body.innerHTML = "";
+
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="4" style="opacity:.75;padding:10px">No findings</td>`;
+      body.appendChild(tr);
+      return;
+    }
+
+    for (const r of rows){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="padding:8px 10px;opacity:.9;white-space:nowrap">${escapeHtml(r.severity || "-")}</td>
+        <td style="padding:8px 10px;opacity:.95">${escapeHtml(r.title)}</td>
+        <td style="padding:8px 10px;opacity:.85;white-space:nowrap">${escapeHtml(r.tool)}</td>
+        <td style="padding:8px 10px;opacity:.75">${escapeHtml(r.file)}</td>
+      `;
+      body.appendChild(tr);
+    }
+  }
+
+  function renderTrendMini(points){
+    const host = document.getElementById("trend-mini");
+    if (!host) return;
+
+    let series = [];
+    if (Array.isArray(points)) {
+      for (const p of points) {
+        const y =
+          (typeof p.total === "number" ? p.total :
+          typeof p.count === "number" ? p.count :
+          typeof p.value === "number" ? p.value :
+          typeof p.y === "number" ? p.y : null);
+        if (y === null) continue;
+        const xLabel = (p.label ?? p.x ?? p.ts ?? p.time ?? "");
+        series.push({ xLabel, y });
+      }
+    }
+    if (series.length < 2){
+      host.innerHTML = `<div style="opacity:.75;font-size:12px">No trend data</div>`;
+      return;
+    }
+
+    const W = 520, H = 90, P = 10;
+    const ys = series.map(s => s.y);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const span = (maxY - minY) || 1;
+    const xAt = (i) => P + (i * (W - P*2) / (series.length - 1));
+    const yAt = (y) => (H - P) - ((y - minY) * (H - P*2) / span);
+
+    let d = "";
+    for (let i=0;i<series.length;i++){
+      const x = xAt(i), y = yAt(series[i].y);
+      d += (i===0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
+    }
+    const last = series[series.length-1];
+    const first = series[0];
+
+    host.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:12px;opacity:.85">Trend (last=${last.y})</div>
+        <div style="font-size:11px;opacity:.7">${String(first.xLabel).slice(0,16)} → ${String(last.xLabel).slice(0,16)}</div>
+      </div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="border:1px solid rgba(255,255,255,.06);border-radius:10px">
+        <path d="${d}" fill="none" stroke="rgba(80,180,255,.95)" stroke-width="2"/>
+        <circle cx="${xAt(series.length-1)}" cy="${yAt(last.y)}" r="3.5" fill="rgba(255,255,255,.95)"/>
+      </svg>
+    `;
+  }
+
+  async function main(){
+    const rid = await resolveRid();
+    if (rid === null) return;
+
+    if (isValidRid(rid)) {
+      try { localStorage.setItem("vsp_rid", rid); } catch(e){}
+      try { window.VSP_RID = rid; } catch(e){}
+    }
+
+    // ensure URL has rid
+    try {
+      const u = new URL(location.href);
+      const cur = (u.searchParams.get("rid") || "").trim();
+      if (!cur && isValidRid(rid)) {
+        u.searchParams.set("rid", rid);
+        location.replace(u.toString());
+        return;
+      }
+    } catch(e){}
+
+    setText("p-rid", rid || "(no rid)");
+    setText("k-time", new Date().toLocaleString());
+    setText("k-status", "Loading…");
+
+    const qs = rid ? `?rid=${encodeURIComponent(rid)}` : "";
+    const [kpis, top, trend] = await Promise.all([
+      fetchJson(`/api/vsp/dashboard_kpis_v4${qs}`),
+      fetchJson(`/api/vsp/top_findings_v2?limit=50${rid ? `&rid=${encodeURIComponent(rid)}` : ""}`),
+      fetchJson(`/api/vsp/trend_v1${qs}`),
+    ]);
+
+    if (kpis.ok && kpis.json){
+      const j = kpis.json;
+      setText("k-total", j.total ?? j.kpi_total ?? j.summary?.total ?? "");
+      setText("k-from", j.from ?? j.label ?? j.ts ?? "");
+    }
+
+    if (top.ok && top.json){
+      const items = top.json.items ?? top.json.rows ?? top.json.data ?? [];
+      renderTopFindings(Array.isArray(items) ? items : []);
+      setText("k-toplen", top.json.total ?? (Array.isArray(items)?items.length:"") );
+    } else {
+      renderTopFindings([]);
+    }
+
+    if (trend.ok && trend.json){
+      const pts = trend.json.points ?? trend.json.items ?? trend.json.data ?? [];
+      renderTrendMini(Array.isArray(pts) ? pts : []);
+      setText("k-trend", Array.isArray(pts) ? pts.length : "");
+    } else {
+      renderTrendMini([]);
+    }
+
+    setText("k-status", (kpis.ok && top.ok && trend.ok) ? "OK" : "DEGRADED");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", main);
+  } else {
+    main();
+  }
+})();
+JS
+
+echo "[OK] wrote $F"
+echo "[NEXT] Hard refresh: Ctrl+Shift+R on http://127.0.0.1:8910/c/dashboard?rid=VSP_CI_20251219_092640"

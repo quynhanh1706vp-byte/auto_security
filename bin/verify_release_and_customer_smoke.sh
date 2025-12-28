@@ -1,0 +1,1 @@
+../official/verify_release_and_customer_smoke.sh

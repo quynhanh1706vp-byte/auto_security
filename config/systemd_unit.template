@@ -1,0 +1,31 @@
+# VSP UI systemd unit template (commercial)
+# Install suggestion:
+#   - Copy this to: /etc/systemd/system/vsp-ui-8910.service
+#   - Create env file: /etc/vsp-ui/production.env (from production.env.example)
+#   - mkdir -p /var/log/vsp-ui && chown -R test:test /var/log/vsp-ui
+[Unit]
+Description=VSP UI Gateway (commercial)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=test
+Group=test
+WorkingDirectory=/home/test/Data/SECURITY_BUNDLE/ui
+EnvironmentFile=/etc/vsp-ui/production.env
+
+UMask=0027
+Restart=always
+RestartSec=2
+TimeoutStartSec=25
+TimeoutStopSec=15
+LimitNOFILE=65535
+
+StandardOutput=append:/var/log/vsp-ui/vsp-ui.out.log
+StandardError=append:/var/log/vsp-ui/vsp-ui.err.log
+
+ExecStart=/home/test/Data/SECURITY_BUNDLE/ui/bin/vsp_ui_start.sh
+
+[Install]
+WantedBy=multi-user.target

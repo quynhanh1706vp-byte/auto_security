@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+SVC="${VSP_UI_SVC:-vsp-ui-8910.service}"
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+APP="vsp_demo_app.py"
+TS="$(date +%Y%m%d_%H%M%S)"
+OUT="out_ci/p4844_${TS}"
+mkdir -p "$OUT"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1" | tee -a "$OUT/log.txt"; exit 2; }; }
+need python3; need date; need curl
+command -v sudo >/dev/null 2>&1 || true
+
+[ -f "$APP" ] || { echo "[ERR] missing $APP" | tee -a "$OUT/log.txt"; exit 2; }
+
+BK="$OUT/${APP}.bak_before_p4844_${TS}"
+cp -f "$APP" "$BK"
+echo "[OK] backup => $BK" | tee -a "$OUT/log.txt"
+
+python3 - <<'PY' | tee -a "$OUT/log.txt"
+from pathlib import Path
+import re, sys
+
+p = Path("vsp_demo_app.py")
+s = p.read_text(encoding="utf-8", errors="replace")
+lines = s.splitlines(True)
+
+fix_limit = 0
+fix_contract_return = 0
+examples = []
+
+# (1) Fix common extra ')' in limit/offset lines (safe heuristic)
+for i, ln in enumerate(lines):
+    raw = ln.rstrip("\n")
+    if "request.args.get" not in raw:
+        continue
+    # only touch if paren balance is off by +1 (one extra ')')
+    if raw.count(")") - raw.count("(") == 1 and raw.strip().endswith(")"):
+        # remove ONE trailing ')'
+        new_raw = re.sub(r"\)\s*$", "", raw, count=1)
+        if new_raw != raw:
+            lines[i] = new_raw + ("\n" if ln.endswith("\n") else "")
+            fix_limit += 1
+            if len(examples) < 5:
+                examples.append(("paren-rescue", i+1, raw.strip(), new_raw.strip()))
+
+# (2) Fix "return jsonify(_vsp_runs_v3_contract(...)" missing closing parens
+for i, ln in enumerate(lines):
+    raw = ln.rstrip("\n")
+    if "return jsonify(_vsp_runs_v3_contract(" not in raw:
+        continue
+    opens = raw.count("(")
+    closes = raw.count(")")
+    if opens <= closes:
+        continue
+    missing = opens - closes
+    # add missing ')' at EOL
+    new_raw = raw + (")" * missing)
+    lines[i] = new_raw + ("\n" if ln.endswith("\n") else "")
+    fix_contract_return += 1
+    if len(examples) < 10:
+        examples.append(("return-fix", i+1, raw.strip(), new_raw.strip()))
+
+s2 = "".join(lines)
+
+# (3) Inject after_request contract middleware for /api/vsp/runs_v3
+MARK = "VSP_P4844_RUNS_V3_CONTRACT_MW"
+if MARK not in s2:
+    mw = r'''
+# === {MARK} ===
+try:
+    import json as _vsp_json
+except Exception:
+    _vsp_json = None
+
+try:
+    @app.after_request
+    def _vsp_p4844_runs_v3_contract(resp):
+        try:
+            from flask import request as _req
+            if _req.path != "/api/vsp/runs_v3":
+                return resp
+            if _vsp_json is None:
+                return resp
+            mt = (getattr(resp, "mimetype", "") or "")
+            if "json" not in mt:
+                return resp
+            data = None
+            try:
+                data = resp.get_json(silent=True)
+            except Exception:
+                data = None
+            if not isinstance(data, dict):
+                return resp
+
+            # normalize: accept either {runs:[...]} or {items:[...]}
+            if "items" not in data and "runs" in data:
+                data["items"] = data.get("runs") or []
+            if "runs" not in data and "items" in data:
+                data["runs"] = data.get("items") or []
+            rr = data.get("runs") or data.get("items") or []
+            if data.get("total") in (None, 0) and isinstance(rr, list):
+                data["total"] = len(rr)
+
+            raw = _vsp_json.dumps(data, ensure_ascii=False)
+            b = raw.encode("utf-8")
+            resp.set_data(b)
+            resp.headers["Content-Length"] = str(len(b))
+            resp.headers["X-VSP-P4844-RUNS3"] = "1"
+            return resp
+        except Exception:
+            return resp
+except Exception:
+    pass
+# === /{MARK} ===
+'''.replace("{MARK}", MARK).strip("\n") + "\n"
+
+    # prefer inject after app=Flask(...)
+    m = re.search(r'^\s*app\s*=\s*Flask\s*\(.*\)\s*$', s2, flags=re.M)
+    if m:
+        ins = m.end()
+        s2 = s2[:ins] + "\n\n" + mw + s2[ins:]
+        injected = "after app=Flask(...)"
+    else:
+        # fallback: after imports header
+        m2 = re.search(r'^(import .+|from .+ import .+)(\r?\n)+', s2, flags=re.M)
+        if m2:
+            ins = m2.end()
+            s2 = s2[:ins] + "\n" + mw + s2[ins:]
+            injected = "after imports"
+        else:
+            s2 = mw + "\n" + s2
+            injected = "top (fallback)"
+else:
+    injected = "already-present"
+
+p.write_text(s2, encoding="utf-8")
+
+print(f"[P4844] fixed: limit_paren={fix_limit} return_jsonify_contract={fix_contract_return}")
+print(f"[P4844] middleware inject: {injected}")
+if examples:
+    print("[P4844] examples:")
+    for k,ln,b,a in examples[:10]:
+        print(f" - {k} L{ln}: {b}  =>  {a}")
+PY
+
+# compile gate
+if ! python3 -m py_compile "$APP" 2>>"$OUT/log.txt"; then
+  echo "[ERR] py_compile failed; restoring backup..." | tee -a "$OUT/log.txt"
+  cp -f "$BK" "$APP"
+  exit 3
+fi
+echo "[OK] py_compile ok" | tee -a "$OUT/log.txt"
+
+# restart service
+if command -v sudo >/dev/null 2>&1; then
+  echo "[INFO] restart $SVC" | tee -a "$OUT/log.txt"
+  sudo systemctl restart "$SVC" || true
+  sudo systemctl is-active "$SVC" || true
+fi
+
+# smoke runs_v3
+echo "== [SMOKE] /api/vsp/runs_v3 ==" | tee -a "$OUT/log.txt"
+curl -fsS "$BASE/api/vsp/runs_v3?limit=5&include_ci=1" -D "$OUT/hdr.txt" -o "$OUT/body.json"
+python3 - <<'PY' | tee -a "$OUT/log.txt"
+import json, pathlib
+p = pathlib.Path(__file__).resolve().parent.parent / "out_ci" / pathlib.Path("$OUT").name / "body.json"
+j = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+print("keys=", sorted(j.keys()))
+print("items_len=", len(j.get("items") or []) if isinstance(j.get("items"), list) else type(j.get("items")).__name__)
+print("runs_len=", len(j.get("runs") or []) if isinstance(j.get("runs"), list) else type(j.get("runs")).__name__)
+print("total=", j.get("total"))
+PY
+echo "== headers marker ==" | tee -a "$OUT/log.txt"
+grep -i "X-VSP-P4844-RUNS3" -n "$OUT/hdr.txt" | tee -a "$OUT/log.txt" || true
+
+echo "[OK] P4844 done. Reopen /c/runs then Ctrl+Shift+R" | tee -a "$OUT/log.txt"
+echo "[OK] log: $OUT/log.txt"

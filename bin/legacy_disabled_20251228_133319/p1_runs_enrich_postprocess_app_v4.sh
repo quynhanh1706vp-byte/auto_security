@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need python3; need date; need curl; need sed
+
+F="wsgi_vsp_ui_gateway.py"
+[ -f "$F" ] || { echo "[ERR] missing $F"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$F" "${F}.bak_runs_enrich_appv4_${TS}"
+echo "[BACKUP] ${F}.bak_runs_enrich_appv4_${TS}"
+
+python3 - <<'PY'
+from pathlib import Path
+import textwrap
+
+p = Path("wsgi_vsp_ui_gateway.py")
+s = p.read_text(encoding="utf-8", errors="replace")
+
+marker = "VSP_P1_RUNS_ENRICH_APP_POST_V4"
+if marker in s:
+    print("[SKIP] already patched:", marker)
+    raise SystemExit(0)
+
+block = textwrap.dedent(r"""
+# --- VSP_P1_RUNS_ENRICH_APP_POST_V4 ---
+# Post-process WSGI response for PATH_INFO=/api/vsp/runs.
+# This avoids guessing which internal router branch generates the JSON.
+try:
+    import json as _vsp_json
+    from pathlib import Path as _VspPath
+    from werkzeug.wrappers import Response as _WzResp
+except Exception:
+    _vsp_json = None
+    _VspPath = None
+    _WzResp = None
+
+def _vsp_runs_enrich_data_v4(data):
+    try:
+        if _VspPath is None:
+            return data
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+            return data
+
+        roots = list(data.get("roots_used") or [])
+        # Add extra roots defensively (your earlier output had ui/out_ci sometimes)
+        extra = ["/home/test/Data/SECURITY_BUNDLE/ui/out_ci", "/home/test/Data/SECURITY_BUNDLE/out_ci"]
+        for r in extra:
+            if r not in roots:
+                roots.append(r)
+
+        gate_candidates = [
+            "run_gate_summary.json",
+            "reports/run_gate_summary.json",
+            "run_gate.json",
+            "reports/run_gate.json",
+        ]
+        findings_candidates = [
+            "reports/findings_unified.json",
+            "findings_unified.json",
+        ]
+
+        def find_run_dir(rid: str):
+            for root in roots:
+                if not root:
+                    continue
+                cand = _VspPath(root) / rid
+                if cand.exists():
+                    return cand
+            return None
+
+        rid_latest_gate = None
+        rid_latest_findings = None
+
+        for it in data["items"]:
+            if not isinstance(it, dict):
+                continue
+            rid = it.get("run_id")
+            if not rid:
+                continue
+            rd = find_run_dir(rid)
+            has_gate = False
+            has_findings = False
+            if rd is not None:
+                for rel in gate_candidates:
+                    if (rd / rel).exists():
+                        has_gate = True
+                        break
+                for rel in findings_candidates:
+                    if (rd / rel).exists():
+                        has_findings = True
+                        break
+
+            it.setdefault("has", {})
+            it["has"]["gate"] = bool(has_gate)
+            it["has"]["findings"] = bool(has_findings)
+
+            if rid_latest_gate is None and has_gate:
+                rid_latest_gate = rid
+            if rid_latest_findings is None and has_findings:
+                rid_latest_findings = rid
+
+        data["rid_latest_gate"] = rid_latest_gate
+        data["rid_latest_findings"] = rid_latest_findings
+        data["rid_latest"] = rid_latest_gate or rid_latest_findings or data.get("rid_latest")
+        return data
+    except Exception:
+        return data
+
+try:
+    _vsp_app_prev_v4 = application  # type: ignore[name-defined]
+    def application(environ, start_response):  # noqa: F811
+        resp = _vsp_app_prev_v4(environ, start_response)
+        try:
+            if _vsp_json is None or _WzResp is None:
+                return resp
+            path = (environ or {}).get("PATH_INFO", "")
+            if path != "/api/vsp/runs":
+                return resp
+
+            # Only handle Werkzeug Response
+            if isinstance(resp, _WzResp):
+                body = resp.get_data(as_text=True) or ""
+                if len(body) > 2_000_000:
+                    return resp
+
+                data = _vsp_json.loads(body)
+                data2 = _vsp_runs_enrich_data_v4(data)
+                out = _vsp_json.dumps(data2, ensure_ascii=False)
+                resp.set_data(out)
+                resp.mimetype = "application/json"
+                resp.headers["X-VSP-RUNS-ENRICH"] = "V4"
+                # content-length auto-updated by werkzeug on set_data, but keep safe:
+                resp.headers["Content-Length"] = str(len(resp.get_data()))
+                return resp(environ, start_response)
+
+            return resp
+        except Exception:
+            return resp
+except Exception:
+    pass
+""").strip() + "\n"
+
+p.write_text(s.rstrip() + "\n\n" + block, encoding="utf-8")
+print("[OK] appended:", marker)
+PY
+
+python3 -m py_compile "$F"
+echo "[OK] py_compile OK"
+
+sudo systemctl restart vsp-ui-8910.service
+
+BASE=http://127.0.0.1:8910
+echo "== HEAD /api/vsp/runs (must include X-VSP-RUNS-ENRICH: V4) =="
+curl -sS -I "$BASE/api/vsp/runs?limit=2" | sed -n '1,25p'
+
+echo
+echo "== BODY /api/vsp/runs?limit=2 (must include rid_latest_gate/findings + item.has.gate/findings) =="
+curl -sS "$BASE/api/vsp/runs?limit=2" | head -c 1600; echo

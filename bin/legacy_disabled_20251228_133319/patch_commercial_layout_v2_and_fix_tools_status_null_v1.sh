@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+TS="$(date +%Y%m%d_%H%M%S)"
+
+CTRL="static/js/vsp_commercial_layout_controller_v1.js"
+[ -f "$CTRL" ] || { echo "[ERR] missing $CTRL (controller not installed?)"; exit 2; }
+cp -f "$CTRL" "$CTRL.bak_v2_${TS}" && echo "[BACKUP] $CTRL.bak_v2_${TS}"
+
+# --- 1) Upgrade controller to V2 (hide by heading text + stronger degraded/runs hiding) ---
+cat > "$CTRL" <<'JS'
+/* VSP_COMMERCIAL_LAYOUT_CONTROLLER_V2
+ * - Hide runs/degraded strip outside #runs
+ * - Hide policy/verdict blocks by heading text (OVERALL VERDICT / TOOLS STATUS / COMMERCIAL OPERATIONAL POLICY / DEGRADED TOOLS)
+ * - Policy/Verdict shown only via floating panel button
+ * - Widen container + kill accidental scale/zoom wrappers
+ */
+(function(){
+  'use strict';
+  if (window.__VSP_COMMERCIAL_LAYOUT_CONTROLLER_V2) return;
+  const TAG = "[VSP_COMMERCIAL_LAYOUT_CONTROLLER]";
+
+  const state = { route:"", policyOpen:false, lastApply:0 };
+
+  const RUNS_SEL = [
+    "#vsp_runs_strip","#vsp-runs-strip",".vsp-runs-strip",".runs-strip",
+    "#vsp_runs_table","#vsp-runs-table",".vsp-runs-table",".runs-table",
+    ".vsp-degraded-banner",".degraded-banner","#vsp_degraded_banner","#vsp-degraded-banner"
+  ];
+
+  const HEADINGS = [
+    "OVERALL VERDICT",
+    "COMMERCIAL OPERATIONAL POLICY",
+    "TOOLS STATUS",
+    "DEGRADED TOOLS"
+  ];
+
+  function normRoute(){
+    const h = (location.hash || "#dashboard").replace(/^#/, "");
+    const r = h.split("?")[0].trim().toLowerCase();
+    if (!r || r === "home") return "dashboard";
+    return r;
+  }
+
+  function closestAny(n, sels){
+    for (const s of sels){
+      const c = n.closest(s);
+      if (c) return c;
+    }
+    return null;
+  }
+
+  function setHidden(n, hide){
+    if (!n || !n.style) return;
+    n.style.display = hide ? "none" : "";
+  }
+
+  function setHiddenMany(nodes, hide){
+    nodes.forEach(n=>setHidden(n, hide));
+  }
+
+  function qsAll(selList){
+    const out=[];
+    selList.forEach(s=>{
+      try{ document.querySelectorAll(s).forEach(n=>out.push(n)); }catch(_){}
+    });
+    return out;
+  }
+
+  function widenMainContainer(){
+    if (document.getElementById("vsp_commercial_css_v2")) return;
+    const st=document.createElement("style");
+    st.id="vsp_commercial_css_v2";
+    st.textContent = `
+      .container,.vsp-container,.container-fluid,main,.main{
+        max-width: 1440px !important;
+        width: min(1440px, calc(100vw - 40px)) !important;
+        margin-left:auto !important;
+        margin-right:auto !important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function killScaleWrappers(){
+    const candidates=[];
+    ["#app","#root",".app",".vsp-app","main",".main",".container",".vsp-container"].forEach(s=>{
+      try{ const n=document.querySelector(s); if(n) candidates.push(n); }catch(_){}
+    });
+    try{ document.body && Array.from(document.body.children).slice(0,6).forEach(n=>candidates.push(n)); }catch(_){}
+    const seen=new Set();
+    candidates.forEach(n=>{
+      if(!n || seen.has(n)) return;
+      seen.add(n);
+      try{
+        const cs=getComputedStyle(n);
+        const t=cs.transform||"";
+        if(t.startsWith("matrix(")){
+          const m=t.slice(7,-1).split(",").map(x=>parseFloat(x.trim()));
+          if(m.length>=4){
+            const sx=Math.abs(m[0]), sy=Math.abs(m[3]);
+            if((sx && sx<0.99) || (sy && sy<0.99)){
+              n.style.transform="none"; n.style.width="100%"; n.style.maxWidth="none";
+              console.info(TAG,"removed scale wrapper",{sel:n.id||n.className||n.tagName,sx,sy});
+            }
+          }
+        }
+        const z=(cs.zoom||"");
+        if(z && z!=="1" && z!=="normal"){ n.style.zoom="1"; console.info(TAG,"reset zoom",{sel:n.id||n.className||n.tagName,zoom:z}); }
+      }catch(_){}
+    });
+  }
+
+  function ensureFab(){
+    if (document.getElementById("vsp_policy_fab_v1")) return;
+    const fab=document.createElement("button");
+    fab.id="vsp_policy_fab_v1";
+    fab.type="button";
+    fab.textContent="Policy / Verdict";
+    fab.style.cssText=[
+      "position:fixed","right:18px","bottom:18px","z-index:99999",
+      "padding:10px 12px","border-radius:12px",
+      "border:1px solid rgba(255,255,255,0.12)",
+      "background:rgba(18,18,20,0.92)","color:#fff",
+      "font-weight:700","font-size:13px",
+      "box-shadow:0 8px 22px rgba(0,0,0,0.35)",
+      "cursor:pointer"
+    ].join(";");
+
+    const panel=document.createElement("div");
+    panel.id="vsp_policy_panel_v1";
+    panel.style.cssText=[
+      "position:fixed","right:18px","bottom:64px","z-index:99998",
+      "width:min(560px, calc(100vw - 36px))",
+      "max-height:min(72vh, 720px)","overflow:auto",
+      "border-radius:14px",
+      "border:1px solid rgba(255,255,255,0.12)",
+      "background:rgba(12,12,14,0.96)",
+      "box-shadow:0 14px 42px rgba(0,0,0,0.45)",
+      "padding:14px","display:none"
+    ].join(";");
+
+    const hdr=document.createElement("div");
+    hdr.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;";
+    const title=document.createElement("div");
+    title.textContent="Commercial Policy / Overall Verdict";
+    title.style.cssText="font-weight:800;font-size:13px;opacity:0.92;";
+    const close=document.createElement("button");
+    close.type="button"; close.textContent="Close";
+    close.style.cssText="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:#fff;cursor:pointer;";
+    hdr.appendChild(title); hdr.appendChild(close);
+    panel.appendChild(hdr);
+
+    const body=document.createElement("div");
+    body.id="vsp_policy_panel_body_v2";
+    panel.appendChild(body);
+
+    function toggle(open){
+      state.policyOpen = (open!==undefined) ? !!open : !state.policyOpen;
+      panel.style.display = state.policyOpen ? "block" : "none";
+      console.info(TAG,"policyOpen=",state.policyOpen,"route=",state.route);
+    }
+    fab.addEventListener("click",()=>toggle());
+    close.addEventListener("click",()=>toggle(false));
+
+    document.body.appendChild(fab);
+    document.body.appendChild(panel);
+  }
+
+  function isHeadingMatch(text){
+    const t=(text||"").trim().toUpperCase();
+    return HEADINGS.some(h=>t===h || t.startsWith(h));
+  }
+
+  function collectCommercialBlocksByHeading(){
+    const blocks=[];
+    const headingNodes = Array.from(document.querySelectorAll("h1,h2,h3,h4,div,span"))
+      .filter(n=>{
+        const txt=(n.textContent||"").trim();
+        if(!txt || txt.length>80) return false;
+        return isHeadingMatch(txt);
+      });
+
+    const wrapSels = [".vsp-card",".dashboard-card",".card",".panel",".box",".section","section","article","main > div","main"];
+    headingNodes.forEach(h=>{
+      const wrap = closestAny(h, wrapSels) || h.parentElement;
+      if (wrap && !blocks.includes(wrap)) blocks.push(wrap);
+    });
+
+    return blocks;
+  }
+
+  function hideRunsStripOutsideRuns(){
+    const isRuns = (state.route==="runs" || state.route.startsWith("runs/"));
+    const nodes = qsAll(RUNS_SEL);
+    setHiddenMany(nodes, !isRuns);
+    // extra: hide any top strip containing 'Degraded tools' outside runs
+    if(!isRuns){
+      Array.from(document.querySelectorAll("div,span"))
+        .filter(n => ((n.textContent||"").toLowerCase().includes("degraded tools")))
+        .slice(0,12)
+        .forEach(n=>{
+          const wrap = n.closest(".vsp-card,.card,.panel,header,section,div") || n;
+          setHidden(wrap, true);
+        });
+    }
+    return nodes.length;
+  }
+
+  function moveBlocksToPanel(blocks){
+    const body = document.getElementById("vsp_policy_panel_body_v2");
+    if(!body) return;
+    // hide originals
+    blocks.forEach(b=>setHidden(b,true));
+    // clone into panel
+    body.innerHTML="";
+    if(blocks.length===0){
+      const empty=document.createElement("div");
+      empty.textContent="No policy/verdict blocks detected.";
+      empty.style.cssText="opacity:0.75;font-size:12px;line-height:1.4;";
+      body.appendChild(empty);
+      return;
+    }
+    blocks.forEach((b,i)=>{
+      const wrap=document.createElement("div");
+      wrap.style.cssText="margin-bottom:12px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03);";
+      const cap=document.createElement("div");
+      cap.textContent="Block "+(i+1);
+      cap.style.cssText="font-weight:800;font-size:12px;opacity:0.85;margin-bottom:8px;";
+      wrap.appendChild(cap);
+      wrap.appendChild(b.cloneNode(true));
+      body.appendChild(wrap);
+    });
+  }
+
+  function apply(){
+    const now=Date.now();
+    if(now - state.lastApply < 120) return;
+    state.lastApply=now;
+
+    state.route = normRoute();
+    try{ document.body.dataset.vspRoute = state.route; }catch(_){}
+
+    widenMainContainer();
+    killScaleWrappers();
+    ensureFab();
+
+    const runsNodes = hideRunsStripOutsideRuns();
+    const blocks = collectCommercialBlocksByHeading();
+    moveBlocksToPanel(blocks);
+
+    console.info(TAG,"apply route=",state.route,"isRuns=", (state.route==="runs"||state.route.startsWith("runs/")) ,"runsNodes=",runsNodes,"blocks=",blocks.length);
+  }
+
+  window.__VSP_COMMERCIAL_LAYOUT_CONTROLLER_V2 = { apply, debug:()=>({route:state.route,hash:location.hash,policyOpen:state.policyOpen}) };
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", apply, {once:true});
+  else apply();
+
+  window.addEventListener("hashchange", ()=>setTimeout(apply,30));
+  window.addEventListener("popstate", ()=>setTimeout(apply,30));
+  setTimeout(apply,300);
+  setTimeout(apply,1200);
+  setTimeout(apply,2500);
+})();
+JS
+
+echo "[OK] controller upgraded to V2: $CTRL"
+
+# --- 2) Fix tools_status null crash (patch any matching JS files) ---
+python3 - <<'PY'
+from pathlib import Path
+import re, time
+
+root = Path("static/js")
+cands = []
+for p in root.glob("*.js"):
+    name = p.name.lower()
+    if "tools_status" in name or "tool_status" in name:
+        cands.append(p)
+
+# also fallback: grep-like scan for signature
+more=[]
+sig = "Cannot set properties of null"
+for p in root.glob("*.js"):
+    try:
+        t=p.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        continue
+    if "tools_status" in t and ("textContent" in t or "innerHTML" in t):
+        more.append(p)
+
+for p in more:
+    if p not in cands:
+        cands.append(p)
+
+if not cands:
+    print("[WARN] no tools_status js candidates found to patch")
+    raise SystemExit(0)
+
+ts = time.strftime("%Y%m%d_%H%M%S")
+patched=0
+for p in cands:
+    s = p.read_text(encoding="utf-8", errors="ignore")
+    orig = s
+
+    # add helper once
+    if "__vsp_q(" not in s:
+        inject = "function __vsp_q(sel){ try{return document.querySelector(sel);}catch(_){return null;} }\n"
+        s = inject + s
+
+    # make querySelector textContent/innerHTML safe
+    s = re.sub(r'document\.querySelector\(([^)]+)\)\.textContent',
+               r'(__vsp_q(\1)||{}).textContent', s)
+    s = re.sub(r'document\.querySelector\(([^)]+)\)\.innerHTML',
+               r'(__vsp_q(\1)||{}).innerHTML', s)
+
+    # make getElementById safe too
+    s = re.sub(r'document\.getElementById\(([^)]+)\)\.textContent',
+               r'(document.getElementById(\1)||{}).textContent', s)
+    s = re.sub(r'document\.getElementById\(([^)]+)\)\.innerHTML',
+               r'(document.getElementById(\1)||{}).innerHTML', s)
+
+    if s != orig:
+        bak = p.with_suffix(p.suffix + f".bak_nullfix_{ts}")
+        bak.write_text(orig, encoding="utf-8")
+        p.write_text(s, encoding="utf-8")
+        print("[OK] patched", p, "backup=>", bak.name)
+        patched += 1
+
+print("[DONE] tools_status null-fix patched files =", patched)
+PY
+
+echo "[DONE] patch V2 controller + tools_status nullfix."
+echo "Next: restart UI + Ctrl+Shift+R + Ctrl+0"

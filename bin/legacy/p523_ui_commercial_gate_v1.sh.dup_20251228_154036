@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+echo "[ui_gate] using: bin/legacy/p550_gate_run_to_report_v1d.sh"
+bash "bin/legacy/p550_gate_run_to_report_v1d.sh"
+

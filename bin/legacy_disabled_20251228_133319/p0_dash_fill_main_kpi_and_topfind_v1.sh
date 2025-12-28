@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need date; need node
+command -v systemctl >/dev/null 2>&1 || true
+
+SVC="${VSP_UI_SVC:-vsp-ui-8910.service}"
+JS="static/js/vsp_dash_only_v1.js"
+[ -f "$JS" ] || { echo "[ERR] missing $JS"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$JS" "${JS}.bak_fill_main_${TS}"
+echo "[BACKUP] ${JS}.bak_fill_main_${TS}"
+
+python3 - <<'PY'
+from pathlib import Path
+import textwrap
+
+p=Path("static/js/vsp_dash_only_v1.js")
+s=p.read_text(encoding="utf-8", errors="replace")
+MARK="VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1"
+if MARK in s:
+    print("[SKIP] already patched:", MARK)
+    raise SystemExit(0)
+
+patch = r"""
+/* ===================== VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 =====================
+   Goal: Populate existing dashboard KPI cards + Top findings table in the main layout
+         using safe one-shot heuristics (no loops).
+*/
+(()=> {
+  try{
+    if (window.__VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1) return;
+    window.__VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 = true;
+
+    const log=(...a)=>console.log("[VSP][FILL_MAIN_V1]",...a);
+
+    function esc(s){
+      return String(s??"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // --- KPI fill (by label text: TOTAL/CRITICAL/HIGH/MEDIUM/LOW/INFO/TRACE) ---
+    function findLabelEl(label){
+      const want = String(label).trim().toUpperCase();
+      const all = document.querySelectorAll("div,span,small,strong,b");
+      for (const el of all){
+        const t = (el.textContent||"").trim().toUpperCase();
+        if (t === want) return el;
+      }
+      return null;
+    }
+    function findValueSlot(cardRoot){
+      // find a short text node element that currently shows dash/empty (— or -)
+      const cands = cardRoot.querySelectorAll("div,span,strong,b");
+      for (const el of cands){
+        const t = (el.textContent||"").trim();
+        if (t in {"—":"—","-":"-","--":"--"} or t == "—" or t == "-" or t == "--"):
+          return el
+      return null;
+    }
+
+    function fillOneKpi(label, value){
+      const labEl = findLabelEl(label);
+      if (!labEl) return false;
+      // card root: climb a bit
+      let root = labEl;
+      for (let i=0;i<5 && root && root.parentElement;i++){
+        root = root.parentElement;
+        // heuristic: stop when the block contains the label + looks like a card
+        const txt = (root.textContent||"").toUpperCase();
+        if (txt.includes(label) && txt.length < 200) break;
+      }
+      if (!root) return false;
+
+      // pick a value slot: prefer first element that is just "—" within root
+      const els = root.querySelectorAll("div,span,strong,b");
+      for (const el of els){
+        const t = (el.textContent||"").trim();
+        if (t === "—" || t === "-" || t === "--"){
+          el.textContent = String(value ?? "-");
+          return true;
+        }
+      }
+      // fallback: set last big-ish element
+      if (els.length){
+        els[0].textContent = String(value ?? "-");
+        return true;
+      }
+      return false;
+    }
+
+    function fillKpisFromSummary(summary){
+      const c = (summary && summary.counts_total) ? summary.counts_total : {};
+      // TOTAL is sum of severities
+      const total = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].reduce((a,k)=>a+(Number(c[k]||0)||0),0);
+      fillOneKpi("TOTAL", total);
+      fillOneKpi("CRITICAL", c.CRITICAL);
+      fillOneKpi("HIGH", c.HIGH);
+      fillOneKpi("MEDIUM", c.MEDIUM);
+      fillOneKpi("LOW", c.LOW);
+      fillOneKpi("INFO", c.INFO);
+      fillOneKpi("TRACE", c.TRACE);
+      log("kpi filled", {total});
+    }
+
+    // --- Top findings table fill: find section by heading text "Top findings" then fill its table tbody ---
+    function findTopFindingsTbody(){
+      // find element that contains "Top findings" header
+      const all = document.querySelectorAll("h1,h2,h3,h4,div,span");
+      let anchor = null;
+      for (const el of all){
+        const t = (el.textContent||"").trim().toLowerCase();
+        if (t === "top findings (sample)" || t.startsWith("top findings")){
+          anchor = el;
+          break;
+        }
+      }
+      if (!anchor) return null;
+
+      // find nearest table below anchor
+      let node = anchor;
+      for (let i=0;i<6 && node && node.parentElement;i++) node = node.parentElement;
+      if (!node) node = document.body;
+
+      const table = node.querySelector("table") || document.querySelector("table");
+      if (!table) return null;
+      const tbody = table.querySelector("tbody");
+      return tbody;
+    }
+
+    function renderTopFindingsInMain(items){
+      const tbody = findTopFindingsTbody();
+      if (!tbody){
+        log("cannot find main top findings tbody");
+        return false;
+      }
+      if (!Array.isArray(items) || items.length === 0){
+        tbody.innerHTML = `<tr><td colspan="4" style="padding:10px;opacity:.75">No items</td></tr>`;
+        return true;
+      }
+      tbody.innerHTML = items.map(it=>{
+        const sev = esc(it.severity||"");
+        const tool = esc(it.tool||"");
+        const title = esc(it.title||"");
+        const loc = esc((it.file||"") + (it.line? (":" + it.line) : ""));
+        return `<tr>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${sev}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${tool}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${title}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06);font-family:ui-monospace,Menlo,Consolas,monospace">${loc}</td>
+        </tr>`;
+      }).join("");
+      return true;
+    }
+
+    // --- Hook into MIN_STABLE panel buttons (if present) to also update main layout ---
+    function hookPanelButtons(){
+      const btnTop = document.getElementById("vsp_ms_top");
+      const btnReload = document.getElementById("vsp_ms_reload");
+      const ridEl = document.getElementById("vsp_ms_rid");
+      const rid = ridEl ? (ridEl.textContent||"").trim() : "";
+
+      if (btnReload && !btnReload.__vsp_hooked){
+        btnReload.__vsp_hooked = true;
+        btnReload.addEventListener("click", async ()=>{
+          try{
+            if (!rid) return;
+            const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`;
+            const res = await fetch(url, {cache:"no-store"});
+            const j = await res.json();
+            fillKpisFromSummary(j);
+          }catch(e){ console.error("[VSP][FILL_MAIN_V1] reload hook err", e); }
+        });
+      }
+
+      if (btnTop && !btnTop.__vsp_hooked){
+        btnTop.__vsp_hooked = true;
+        btnTop.addEventListener("click", async ()=>{
+          try{
+            if (!rid) return;
+            const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=25`;
+            const res = await fetch(url, {cache:"no-store"});
+            const j = await res.json();
+            if (j && j.ok) renderTopFindingsInMain(j.items||[]);
+          }catch(e){ console.error("[VSP][FILL_MAIN_V1] top hook err", e); }
+        });
+      }
+      log("hooked panel buttons");
+    }
+
+    // wait a tick for MIN_STABLE panel to be created
+    setTimeout(hookPanelButtons, 200);
+
+  }catch(e){
+    console.error("[VSP][FILL_MAIN_V1] fatal", e);
+  }
+})();
+"""
+p.write_text(s + "\n\n" + patch + "\n", encoding="utf-8")
+print("[OK] appended:", MARK)
+PY
+
+node --check "$JS"
+echo "[OK] node --check passed"
+systemctl restart "$SVC" 2>/dev/null || true
+echo "[DONE] Ctrl+Shift+R /vsp5 -> KPI cards should fill after Reload summary; Top table fills after Load top findings."

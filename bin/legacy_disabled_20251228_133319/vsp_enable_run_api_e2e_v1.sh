@@ -1,0 +1,576 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+TS="$(date +%Y%m%d_%H%M%S)"
+echo "[ROOT] $ROOT"
+echo "[TS]   $TS"
+
+backup() {
+  local f="$1"
+  [ -f "$f" ] || return 0
+  cp "$f" "$f.bak_runapi_${TS}"
+  echo "[BACKUP] $f.bak_runapi_${TS}"
+}
+
+# ----------------------------
+# 1) Create run_api package + blueprint
+# ----------------------------
+mkdir -p run_api
+touch run_api/__init__.py
+
+cat > run_api/vsp_run_api_v1.py << 'PY'
+#!/usr/bin/env python3
+import json
+import os
+import re
+import subprocess
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from flask import Blueprint, jsonify, request
+
+bp_vsp_run_api_v1 = Blueprint("vsp_run_api_v1", __name__)
+
+# UI root = .../SECURITY_BUNDLE/ui
+UI_ROOT = Path(__file__).resolve().parents[1]
+BUNDLE_ROOT = Path(os.environ.get("VSP_BUNDLE_ROOT", str(UI_ROOT.parent)))
+UI_OUT = UI_ROOT / "out_ci" / "req"
+UI_OUT.mkdir(parents=True, exist_ok=True)
+
+def _utc_now_iso():
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+def _safe_read_json(p: Path):
+    try:
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return None
+    return None
+
+def _safe_write_json(p: Path, obj):
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def _tail_text(p: Path, max_bytes: int = 6000) -> str:
+    try:
+        if not p.exists():
+            return ""
+        with p.open("rb") as f:
+            f.seek(0, os.SEEK_END)
+            n = f.tell()
+            start = max(0, n - max_bytes)
+            f.seek(start, os.SEEK_SET)
+            data = f.read()
+        return data.decode("utf-8", errors="replace")
+    except Exception as e:
+        return f"[tail_error] {e}"
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+def _pick_latest_ci_run_dir(target: str) -> str:
+    """Fallback: pick newest target/out_ci/VSP_CI_*"""
+    try:
+        out_ci = Path(target) / "out_ci"
+        if not out_ci.exists():
+            return ""
+        cands = sorted(out_ci.glob("VSP_CI_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+        return str(cands[0]) if cands else ""
+    except Exception:
+        return ""
+
+def _parse_ci_run_dir_from_log(log_text: str) -> str:
+    # Examples:
+    # [E2E] Latest RUN_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_085816
+    # RUN_DIR    = /home/.../out_ci/VSP_CI_...
+    pats = [
+        r'Latest\s+RUN_DIR\s*=\s*(/[^ \n]+/out_ci/VSP_CI_[0-9_]+)',
+        r'RUN_DIR\s*=\s*(/[^ \n]+/out_ci/VSP_CI_[0-9_]+)',
+        r'CI_RUN_DIR\s*=\s*(/[^ \n]+/out_ci/VSP_CI_[0-9_]+)',
+    ]
+    for pat in pats:
+        m = re.search(pat, log_text)
+        if m:
+            return m.group(1)
+    return ""
+
+def _compute_gate_from_summary(summary_path: Path, max_critical: int, max_high: int):
+    summary = _safe_read_json(summary_path) or {}
+    bysev = (summary.get("summary_by_severity") or summary.get("by_severity") or {})
+    c = int(bysev.get("CRITICAL", 0) or 0)
+    h = int(bysev.get("HIGH", 0) or 0)
+    gate = "PASS"
+    reasons = []
+    if c > max_critical:
+        gate = "FAIL"
+        reasons.append(f"CRITICAL({c})>{max_critical}")
+    if h > max_high:
+        gate = "FAIL"
+        reasons.append(f"HIGH({h})>{max_high}")
+    return gate, {"CRITICAL": c, "HIGH": h, "MEDIUM": int(bysev.get("MEDIUM", 0) or 0),
+                  "LOW": int(bysev.get("LOW", 0) or 0), "INFO": int(bysev.get("INFO", 0) or 0),
+                  "TRACE": int(bysev.get("TRACE", 0) or 0)}, reasons
+
+def _sync_ci_to_bundle(ci_run_dir: str) -> dict:
+    sync = BUNDLE_ROOT / "bin" / "vsp_ci_sync_to_vsp_v1.sh"
+    if not sync.exists():
+        return {"ok": False, "error": f"sync script not found: {sync}"}
+    try:
+        cp = subprocess.run(["bash", str(sync), ci_run_dir], capture_output=True, text=True, timeout=60*10)
+        ok = (cp.returncode == 0)
+        # infer VSP_RUN_ID
+        run_id = ""
+        m = re.search(r'VSP_RUN_DIR\s*=\s*(\S+)', cp.stdout + "\n" + cp.stderr)
+        if m:
+            # path .../out/RUN_VSP_CI_...
+            run_id = Path(m.group(1)).name
+        return {"ok": ok, "rc": cp.returncode, "vsp_run_id": run_id, "stdout": cp.stdout[-2000:], "stderr": cp.stderr[-2000:]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@bp_vsp_run_api_v1.route("/api/vsp/run", methods=["POST"])
+def api_vsp_run():
+    body = request.get_json(silent=True) or {}
+    mode = (body.get("mode") or "local").lower().strip()
+    profile = (body.get("profile") or "FULL_EXT").strip()
+    target_type = (body.get("target_type") or "path").strip()
+    target = (body.get("target") or os.environ.get("VSP_DEFAULT_TARGET") or "/home/test/Data/SECURITY-10-10-v4").strip()
+
+    # Gate thresholds (commercial default)
+    max_critical = int(body.get("max_critical", os.environ.get("MAX_CRITICAL", 0)))
+    max_high = int(body.get("max_high", os.environ.get("MAX_HIGH", 10)))
+
+    if target_type != "path":
+        return jsonify({"ok": False, "error": "Only target_type=path is supported (commercial v1)."}), 400
+
+    # Resolve outer script
+    outer_root = os.environ.get("VSP_OUTER_ROOT", "/home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER")
+    outer_script = os.environ.get("VSP_OUTER_SCRIPT", str(Path(outer_root) / "vsp_ci_outer_full_v1.sh"))
+    outer_root_p = Path(outer_root)
+
+    req_id = f"UIREQ_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    req_dir = UI_OUT / req_id
+    req_dir.mkdir(parents=True, exist_ok=True)
+
+    log_path = req_dir / "outer.log"
+    req_path = req_dir / "request.json"
+    st_path = req_dir / "status.json"
+
+    req_obj = {
+        "req_id": req_id,
+        "created_at": _utc_now_iso(),
+        "mode": mode,
+        "profile": profile,
+        "target_type": target_type,
+        "target": target,
+        "max_critical": max_critical,
+        "max_high": max_high,
+        "outer_root": outer_root,
+        "outer_script": outer_script,
+    }
+    _safe_write_json(req_path, req_obj)
+
+    st_obj = {
+        "ok": True,
+        "req_id": req_id,
+        "status": "RUNNING",
+        "final": False,
+        "gate": "UNKNOWN",
+        "created_at": _utc_now_iso(),
+        "started_at": _utc_now_iso(),
+        "finished_at": None,
+        "exit_code": None,
+        "ci_run_dir": "",
+        "vsp_run_id": "",
+        "flag": {"has_findings": None},
+        "severity": {},
+        "reasons": [],
+        "sync": {"done": False, "ok": None},
+    }
+    _safe_write_json(st_path, st_obj)
+
+    env = os.environ.copy()
+    env["SRC"] = target
+    env["VSP_SRC"] = target
+    env["TARGET"] = target
+    env["PROFILE"] = profile
+    env["VSP_PROFILE"] = profile
+    env["MAX_CRITICAL"] = str(max_critical)
+    env["MAX_HIGH"] = str(max_high)
+
+    cmd = ["bash", str(outer_script)]
+    # We run from outer_root to match your manual runs
+    try:
+        with log_path.open("w", encoding="utf-8", errors="replace") as lf:
+            p = subprocess.Popen(
+                cmd,
+                cwd=str(outer_root_p),
+                env=env,
+                stdout=lf,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+        (req_dir / "pid.txt").write_text(str(p.pid), encoding="utf-8")
+    except Exception as e:
+        st_obj["status"] = "FAILED"
+        st_obj["final"] = True
+        st_obj["gate"] = "ERROR"
+        st_obj["finished_at"] = _utc_now_iso()
+        st_obj["exit_code"] = -1
+        st_obj["reasons"] = [f"spawn_error: {e}"]
+        _safe_write_json(st_path, st_obj)
+        return jsonify({"ok": False, "error": str(e), "req_id": req_id}), 500
+
+    return jsonify({
+        "ok": True,
+        "implemented": True,
+        "message": "Scan request accepted. Use /api/vsp/run_status/<REQ_ID> to poll.",
+        "req_id": req_id,
+        "profile": profile,
+        "target": target,
+        "max_critical": max_critical,
+        "max_high": max_high
+    })
+
+@bp_vsp_run_api_v1.route("/api/vsp/run_status/<req_id>", methods=["GET"])
+def api_vsp_run_status(req_id: str):
+    req_dir = UI_OUT / req_id
+    st_path = req_dir / "status.json"
+    req_path = req_dir / "request.json"
+    log_path = req_dir / "outer.log"
+    pid_path = req_dir / "pid.txt"
+
+    req_obj = _safe_read_json(req_path) or {"req_id": req_id}
+    st_obj = _safe_read_json(st_path) or {"ok": False, "req_id": req_id, "status": "UNKNOWN", "final": True}
+
+    tail = _tail_text(log_path, max_bytes=9000)
+
+    # If already final, just return tail + status
+    if st_obj.get("final"):
+        st_obj["tail"] = tail
+        return jsonify(st_obj)
+
+    pid = None
+    try:
+        if pid_path.exists():
+            pid = int(pid_path.read_text(encoding="utf-8").strip() or "0")
+    except Exception:
+        pid = None
+
+    alive = bool(pid and _pid_alive(pid))
+
+    if alive:
+        st_obj["tail"] = tail
+        st_obj["status"] = "RUNNING"
+        st_obj["final"] = False
+        _safe_write_json(st_path, st_obj)
+        return jsonify(st_obj)
+
+    # Process finished → finalize
+    st_obj["finished_at"] = _utc_now_iso()
+
+    # try parse CI_RUN_DIR from log or fallback
+    ci_run_dir = _parse_ci_run_dir_from_log(tail) or st_obj.get("ci_run_dir") or _pick_latest_ci_run_dir(req_obj.get("target",""))
+    st_obj["ci_run_dir"] = ci_run_dir
+
+    # Determine exit_code best-effort: parse from log
+    m = re.search(r'Final RC\s*=\s*([0-9-]+)', tail)
+    exit_code = int(m.group(1)) if m else (st_obj.get("exit_code") if st_obj.get("exit_code") is not None else 0)
+    st_obj["exit_code"] = exit_code
+
+    # Gate + has_findings from summary if exists
+    max_critical = int(req_obj.get("max_critical", 0))
+    max_high = int(req_obj.get("max_high", 10))
+    if ci_run_dir:
+        summary = Path(ci_run_dir) / "report" / "summary_unified.json"
+        if summary.exists():
+            gate, sev, reasons = _compute_gate_from_summary(summary, max_critical, max_high)
+            st_obj["gate"] = gate
+            st_obj["severity"] = sev
+            st_obj["reasons"] = reasons
+            total_findings = sum(int(sev.get(k,0) or 0) for k in ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"])
+            st_obj["flag"]["has_findings"] = 1 if total_findings > 0 else 0
+        else:
+            st_obj["gate"] = "UNKNOWN"
+            st_obj["reasons"] = (st_obj.get("reasons") or []) + ["summary_missing"]
+
+    # Auto sync once
+    if ci_run_dir and not (st_obj.get("sync") or {}).get("done"):
+        sync_res = _sync_ci_to_bundle(ci_run_dir)
+        st_obj["sync"] = {"done": True, **sync_res}
+        if sync_res.get("vsp_run_id"):
+            st_obj["vsp_run_id"] = sync_res["vsp_run_id"]
+
+    # Final status
+    # Prefer gate if computed; otherwise use exit_code
+    if st_obj.get("gate") == "FAIL" or (st_obj.get("exit_code") not in (0, None)):
+        st_obj["status"] = "FAILED"
+    else:
+        st_obj["status"] = "DONE"
+
+    st_obj["final"] = True
+    st_obj["tail"] = tail
+    _safe_write_json(st_path, st_obj)
+    return jsonify(st_obj)
+PY
+
+python3 -m py_compile run_api/vsp_run_api_v1.py
+echo "[OK] blueprint created: run_api/vsp_run_api_v1.py"
+
+# ----------------------------
+# 2) Patch vsp_demo_app.py to register blueprint
+# ----------------------------
+APP="vsp_demo_app.py"
+[ -f "$APP" ] || { echo "[ERR] not found: $APP"; exit 1; }
+backup "$APP"
+
+python3 - << 'PY'
+from pathlib import Path
+import re
+
+p = Path("vsp_demo_app.py")
+txt = p.read_text(encoding="utf-8", errors="replace").replace("\r\n","\n").replace("\r","\n")
+
+if "VSP_RUN_API_BLUEPRINT_V1" not in txt:
+    # place after app = Flask(...) if possible
+    m = re.search(r'(?m)^\s*app\s*=\s*Flask\(.+\)\s*$', txt)
+    inject = r'''
+
+# === VSP_RUN_API_BLUEPRINT_V1 ===
+try:
+    from run_api.vsp_run_api_v1 import bp_vsp_run_api_v1
+    app.register_blueprint(bp_vsp_run_api_v1)
+    print("[VSP_RUN_API] registered blueprint: /api/vsp/run + /api/vsp/run_status/<REQ_ID>")
+except Exception as e:
+    print("[VSP_RUN_API] WARN: cannot register run api blueprint:", e)
+# === END VSP_RUN_API_BLUEPRINT_V1 ===
+'''
+    if m:
+        pos = m.end()
+        txt = txt[:pos] + inject + txt[pos:]
+    else:
+        # fallback: append near end
+        txt += "\n" + inject
+
+p.write_text(txt, encoding="utf-8")
+print("[OK] patched vsp_demo_app.py: register blueprint")
+PY
+
+python3 -m py_compile vsp_demo_app.py
+echo "[OK] vsp_demo_app.py syntax OK"
+
+# ----------------------------
+# 3) Wire Runs UI: add Run Scan box into commercial panel
+# ----------------------------
+PANEL="static/js/vsp_runs_commercial_panel_v1.js"
+[ -f "$PANEL" ] || { echo "[ERR] not found: $PANEL"; exit 1; }
+backup "$PANEL"
+
+python3 - << 'PY'
+from pathlib import Path
+import re
+
+p = Path("static/js/vsp_runs_commercial_panel_v1.js")
+txt = p.read_text(encoding="utf-8", errors="replace")
+
+if "VSP_COMMERCIAL_RUN_SCAN_BOX_V1" in txt:
+    print("[SKIP] scan box already present")
+else:
+    # Inject scan UI block into ensureShell() after header row
+    # We'll insert a new block right before KPI cards section marker "Shown runs"
+    marker = "Shown runs"
+    idx = txt.find(marker)
+    if idx == -1:
+        raise SystemExit("[ERR] cannot find insertion marker in commercial panel")
+
+    inject = r'''
+        <!-- === VSP_COMMERCIAL_RUN_SCAN_BOX_V1 === -->
+        <div class="vsp-panel" style="margin-top:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="min-width:260px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">Target (path)</div>
+              <input class="vsp-input" id="vsp-cm-target" value="/home/test/Data/SECURITY-10-10-v4" />
+            </div>
+            <div style="min-width:160px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">Profile</div>
+              <select class="vsp-select" id="vsp-cm-profile">
+                <option value="FULL_EXT" selected>FULL_EXT</option>
+                <option value="FAST">FAST</option>
+              </select>
+            </div>
+            <div style="min-width:120px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">MAX_CRITICAL</div>
+              <input class="vsp-input" id="vsp-cm-maxc" value="0" />
+            </div>
+            <div style="min-width:120px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">MAX_HIGH</div>
+              <input class="vsp-input" id="vsp-cm-maxh" value="10" />
+            </div>
+            <button class="vsp-btn" id="vsp-cm-run-now">Run Scan Now</button>
+            <span class="vsp-subtle" id="vsp-cm-run-badge">Idle</span>
+          </div>
+
+          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr; gap:8px;">
+            <pre class="vsp-mono" id="vsp-cm-run-tail" style="max-height:220px; overflow:auto; font-size:11px; white-space:pre-wrap; border:1px solid rgba(255,255,255,0.08); padding:10px; border-radius:10px;"></pre>
+          </div>
+        </div>
+        <!-- === END VSP_COMMERCIAL_RUN_SCAN_BOX_V1 === -->
+'''
+    # insert before first occurrence of "Shown runs" label in shell HTML template
+    txt = txt[:idx] + inject + txt[idx:]
+
+    # Add JS functions: startScan + poll
+    # Insert near refresh() function definition by locating "async function refresh()"
+    pat = r'async function refresh\(\)\{'
+    m = re.search(pat, txt)
+    if not m:
+        raise SystemExit("[ERR] cannot find refresh() in panel JS")
+
+    helper = r'''
+  async function startScan(){
+    const badge = qs('#vsp-cm-run-badge');
+    const tailEl = qs('#vsp-cm-run-tail');
+    const btn = qs('#vsp-cm-run-now');
+
+    const target = (qs('#vsp-cm-target')?.value || '').trim();
+    const profile = (qs('#vsp-cm-profile')?.value || 'FULL_EXT').trim();
+    const maxc = parseInt((qs('#vsp-cm-maxc')?.value || '0').trim(), 10) || 0;
+    const maxh = parseInt((qs('#vsp-cm-maxh')?.value || '10').trim(), 10) || 10;
+
+    if (!target) {
+      badge.textContent = 'ERR: target empty';
+      return;
+    }
+
+    badge.textContent = 'Submitting…';
+    tailEl.textContent = '';
+    btn && (btn.disabled = true);
+
+    let reqId = '';
+    try{
+      const res = await fetch('/api/vsp/run', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({mode:'local', profile, target_type:'path', target, max_critical:maxc, max_high:maxh})
+      });
+      const js = await res.json();
+      if (!js.ok) throw new Error(js.error || ('HTTP ' + res.status));
+      reqId = js.req_id;
+      badge.textContent = 'RUNNING: ' + reqId;
+    }catch(err){
+      badge.textContent = 'ERR: ' + (err && err.message ? err.message : String(err));
+      btn && (btn.disabled = false);
+      return;
+    }
+
+    async function poll(){
+      try{
+        const r = await fetch('/api/vsp/run_status/' + encodeURIComponent(reqId), {cache:'no-store'});
+        const st = await r.json();
+        tailEl.textContent = st.tail || '';
+        const g = st.gate || 'UNKNOWN';
+        const s = st.status || 'RUNNING';
+        badge.textContent = `${s} • gate=${g} • ${reqId}`;
+
+        if (st.final){
+          btn && (btn.disabled = false);
+          // refresh runs table after finish
+          refresh();
+          return;
+        }
+      }catch(err){
+        badge.textContent = 'POLL_ERR: ' + (err && err.message ? err.message : String(err));
+      }
+      setTimeout(poll, 2000);
+    }
+    poll();
+  }
+'''
+    txt = txt[:m.start()] + helper + txt[m.start():]
+
+    # Wire button handler in mount()
+    # Find: "if (btn && !btn.__bound){"
+    if "vsp-cm-run-now" not in txt:
+        raise SystemExit("[ERR] scan button id not present")
+
+    # In mount(), after refresh button binding, add run-now binding
+    txt = re.sub(
+        r'(if \(btn && !btn\.__bound\)\{\s*[\s\S]*?\}\s*)',
+        r'\1\n    const runNow = qs("#vsp-cm-run-now");\n'
+        r'    if (runNow && !runNow.__bound) {\n'
+        r'      runNow.__bound = true;\n'
+        r'      runNow.addEventListener("click", startScan);\n'
+        r'    }\n',
+        txt,
+        count=1
+    )
+
+    p.write_text(txt, encoding="utf-8")
+    print("[OK] patched commercial panel: added Run Scan Now + polling box")
+PY
+
+# ----------------------------
+# 4) Restart UI
+# ----------------------------
+pkill -f vsp_demo_app.py || true
+mkdir -p out_ci
+nohup python3 vsp_demo_app.py > out_ci/ui_8910.log 2>&1 &
+sleep 1
+echo "[OK] UI restarted"
+tail -n 25 out_ci/ui_8910.log || true
+
+# ----------------------------
+# 5) Print test curl commands
+# ----------------------------
+cat << 'TXT'
+
+======================
+[E2E TEST - CURL]
+======================
+
+# 0) Health
+curl -s http://localhost:8910/__vsp_ui_whoami || true
+
+# 1) Create a NEW request (REQ_ID)
+REQ_ID="$(curl -s -X POST http://localhost:8910/api/vsp/run \
+  -H 'Content-Type: application/json' \
+  -d '{"mode":"local","profile":"FULL_EXT","target_type":"path","target":"/home/test/Data/SECURITY-10-10-v4","max_critical":0,"max_high":10}' \
+  | jq -r '.req_id')"
+echo "REQ_ID=$REQ_ID"
+
+# 2) Poll until final (DONE/FAILED). Shows gate + tail.
+while true; do
+  j="$(curl -s http://localhost:8910/api/vsp/run_status/$REQ_ID)"
+  echo "$j" | jq '{req_id,status,final,gate,exit_code,ci_run_dir,vsp_run_id,flag}'
+  fin="$(echo "$j" | jq -r '.final')"
+  if [ "$fin" = "true" ]; then
+    echo "=== FINAL TAIL ==="
+    echo "$j" | jq -r '.tail' | tail -n 80
+    break
+  fi
+  sleep 2
+done
+
+# 3) Verify Runs FS now includes latest synced RUN_VSP_CI_...
+curl -s "http://localhost:8910/api/vsp/runs_index_v3_fs?limit=5&hide_empty=1" | jq '.items[0]'
+
+======================
+[UI TEST]
+======================
+Open: http://localhost:8910/#runs
+- Use "Run Scan Now" box (Target/Profile/MAX_CRITICAL/MAX_HIGH)
+- Watch live tail + status badge
+- After final, Runs table refreshes automatically
+
+TXT
+
+echo "[DONE] vsp_enable_run_api_e2e_v1.sh completed."

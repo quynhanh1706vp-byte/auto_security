@@ -1,0 +1,1 @@
+../p525_verify_release_and_customer_smoke_v3.sh

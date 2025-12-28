@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+patch_tpl() {
+  local tpl="$1"
+  if [ ! -f "$tpl" ]; then
+    echo "[SKIP] $tpl không tồn tại"
+    return 0
+  fi
+
+  if grep -q 'vsp_dashboard_kpi_v1.js' "$tpl"; then
+    echo "[INFO] $tpl đã có KPI script, bỏ qua."
+    return 0
+  fi
+
+  local backup="${tpl}.bak_kpi_$(date +%Y%m%d_%H%M%S)"
+  cp "$tpl" "$backup"
+  echo "[BACKUP] $tpl -> $backup"
+
+  python - "$tpl" << 'PY'
+import sys
+path = sys.argv[1]
+txt = open(path, encoding="utf-8").read()
+
+needle = 'vsp_console_patch_v1.js"></script>'
+insert = needle + '\n    <script src="/static/js/vsp_dashboard_kpi_v1.js"></script>'
+
+if needle not in txt:
+    print(f"[WARN] Không tìm thấy vsp_console_patch_v1.js trong {path}, bỏ qua.")
+else:
+    txt = txt.replace(needle, insert)
+    open(path, "w", encoding="utf-8").write(txt)
+    print(f"[OK] Đã chèn KPI script sau console_patch trong {path}")
+PY
+}
+
+patch_tpl "$ROOT/templates/index.html"
+patch_tpl "$ROOT/templates/vsp_index.html"
+patch_tpl "$ROOT/templates/vsp_dashboard_2025.html"

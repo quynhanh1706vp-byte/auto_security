@@ -1,0 +1,10 @@
+/var/log/vsp-ui/*.log {
+  daily
+  rotate 14
+  compress
+  delaycompress
+  missingok
+  notifempty
+  copytruncate
+  su test test
+}

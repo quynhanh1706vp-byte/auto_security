@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+bash official/ui_gate.sh
+echo "[verify] using: bin/legacy/p525_verify_release_and_customer_smoke_v3.sh"
+bash "bin/legacy/p525_verify_release_and_customer_smoke_v3.sh"

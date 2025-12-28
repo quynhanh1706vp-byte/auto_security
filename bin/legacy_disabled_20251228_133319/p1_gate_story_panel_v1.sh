@@ -1,0 +1,529 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need python3; need date; need grep; need sed
+
+TS="$(date +%Y%m%d_%H%M%S)"
+echo "[INFO] TS=$TS"
+
+JS="static/js/vsp_dashboard_gate_story_v1.js"
+TPLS=(
+  "templates/vsp_5tabs_enterprise_v2.html"
+  "templates/vsp_dashboard_2025.html"
+)
+
+# 0) sanity
+[ -d static/js ] || { echo "[ERR] missing static/js"; exit 2; }
+
+# 1) write JS (Gate Story panel)
+if [ -f "$JS" ]; then
+  cp -f "$JS" "${JS}.bak_gate_story_${TS}"
+  echo "[BACKUP] ${JS}.bak_gate_story_${TS}"
+fi
+
+cat > "$JS" <<'JS'
+/* VSP_P1_GATE_STORY_PANEL_V1 */
+(() => {
+  if (window.__vsp_gate_story_panel_v1) return;
+  window.__vsp_gate_story_panel_v1 = true;
+
+  const CFG = {
+    runsUrl: "/api/vsp/runs?limit=1",
+    fileUrl: (rid) => `/api/vsp/run_file?rid=${encodeURIComponent(rid)}&name=${encodeURIComponent("reports/run_gate_summary.json")}`,
+    timeoutMs: 8000,
+    tools: ["bandit","semgrep","gitleaks","kics","trivy","syft","grype","codeql"],
+    debug: (localStorage.getItem("VSP_DEBUG_GATE_STORY") === "1"),
+  };
+
+  const dbg = (...a) => { if (CFG.debug) console.log("[GateStoryV1]", ...a); };
+
+  function esc(s){
+    return String(s ?? "")
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+  }
+
+  function pick(obj, paths){
+    for (const p of paths){
+      const parts = p.split(".");
+      let cur = obj;
+      let ok = true;
+      for (const k of parts){
+        if (cur && Object.prototype.hasOwnProperty.call(cur, k)) cur = cur[k];
+        else { ok = false; break; }
+      }
+      if (ok && cur !== undefined && cur !== null) return cur;
+    }
+    return undefined;
+  }
+
+  function normOverall(v){
+    const s = String(v ?? "").toUpperCase().trim();
+    if (["RED","FAIL","FAILED","BLOCK","BLOCKED","CRITICAL"].includes(s)) return "RED";
+    if (["AMBER","WARN","WARNING","DEGRADED","YELLOW"].includes(s)) return "AMBER";
+    if (["GREEN","PASS","PASSED","OK"].includes(s)) return "GREEN";
+    return s || "UNKNOWN";
+  }
+
+  function badgeTone(overall){
+    if (overall === "RED") return "vspgs-tone-red";
+    if (overall === "AMBER") return "vspgs-tone-amber";
+    if (overall === "GREEN") return "vspgs-tone-green";
+    return "vspgs-tone-unk";
+  }
+
+  function toolTone(state){
+    const s = String(state ?? "").toUpperCase();
+    if (s === "PASS" || s === "OK" || s === "GREEN") return "t-ok";
+    if (s === "FAIL" || s === "RED" || s === "BLOCKED") return "t-bad";
+    if (s === "DEGRADED" || s === "AMBER" || s === "WARN" || s === "TIMEOUT") return "t-warn";
+    if (s === "MISSING" || s === "SKIP" || s === "SKIPPED" || s === "N/A" || s === "NA") return "t-mute";
+    return "t-unk";
+  }
+
+  async function fetchJson(url, timeoutMs){
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), timeoutMs);
+    try{
+      const r = await fetch(url, {signal: ac.signal, headers: {"Accept":"application/json"}});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function findMount(){
+    // prepend “gọn ở đầu” và tránh phụ thuộc legacy grid
+    const candidates = [
+      document.querySelector("#vsp5_root"),
+      document.querySelector("#vsp_dashboard_root"),
+      document.querySelector("main"),
+      document.querySelector(".container"),
+      document.body
+    ].filter(Boolean);
+    return candidates[0] || document.body;
+  }
+
+  function ensureStyle(){
+    if (document.getElementById("vsp_gate_story_v1_style")) return;
+    const st = document.createElement("style");
+    st.id = "vsp_gate_story_v1_style";
+    st.textContent = `
+      .vspgs-wrap{ margin: 14px 14px 12px 14px; }
+      .vspgs-card{
+        border: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+        border-radius: 14px;
+        padding: 14px 14px;
+        box-shadow: 0 10px 26px rgba(0,0,0,0.35);
+      }
+      .vspgs-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .vspgs-title{ display:flex; align-items:center; gap:10px; min-width: 260px; }
+      .vspgs-dot{ width:10px; height:10px; border-radius:50%; background: rgba(255,255,255,0.18); box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }
+      .vspgs-h{ font-weight: 700; letter-spacing: 0.2px; font-size: 14px; opacity: 0.95; }
+      .vspgs-sub{ font-size: 12px; opacity: 0.75; margin-top: 2px; }
+      .vspgs-kpis{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+      .vspgs-pill{
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.20);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        display:flex; align-items:center; gap:8px;
+        white-space:nowrap;
+      }
+      .vspgs-ov{
+        font-weight:800;
+        padding: 6px 12px;
+        border-radius: 999px;
+        letter-spacing: 0.8px;
+        border: 1px solid rgba(255,255,255,0.14);
+      }
+      .vspgs-tone-red{ background: rgba(255, 73, 73, 0.16); color: rgba(255, 165, 165, 0.98); }
+      .vspgs-tone-amber{ background: rgba(255, 193, 7, 0.14); color: rgba(255, 228, 141, 0.98); }
+      .vspgs-tone-green{ background: rgba(46, 204, 113, 0.12); color: rgba(165, 255, 205, 0.98); }
+      .vspgs-tone-unk{ background: rgba(148, 163, 184, 0.12); color: rgba(226, 232, 240, 0.95); }
+      .vspgs-mid{ display:flex; gap:14px; margin-top: 10px; flex-wrap:wrap; }
+      .vspgs-left{ flex: 1 1 420px; min-width: 320px; }
+      .vspgs-right{ flex: 0 0 380px; min-width: 320px; }
+      .vspgs-reasons{ margin: 8px 0 0 0; padding: 0 0 0 18px; }
+      .vspgs-reasons li{ margin: 6px 0; font-size: 13px; opacity: 0.92; line-height: 1.25rem; }
+      .vspgs-strip{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top: 10px; }
+      .vspgs-tool{
+        font-size: 11px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(0,0,0,0.20);
+        display:flex; gap:6px; align-items:center;
+      }
+      .vspgs-tool b{ font-size: 11px; letter-spacing: 0.3px; }
+      .t-ok{ color: rgba(165, 255, 205, 0.98); }
+      .t-warn{ color: rgba(255, 228, 141, 0.98); }
+      .t-bad{ color: rgba(255, 165, 165, 0.98); }
+      .t-mute{ color: rgba(203, 213, 225, 0.72); }
+      .t-unk{ color: rgba(226, 232, 240, 0.90); }
+      .vspgs-actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top: 10px; }
+      .vspgs-btn{
+        cursor:pointer;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.22);
+        color: rgba(226, 232, 240, 0.95);
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-size: 12px;
+        text-decoration:none;
+      }
+      .vspgs-btn:hover{ background: rgba(255,255,255,0.06); }
+      .vspgs-muted{ opacity: 0.72; }
+      .vspgs-small{ font-size: 12px; opacity: 0.82; line-height: 1.2rem; }
+      .vspgs-hr{ height:1px; background: rgba(255,255,255,0.08); margin-top: 10px; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function normalizeTools(summary){
+    // attempt to locate tool dict/list across likely schemas
+    const byTool = pick(summary, ["by_tool","tools","tool_results","results.by_tool","results.tools"]) || {};
+    let list = [];
+    if (Array.isArray(byTool)) list = byTool;
+    const dict = (!Array.isArray(byTool) && typeof byTool === "object") ? byTool : null;
+
+    const toolState = {};
+    const toolDegraded = {};
+
+    const pullFromEntry = (entry) => {
+      const degraded = !!pick(entry, ["degraded","is_degraded","degrade","timeout","timed_out"]);
+      let st = pick(entry, ["status","state","verdict","result","gate","outcome"]);
+      if (typeof st === "string") st = st.toUpperCase();
+      if (!st) st = degraded ? "DEGRADED" : "UNKNOWN";
+      if (degraded && (st === "PASS" || st === "OK" || st === "GREEN")) st = "DEGRADED";
+      return {st, degraded};
+    };
+
+    for (const t of CFG.tools){
+      let entry = undefined;
+
+      if (dict){
+        entry = dict[t] ?? dict[t.toUpperCase()] ?? dict[t.toLowerCase()];
+      }
+      if (!entry && Array.isArray(list)){
+        entry = list.find(x => {
+          const n = String(pick(x, ["tool","name","id"]) ?? "").toLowerCase();
+          return n === t;
+        });
+      }
+      if (!entry){
+        // schema variants: semgrep_status etc.
+        const st2 = pick(summary, [`${t}_status`, `${t}.status`, `by_type.${t}.status`]);
+        const dg2 = pick(summary, [`${t}_degraded`, `${t}.degraded`, `by_type.${t}.degraded`]);
+        if (st2 || dg2 !== undefined){
+          toolState[t] = String(st2 ?? (dg2 ? "DEGRADED" : "UNKNOWN")).toUpperCase();
+          toolDegraded[t] = !!dg2;
+          continue;
+        }
+        toolState[t] = "UNKNOWN";
+        toolDegraded[t] = false;
+        continue;
+      }
+
+      const {st, degraded} = pullFromEntry(entry);
+      toolState[t] = st;
+      toolDegraded[t] = degraded;
+    }
+
+    let degradedCount = 0;
+    for (const t of CFG.tools) if (toolDegraded[t]) degradedCount++;
+
+    return {toolState, degradedCount};
+  }
+
+  function extractReasons(summary, overall, degradedCount, totals){
+    // prefer explicit reasons
+    let rs = pick(summary, ["top_reasons","reasons","why","verdict_reasons","gate_story.reasons","summary.reasons"]);
+    if (typeof rs === "string") rs = rs.split("\n").map(s => s.trim()).filter(Boolean);
+    if (Array.isArray(rs)) {
+      rs = rs.map(x => typeof x === "string" ? x : (x && x.text ? x.text : JSON.stringify(x)));
+      rs = rs.filter(Boolean).slice(0,3);
+    } else {
+      rs = [];
+    }
+
+    // derive fallback reasons if empty
+    if (rs.length === 0){
+      if (overall === "GREEN") rs.push("Không có điều kiện chặn gate từ bản tóm tắt hiện tại.");
+      if (totals && typeof totals.total === "number") rs.push(`Tổng findings: ${totals.total} (C/H/M/L/I/T: ${totals.breakdown}).`);
+      if (degradedCount > 0) rs.push(`Degraded: ${degradedCount}/${CFG.tools.length} tools (timeout/missing/partial).`);
+      const rid = pick(summary, ["run_id","rid","id"]);
+      if (rid) rs.push(`Run gần nhất: ${rid}.`);
+      rs = rs.filter(Boolean).slice(0,3);
+    }
+
+    return rs;
+  }
+
+  function extractTotals(summary){
+    // try known fields first
+    const sev = pick(summary, ["counts_by_severity","severity_counts","findings_by_severity","by_severity","counts.severity"]) || null;
+    const total = pick(summary, ["total_findings","findings_total","counts_total","total","findings.count_total","counts.total"]) ?? null;
+
+    if (sev && typeof sev === "object"){
+      const get = (k) => Number(sev[k] ?? sev[k.toUpperCase()] ?? sev[k.toLowerCase()] ?? 0) || 0;
+      const c = get("CRITICAL"), h = get("HIGH"), m = get("MEDIUM"), l = get("LOW"), i = get("INFO"), t = get("TRACE");
+      const sum = c+h+m+l+i+t;
+      const tot = (typeof total === "number") ? total : sum;
+      return { total: tot, c,h,m,l,i,t, breakdown: `${c}/${h}/${m}/${l}/${i}/${t}` };
+    }
+
+    // attempt flat fields like critical/high/...
+    const c = Number(pick(summary, ["critical","counts.critical","counts.CRITICAL"]) ?? 0) || 0;
+    const h = Number(pick(summary, ["high","counts.high","counts.HIGH"]) ?? 0) || 0;
+    const m = Number(pick(summary, ["medium","counts.medium","counts.MEDIUM"]) ?? 0) || 0;
+    const l = Number(pick(summary, ["low","counts.low","counts.LOW"]) ?? 0) || 0;
+    const i = Number(pick(summary, ["info","counts.info","counts.INFO"]) ?? 0) || 0;
+    const t = Number(pick(summary, ["trace","counts.trace","counts.TRACE"]) ?? 0) || 0;
+    const sum = c+h+m+l+i+t;
+
+    if (sum > 0 || typeof total === "number"){
+      const tot = (typeof total === "number") ? total : sum;
+      return { total: tot, c,h,m,l,i,t, breakdown: `${c}/${h}/${m}/${l}/${i}/${t}` };
+    }
+
+    return null;
+  }
+
+  function renderSkeleton(){
+    ensureStyle();
+    const mount = findMount();
+    const wrap = document.createElement("div");
+    wrap.className = "vspgs-wrap";
+    wrap.id = "vsp_gate_story_panel_v1";
+
+    wrap.innerHTML = `
+      <div class="vspgs-card">
+        <div class="vspgs-top">
+          <div class="vspgs-title">
+            <div class="vspgs-dot"></div>
+            <div>
+              <div class="vspgs-h">Gate Story</div>
+              <div class="vspgs-sub vspgs-muted">verdict + reasons + degraded/tools (latest run)</div>
+            </div>
+          </div>
+          <div class="vspgs-kpis">
+            <div class="vspgs-pill"><span class="vspgs-muted">Overall</span> <span class="vspgs-ov vspgs-tone-unk">…</span></div>
+            <div class="vspgs-pill"><span class="vspgs-muted">Degraded</span> <b id="vspgs_degraded">…</b></div>
+            <div class="vspgs-pill"><span class="vspgs-muted">Total</span> <b id="vspgs_total">…</b></div>
+          </div>
+        </div>
+
+        <div class="vspgs-mid">
+          <div class="vspgs-left">
+            <div class="vspgs-small vspgs-muted">Top reasons (3)</div>
+            <ol class="vspgs-reasons" id="vspgs_reasons">
+              <li class="vspgs-muted">Đang tải dữ liệu gate…</li>
+            </ol>
+            <div class="vspgs-hr"></div>
+            <div class="vspgs-small vspgs-muted">Tool strip (8 tools)</div>
+            <div class="vspgs-strip" id="vspgs_strip"></div>
+          </div>
+
+          <div class="vspgs-right">
+            <div class="vspgs-small vspgs-muted">Latest run</div>
+            <div class="vspgs-small" id="vspgs_runmeta">…</div>
+            <div class="vspgs-actions" id="vspgs_actions"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // prepend at top of mount
+    if (mount.firstChild) mount.insertBefore(wrap, mount.firstChild);
+    else mount.appendChild(wrap);
+
+    return wrap;
+  }
+
+  function setText(id, text){
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(text ?? "");
+  }
+
+  function setOverall(overall){
+    const el = document.querySelector("#vsp_gate_story_panel_v1 .vspgs-ov");
+    if (!el) return;
+    const o = normOverall(overall);
+    el.textContent = o;
+    el.classList.remove("vspgs-tone-red","vspgs-tone-amber","vspgs-tone-green","vspgs-tone-unk");
+    el.classList.add(badgeTone(o));
+  }
+
+  function renderReasons(reasons){
+    const ol = document.getElementById("vspgs_reasons");
+    if (!ol) return;
+    ol.innerHTML = reasons.map(x => `<li>${esc(x)}</li>`).join("");
+  }
+
+  function renderStrip(toolState){
+    const box = document.getElementById("vspgs_strip");
+    if (!box) return;
+    box.innerHTML = "";
+    for (const t of CFG.tools){
+      const st = String(toolState[t] ?? "UNKNOWN").toUpperCase();
+      const chip = document.createElement("div");
+      chip.className = `vspgs-tool ${toolTone(st)}`;
+      chip.innerHTML = `<b>${esc(t.toUpperCase())}</b><span class="vspgs-muted">•</span><span>${esc(st)}</span>`;
+      box.appendChild(chip);
+    }
+  }
+
+  function renderMeta(run, rid, totals){
+    const el = document.getElementById("vspgs_runmeta");
+    if (!el) return;
+    const started = pick(run, ["started_at","created_at","ts","time","when"]) || pick(run, ["meta.started_at","meta.created_at"]);
+    const overall = normOverall(pick(run, ["overall","overall_status","status","verdict"]) || "");
+    let s = `<div><b>RID</b>: <span class="vspgs-muted">${esc(rid)}</span></div>`;
+    if (started) s += `<div><b>Time</b>: <span class="vspgs-muted">${esc(started)}</span></div>`;
+    s += `<div><b>Run overall</b>: <span class="vspgs-muted">${esc(overall || "UNKNOWN")}</span></div>`;
+    if (totals) s += `<div><b>Sev</b>: <span class="vspgs-muted">C/H/M/L/I/T = ${esc(totals.breakdown)}</span></div>`;
+    el.innerHTML = s;
+  }
+
+  function renderActions(rid){
+    const box = document.getElementById("vspgs_actions");
+    if (!box) return;
+    const url = CFG.fileUrl(rid);
+
+    box.innerHTML = `
+      <a class="vspgs-btn" href="${esc(url)}" target="_blank" rel="noopener">Open run_gate_summary.json</a>
+      <a class="vspgs-btn" href="/runs" target="_blank" rel="noopener">Runs &amp; Reports</a>
+      <a class="vspgs-btn" href="/data_source" target="_blank" rel="noopener">Data Source</a>
+    `;
+  }
+
+  async function main(){
+    renderSkeleton();
+
+    try{
+      const runs = await fetchJson(CFG.runsUrl, CFG.timeoutMs);
+      dbg("runs", runs);
+
+      const run = (runs && Array.isArray(runs.items) && runs.items[0]) ? runs.items[0] : null;
+      const rid = pick(run, ["run_id","rid","id"]) || pick(runs, ["items.0.run_id","items.0.rid"]) || null;
+
+      if (!rid){
+        setOverall("UNKNOWN");
+        renderReasons(["Không lấy được RID từ /api/vsp/runs?limit=1 (items[0].run_id)."]);
+        renderStrip(Object.fromEntries(CFG.tools.map(t => [t,"UNKNOWN"])));
+        setText("vspgs_degraded", "0/8");
+        setText("vspgs_total", "—");
+        return;
+      }
+
+      // fetch gate summary
+      const sumUrl = CFG.fileUrl(rid);
+      let summary = null;
+      try{
+        summary = await fetchJson(sumUrl, CFG.timeoutMs);
+      } catch (e){
+        // if run_file returns non-json but still ok, try text->json
+        try{
+          const r = await fetch(sumUrl, {headers: {"Accept":"application/json"}});
+          const txt = await r.text();
+          summary = JSON.parse(txt);
+        } catch (e2){
+          summary = null;
+        }
+      }
+      dbg("summary", summary);
+
+      const overall = normOverall(
+        pick(summary, ["overall","overall_status","status","verdict","gate.overall"]) ??
+        pick(run, ["overall","overall_status","status","verdict"]) ??
+        "UNKNOWN"
+      );
+      setOverall(overall);
+
+      const totals = summary ? extractTotals(summary) : null;
+      setText("vspgs_total", totals ? String(totals.total) : "—");
+
+      const {toolState, degradedCount} = summary ? normalizeTools(summary) : {toolState: Object.fromEntries(CFG.tools.map(t=>[t,"UNKNOWN"])), degradedCount: 0};
+      setText("vspgs_degraded", `${degradedCount}/${CFG.tools.length}`);
+      renderStrip(toolState);
+
+      const reasons = summary ? extractReasons(summary, overall, degradedCount, totals) : [
+        "Không lấy được reports/run_gate_summary.json (fallback đang hiển thị tối thiểu)."
+      ];
+      renderReasons(reasons);
+
+      renderMeta(run || {}, rid, totals);
+      renderActions(rid);
+
+    } catch (e){
+      dbg("error", e);
+      setOverall("UNKNOWN");
+      renderReasons([`Lỗi tải dữ liệu gate: ${String(e && e.message ? e.message : e)}`.slice(0,180)]);
+      renderStrip(Object.fromEntries(CFG.tools.map(t => [t,"UNKNOWN"])));
+      setText("vspgs_degraded", "0/8");
+      setText("vspgs_total", "—");
+    }
+  }
+
+  // run once DOM ready
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main, {once:true});
+  else main();
+})();
+JS
+
+echo "[OK] wrote: $JS"
+
+# 2) Inject script include into templates (prefer /vsp5 entry templates)
+python3 - <<PY
+from pathlib import Path
+import time, re
+
+ts="${TS}"
+marker="VSP_P1_GATE_STORY_PANEL_V1"
+script_line='<script src="/static/js/vsp_dashboard_gate_story_v1.js?v={{ asset_v }}"></script> <!-- VSP_P1_GATE_STORY_PANEL_V1 -->'
+
+tpls=[Path(p) for p in ${TPLS[@]/#/"'"}${TPLS[@]/%/"'"}]
+# the bash expansion above is messy inside python; rebuild manually:
+tpls=[Path("templates/vsp_5tabs_enterprise_v2.html"), Path("templates/vsp_dashboard_2025.html")]
+
+for p in tpls:
+    if not p.exists():
+        print("[WARN] missing:", p)
+        continue
+    s=p.read_text(encoding="utf-8", errors="replace")
+    if marker in s or "vsp_dashboard_gate_story_v1.js" in s:
+        print("[OK] already injected:", p)
+        continue
+
+    bak=p.with_name(p.name + f".bak_gate_story_{ts}")
+    bak.write_text(s, encoding="utf-8")
+    print("[BACKUP]", bak)
+
+    # Insert before </body> if possible; else append at end
+    if "</body>" in s:
+        s2=s.replace("</body>", script_line + "\n</body>")
+    else:
+        s2=s + "\n" + script_line + "\n"
+
+    p.write_text(s2, encoding="utf-8")
+    print("[OK] injected:", p)
+PY
+
+# 3) quick syntax sanity (best effort)
+python3 -m py_compile wsgi_vsp_ui_gateway.py >/dev/null 2>&1 && echo "[OK] py_compile OK" || echo "[WARN] py_compile failed (check manually)"
+
+# 4) restart (reuse your standard single-owner start)
+bin/p1_ui_8910_single_owner_start_v2.sh || true
+
+# 5) probe endpoints
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+echo "== PROBE =="
+curl -fsS -I "$BASE/vsp5" | sed -n '1,8p'
+curl -fsS "$BASE/api/vsp/runs?limit=1" | head -c 220; echo
+echo "[DONE] Gate Story panel v1 applied."

@@ -1,0 +1,288 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+TS="$(date +%Y%m%d_%H%M%S)"
+JS="static/js/vsp_commercial_layout_controller_v1.js"
+TPL="templates/vsp_dashboard_2025.html"
+
+[ -f "$TPL" ] || { echo "[ERR] missing $TPL"; exit 2; }
+
+mkdir -p "$(dirname "$JS")"
+
+# 1) Write controller JS (idempotent)
+cat > "$JS" <<'JS'
+/* VSP_COMMERCIAL_LAYOUT_CONTROLLER_V1
+ * Goal:
+ *  - runs/degraded strip only on #runs
+ *  - policy/verdict hidden by default, opened via floating button
+ *  - remove accidental scale/zoom wrappers, widen container
+ */
+(function(){
+  'use strict';
+  if (window.__VSP_COMMERCIAL_LAYOUT_CONTROLLER_V1) return;
+
+  const TAG = "[VSP_COMMERCIAL_LAYOUT_CONTROLLER]";
+  const state = { route:"", policyOpen:false, lastApply:0 };
+
+  const SEL_RUNS = [
+    "#vsp_runs_strip", "#vsp-runs-strip", "#runs_strip", "#runsStrip",
+    ".vsp-runs-strip", ".runs-strip", ".vsp-runs-table", ".runs-table",
+    "#vsp_runs_table", "#vsp-runs-table", "#runs_table", "#runsTable",
+    ".vsp-degraded-banner", ".degraded-banner", "#vsp_degraded_banner", "#vsp-degraded-banner"
+  ];
+
+  const SEL_POLICY = [
+    "#vsp_policy_block", "#commercial_policy_block", "#commercial_policy", "#policy_block",
+    ".commercial-policy", ".commercial-operational-policy", ".vsp-policy",
+    "#overall_verdict", "#overall-verdict", ".overall-verdict", ".vsp-overall-verdict",
+    "#gate_summary", "#gate-summary", ".gate-summary", ".vsp-gate-summary"
+  ];
+
+  function normRoute(){
+    const h = (location.hash || "#dashboard").replace(/^#/, "");
+    const r = h.split("?")[0].trim().toLowerCase();
+    // normalize common aliases
+    if (r === "" || r === "home") return "dashboard";
+    return r;
+  }
+
+  function qsAll(selList){
+    const out = [];
+    selList.forEach(s=>{
+      try { document.querySelectorAll(s).forEach(n=>out.push(n)); } catch(_){}
+    });
+    return out;
+  }
+
+  function setHidden(nodes, hide){
+    nodes.forEach(n=>{
+      if (!n || !n.style) return;
+      n.style.display = hide ? "none" : "";
+    });
+  }
+
+  // Best-effort: remove wrappers that scale content down
+  function killScaleWrappers(){
+    const candidates = [];
+    // check a few top-level containers
+    ["#app", "#root", ".app", ".vsp-app", "main", ".main", ".container", ".vsp-container"].forEach(s=>{
+      try { const n = document.querySelector(s); if (n) candidates.push(n); } catch(_){}
+    });
+    // also first children of body
+    try {
+      document.body && Array.from(document.body.children).slice(0, 6).forEach(n=>candidates.push(n));
+    } catch(_){}
+
+    const seen = new Set();
+    candidates.forEach(n=>{
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      try{
+        const cs = getComputedStyle(n);
+        const t = cs.transform || "";
+        // matrix(a,b,c,d,tx,ty) where a=d=scale if no rotate
+        if (t.startsWith("matrix(")){
+          const m = t.slice(7,-1).split(",").map(x=>parseFloat(x.trim()));
+          if (m.length >= 4){
+            const sx = Math.abs(m[0]);
+            const sy = Math.abs(m[3]);
+            if ((sx && sx < 0.99) || (sy && sy < 0.99)){
+              n.style.transform = "none";
+              n.style.width = "100%";
+              n.style.maxWidth = "none";
+              console.info(TAG, "removed scale wrapper", {sel: n.id || n.className || n.tagName, sx, sy});
+            }
+          }
+        }
+        // zoom is non-standard, but sometimes used
+        const z = (cs.zoom || "");
+        if (z && z !== "1" && z !== "normal"){
+          n.style.zoom = "1";
+          console.info(TAG, "reset zoom", {sel: n.id || n.className || n.tagName, zoom:z});
+        }
+      }catch(_){}
+    });
+  }
+
+  function ensureFloatingPolicyButton(){
+    if (document.getElementById("vsp_policy_fab_v1")) return;
+
+    const fab = document.createElement("button");
+    fab.id = "vsp_policy_fab_v1";
+    fab.type = "button";
+    fab.textContent = "Policy / Verdict";
+    fab.setAttribute("aria-label", "Toggle Policy / Verdict panel");
+    fab.style.cssText = [
+      "position:fixed","right:18px","bottom:18px","z-index:99999",
+      "padding:10px 12px","border-radius:12px",
+      "border:1px solid rgba(255,255,255,0.12)",
+      "background:rgba(18,18,20,0.92)","color:#fff",
+      "font-weight:600","font-size:13px",
+      "box-shadow:0 8px 22px rgba(0,0,0,0.35)",
+      "cursor:pointer"
+    ].join(";");
+
+    const panel = document.createElement("div");
+    panel.id = "vsp_policy_panel_v1";
+    panel.style.cssText = [
+      "position:fixed","right:18px","bottom:64px","z-index:99998",
+      "width:min(520px, calc(100vw - 36px))",
+      "max-height:min(72vh, 720px)",
+      "overflow:auto",
+      "border-radius:14px",
+      "border:1px solid rgba(255,255,255,0.12)",
+      "background:rgba(12,12,14,0.96)",
+      "box-shadow:0 14px 42px rgba(0,0,0,0.45)",
+      "padding:14px",
+      "display:none"
+    ].join(";");
+
+    const hdr = document.createElement("div");
+    hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;";
+    const title = document.createElement("div");
+    title.textContent = "Commercial Policy / Overall Verdict";
+    title.style.cssText = "font-weight:700;font-size:13px;opacity:0.92;";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.style.cssText = "padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:#fff;cursor:pointer;";
+    hdr.appendChild(title); hdr.appendChild(close);
+    panel.appendChild(hdr);
+
+    const body = document.createElement("div");
+    body.id = "vsp_policy_panel_body_v1";
+    body.style.cssText = "display:block;";
+    panel.appendChild(body);
+
+    function toggle(open){
+      state.policyOpen = (open !== undefined) ? !!open : !state.policyOpen;
+      panel.style.display = state.policyOpen ? "block" : "none";
+      console.info(TAG, "policyOpen=", state.policyOpen, "route=", state.route);
+    }
+
+    fab.addEventListener("click", ()=>toggle());
+    close.addEventListener("click", ()=>toggle(false));
+
+    document.body.appendChild(fab);
+    document.body.appendChild(panel);
+  }
+
+  function movePolicyBlocksIntoPanel(){
+    const panelBody = document.getElementById("vsp_policy_panel_body_v1");
+    if (!panelBody) return;
+
+    // Collect policy/verdict blocks (best effort). If not found, panel still exists but empty.
+    const blocks = qsAll(SEL_POLICY);
+
+    // Hide originals (so page not long)
+    setHidden(blocks, true);
+
+    // Mirror content into panel (clone to avoid breaking existing handlers)
+    panelBody.innerHTML = "";
+    if (blocks.length === 0){
+      const empty = document.createElement("div");
+      empty.textContent = "No policy/verdict block detected (selectors not matched).";
+      empty.style.cssText = "opacity:0.75;font-size:12px;line-height:1.4;";
+      panelBody.appendChild(empty);
+      return;
+    }
+
+    blocks.forEach((n, idx)=>{
+      try{
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "margin-bottom:12px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03);";
+        const cap = document.createElement("div");
+        cap.textContent = "Block " + (idx+1);
+        cap.style.cssText = "font-weight:700;font-size:12px;opacity:0.8;margin-bottom:8px;";
+        wrap.appendChild(cap);
+        wrap.appendChild(n.cloneNode(true));
+        panelBody.appendChild(wrap);
+      }catch(_){}
+    });
+  }
+
+  function widenMainContainer(){
+    // Add a CSS override once
+    if (document.getElementById("vsp_commercial_css_v1")) return;
+    const st = document.createElement("style");
+    st.id = "vsp_commercial_css_v1";
+    st.textContent = `
+      /* widen typical containers */
+      .container, .vsp-container, .container-fluid, .main, main {
+        max-width: 1440px !important;
+        width: min(1440px, calc(100vw - 40px)) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function apply(){
+    const now = Date.now();
+    if (now - state.lastApply < 120) return; // debounce
+    state.lastApply = now;
+
+    state.route = normRoute();
+    try { document.body.dataset.vspRoute = state.route; } catch(_){}
+
+    // runs/degraded should be visible ONLY on runs tab
+    const isRuns = (state.route === "runs" || state.route.startsWith("runs/"));
+    const runsNodes = qsAll(SEL_RUNS);
+    setHidden(runsNodes, !isRuns);
+
+    widenMainContainer();
+    killScaleWrappers();
+
+    ensureFloatingPolicyButton();
+    movePolicyBlocksIntoPanel();
+
+    console.info(TAG, "apply route=", state.route, "isRuns=", isRuns, "runsNodes=", runsNodes.length);
+  }
+
+  window.__VSP_COMMERCIAL_LAYOUT_CONTROLLER_V1 = {
+    apply,
+    debug: ()=>({ route: state.route, policyOpen: state.policyOpen, hash: location.hash })
+  };
+
+  // Boot
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", apply, { once:true });
+  } else {
+    apply();
+  }
+  window.addEventListener("hashchange", ()=>setTimeout(apply, 30));
+  window.addEventListener("popstate", ()=>setTimeout(apply, 30));
+
+  // Safety: re-apply a few times for late-rendered content
+  setTimeout(apply, 300);
+  setTimeout(apply, 1200);
+  setTimeout(apply, 2500);
+})();
+JS
+
+# 2) Patch template to load the controller JS once
+if ! grep -q "VSP_COMMERCIAL_LAYOUT_CONTROLLER_V1" "$TPL"; then
+  cp -f "$TPL" "$TPL.bak_layout_ctrl_${TS}" && echo "[BACKUP] $TPL.bak_layout_ctrl_${TS}"
+  python3 - <<PY
+from pathlib import Path
+p=Path("$TPL")
+s=p.read_text(encoding="utf-8", errors="ignore")
+tag = '<script src="/static/js/vsp_commercial_layout_controller_v1.js?v=$TS"></script>\\n<!-- VSP_COMMERCIAL_LAYOUT_CONTROLLER_V1 -->\\n'
+if '</body>' in s:
+  s = s.replace('</body>', tag + '</body>')
+else:
+  s += "\\n" + tag
+p.write_text(s, encoding="utf-8")
+print("[OK] injected controller loader into", p)
+PY
+else
+  echo "[SKIP] controller already injected in $TPL"
+fi
+
+# 3) Syntax check (best-effort)
+node --check "$JS" >/dev/null 2>&1 && echo "[OK] node --check" || echo "[WARN] node --check failed (still may run in browser)"
+
+echo "[DONE] commercial layout controller v1 patched."
+echo "Next: restart UI + hard refresh (Ctrl+Shift+R) + reset zoom (Ctrl+0)"
