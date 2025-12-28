@@ -3,3 +3,6 @@
 *.bak_*
 out_ci/
 out_ci/**
+
+# local backups
+*.bak_*

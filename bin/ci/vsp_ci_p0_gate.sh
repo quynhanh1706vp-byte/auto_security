@@ -27,29 +27,18 @@ python3 -m py_compile vsp_demo_app.py 2>/dev/null || true
 log "[OK] syntax gate ok"
 
 # (B) ensure service up (no password prompts)
-log "== [B] ensure service =="
-if command -v systemctl >/dev/null 2>&1; then
-  if systemctl is-active --quiet "$SVC"; then
-    log "[OK] service active: $SVC"
-  else
-    log "[WARN] service not active: $SVC"
-    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-      log "[DO] sudo systemctl restart $SVC"
-      sudo systemctl restart "$SVC"
-      sleep 2
-      systemctl is-active --quiet "$SVC" || { log "[ERR] service still not active"; exit 3; }
-      log "[OK] service restarted"
-    else
-      log "[ERR] need service active (or runner needs passwordless sudo for systemctl)"
-      exit 3
-    fi
-  fi
+log "== [B] ensure service (no-sudo) =="
+if curl -fsS --connect-timeout 2 --max-time 4 "$BASE/healthz" >/dev/null 2>&1; then
+  log "[OK] healthz ok: $BASE/healthz"
 else
-  log "[ERR] systemctl not found (this CI expects to run on VPS self-hosted runner)"
-  exit 3
+  # fallback: try homepage
+  curl -fsS --connect-timeout 2 --max-time 4 "$BASE/vsp5" >/dev/null 2>&1 || {
+    log "[ERR] UI not reachable at $BASE (need service running)."
+    exit 3
+  }
+  log "[OK] UI reachable: $BASE/vsp5"
 fi
 
-# (C) P0 commercial gate: preflight -> pack -> verify
 log "== [C1] preflight audit =="
 bash bin/preflight_audit.sh | tee -a "$OUT/preflight.txt"
 
