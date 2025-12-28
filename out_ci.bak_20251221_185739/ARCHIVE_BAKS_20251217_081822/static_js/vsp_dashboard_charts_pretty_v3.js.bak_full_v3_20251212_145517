@@ -1,0 +1,264 @@
+(function () {
+  console.log('[VSP_CHARTS_V3] pretty charts loaded');
+
+  if (typeof Chart === 'undefined') {
+    console.warn('[VSP_CHARTS_V3] Chart.js not available, skip charts.');
+    return;
+  }
+
+  var charts = {};
+
+  function getCanvas(id) {
+    var el = document.getElementById(id);
+    if (!el) {
+      console.warn('[VSP_CHARTS_V3] Không thấy canvas', id);
+      return null;
+    }
+    return el.getContext('2d');
+  }
+
+  function destroyIfAny(key) {
+    if (charts[key]) {
+      charts[key].destroy();
+      charts[key] = null;
+    }
+  }
+
+  function buildSeverityDonut(dashboard) {
+    var ctx = getCanvas('vsp-chart-severity');
+    if (!ctx) return;
+
+    destroyIfAny('severity');
+
+    var sev = (dashboard && dashboard.by_severity) || {};
+    var keys = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'TRACE'];
+    var data = keys.map(function (k) { return sev[k] || 0; });
+
+    charts.severity = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Critical', 'High', 'Medium', 'Low', 'Info', 'Trace'],
+        datasets: [{
+          data: data,
+          backgroundColor: [
+            '#f97373', // critical
+            '#fb923c', // high
+            '#facc15', // medium
+            '#22c55e', // low
+            '#38bdf8', // info
+            '#a855f7'  // trace
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#e5e7eb',
+              usePointStyle: true,
+              boxWidth: 10
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function buildTrend(dashboard) {
+    var ctx = getCanvas('vsp-chart-trend');
+    if (!ctx) return;
+
+    destroyIfAny('trend');
+
+    var trend = (dashboard && dashboard.trend_by_run) || [];
+    if (!Array.isArray(trend)) trend = [];
+
+    // Lấy 10 run mới nhất
+    var last = trend.slice(-10);
+    if (!last.length) {
+      last = [{ total_findings: dashboard.total_findings || 0 }];
+    }
+
+    var labels = last.map(function (_, idx) {
+      return 'Run ' + (idx + 1);
+    });
+
+    var values = last.map(function (item) {
+      return item.total_findings || item.total || item.findings || 0;
+    });
+
+    charts.trend = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Total findings',
+          data: values,
+          fill: true,
+          tension: 0.4,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.18)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(148,163,184,0.15)' },
+            ticks: { color: '#9ca3af' }
+          },
+          y: {
+            grid: { color: 'rgba(148,163,184,0.2)' },
+            ticks: { color: '#9ca3af' }
+          }
+        }
+      }
+    });
+  }
+
+  function buildByTool(dashboard) {
+    var ctx = getCanvas('vsp-chart-by-tool');
+    if (!ctx) return;
+
+    destroyIfAny('byTool');
+
+    var byTool = (dashboard && dashboard.by_tool) || [];
+    if (!Array.isArray(byTool)) byTool = [];
+
+    // Chỉ lấy top 5 tool nhiều CRITICAL + HIGH
+    var mapped = byTool.map(function (t) {
+      var sev = t.by_severity || {};
+      var crit = sev.CRITICAL || 0;
+      var high = sev.HIGH || 0;
+      return {
+        label: t.tool || t.name || 'N/A',
+        critical: crit,
+        high: high,
+        total: crit + high
+      };
+    }).sort(function (a, b) {
+      return b.total - a.total;
+    }).slice(0, 5);
+
+    if (!mapped.length) return;
+
+    var labels = mapped.map(function (x) { return x.label; });
+    var critical = mapped.map(function (x) { return x.critical; });
+    var high = mapped.map(function (x) { return x.high; });
+
+    charts.byTool = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Critical',
+            data: critical,
+            backgroundColor: '#38bdf8'
+          },
+          {
+            label: 'High',
+            data: high,
+            backgroundColor: '#fb7185'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: '#e5e7eb',
+              usePointStyle: true,
+              boxWidth: 10
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: 'rgba(148,163,184,0.12)' },
+            ticks: { color: '#9ca3af' }
+          },
+          y: {
+            stacked: true,
+            grid: { color: 'rgba(148,163,184,0.18)' },
+            ticks: { color: '#9ca3af' }
+          }
+        }
+      }
+    });
+  }
+
+  function buildTopCwe(dashboard) {
+    var ctx = getCanvas('vsp-chart-top-cwe');
+    if (!ctx) return;
+
+    destroyIfAny('topCwe');
+
+    var list = (dashboard && dashboard.top_cwe_list) || [];
+    if (!Array.isArray(list)) list = [];
+
+    var top = list.slice(0, 8);
+    if (!top.length) return;
+
+    var labels = top.map(function (x) { return x.id || x.cwe || 'CWE'; });
+    var counts = top.map(function (x) { return x.count || x.total || 0; });
+
+    charts.topCwe = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Findings',
+          data: counts,
+          backgroundColor: '#4ade80'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(148,163,184,0.18)' },
+            ticks: { color: '#9ca3af' }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#e5e7eb' }
+          }
+        }
+      }
+    });
+  }
+
+  function updateFromDashboard(dashboard) {
+    console.log('[VSP_CHARTS_V3] updateFromDashboard', dashboard);
+    if (!dashboard) return;
+    buildSeverityDonut(dashboard);
+    buildTrend(dashboard);
+    buildByTool(dashboard);
+    buildTopCwe(dashboard);
+  }
+
+  // Public API + override cho bản V2
+  window.VSP_DASHBOARD_CHARTS_V3 = { updateFromDashboard: updateFromDashboard };
+  window.VSP_DASHBOARD_CHARTS = window.VSP_DASHBOARD_CHARTS_V3;
+  window.vspDashboardChartsUpdateFromDashboard = updateFromDashboard;
+})();

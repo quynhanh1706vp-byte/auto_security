@@ -1,0 +1,723 @@
+from api.vsp_run_export_api_v3 import bp_run_export_v3
+from api.vsp_settings_rules_v1 import bp_settings_rules
+#!/usr/bin/env python
+import os
+import subprocess
+from pathlib import Path
+
+from flask import (
+    Flask,
+    render_template,
+    request,
+    jsonify,
+    Response,
+)
+import requests
+
+# === Config chung ===
+ROOT = Path(__file__).resolve().parents[1]  # /home/test/Data/SECURITY_BUNDLE
+CORE_BASE = "http://localhost:8961"         # Core API (dashboard_v3, runs_index_v3, datasource_v2)
+
+app = Flask(
+    __name__,
+    static_folder="static",
+    template_folder="templates",
+)
+
+
+# === Helper proxy sang core 8961 ===
+def proxy_get(path: str) -> Response:
+    """
+    Proxy GET từ 8910 -> 8961, giữ nguyên query string.
+    """
+    core_url = CORE_BASE + path
+    try:
+        resp = requests.get(core_url, params=request.args, timeout=60)
+    except Exception as e:
+        return jsonify(ok=False, error=f"Proxy error to core {core_url}: {e}"), 502
+
+    headers = {}
+    ct = resp.headers.get("Content-Type")
+    if ct:
+        headers["Content-Type"] = ct
+    return Response(resp.content, status=resp.status_code, headers=headers)
+
+
+# === Routes UI chính ===
+
+@app.route("/")
+def index():
+    # Trang VSP 5 tab (index.html đã là layout mới)
+    return render_template("index.html")
+
+
+@app.route("/security_bundle")
+def security_bundle():
+    # Giữ route cũ nếu có chỗ nào gọi
+    return render_template("index.html")
+
+
+# === Proxy API: dashboard_v3, runs_index_v3, datasource_v2 ===
+
+@app.route("/api/vsp/dashboard_v3", methods=["GET"])
+def api_vsp_dashboard_v3():
+    return proxy_get("/api/vsp/dashboard_v3")
+
+
+@app.route("/api/vsp/runs_index_v3", methods=["GET"])
+def api_vsp_runs_index_v3():
+    return proxy_get("/api/vsp/runs_index_v3")
+
+
+@app.route("/api/vsp/datasource_v2", methods=["GET"])
+def api_vsp_datasource_v2():
+    # Proxy đúng sang core, giữ nguyên run_dir, limit, filters,...
+    return proxy_get("/api/vsp/datasource_v2")
+
+
+# === RUN FULL SCAN EXT+ – gọi bin/vsp_selfcheck_full.sh ===
+
+@app.route("/api/vsp/run_full_scan", methods=["POST", "OPTIONS"])
+def api_vsp_run_full_scan():
+    """
+    Nhận JSON:
+      {
+        "profile": "EXT" | "FAST" | "AGGR" | "FULL" | ...,
+        "source_root": "/home/test/Data/khach6",
+        "target_url": "https://demo.demasterpro.com"
+      }
+
+    Gọi: bin/vsp_selfcheck_full.sh <profile> <source_root> <target_url>
+    cwd = /home/test/Data/SECURITY_BUNDLE
+    """
+    if request.method == "OPTIONS":
+        # Đơn giản trả 200 cho preflight nếu có
+        return ("", 200)
+
+    data = request.get_json(silent=True) or {}
+
+    profile = data.get("profile") or "FULL_EXT"
+    source_root = data.get("source_root") or data.get("src_path") or str(ROOT / "khach6")
+    target_url = data.get("target_url") or data.get("url") or "https://demo.demasterpro.com"
+
+    script = ROOT / "bin" / "vsp_selfcheck_full.sh"
+
+    if not script.is_file():
+        return jsonify(
+            ok=False,
+            error=f"Script không tồn tại: {script}",
+        ), 500
+
+    # Đảm bảo script có quyền execute
+    try:
+        os.chmod(str(script), 0o755)
+    except Exception:
+        pass
+
+    try:
+        proc = subprocess.Popen(
+            [str(script), profile, source_root, target_url],
+            cwd=str(ROOT),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        return jsonify(ok=False, error=f"Lỗi chạy {script}: {e}"), 500
+
+    return jsonify(
+        ok=True,
+        pid=proc.pid,
+        profile=profile,
+        source_root=source_root,
+        target_url=target_url,
+    )
+
+
+# === Healthcheck đơn giản (tuỳ chọn) ===
+@app.route("/health")
+def health():
+    return jsonify(ok=True, app="vsp_demo_app", core=CORE_BASE)
+
+
+# VSP_RUN_EXPORT_DIRECT_V1_BEGIN
+from flask import send_file, request, jsonify, render_template
+import io, json, zipfile, subprocess, shutil
+from pathlib import Path
+
+@app.route("/api/vsp/run_export_v3", methods=["GET"])
+def vsp_run_export_v3():
+    """
+    Direct export HTML/PDF/ZIP cho 1 RUN_...
+    - fmt=html -> RUN_..._vsp_report.html
+    - fmt=pdf  -> RUN_..._vsp_report.pdf (cần wkhtmltopdf)
+    - fmt=zip  -> RUN_..._vsp_full_bundle.zip (nguyên thư mục out/RUN_...)
+    """
+    run_id = request.args.get("run_id")
+    fmt = (request.args.get("fmt") or "html").lower()
+
+    if not run_id:
+        return jsonify(ok=False, error="Missing run_id"), 400
+
+    # ROOT = thư mục SECURITY_BUNDLE, out chứa RUN_VSP_FULL_EXT_*
+    root = Path(__file__).resolve().parents[1] / "out"
+    run_dir = root / run_id
+
+    if not run_dir.is_dir():
+        return jsonify(ok=False, error=f"Run directory not found: {run_dir}"), 404
+
+    summary_path = run_dir / "report" / "summary_unified.json"
+    if not summary_path.is_file():
+        return jsonify(ok=False, error="report/summary_unified.json not found"), 500
+
+    # Đọc summary 1 lần
+    with summary_path.open("r", encoding="utf-8") as f:
+        summary = json.load(f)
+
+    if fmt == "html":
+        html = render_template(
+            "vsp_run_report_cio_v3.html",
+            run_id=run_id,
+            summary=summary,
+        )
+        return app.response_class(
+            html,
+            mimetype="text/html",
+            headers={
+                "Content-Disposition": f"attachment; filename={run_id}_vsp_report.html"
+            },
+        )
+
+    if fmt == "pdf":
+        # Yêu cầu wkhtmltopdf
+        if shutil.which("wkhtmltopdf") is None:
+            return jsonify(ok=False, error="wkhtmltopdf not installed"), 500
+
+        html = render_template(
+            "vsp_run_report_cio_v3.html",
+            run_id=run_id,
+            summary=summary,
+        )
+        pdf_bytes = subprocess.check_output(
+            ["wkhtmltopdf", "-", "-"],
+            input=html.encode("utf-8"),
+        )
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"{run_id}_vsp_report.pdf",
+        )
+
+    if fmt == "zip":
+        buf = io.BytesIO()
+        # Zip nguyên thư mục RUN_... (giữ luôn tên RUN_... ở root trong zip)
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            for path in run_dir.rglob("*"):
+                if path.is_file():
+                    # entry path: RUN_.../path/to/file
+                    arcname = path.relative_to(run_dir.parent)
+                    z.write(path, arcname)
+        buf.seek(0)
+        return send_file(
+            buf,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{run_id}_vsp_full_bundle.zip",
+        )
+
+    return jsonify(ok=False, error=f"Unsupported fmt={fmt}"), 400
+# VSP_RUN_EXPORT_DIRECT_V1_END
+
+# VSP_SETTINGS_GATEWAY_SIMPLE_v1
+import json
+from pathlib import Path as _Path
+from flask import request, jsonify
+
+_VSP_ROOT = _Path("/home/test/Data/SECURITY_BUNDLE").resolve()
+_SETTINGS_FILE = _VSP_ROOT / "out" / "vsp_settings_v1.json"
+
+def _load_settings_from_file():
+    if _SETTINGS_FILE.is_file():
+        try:
+            return json.loads(_SETTINGS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    # default settings nếu chưa có file
+    return {
+        "profile_default": "FULL_EXT",
+        "severity_gate_min": "MEDIUM",
+        "tools_enabled": {
+            "semgrep": True,
+            "gitleaks": True,
+            "bandit": True,
+            "trivy_fs": True,
+            "grype": True,
+            "syft": True,
+            "kics": True,
+            "codeql": False
+        },
+        "general": {
+            "default_src_root": "/home/test/Data/khach6",
+            "default_run_dir": "out/RUN_YYYYmmdd_HHMMSS",
+            "default_export_type": "HTML+CSV",
+            "ui_table_max_rows": 5000
+        },
+        "integrations": {
+            "webhook_url": "",
+            "slack_channel": "",
+            "dependency_track_url": ""
+        }
+    }
+
+@app.route("/api/vsp/settings_v1", methods=["GET", "POST"])
+def vsp_settings_v1():
+    """GET/POST settings trực tiếp trên gateway 8910 (lưu file JSON)."""
+    if request.method == "GET":
+        settings = _load_settings_from_file()
+        return jsonify(ok=True, settings=settings)
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _SETTINGS_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
+    return jsonify(ok=True)
+
+
+if __name__ == "__main__":
+    print("[VSP_RUN_FULL_SCAN_V3] Registered /api/vsp/run_full_scan trên app vsp_demo_app")
+    app.run(host="0.0.0.0", port=8910, debug=True)
+
+
+# === VSP_RUN_EXPORT_V3 auto patch ===
+app.register_blueprint(bp_run_export_v3)
+app.register_blueprint(bp_settings_rules)
+
+# === VSP_RUN_EXPORT_DIRECT_V1 ===
+from flask import request, send_file, render_template, make_response, jsonify
+
+@app.route("/api/vsp/run_export_v3", methods=["GET"])
+def vsp_run_export_v3_direct():
+    """
+    Direct export HTML/PDF/ZIP cho 1 run – chạy trực tiếp trên UI gateway (8910).
+    """
+    from pathlib import Path
+    import json, io, zipfile, subprocess, shutil
+
+    ROOT = Path(__file__).resolve().parents[1]   # /home/test/Data/SECURITY_BUNDLE
+    OUT_DIR = ROOT / "out"
+
+    run_id = (request.args.get("run_id") or "").strip()
+    fmt = (request.args.get("fmt") or "html").lower()
+
+    if not run_id:
+        return jsonify(ok=False, error="Missing run_id"), 400
+
+    run_dir = OUT_DIR / run_id
+    if not run_dir.is_dir():
+        return jsonify(ok=False, error=f"Run dir not found: {run_dir}"), 404
+
+    report_dir = run_dir / "report"
+    summary_path = report_dir / "summary_unified.json"
+
+    if summary_path.is_file():
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        except Exception:
+            summary = {}
+    else:
+        summary = {}
+
+    summary.setdefault("run_id", run_id)
+    summary.setdefault("total_findings", 0)
+    summary.setdefault("security_score", None)
+    summary.setdefault("by_severity", {})
+    summary.setdefault("by_tool", {})
+
+    # HTML luôn generate trước
+    html = render_template("vsp_run_report_cio_v3.html",
+                           run_id=run_id,
+                           summary=summary)
+
+    # 1) HTML
+    if fmt == "html":
+        resp = make_response(html)
+        resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        filename = f"{run_id}_vsp_report.html"
+        if request.args.get("inline") == "1":
+            # hiển thị trực tiếp
+            pass
+        else:
+            resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return resp
+
+    # 2) PDF – dùng wkhtmltopdf nếu có
+    if fmt == "pdf":
+        if not shutil.which("wkhtmltopdf"):
+            return jsonify(ok=False,
+                           error="wkhtmltopdf not installed on server – cannot build PDF"), 500
+        try:
+            proc = subprocess.run(
+                ["wkhtmltopdf", "-q", "-", "-"],
+                input=html.encode("utf-8"),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            if proc.returncode != 0:
+                return jsonify(
+                    ok=False,
+                    error="wkhtmltopdf failed",
+                    stderr=proc.stderr.decode("utf-8", errors="ignore"),
+                ), 500
+
+            pdf_bytes = proc.stdout
+            buf = io.BytesIO(pdf_bytes)
+            buf.seek(0)
+            return send_file(
+                buf,
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=f"{run_id}_vsp_report.pdf",
+            )
+        except Exception as ex:
+            return jsonify(ok=False, error=f"PDF export error: {ex}"), 500
+
+    # 3) ZIP – bundle full run dir (evidence)
+    if fmt == "zip":
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for pth in run_dir.rglob("*"):
+                if pth.is_file():
+                    arc = pth.relative_to(run_dir)
+                    zf.write(pth, arcname=str(arc))
+        mem.seek(0)
+        return send_file(
+            mem,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{run_id}_vsp_full_bundle.zip",
+        )
+
+    return jsonify(ok=False, error=f"Unsupported fmt: {fmt}"), 400
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# === VSP_SETTINGS_ROUTES_CANONICAL_V1 ===
+from pathlib import Path as _VSPPathSettings
+import json as _vspJsonSettings
+
+_SETTINGS_ROOT_CANON = _VSPPathSettings(__file__).resolve().parents[1]
+_SETTINGS_CFG_DIR_CANON = _SETTINGS_ROOT_CANON / "config"
+
+
+def _settings_load_json_canon(path, default):
+    if path.is_file():
+        try:
+            return _vspJsonSettings.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return default
+    return default
+
+
+@app.route(
+    "/api/vsp/settings_v1",
+    methods=["GET", "POST"],
+    endpoint="vsp_settings_v1_api",
+)
+def vsp_settings_v1_api():
+    from flask import request, jsonify
+
+    cfg_path = _SETTINGS_CFG_DIR_CANON / "vsp_settings_v1.json"
+
+    if request.method == "GET":
+        default = {
+            "profile_default": "FULL_EXT",
+            "severity_gate": "MEDIUM",
+            "tools": {
+                "semgrep": True,
+                "gitleaks": True,
+                "bandit": True,
+                "trivy_fs": True,
+                "grype": True,
+                "syft": True,
+                "kics": True,
+                "codeql": True,
+            },
+        }
+        data = _settings_load_json_canon(cfg_path, default)
+        return jsonify(ok=True, settings=data)
+
+    payload = request.get_json(silent=True) or {}
+    settings = payload.get("settings")
+    if not isinstance(settings, dict):
+        return jsonify(ok=False, error="settings must be an object"), 400
+
+    _SETTINGS_CFG_DIR_CANON.mkdir(parents=True, exist_ok=True)
+    cfg_path.write_text(
+        _vspJsonSettings.dumps(settings, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return jsonify(ok=True)
+
+
+@app.route(
+    "/api/vsp/rule_overrides_v1",
+    methods=["GET", "POST"],
+    endpoint="vsp_rule_overrides_v1_api",
+)
+def vsp_rule_overrides_v1_api_ui():
+    from flask import request, jsonify
+
+    cfg_path = _SETTINGS_CFG_DIR_CANON / "vsp_rule_overrides_v1.json"
+
+    if request.method == "GET":
+        default = []
+        items = _settings_load_json_canon(cfg_path, default)
+        return jsonify(ok=True, items=items)
+
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("items", [])
+    if not isinstance(items, list):
+        return jsonify(ok=False, error="items must be a list"), 400
+
+    _SETTINGS_CFG_DIR_CANON.mkdir(parents=True, exist_ok=True)
+    cfg_path.write_text(
+        _vspJsonSettings.dumps(items, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return jsonify(ok=True)
+# === /VSP_SETTINGS_ROUTES_CANONICAL_V1 ===
+
+
+# === VSP_SETTINGS_BEFORE_REQUEST_V1 ===
+from pathlib import Path as _VSPPathBR
+import json as _vspJsonBR
+from flask import request as _vsp_req_br, jsonify as _vsp_jsonify_br
+
+_VSP_ROOT_BR = _VSPPathBR(__file__).resolve().parents[1]
+_VSP_CFG_DIR_BR = _VSP_ROOT_BR / "config"
+
+def _vsp_load_json_br(path, default):
+    if path.is_file():
+        try:
+            return _vspJsonBR.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return default
+    return default
+
+@app.before_request
+def vsp_settings_rules_before_request():
+    """
+    Hard override cho /api/vsp/settings_v1 và /api/vsp/rule_overrides_v1.
+    Nếu path match -> trả JSON ở đây, bỏ qua mọi route/blueprint khác.
+    """
+    p = _vsp_req_br.path
+    m = _vsp_req_br.method.upper()
+
+    # SETTINGS
+    if p == "/api/vsp/settings_v1" and m in ("GET", "POST"):
+        cfg_path = _VSP_CFG_DIR_BR / "vsp_settings_v1.json"
+
+        if m == "GET":
+            default = {
+                "profile_default": "FULL_EXT",
+                "severity_gate": "MEDIUM",
+                "tools": {
+                    "semgrep": True,
+                    "gitleaks": True,
+                    "bandit": True,
+                    "trivy_fs": True,
+                    "grype": True,
+                    "syft": True,
+                    "kics": True,
+                    "codeql": True,
+                },
+            }
+            data = _vsp_load_json_br(cfg_path, default)
+            return _vsp_jsonify_br(ok=True, settings=data)
+
+        # POST
+        payload = _vsp_req_br.get_json(silent=True) or {}
+        settings = payload.get("settings")
+        if not isinstance(settings, dict):
+            return _vsp_jsonify_br(ok=False, error="settings must be an object"), 400
+
+        _VSP_CFG_DIR_BR.mkdir(parents=True, exist_ok=True)
+        cfg_path.write_text(
+            _vspJsonBR.dumps(settings, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return _vsp_jsonify_br(ok=True)
+
+    # RULE OVERRIDES
+    if p == "/api/vsp/rule_overrides_v1" and m in ("GET", "POST"):
+        cfg_path = _VSP_CFG_DIR_BR / "vsp_rule_overrides_v1.json"
+
+        if m == "GET":
+            default = []
+            items = _vsp_load_json_br(cfg_path, default)
+            return _vsp_jsonify_br(ok=True, items=items)
+
+        # POST
+        payload = _vsp_req_br.get_json(silent=True) or {}
+        items = payload.get("items", [])
+        if not isinstance(items, list):
+            return _vsp_jsonify_br(ok=False, error="items must be a list"), 400
+
+        _VSP_CFG_DIR_BR.mkdir(parents=True, exist_ok=True)
+        cfg_path.write_text(
+            _vspJsonBR.dumps(items, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return _vsp_jsonify_br(ok=True)
+
+    # Các path khác → trả None để Flask xử lý tiếp như bình thường
+    return None
+# === /VSP_SETTINGS_BEFORE_REQUEST_V1 ===
+
+# === VSP Rule Overrides API stub V2 (fixed) ===
+from pathlib import Path as _VSP_Path2
+import json as _vsp_json2
+
+@app.route("/api/vsp/rule_overrides_v1", methods=["GET", "POST"], endpoint="vsp_rule_overrides_v1_api_ui")
+def vsp_rule_overrides_v1_api():
+    """Simple file-based storage cho rule_overrides_v1.
+
+    File lưu tại: ../config/rule_overrides_v1.json (tính từ thư mục ui/).
+    """
+    root = _VSP_Path2(__file__).resolve().parent.parent  # .../SECURITY_BUNDLE
+    cfg_dir = root / "config"
+    cfg_dir.mkdir(exist_ok=True)
+    cfg_file = cfg_dir / "rule_overrides_v1.json"
+
+    if request.method == "GET":
+        if cfg_file.exists():
+            try:
+                data = _vsp_json2.loads(cfg_file.read_text(encoding="utf-8"))
+            except Exception as exc:  # pragma: no cover
+                app.logger.warning("Invalid rule_overrides_v1.json: %s", exc)
+                data = []
+        else:
+            data = []
+        return jsonify(data)
+
+    payload = request.get_json(force=True, silent=True)
+    if payload is None:
+        payload = []
+
+    to_save = payload
+    try:
+        cfg_file.write_text(
+            _vsp_json2.dumps(to_save, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as exc:  # pragma: no cover
+        app.logger.error("Cannot write rule_overrides_v1.json: %s", exc)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    return jsonify(to_save)
+
+# === VSP Rule Overrides UI API stub V1 ===
+from pathlib import Path as _VSP_Path_UI
+import json as _vsp_json_ui
+
+@app.route("/api/vsp/rule_overrides_ui_v1", methods=["GET", "POST"])
+def vsp_rule_overrides_ui_v1():
+    """UI-only storage cho rule_overrides_v1 (không đụng core).
+
+    File lưu tại: ../config/rule_overrides_v1.json (tính từ thư mục ui/).
+    """
+    root = _VSP_Path_UI(__file__).resolve().parent.parent  # .../SECURITY_BUNDLE
+    cfg_dir = root / "config"
+    cfg_dir.mkdir(exist_ok=True)
+    cfg_file = cfg_dir / "rule_overrides_v1.json"
+
+    if request.method == "GET":
+        if cfg_file.exists():
+            try:
+                data = _vsp_json_ui.loads(cfg_file.read_text(encoding="utf-8"))
+            except Exception as exc:  # pragma: no cover
+                app.logger.warning("Invalid rule_overrides_v1.json: %s", exc)
+                data = []
+        else:
+            data = []
+        return jsonify(data)
+
+    payload = request.get_json(force=True, silent=True)
+    if payload is None:
+        payload = []
+
+    to_save = payload
+    try:
+        cfg_file.write_text(
+            _vsp_json_ui.dumps(to_save, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as exc:  # pragma: no cover
+        app.logger.error("Cannot write rule_overrides_v1.json: %s", exc)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    return jsonify(to_save)
+
+# === VSP Rule Overrides UI API stub V2 (force) ===
+from pathlib import Path as _VSP_Path_UI2
+import json as _vsp_json_ui2
+
+@app.route("/api/vsp/rule_overrides_ui_v1", methods=["GET", "POST"])
+def vsp_rule_overrides_ui_v1_force():
+    """UI-only storage cho rule_overrides_v1 (force stub).
+
+    File lưu tại: ../config/rule_overrides_v1.json (tính từ thư mục ui/).
+    """
+    app.logger.info("[VSP_RULES_UI] stub handler active (vsp_rule_overrides_ui_v1_force)")
+    root = _VSP_Path_UI2(__file__).resolve().parent.parent  # .../SECURITY_BUNDLE
+    cfg_dir = root / "config"
+    cfg_dir.mkdir(exist_ok=True)
+    cfg_file = cfg_dir / "rule_overrides_v1.json"
+
+    if request.method == "GET":
+        if cfg_file.exists():
+            try:
+                data = _vsp_json_ui2.loads(cfg_file.read_text(encoding="utf-8"))
+            except Exception as exc:  # pragma: no cover
+                app.logger.warning("Invalid rule_overrides_v1.json: %s", exc)
+                data = []
+        else:
+            data = []
+        return jsonify(data)
+
+    payload = request.get_json(force=True, silent=True)
+    if payload is None:
+        payload = []
+
+    to_save = payload
+    try:
+        cfg_file.write_text(
+            _vsp_json_ui2.dumps(to_save, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as exc:  # pragma: no cover
+        app.logger.error("Cannot write rule_overrides_v1.json: %s", exc)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    return jsonify(to_save)
+

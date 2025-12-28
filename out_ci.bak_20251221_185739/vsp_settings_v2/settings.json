@@ -1,0 +1,8 @@
+{
+  "settings": {
+    "degrade_graceful": true,
+    "timeouts": {
+      "kics_sec": 900
+    }
+  }
+}

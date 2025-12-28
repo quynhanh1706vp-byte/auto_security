@@ -1,0 +1,142 @@
+{
+  "by_severity": {
+    "CRITICAL": 18,
+    "HIGH": 3203,
+    "INFO": 0,
+    "LOW": 211,
+    "MEDIUM": 335,
+    "TRACE": 0
+  },
+  "by_tool": {
+    "bandit": 43,
+    "gitleaks": 2791,
+    "grype": 385,
+    "kics": 2,
+    "semgrep": 546
+  },
+  "last_runs": [
+    {
+      "label": "Run 1",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_124249",
+      "total_findings": 546,
+      "ts": "2025-12-03T12:42:49"
+    },
+    {
+      "label": "Run 2",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_133621",
+      "total_findings": 546,
+      "ts": "2025-12-03T13:36:21"
+    },
+    {
+      "label": "Run 3",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_134428",
+      "total_findings": 546,
+      "ts": "2025-12-03T13:44:28"
+    },
+    {
+      "label": "Run 4",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_140952",
+      "total_findings": 7242,
+      "ts": "2025-12-03T14:09:52"
+    },
+    {
+      "label": "Run 5",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_143137",
+      "total_findings": 7242,
+      "ts": "2025-12-03T14:31:37"
+    },
+    {
+      "label": "Run 6",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_145619",
+      "total_findings": 3767,
+      "ts": "2025-12-03T14:56:19"
+    },
+    {
+      "label": "Run 7",
+      "run_id": "RUN_VSP_FULL_EXT_20251205_213813",
+      "total_findings": 5036,
+      "ts": "2025-12-05T21:38:13"
+    },
+    {
+      "label": "Run 8",
+      "run_id": "RUN_VSP_FULL_EXT_20251207_064544",
+      "total_findings": 4744,
+      "ts": "2025-12-07T06:45:44"
+    },
+    {
+      "label": "Run 9",
+      "run_id": "RUN_VSP_FULL_EXT_20251207_064624",
+      "total_findings": 4867,
+      "ts": "2025-12-07T06:46:24"
+    },
+    {
+      "label": "Run 10",
+      "run_id": "RUN_VSP_FULL_EXT_20251207_071838",
+      "total_findings": 1458,
+      "ts": "2025-12-07T07:18:38"
+    }
+  ],
+  "ok": true,
+  "run_id": "RUN_VSP_FULL_EXT_20251203_145619",
+  "security_score": 0,
+  "top_cwe": [
+    {
+      "count": 1458,
+      "cwe": "UNKNOWN"
+    }
+  ],
+  "top_risky_tool": "gitleaks",
+  "total_findings": 3767,
+  "trend": [
+    {
+      "label": "Run 1",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_124249",
+      "total_findings": 546
+    },
+    {
+      "label": "Run 2",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_133621",
+      "total_findings": 546
+    },
+    {
+      "label": "Run 3",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_134428",
+      "total_findings": 546
+    },
+    {
+      "label": "Run 4",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_140952",
+      "total_findings": 7242
+    },
+    {
+      "label": "Run 5",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_143137",
+      "total_findings": 7242
+    },
+    {
+      "label": "Run 6",
+      "run_id": "RUN_VSP_FULL_EXT_20251203_145619",
+      "total_findings": 3767
+    },
+    {
+      "label": "Run 7",
+      "run_id": "RUN_VSP_FULL_EXT_20251205_213813",
+      "total_findings": 5036
+    },
+    {
+      "label": "Run 8",
+      "run_id": "RUN_VSP_FULL_EXT_20251207_064544",
+      "total_findings": 4744
+    },
+    {
+      "label": "Run 9",
+      "run_id": "RUN_VSP_FULL_EXT_20251207_064624",
+      "total_findings": 4867
+    },
+    {
+      "label": "Run 10",
+      "run_id": "RUN_VSP_FULL_EXT_20251207_071838",
+      "total_findings": 1458
+    }
+  ]
+}

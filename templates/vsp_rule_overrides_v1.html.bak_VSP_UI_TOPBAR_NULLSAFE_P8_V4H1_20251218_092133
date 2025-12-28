@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>VSP • Rule Overrides</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;margin:0;background:#0b1220;color:#e5e7eb}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+    .card{background:#0f172a;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+    h1{font-size:20px;margin:0 0 12px}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row > *{flex:1}
+    textarea,input,select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);background:#0b1220;color:#e5e7eb}
+    button{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#111c33;color:#e5e7eb;cursor:pointer}
+    button:hover{filter:brightness(1.08)}
+    .muted{color:#9ca3af;font-size:12px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;text-align:left;font-size:13px;vertical-align:top}
+    code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.10);font-size:12px}
+  </style>
+
+<script>/*VSP_CONSOLE_FILTER_DRILLDOWN_P0_V1*/
+(function(){
+  try{
+    if (window.__VSP_CONSOLE_FILTER_DD_P0) return;
+    window.__VSP_CONSOLE_FILTER_DD_P0 = 1;
+
+    var needle = "drilldown real impl accepted";
+
+    function wrap(k){
+      try{
+        var orig = console[k];
+        if (typeof orig !== "function") return;
+        console[k] = function(){
+          try{
+            var a0 = (arguments && arguments.length) ? String(arguments[0]) : "";
+            if (a0 && a0.indexOf(needle) !== -1){
+              if (window.__VSP_DD_ACCEPTED_ONCE) return;
+              window.__VSP_DD_ACCEPTED_ONCE = 1;
+            }
+          }catch(_e){}
+          return orig.apply(this, arguments);
+        };
+      }catch(_){}
+    }
+
+    ["log","info","debug","warn"].forEach(wrap);
+  }catch(_){}
+})();
+</script>
+</head>
+<body>
+
+<!-- VSP_UI_TOPBAR_QUICKACTIONS_P8_V4 BEGIN -->
+<style id="vspTopbarCssP8v4">
+  #vspTopbarP8v4{
+    position:fixed; top:0; left:0; right:0; height:52px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 14px; z-index:99999;
+    background:rgba(10,14,24,.92);
+    border-bottom:1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(8px);
+  }
+  #vspTopbarP8v4 .l{display:flex; gap:10px; align-items:center; min-width:260px;}
+  #vspTopbarP8v4 .r{display:flex; gap:8px; align-items:center;}
+  #vspTopbarP8v4 .brand{font-weight:700; letter-spacing:.3px; font-size:14px; color:#e8eefc;}
+  #vspTopbarP8v4 .chip{
+    font-size:12px; padding:4px 8px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.10);
+    color:rgba(232,238,252,.92);
+    background:rgba(255,255,255,.04);
+    white-space:nowrap;
+  }
+  #vspTopbarP8v4 .btn{
+    font-size:12px; padding:7px 10px; border-radius:10px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.06);
+    color:#eef3ff; cursor:pointer;
+  }
+  #vspTopbarP8v4 .btn:hover{ background:rgba(255,255,255,.10); }
+  body{ padding-top:52px !important; }
+</style>
+
+<div id="vspTopbarP8v4">
+  <div class="l">
+    <div class="brand">VersaSecure Platform — Commercial</div>
+    <div class="chip" id="vspChipIsoP8v4">ISO 27001-ready</div>
+    <div class="chip" id="vspChipToolsP8v4">8 tools</div>
+    <div class="chip" id="vspChipDegradedP8v4">DEGRADED: …</div>
+  </div>
+  <div class="r">
+    <button class="btn" id="vspBtnRefreshP8v4">Refresh</button>
+    <button class="btn" id="vspBtnOpenHtmlP8v4">Open HTML</button>
+    <button class="btn" id="vspBtnExportTgzP8v4">Export TGZ</button>
+    <button class="btn" id="vspBtnVerifyShaP8v4">Verify SHA</button>
+  </div>
+</div>
+
+<script id="vspTopbarJsP8v4">
+(function(){
+  if (window.__VSP_UI_TOPBAR_QUICKACTIONS_P8_V4) return;
+  window.__VSP_UI_TOPBAR_QUICKACTIONS_P8_V4 = true;
+
+  function norm(s){ return (s||"").replace(/\s+/g," ").trim().toLowerCase(); }
+  function clickBtnContains(part){
+    const want = norm(part);
+    const btns = Array.from(document.querySelectorAll("button,a"));
+    for (const b of btns){
+      const t = norm(b.innerText || b.textContent || "");
+      if (!t) continue;
+      if (t.includes(want)){ b.click(); return true; }
+    }
+    return false;
+  }
+  const $ = (id)=>document.getElementById(id);
+
+  $("vspBtnRefreshP8v4").onclick = function(){
+    if (clickBtnContains("refresh")) return;
+    location.reload();
+  };
+  $("vspBtnOpenHtmlP8v4").onclick = function(){
+    if (clickBtnContains("open html")) return;
+    alert("Open HTML button not found on this tab. Try Runs & Reports, then retry.");
+  };
+  $("vspBtnExportTgzP8v4").onclick = function(){
+    if (clickBtnContains("export tgz")) return;
+    alert("Export TGZ button not found on this tab. Try Runs & Reports, then retry.");
+  };
+  $("vspBtnVerifyShaP8v4").onclick = function(){
+    if (clickBtnContains("verify sha")) return;
+    alert("Verify SHA button not found on this tab. Try Runs & Reports, then retry.");
+  };
+
+  function updateDegraded(){
+    fetch("/api/vsp/dashboard_commercial_v2?ts=" + Date.now())
+      .then(r=>r.json())
+      .then(j=>{
+        const yes = !!(((j||{}).overall||{}).degraded_yes);
+        $("vspChipDegradedP8v4").textContent = "DEGRADED: " + (yes ? "YES" : "NO");
+      })
+      .catch(()=>{ $("vspChipDegradedP8v4").textContent = "DEGRADED: N/A"; });
+  }
+  updateDegraded();
+  setInterval(updateDegraded, 15000);
+})();
+</script>
+<!-- VSP_UI_TOPBAR_QUICKACTIONS_P8_V4 END -->
+
+
+  <div class="wrap">
+    <div class="card">
+      <h1>Rule Overrides</h1>
+      <div class="muted">Commercial P1: GET/POST <code>/api/vsp/rule_overrides_v1</code> • Apply on findings preview • Severity normalized to 6 levels</div>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="muted">Raw JSON (contract: version/updated_at/items[])</div>
+          <textarea id="json" rows="14"></textarea>
+        </div>
+        <div>
+          <div class="muted">Quick add (append 1 item)</div>
+          <div class="row">
+            <div><input id="rule_id" placeholder="rule_id (exact) e.g. semgrep.xxx"/></div>
+            <div>
+              <select id="action">
+                <option value="suppress">suppress</option>
+                <option value="downgrade">downgrade</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <select id="set_sev">
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="HIGH">HIGH</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="LOW">LOW</option>
+                <option value="INFO">INFO</option>
+                <option value="TRACE">TRACE</option>
+              </select>
+            </div>
+            <div><input id="expires_at" placeholder="expires_at (optional) 2026-12-31"/></div>
+          </div>
+          <div><input id="justification" placeholder="justification (required)"/></div>
+
+          <div style="height:10px"></div>
+          <div class="row">
+            <button onclick="loadOVR()">Reload</button>
+            <button onclick="saveOVR()">Save</button>
+            <button onclick="addOne()">Add item</button>
+          </div>
+          <div style="height:10px"></div>
+
+          <div class="muted">Test apply (RID latest)</div>
+          <div class="row">
+            <button onclick="testApply()">Preview findings (latest RID)</button>
+          </div>
+          <div id="msg" class="muted" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <table id="tbl">
+        <thead><tr><th>#</th><th>match</th><th>action</th><th>severity</th><th>expires</th><th>justification</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+<script defer src="/static/js/vsp_bundle_commercial_v2.js?v={{ asset_v }}"></script>
+</body>
+</html>
+
+<!-- VSP_UI_TOPBAR_QUICKACTIONS_P8_V4 -->

@@ -1,0 +1,279 @@
+.vsp-ds-wrapper {
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #10141a;
+  overflow: hidden;
+}
+
+.vsp-ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.vsp-ds-table thead {
+  background: #181d26;
+}
+
+.vsp-ds-table th,
+.vsp-ds-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #222;
+}
+
+.vsp-ds-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #c7d3e3;
+}
+
+.vsp-ds-row:hover {
+  background: #1a2433;
+  cursor: pointer;
+}
+
+.vsp-sev-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.vsp-lang-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #243b53;
+  color: #c7d3e3;
+  font-size: 10px;
+}
+
+.vsp-file-main {
+  color: #e0e7ff;
+}
+
+.vsp-file-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.vsp-asset-main {
+  color: #e5f3ff;
+}
+
+.vsp-asset-meta {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.vsp-cve-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #312e81;
+  color: #c7d2fe;
+  font-size: 11px;
+}
+
+.vsp-cvss-meta {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.vsp-ds-message {
+  max-width: 320px;
+}
+
+.vsp-override-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #3b0764;
+  color: #e9d5ff;
+  font-size: 10px;
+}
+
+/* Topbar */
+.vsp-ds-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.vsp-ds-kpi {
+  background: #10141a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid #1f2933;
+}
+
+.vsp-ds-kpi .kpi-label {
+  display: block;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.vsp-ds-kpi .kpi-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e5f3ff;
+}
+
+/* Drawer */
+.vsp-fd-drawer {
+  position: fixed;
+  top: 0;
+  right: -640px;
+  width: 640px;
+  height: 100vh;
+  background: #020617;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.5);
+  transition: right 0.25s ease-out;
+  z-index: 1000;
+}
+
+.vsp-fd-drawer.open {
+  right: 0;
+}
+
+.vsp-fd-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.vsp-fd-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vsp-fd-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vsp-fd-title {
+  margin: 0;
+  font-size: 15px;
+  color: #e5e7eb;
+}
+
+.vsp-fd-sev-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #fff;
+}
+
+.vsp-fd-meta-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.meta-chip {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #0b1120;
+}
+
+.vsp-fd-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.vsp-fd-body {
+  flex: 1;
+  padding: 12px 16px 16px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.vsp-fd-col h4 {
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.vsp-fd-col > div {
+  font-size: 12px;
+  color: #cbd5f5;
+  margin-bottom: 4px;
+}
+
+.vsp-fd-col-wide .vsp-snippet {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.vsp-snippet {
+  background: #020617;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px solid #1f2937;
+}
+
+.vsp-vuln-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.vsp-fd-col-wide ul {
+  margin: 4px 0 0 16px;
+  padding: 0;
+  font-size: 12px;
+  color: #e5e7eb;
+}
+
+/* Compliance chips */
+.vsp-cmp-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.vsp-cmp-owasp {
+  background: #1d2a3f;
+  color: #93c5fd;
+}
+
+.vsp-cmp-iso {
+  background: #083344;
+  color: #a5f3fc;
+}
+
+.vsp-cmp-nist {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.vsp-cmp-cis {
+  background: #052e16;
+  color: #bbf7d0;
+}
+

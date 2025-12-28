@@ -1,0 +1,321 @@
+/* VSP Runs - Commercial Factory Reset (P483Z)
+ * Goal: stop patch stacking; render exactly ONE Runs list from API; keep empty-state; never demo.
+ */
+(function(){
+  'use strict';
+  const TAG = 'P483Z';
+  const log = (...a)=>console.log(`[${TAG}]`, ...a);
+  const warn = (...a)=>console.warn(`[${TAG}]`, ...a);
+
+  // ---------- helpers ----------
+  const qs = (sel, root=document)=>root.querySelector(sel);
+  const qsa = (sel, root=document)=>Array.from(root.querySelectorAll(sel));
+  const esc = (s)=>String(s ?? '').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+
+  function pickDoc(){
+    // In case your shell uses iframes later, keep it simple: self doc.
+    return document;
+  }
+
+  function bestAnchor(doc){
+    // Try common shells first
+    const cands = [
+      '#c_runs_root', '#runs_root', '#c_main', '#main', 'main',
+      '.vsp-main', '.vsp-main-content', '.content', '.container',
+      '.vsp-page', '.vsp-shell', '.vsp-root'
+    ];
+    for (const s of cands){
+      const el = qs(s, doc);
+      if (el) return el;
+    }
+    return doc.body;
+  }
+
+  function ensureBaseVisibility(doc){
+    try{
+      doc.documentElement.style.overflow = 'auto';
+      doc.body.style.overflow = 'auto';
+      doc.body.style.minHeight = '100vh';
+      doc.documentElement.style.minHeight = '100vh';
+    }catch(e){}
+  }
+
+  function ensureMount(doc){
+    const id = 'vsp_runs_mount_commercial_v3';
+    let m = qs('#'+id, doc);
+    if (!m){
+      m = doc.createElement('div');
+      m.id = id;
+      m.setAttribute('data-vsp', 'runs-commercial');
+      m.style.cssText = [
+        'position:relative',
+        'z-index:5',
+        'margin:12px 0 0 0',
+        'padding:12px',
+        'border:1px solid rgba(255,255,255,0.08)',
+        'border-radius:12px',
+        'background:rgba(0,0,0,0.18)',
+        'backdrop-filter: blur(2px)',
+        'min-height:220px'
+      ].join(';');
+      const anchor = bestAnchor(doc);
+      anchor.appendChild(m);
+      log('mount created at', anchor.tagName, anchor.id || '');
+    }
+    // Make sure it is visible
+    m.style.display = 'block';
+    m.style.visibility = 'visible';
+    m.style.opacity = '1';
+    return m;
+  }
+
+  function forceOverlayModeIfNeeded(doc, m){
+    // If layout/CSS keeps hiding the area, fall back to a fixed visible panel (commercial safety net).
+    const r = m.getBoundingClientRect();
+    const tooSmall = (r.height < 40) || (r.width < 200);
+    const hidden = getComputedStyle(m).display === 'none' || getComputedStyle(m).visibility === 'hidden' || Number(getComputedStyle(m).opacity) === 0;
+    if (tooSmall || hidden){
+      m.style.position = 'fixed';
+      m.style.left = '260px';
+      m.style.right = '24px';
+      m.style.top = '96px';
+      m.style.bottom = '18px';
+      m.style.overflow = 'auto';
+      m.style.zIndex = '9999';
+      log('overlay fallback enabled', {tooSmall, hidden, rect:{h:r.height,w:r.width}});
+    }
+  }
+
+  function hideLegacyRunsBlocks(doc){
+    // Only hide obvious legacy containers if present (avoid killing other tabs).
+    const legacySelectors = [
+      '[data-vsp-legacy="runs"]',
+      '.vsp-runs-legacy',
+      '#vsp_runs_legacy',
+      '#vsp_runs_list_legacy',
+    ];
+    let n=0;
+    for (const s of legacySelectors){
+      for (const el of qsa(s, doc)){
+        el.style.display = 'none';
+        n++;
+      }
+    }
+    if (n) log('legacy blocks hidden:', n);
+  }
+
+  function renderShell(m){
+    m.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="font-weight:700;letter-spacing:.2px">Runs &amp; Reports</div>
+          <div id="vsp_runs_badge" style="font-size:12px;opacity:.75">loading…</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="vsp_runs_filter" style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.10);color:inherit;border-radius:10px;padding:6px 8px">
+            <option value="ALL">ALL</option>
+            <option value="OK">OK</option>
+            <option value="WARN">WARN</option>
+            <option value="FAIL">FAIL</option>
+            <option value="UNKNOWN">UNKNOWN</option>
+          </select>
+          <input id="vsp_runs_q" placeholder="Search RID / status / anything…" style="width:min(420px, 48vw);background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.10);color:inherit;border-radius:10px;padding:6px 10px"/>
+          <button id="vsp_runs_reload" style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.10);color:inherit;border-radius:10px;padding:6px 10px;cursor:pointer">Reload</button>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.07)"></div>
+
+      <div id="vsp_runs_empty" style="margin-top:10px;opacity:.8;display:none">
+        No runs found (yet). This environment has no run history loaded. When runs exist, they will appear here automatically.
+      </div>
+
+      <div style="margin-top:10px;overflow:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+        <table id="vsp_runs_tbl" style="width:100%;border-collapse:separate;border-spacing:0;min-width:900px">
+          <thead>
+            <tr style="text-align:left;font-size:12px;opacity:.85">
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">RID</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">OVERALL</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">WHEN</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">ARTIFACTS</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="vsp_runs_tbody"></tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  async function fetchRuns(){
+    // Prefer runs_v3 (commercial) then fallback to older contract.
+    const urls = [
+      '/api/vsp/runs_v3?limit=250&include_ci=1',
+      '/api/vsp/runs?limit=250&offset=0'
+    ];
+    let lastErr = null;
+    for (const u of urls){
+      try{
+        const r = await fetch(u, {credentials:'same-origin'});
+        if (!r.ok) { lastErr = new Error(`${u} -> HTTP ${r.status}`); continue; }
+        const j = await r.json();
+        return {src:u, data:j};
+      }catch(e){
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('fetch failed');
+  }
+
+  function normalizeItems(j){
+    // Accept both shapes:
+    // v3: {items:[...], ver, rid_latest, ...}
+    // v1: {items:[...]} or array
+    if (Array.isArray(j)) return j;
+    if (j && Array.isArray(j.items)) return j.items;
+    return [];
+  }
+
+  function pickOverall(it){
+    return (it.overall || it.status || it.verdict || it.result || 'UNKNOWN');
+  }
+
+  function pickWhen(it){
+    return (it.ts || it.time || it.created_at || it.when || '');
+  }
+
+  function pickArtifacts(it){
+    // Try common keys; render only what exists.
+    const links = [];
+    const maybe = [
+      ['CSV', it.csv_url || it.findings_csv || it.findingsCsvUrl],
+      ['HTML', it.html_url || it.report_html || it.reportHtmlUrl],
+      ['SARIF', it.sarif_url || it.findings_sarif || it.findingsSarifUrl],
+      ['TGZ', it.reports_tgz || it.reports_tgz_url || it.reportsTgzUrl],
+      ['JSON', it.findings_json || it.findings_json_url || it.findingsJsonUrl],
+    ];
+    for (const [name, url] of maybe){
+      if (url && typeof url === 'string'){
+        links.push(`<a href="${esc(url)}" style="opacity:.9" target="_blank" rel="noopener">${esc(name)}</a>`);
+      }
+    }
+    return links.length ? links.join(' · ') : '<span style="opacity:.65">—</span>';
+  }
+
+  function renderTable(items){
+    const doc = pickDoc();
+    const tbody = qs('#vsp_runs_tbody', doc);
+    const empty = qs('#vsp_runs_empty', doc);
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (!items.length){
+      empty && (empty.style.display='block');
+      return;
+    }
+    empty && (empty.style.display='none');
+
+    const q = (qs('#vsp_runs_q', doc)?.value || '').trim().toLowerCase();
+    const f = (qs('#vsp_runs_filter', doc)?.value || 'ALL').toUpperCase();
+
+    const filtered = items.filter(it=>{
+      const rid = String(it.rid || it.id || it.run_id || '');
+      const overall = String(pickOverall(it));
+      const blob = (rid + ' ' + overall + ' ' + JSON.stringify(it)).toLowerCase();
+      const okQ = !q || blob.includes(q);
+      const okF = (f==='ALL') || overall.toUpperCase().includes(f);
+      return okQ && okF;
+    });
+
+    for (const it of filtered){
+      const rid = String(it.rid || it.id || it.run_id || '');
+      const overall = String(pickOverall(it));
+      const when = String(pickWhen(it));
+      const artifacts = pickArtifacts(it);
+
+      const openHref = rid ? (`/c/data_source?rid=${encodeURIComponent(rid)}`) : '#';
+      const tr = doc.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;white-space:nowrap">
+          ${esc(rid || '—')}
+        </td>
+        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap">
+          <span style="padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.18)">${esc(overall)}</span>
+        </td>
+        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);opacity:.85;white-space:nowrap">${esc(when || '')}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05)">${artifacts}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap">
+          ${rid ? `<a href="${esc(openHref)}" style="opacity:.9" target="_blank" rel="noopener">Open DS</a>` : '<span style="opacity:.65">—</span>'}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    const badge = qs('#vsp_runs_badge', doc);
+    if (badge) badge.textContent = `items: ${filtered.length}/${items.length}`;
+  }
+
+  async function bootOnce(){
+    const doc = pickDoc();
+    ensureBaseVisibility(doc);
+    hideLegacyRunsBlocks(doc);
+
+    const m = ensureMount(doc);
+    renderShell(m);
+
+    const reload = qs('#vsp_runs_reload', doc);
+    const q = qs('#vsp_runs_q', doc);
+    const sel = qs('#vsp_runs_filter', doc);
+
+    let items = [];
+    const load = async ()=>{
+      try{
+        const {src, data} = await fetchRuns();
+        items = normalizeItems(data);
+        log('runs fetched', {src, items: items.length});
+        renderTable(items);
+        // Visibility safety net:
+        forceOverlayModeIfNeeded(doc, m);
+      }catch(e){
+        warn('fetch failed', e);
+        const badge = qs('#vsp_runs_badge', doc);
+        if (badge) badge.textContent = 'fetch error';
+        const empty = qs('#vsp_runs_empty', doc);
+        if (empty){
+          empty.style.display='block';
+          empty.textContent = 'Cannot load runs right now (API error). Check /api/vsp/runs_v3.';
+        }
+        forceOverlayModeIfNeeded(doc, m);
+      }
+    };
+
+    reload && reload.addEventListener('click', ()=>load());
+    q && q.addEventListener('input', ()=>renderTable(items));
+    sel && sel.addEventListener('change', ()=>renderTable(items));
+
+    await load();
+
+    // If any other legacy code tries to hide/remove our mount later, re-assert visibility.
+    const guard = ()=>{
+      try{
+        ensureBaseVisibility(doc);
+        const mm = ensureMount(doc);
+        mm.style.display='block'; mm.style.visibility='visible'; mm.style.opacity='1';
+      }catch(e){}
+    };
+    setInterval(guard, 1200);
+  }
+
+  // Run after DOM settles a bit (avoids “render then legacy clears”).
+  (async()=>{
+    try{
+      await sleep(180);
+      await bootOnce();
+      await sleep(600);
+      await bootOnce();
+    }catch(e){
+      warn('boot failed', e);
+    }
+  })();
+})();

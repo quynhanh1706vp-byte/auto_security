@@ -1,0 +1,138 @@
+(function () {
+  const LOG_PREFIX = "[VSP][KPI]";
+
+  function log() {
+    if (window.console && console.log) {
+      console.log.apply(console, [LOG_PREFIX].concat(Array.prototype.slice.call(arguments)));
+    }
+  }
+
+  function warn() {
+    if (window.console && console.warn) {
+      console.warn.apply(console, [LOG_PREFIX].concat(Array.prototype.slice.call(arguments)));
+    }
+  }
+
+  function safeNumber(v) {
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      var n = parseFloat(v);
+      return isNaN(n) ? 0 : n;
+    }
+    return 0;
+  }
+
+  function computeKpi(model) {
+    var summaryAll = (model && model.summary_all) || {};
+    var bySev = summaryAll.by_severity || {};
+
+    var total   = safeNumber(summaryAll.total_findings);
+    var crit    = safeNumber(bySev.CRITICAL);
+    var high    = safeNumber(bySev.HIGH);
+    var med     = safeNumber(bySev.MEDIUM);
+    var low     = safeNumber(bySev.LOW);
+    var info    = safeNumber(bySev.INFO);
+    var trace   = safeNumber(bySev.TRACE);
+    var infoTrc = info + trace;
+
+    var toolsCount = 0;
+    if (model && model.by_tool && typeof model.by_tool === "object") {
+      try {
+        toolsCount = Object.keys(model.by_tool).length;
+      } catch (e) {
+        toolsCount = 0;
+      }
+    }
+
+    // Security score V1 – đơn giản, sẽ tinh chỉnh sau
+    var score = 100;
+    if (total > 0) {
+      var weighted = crit * 5 + high * 3 + med * 1;
+      var penalty = Math.min(95, Math.round(weighted / 100));
+      score = Math.max(5, 100 - penalty);
+    }
+
+    return {
+      total_findings: total,
+      crit: crit,
+      high: high,
+      med: med,
+      low: low,
+      info: info,
+      trace: trace,
+      info_trace: infoTrc,
+      tools: toolsCount,
+      score: score
+    };
+  }
+
+  function fmt(n) {
+    try {
+      return n.toLocaleString("en-US");
+    } catch (e) {
+      return String(n);
+    }
+  }
+
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+  }
+
+  function cleanupOldMetrics() {
+    // Dọn các patch cũ chèn thêm div data-vsp-kpi-metric
+    var old = document.querySelectorAll('[data-vsp-kpi-metric="1"]');
+    for (var i = 0; i < old.length; i++) {
+      if (old[i] && old[i].parentNode) {
+        old[i].parentNode.removeChild(old[i]);
+      }
+    }
+  }
+
+  function renderKpi(model) {
+    cleanupOldMetrics();
+
+    var kpi = computeKpi(model);
+    log("Dashboard data (KPI view):", kpi);
+
+    // Gán trực tiếp vào các ô value có sẵn
+    setText("kpi-total",    fmt(kpi.total_findings));
+    setText("kpi-critical", fmt(kpi.crit));
+    setText("kpi-high",     fmt(kpi.high));
+    setText("kpi-medium",   fmt(kpi.med));
+    setText("kpi-low",      fmt(kpi.low));
+    setText("kpi-infotrace", fmt(kpi.info_trace));
+
+    setText("kpi-posture",  kpi.score + " / 100");
+
+    // TODO (sau): có thể bind thêm kpi-top-tool, kpi-top-cwe, kpi-top-module...
+  }
+
+  function loadKpi() {
+    var url = "/api/vsp/dashboard_v3";
+    log("Loading dashboard KPI from", url, "...");
+
+    fetch(url, { method: "GET" })
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        renderKpi(data || {});
+      })
+      .catch(function (err) {
+        warn("Không load được KPI:", err);
+      });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadKpi);
+  } else {
+    loadKpi();
+  }
+
+  log("vsp_dashboard_kpi_v1.js loaded.");
+})();

@@ -1,0 +1,72 @@
+{
+  "ok": true,
+  "total": 0,
+  "items": [],
+  "by_tool": {},
+  "by_tool_severity": {
+    "BANDIT": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "CODEQL": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "GITLEAKS": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "GRYPE": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "KICS": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "SEMGREP": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "SYFT": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "TRIVY": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    }
+  }
+}

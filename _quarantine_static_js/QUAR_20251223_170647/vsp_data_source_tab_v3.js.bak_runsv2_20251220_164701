@@ -1,0 +1,154 @@
+(() => {
+  if(window.__vsp_ds_v3) return; window.__vsp_ds_v3=true;
+  const lib = window.__vsp_tabs3_v3; if(!lib) return;
+  const { $, esc, api, ensure, mountNav } = lib;
+
+  async function boot(){
+    ensure();
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    mountNav("data_source");
+
+    root.innerHTML += `
+      <div class="vsp-row" style="justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-size:18px;font-weight:800">Data Source</div>
+          <div class="vsp-muted" style="font-size:12px;margin-top:2px">Findings table (by RID)</div>
+        </div>
+        <div class="vsp-row"><button class="vsp-btn" id="ds_refresh">Refresh</button></div>
+      </div>
+
+      <div class="vsp-card" style="margin-bottom:10px">
+        <div class="vsp-row">
+          <select class="vsp-in" id="ds_rid" style="min-width:340px"></select>
+          <input class="vsp-in" id="ds_q" placeholder="search..." style="flex:1;min-width:220px">
+          <select class="vsp-in" id="ds_sev">
+            <option value="">Overall: ALL</option>
+            <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>INFO</option><option>TRACE</option>
+          </select>
+          <input class="vsp-in" id="ds_tool" placeholder="tool (exact)" style="min-width:160px">
+          <select class="vsp-in" id="ds_limit">
+            <option value="10">10/page</option>
+            <option value="20" selected>20/page</option>
+            <option value="50">50/page</option>
+          </select>
+        </div>
+        <div class="vsp-muted" id="ds_meta" style="margin-top:8px;font-size:12px"></div>
+      </div>
+
+      <div class="vsp-card">
+        <table class="vsp-t">
+          <thead><tr><th>Severity</th><th>Tool</th><th>Rule</th><th>File</th><th>Line</th><th>Message</th></tr></thead>
+          <tbody id="ds_tb"></tbody>
+        </table>
+        <div class="vsp-row" style="justify-content:flex-end;margin-top:8px">
+          <button class="vsp-btn" id="ds_prev">Prev</button>
+          <div class="vsp-muted" id="ds_page" style="min-width:110px;text-align:center">1/1</div>
+          <button class="vsp-btn" id="ds_next">Next</button>
+        </div>
+      </div>
+    `;
+
+    const st = { offset:0, limit:20, total:0, rid:"" };
+    const ridSel=$("#ds_rid"), q=$("#ds_q"), sev=$("#ds_sev"), tool=$("#ds_tool"), lim=$("#ds_limit");
+    const tb=$("#ds_tb"), meta=$("#ds_meta"), page=$("#ds_page");
+
+    function debounce(fn, ms=250){ let t=null; return ()=>{ clearTimeout(t); t=setTimeout(fn,ms); }; }
+
+    async function loadRuns(){
+      ridSel.innerHTML = `<option value="">(loading runs...)</option>`;
+      try{
+        const j = await api("/api/ui/runs_v1?limit=160");
+        const items = j.items||[];
+        if(!items.length){
+          ridSel.innerHTML = `<option value="">(no runs found)</option>`;
+          return;
+        }
+        ridSel.innerHTML = items.map(x=>`<option value="${esc(x.rid)}">${esc(x.rid)}</option>`).join("");
+        st.rid = ridSel.value || items[0].rid;
+        ridSel.value = st.rid;
+      }catch(e){
+        ridSel.innerHTML = `<option value="">(runs API failed)</option>`;
+      }
+    }
+
+    async function load(){
+      st.limit = parseInt(lim.value||"20",10)||20;
+      const url = `/api/ui/findings_v2?rid=${encodeURIComponent(st.rid||"")}&limit=${encodeURIComponent(st.limit)}&offset=${encodeURIComponent(st.offset)}&q=${encodeURIComponent((q.value||"").trim())}&severity=${encodeURIComponent((sev.value||"").trim())}&tool=${encodeURIComponent((tool.value||"").trim().toLowerCase())}`;
+      const j = await api(url);
+      st.total = j.total||0;
+      meta.textContent = `rid: ${j.rid||""} · run_dir: ${j.run_dir||""} · total=${st.total}` + (j.hint?` · hint: ${j.hint}`:"");
+      const items = j.items||[];
+      tb.innerHTML = items.map(it=>`
+        <tr>
+          <td><span class="vsp-badge">${esc(it.severity||"")}</span></td>
+          <td>${esc(it.tool||"")}</td>
+          <td>${esc(it.rule_id||"")}</td>
+          <td style="max-width:360px;word-break:break-word">${esc(it.file||"")}</td>
+          <td>${esc(it.line||"")}</td>
+          <td style="max-width:520px;word-break:break-word">${esc(it.message||"")}</td>
+        </tr>`).join("");
+      const pages = Math.max(1, Math.ceil((st.total||0)/st.limit));
+      const cur = Math.min(pages, Math.floor((st.offset||0)/st.limit)+1);
+      page.textContent = `${cur}/${pages}`;
+      $("#ds_prev").disabled = (st.offset<=0);
+      $("#ds_next").disabled = (st.offset + st.limit >= st.total);
+    }
+
+    const reload = debounce(()=>{ st.offset=0; load().catch(console.error); }, 250);
+    q.addEventListener("input", reload);
+    sev.addEventListener("change", ()=>{ st.offset=0; load().catch(console.error); });
+    tool.addEventListener("input", reload);
+    lim.addEventListener("change", ()=>{ st.offset=0; load().catch(console.error); });
+    ridSel.addEventListener("change", ()=>{ st.rid = ridSel.value||""; st.offset=0; load().catch(console.error); });
+
+    $("#ds_refresh").onclick = ()=>load().catch(console.error);
+    $("#ds_prev").onclick = ()=>{ st.offset=Math.max(0, st.offset-st.limit); load().catch(console.error); };
+    $("#ds_next").onclick = ()=>{ st.offset=st.offset+st.limit; load().catch(console.error); };
+
+    await loadRuns();
+    await load();
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
+})();
+
+
+// VSP_DATA_SOURCE_EMPTY_STATE_P1
+(function(){
+  function $(sel, root=document){ return root.querySelector(sel); }
+  function ensureEmptyMsg(){
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    const tbl = root.querySelector("table");
+    if(!tbl) return;
+    const body = tbl.querySelector("tbody");
+    if(!body) return;
+    const hasRows = body.querySelectorAll("tr").length > 0;
+    let msg = root.querySelector("#vsp_empty_state_msg");
+    if(!hasRows){
+      if(!msg){
+        msg = document.createElement("div");
+        msg.id="vsp_empty_state_msg";
+        msg.style.opacity=".75";
+        msg.style.margin="12px 2px";
+        msg.style.fontSize="12px";
+        msg.textContent = "No findings for selected run (or filters).";
+        tbl.parentElement.insertBefore(msg, tbl.nextSibling);
+      }
+    }else{
+      if(msg) msg.remove();
+    }
+  }
+  const _obs = new MutationObserver(()=>ensureEmptyMsg());
+  function boot(){
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    _obs.observe(root, {subtree:true, childList:true});
+    setTimeout(ensureEmptyMsg, 600);
+    setInterval(ensureEmptyMsg, 1800);
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+

@@ -1,0 +1,109 @@
+== VSP COMMERCIAL SELFCHECK P0 (v2) ==
+[TS] 20251217_164642
+[PWD] /home/test/Data/SECURITY_BUNDLE/ui
+
+== (0) STOP 8910 clean ==
+ 854911== (1) py_compile core ==
+[OK] py_compile core OK
+
+== (2) START 8910 (manual gunicorn) ==
+== (3) WAIT HTTP READY (max 6s) ==
+[OK] HTTP ready
+
+== (4) FETCH HTML + APIs ==
+[OK] fetched: page_20251217_164642.html api1_20251217_164642.json api2_20251217_164642.json
+
+== (5) PARSE scripts from HTML (regex fixed) ==
+[SCRIPTS] count= 6
+ - /static/js/vsp_drilldown_stub_safe_v1.js?v=1765945236
+ - /static/js/vsp_hash_normalize_v1.js?v=1765944602
+ - /static/js/vsp_bundle_commercial_v1.js?v=1765963769
+ - /static/js/vsp_ui_features_v1.js?v=1765944602
+ - /static/js/vsp_ui_loader_route_v1.js?v=1765944602
+ - /static/js/vsp_tabs_hash_router_v1.js
+[OK] wrote out_ci/commercial_selfcheck_20251217_164642.json
+
+== (6) node --check key JS ==
+[OK] static/js/vsp_ui_loader_route_v1.js
+[OK] static/js/vsp_dashboard_enhance_v1.js
+[OK] static/js/vsp_dashboard_charts_pretty_v3.js
+[OK] static/js/vsp_tabs_hash_router_v1.js
+[OK] static/js/vsp_runs_tab_resolved_v1.js
+[OK] static/js/vsp_rule_overrides_tab_v1.js
+[OK] static/js/vsp_drilldown_stub_safe_v1.js
+[OK] static/js/vsp_drilldown_artifacts_impl_commercial_v1.js
+
+== (7) drilldown callsite audit (BAD vs GOOD) ==
+[BAD] bare calls:
+[OK] none
+
+[GOOD] window calls:
+[WARN] none
+
+== (8) leak markers in templates (should be NONE) ==
+templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_4tabs_commercial_v1.html.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:2:function __VSP_DD_ART_CALL__(h, ...args) {
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111:6:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_ddleak_20251217_153835:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815:5:  } catch(e) { try{console.warn('[VSP][DD_SAFE]', e);}catch(_e){} }
+
+== DONE ==
+[REPORT] out_ci/commercial_selfcheck_20251217_164642.txt
+[JSON]   out_ci/commercial_selfcheck_20251217_164642.json

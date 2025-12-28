@@ -1,0 +1,475 @@
+/* VSP_BUNDLE_COMMERCIAL_V2_CLEAN_P0_V1: clean, stable, no console-red */
+(function(){
+  'use strict';
+
+  // ---------- tiny utils ----------
+  const $  = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+  async function fetchJson(url){
+    const r = await fetch(url, { cache:'no-store' });
+    let j = null;
+    try { j = await r.json(); } catch(_){}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return j;
+  }
+
+  // ---------- toast ----------
+  function ensureCss(){
+    if($('#__vsp_clean_css')) return;
+    const st=document.createElement('style');
+    st.id='__vsp_clean_css';
+    st.textContent = `
+      .vspToast{ position:fixed; right:22px; bottom:360px; z-index:100000; padding:10px 12px;
+        background:rgba(22,24,30,.96); border:1px solid rgba(255,255,255,.10);
+        border-radius:12px; transform:translateY(10px); opacity:0; transition:all .18s ease;
+        box-shadow:0 14px 35px rgba(0,0,0,.45); font-size:13px; color:#e9eef7; }
+      .vspToast.on{ transform:translateY(0); opacity:1; }
+      .vspToast.bad{ border-color: rgba(255,80,80,.35); }
+      .vspToast.good{ border-color: rgba(80,255,160,.30); }
+      #vspQuickActions{ position:fixed; right:18px; bottom:18px; z-index:99999; width:320px;
+        background:linear-gradient(180deg, rgba(22,24,30,.95), rgba(16,18,24,.92));
+        border:1px solid rgba(255,255,255,.10);
+        border-radius:18px; box-shadow:0 18px 55px rgba(0,0,0,.55);
+        backdrop-filter: blur(10px); overflow:hidden; color:#e9eef7; }
+      #vspQuickActions .hd{ padding:12px 14px; display:flex; align-items:center; justify-content:space-between;
+        border-bottom:1px solid rgba(255,255,255,.08); }
+      #vspQuickActions .hd .t{ font-weight:850; font-size:12px; letter-spacing:.10em; opacity:.9; }
+      #vspQuickActions .hd .pill{ font-size:11px; font-weight:750; padding:4px 8px; border-radius:999px;
+        border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); opacity:.9; }
+      #vspQuickActions .hd .pill.ok{ border-color:rgba(80,255,160,.30); background:rgba(80,255,160,.10); }
+      #vspQuickActions .hd .pill.bad{ border-color:rgba(255,80,80,.35); background:rgba(255,80,80,.10); }
+      #vspQuickActions .hd .x{ cursor:pointer; opacity:.65; font-size:14px; }
+      #vspQuickActions .hd .x:hover{ opacity:1; }
+      #vspQuickActions .bd{ padding:12px 14px; display:grid; grid-template-columns:1fr; gap:10px; }
+      #vspQuickActions button{ all:unset; cursor:pointer; padding:10px 12px; border-radius:12px;
+        background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+        display:flex; align-items:center; justify-content:space-between; font-weight:760; font-size:13px; }
+      #vspQuickActions button:hover{ background:rgba(255,255,255,.10); }
+      #vspQuickActions .muted{ opacity:.72; font-weight:700; font-size:12px; }
+      #vspQuickActions .meta{ display:flex; gap:8px; align-items:center; justify-content:space-between; }
+      #vspQuickActions .rid{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; opacity:.85; }
+      #vspQuickActions .copy{ all:unset; cursor:pointer; padding:6px 10px; border-radius:10px;
+        border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.06); font-size:12px; font-weight:750; }
+      #vspQuickActions .copy:hover{ background:rgba(255,255,255,.10); }
+      #vspQuickActions .status{ font-size:12px; opacity:.78; line-height:1.25; }
+    `;
+    document.head.appendChild(st);
+  }
+  function toast(msg, ok){
+    ensureCss();
+    const t=document.createElement('div');
+    t.className='vspToast' + (ok===false?' bad':ok===true?' good':'');
+    t.textContent=String(msg||'');
+    document.body.appendChild(t);
+    setTimeout(()=>t.classList.add('on'), 10);
+    setTimeout(()=>t.classList.remove('on'), 2200);
+    setTimeout(()=>{ try{t.remove();}catch(_){ } }, 2700);
+  }
+
+  // ---------- latest RID cache ----------
+  let LATEST = { rid:'', run_dir:'' };
+  async function refreshLatest(){
+    try{
+      const j = await fetchJson('/api/vsp/latest_rid_v1?ts=' + Date.now());
+      LATEST.rid = j?.rid || '';
+      LATEST.run_dir = j?.ci_run_dir || '';
+      // update any header label that contains "RID:"
+      const nodes = $$('*').filter(n=>{
+        if(!n || !n.textContent) return false;
+        const t = n.textContent.trim();
+        return t.startsWith('RID:') || t.startsWith('RID(') || t.includes('RID: (none)') || t.includes('RID:');
+      }).slice(0, 6);
+      nodes.forEach(n=>{
+        // keep short stable
+        if(String(n.textContent||'').includes('RID')) n.textContent = 'RID: ' + (LATEST.rid || '(none)');
+      });
+      return LATEST;
+    }catch(e){
+      return LATEST;
+    }
+  }
+
+  // ---------- drilldown safe (NEVER throw) ----------
+  // Some parts call identifier directly, so sync both.
+  function __VSP_DD_ART_CALL__(h, ...args){
+    try{
+      if(typeof h === 'function') return h(...args);
+      if(h && typeof h.open === 'function') return h.open(...args);
+      if(h && typeof h.install === 'function') return h.install(...args);
+      if(h && typeof h.init === 'function') return h.init(...args);
+    }catch(e){
+      try{ console.warn('[VSP][DD_SAFE_CALL]', e); }catch(_){}
+    }
+    return null;
+  }
+  // Provide stable handler + keep window/identifier aligned.
+  function installDrilldownStub(){
+    const k='VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2';
+    const fn = function(){ return null; };
+    window[k]=fn;
+    try{ VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = fn; }catch(_){}
+    // keep in sync if overwritten later
+    try{
+      Object.defineProperty(window, k, {
+        configurable:true,
+        get(){ return fn; },
+        set(nv){
+          // always coerce to callable wrapper
+          const wrapped = function(){ return __VSP_DD_ART_CALL__(nv, ...arguments); };
+          window[k] = wrapped; // updates getter/setter? safe; but avoid recursion by redef later
+          try{ VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = wrapped; }catch(_){}
+        }
+      });
+    }catch(_){}
+  }
+
+  // ---------- tab router (soft) ----------
+  const TABS = [
+    { key:'dashboard',   pane:'#vsp-dashboard-main' },
+    { key:'runs',        pane:'#vsp-runs-main' },
+    { key:'datasource',  pane:'#vsp-datasource-main' },
+    { key:'settings',    pane:'#vsp-settings-main' },
+    { key:'rules',       pane:'#vsp-rules-main' },
+  ];
+  function showTab(key){
+    for(const t of TABS){
+      const el = $(t.pane);
+      if(!el) continue;
+      el.style.display = (t.key===key) ? '' : 'none';
+    }
+  }
+  function normalizeHash(){
+    const h = (location.hash||'').replace('#','').trim().toLowerCase();
+    if(!h) return 'dashboard';
+    if(h.startsWith('run')) return 'runs';
+    if(h.startsWith('data')) return 'datasource';
+    if(h.startsWith('set')) return 'settings';
+    if(h.startsWith('rule')) return 'rules';
+    if(h.startsWith('dash')) return 'dashboard';
+    return 'dashboard';
+  }
+  function bindHashRouter(){
+    window.addEventListener('hashchange', ()=>showTab(normalizeHash()));
+    showTab(normalizeHash());
+  }
+
+  // ---------- header export buttons ----------
+  function findHeaderButtons(){
+    // find by button text (robust to DOM changes)
+    const btns = $$('button');
+    const byText = (txt)=>btns.find(b=>String(b.textContent||'').trim().toLowerCase()===txt);
+    return {
+      html: byText('export html'),
+      zip:  byText('export zip') || byText('export tgz') || byText('export tar'),
+      pdf:  byText('export pdf'),
+    };
+  }
+  async function bindHeaderExports(){
+    const b = findHeaderButtons();
+    if(!b.html && !b.zip && !b.pdf) return;
+
+    const resolve = async ()=>{
+      await refreshLatest();
+      if(!LATEST.run_dir) throw new Error('No ci_run_dir');
+      return LATEST.run_dir;
+    };
+
+    if(b.html){
+      b.html.onclick = async ()=>{
+        try{
+          const rd = await resolve();
+          window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()), '_blank');
+        }catch(e){ toast('Open HTML failed ❌', false); }
+      };
+    }
+    if(b.zip){
+      b.zip.onclick = async ()=>{
+        try{
+          const rd = await resolve();
+          window.location.href = '/api/vsp/export_report_tgz_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now());
+        }catch(e){ toast('Export TGZ failed ❌', false); }
+      };
+    }
+    if(b.pdf){
+      // no PDF endpoint yet -> degrade gracefully
+      b.pdf.onclick = async ()=>{
+        toast('PDF not wired yet — opening HTML', true);
+        try{
+          const rd = await resolve();
+          window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()), '_blank');
+        }catch(e){ toast('Open HTML failed ❌', false); }
+      };
+    }
+  }
+
+  // ---------- Quick Actions panel ----------
+  function setPill(pill, ok, text){
+    pill.textContent = text || 'READY';
+    pill.classList.remove('ok','bad');
+    if(ok===true) pill.classList.add('ok');
+    if(ok===false) pill.classList.add('bad');
+  }
+  function installQuickActions(){
+    ensureCss();
+    if($('#vspQuickActions')) return;
+
+    const box=document.createElement('div'); box.id='vspQuickActions';
+    const hd=document.createElement('div'); hd.className='hd';
+    const title=document.createElement('div'); title.className='t'; title.textContent='QUICK ACTIONS';
+    const pill=document.createElement('div'); pill.className='pill'; pill.textContent='BOOT';
+    const close=document.createElement('div'); close.className='x'; close.textContent='✕';
+    close.title='Hide'; close.onclick=()=>{ try{box.remove();}catch(_){ } };
+    hd.appendChild(title); hd.appendChild(pill); hd.appendChild(close);
+
+    const bd=document.createElement('div'); bd.className='bd';
+    const meta=document.createElement('div'); meta.className='meta';
+    const rid=document.createElement('div'); rid.className='rid'; rid.textContent='RID: (loading…)';
+    const copy=document.createElement('button'); copy.className='copy'; copy.textContent='Copy';
+    copy.onclick=async ()=>{
+      try{
+        await refreshLatest();
+        if(!LATEST.rid){ toast('No RID ❌', false); return; }
+        await navigator.clipboard.writeText(LATEST.rid);
+        toast('Copied RID ✅', true);
+      }catch(e){ toast('Copy failed ❌', false); }
+    };
+    meta.appendChild(rid); meta.appendChild(copy);
+
+    const status=document.createElement('div'); status.className='status'; status.textContent='Status: idle';
+    bd.appendChild(meta); bd.appendChild(status);
+
+    const mkBtn=(label, hint)=>{
+      const b=document.createElement('button');
+      const l=document.createElement('span'); l.textContent=label;
+      const r=document.createElement('span'); r.className='muted'; r.textContent=hint;
+      b.appendChild(l); b.appendChild(r);
+      return b;
+    };
+
+    const b1=mkBtn('Export TGZ','download');
+    b1.onclick=async ()=>{
+      try{
+        status.textContent='Status: resolving latest…'; setPill(pill,null,'RESOLVE');
+        await refreshLatest();
+        rid.textContent='RID: ' + (LATEST.rid||'(none)');
+        if(!LATEST.run_dir){ setPill(pill,false,'NO RUN'); status.textContent='Status: missing ci_run_dir'; return; }
+        status.textContent='Status: packing & downloading…'; setPill(pill,null,'PACK');
+        window.location.href='/api/vsp/export_report_tgz_v1?run_dir='+encodeURIComponent(LATEST.run_dir)+'&ts='+(Date.now());
+        setTimeout(()=>{ setPill(pill,true,'READY'); status.textContent='Status: download triggered'; }, 800);
+      }catch(e){ setPill(pill,false,'ERROR'); status.textContent='Status: export error'; }
+    };
+
+    const b2=mkBtn('Open HTML report','new tab');
+    b2.onclick=async ()=>{
+      try{
+        status.textContent='Status: resolving latest…'; setPill(pill,null,'RESOLVE');
+        await refreshLatest();
+        rid.textContent='RID: ' + (LATEST.rid||'(none)');
+        if(!LATEST.run_dir){ setPill(pill,false,'NO RUN'); status.textContent='Status: missing ci_run_dir'; return; }
+        status.textContent='Status: opening…'; setPill(pill,null,'OPEN');
+        window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(LATEST.run_dir)+'&ts='+(Date.now()), '_blank');
+        setTimeout(()=>{ setPill(pill,true,'READY'); status.textContent='Status: opened'; }, 450);
+      }catch(e){ setPill(pill,false,'ERROR'); status.textContent='Status: open error'; }
+    };
+
+    const b3=mkBtn('Verify SHA256','server');
+    b3.onclick=async ()=>{
+      try{
+        status.textContent='Status: resolving latest…'; setPill(pill,null,'RESOLVE');
+        await refreshLatest();
+        rid.textContent='RID: ' + (LATEST.rid||'(none)');
+        if(!LATEST.run_dir){ setPill(pill,false,'NO RUN'); status.textContent='Status: missing ci_run_dir'; return; }
+        status.textContent='Status: verifying…'; setPill(pill,null,'VERIFY');
+        const j = await fetchJson('/api/vsp/verify_report_sha_v1?run_dir='+encodeURIComponent(LATEST.run_dir)+'&ts='+(Date.now()));
+        if(j && j.ok){ setPill(pill,true,'OK'); status.textContent='Status: SHA256 OK ✅'; toast('SHA256 OK ✅', true); }
+        else { setPill(pill,false,'FAIL'); status.textContent='Status: SHA256 FAIL ❌'; toast('SHA256 FAIL ❌', false); }
+      }catch(e){ setPill(pill,false,'ERROR'); status.textContent='Status: verify error'; toast('Verify error ❌', false); }
+    };
+
+    bd.appendChild(b1); bd.appendChild(b2); bd.appendChild(b3);
+
+    box.appendChild(hd); box.appendChild(bd);
+    document.body.appendChild(box);
+
+    // initial refresh + periodic
+    (async ()=>{
+      await sleep(150);
+      await refreshLatest();
+      rid.textContent='RID: ' + (LATEST.rid||'(none)');
+      setPill(pill,true,'READY');
+      status.textContent='Status: ready';
+    })();
+    setInterval(async ()=>{ try{ await refreshLatest(); rid.textContent='RID: ' + (LATEST.rid||'(none)'); }catch(_){ } }, 15000);
+  }
+
+  
+  // ---------- VSP_CLEAN_RENDERER_P0_V1: minimal UI renderer (avoid blank page) ----------
+  function ensureShell(){
+    // if template already provides panes, do nothing
+    if (document.querySelector('#vsp-dashboard-main') || document.querySelector('#vspShell')) return;
+
+    const shell=document.createElement('div');
+    shell.id='vspShell';
+    shell.style.cssText="display:flex; min-height:100vh; background:#0b1020; color:#e9eef7; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;";
+
+    const nav=document.createElement('div');
+    nav.id='vspNav';
+    nav.style.cssText="width:260px; padding:18px 14px; border-right:1px solid rgba(255,255,255,.08); background:rgba(10,14,26,.96);";
+    nav.innerHTML = `
+      <div style="font-weight:850; font-size:16px; letter-spacing:.02em;">VersaSecure Platform</div>
+      <div style="opacity:.7; font-size:12px; margin-top:2px;">VSP 2025 • UI gateway 8910</div>
+      <div style="margin-top:14px; opacity:.85; font-size:12px;">RID: <span id="vspRidTop">(none)</span></div>
+      <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+        <button id="btnExportHTML" style="all:unset; cursor:pointer; padding:8px 10px; border:1px solid rgba(255,255,255,.10); border-radius:10px; background:rgba(255,255,255,.06); font-weight:750; font-size:12px;">Export HTML</button>
+        <button id="btnExportTGZ"  style="all:unset; cursor:pointer; padding:8px 10px; border:1px solid rgba(255,255,255,.10); border-radius:10px; background:rgba(255,255,255,.06); font-weight:750; font-size:12px;">Export TGZ</button>
+        <button id="btnVerifySHA"  style="all:unset; cursor:pointer; padding:8px 10px; border:1px solid rgba(255,255,255,.10); border-radius:10px; background:rgba(255,255,255,.06); font-weight:750; font-size:12px;">Verify SHA</button>
+      </div>
+      <div style="margin-top:18px; display:grid; gap:8px;">
+        ${['dashboard','runs','datasource','settings','rules'].map(k=>`
+          <a href="#${k}" data-tab="${k}" style="text-decoration:none; color:#e9eef7; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); display:flex; justify-content:space-between; font-weight:750;">
+            <span>${k[0].toUpperCase()+k.slice(1)}</span><span style="opacity:.55;">›</span>
+          </a>`).join('')}
+      </div>
+    `;
+
+    const main=document.createElement('div');
+    main.id='vspMain';
+    main.style.cssText="flex:1; padding:20px 22px;";
+
+    const panes=document.createElement('div');
+    panes.innerHTML = `
+      <div id="vsp-dashboard-main"></div>
+      <div id="vsp-runs-main" style="display:none;"></div>
+      <div id="vsp-datasource-main" style="display:none;"></div>
+      <div id="vsp-settings-main" style="display:none;"></div>
+      <div id="vsp-rules-main" style="display:none;"></div>
+    `;
+    main.appendChild(panes);
+
+    shell.appendChild(nav);
+    shell.appendChild(main);
+    document.body.innerHTML = "";
+    document.body.appendChild(shell);
+  }
+
+  function card(title, bodyHtml){
+    return `
+      <div style="border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04); border-radius:16px; padding:14px 14px; box-shadow:0 18px 45px rgba(0,0,0,.35);">
+        <div style="font-weight:850; font-size:13px; letter-spacing:.06em; opacity:.9;">${title}</div>
+        <div style="margin-top:10px; opacity:.9; font-size:12px; line-height:1.35; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap;">${bodyHtml}</div>
+      </div>
+    `;
+  }
+
+  async function renderDashboard(){
+    const host = document.querySelector('#vsp-dashboard-main');
+    if(!host) return;
+    host.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="font-size:18px; font-weight:900;">Dashboard</div>
+        <button id="btnRefreshDash" style="all:unset; cursor:pointer; padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.06); font-weight:800;">Refresh</button>
+      </div>
+      <div id="dashGrid" style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;"></div>
+    `;
+    const grid = document.querySelector('#dashGrid');
+    const data = await fetchJson('/api/vsp/dashboard_v3?ts=' + Date.now()).catch(()=>({error:true}));
+    grid.innerHTML = [
+      card('OVERALL (raw)', JSON.stringify(data?.overall||data||{}, null, 2).replace(/</g,'&lt;')),
+      card('TOOLS (raw)', JSON.stringify(data?.tools||data?.tools_a||data?.tools_b||{}, null, 2).replace(/</g,'&lt;')),
+      card('GATE (raw)', JSON.stringify(data?.gate||data?.gate_overall||{}, null, 2).replace(/</g,'&lt;')),
+      card('META (raw)', JSON.stringify({rid:LATEST.rid, run_dir:LATEST.run_dir}, null, 2).replace(/</g,'&lt;')),
+    ].join('');
+    const btn = document.querySelector('#btnRefreshDash');
+    if(btn) btn.onclick = ()=>renderDashboard();
+  }
+
+  async function renderRuns(){
+    const host = document.querySelector('#vsp-runs-main');
+    if(!host) return;
+    host.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="font-size:18px; font-weight:900;">Runs & Reports</div>
+        <button id="btnRefreshRuns" style="all:unset; cursor:pointer; padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.06); font-weight:800;">Refresh</button>
+      </div>
+      <div id="runsBox"></div>
+    `;
+    const box = document.querySelector('#runsBox');
+    const data = await fetchJson('/api/vsp/runs_index_v3_fs_resolved?ts=' + Date.now()).catch(()=>({error:true}));
+    box.innerHTML = card('RUNS (raw)', JSON.stringify(data, null, 2).replace(/</g,'&lt;'));
+    const btn = document.querySelector('#btnRefreshRuns');
+    if(btn) btn.onclick = ()=>renderRuns();
+  }
+
+  function renderSettings(){
+    const host = document.querySelector('#vsp-settings-main');
+    if(!host) return;
+    host.innerHTML = `
+      <div style="font-size:18px; font-weight:900; margin-bottom:14px;">Settings</div>
+      ${card('Info', 'This is minimal clean UI shell. Your full commercial template can be plugged back later.')}
+    `;
+  }
+  function renderDatasource(){
+    const host = document.querySelector('#vsp-datasource-main');
+    if(!host) return;
+    host.innerHTML = `
+      <div style="font-size:18px; font-weight:900; margin-bottom:14px;">Data Source</div>
+      ${card('Hint', 'Open Runs & Reports → Export HTML/TGZ to view findings.json.')}
+    `;
+  }
+  function renderRules(){
+    const host = document.querySelector('#vsp-rules-main');
+    if(!host) return;
+    host.innerHTML = `
+      <div style="font-size:18px; font-weight:900; margin-bottom:14px;">Rule Overrides</div>
+      ${card('Hint', 'Rule Overrides UI will be re-attached as separate module (clean).')}
+    `;
+  }
+
+  async function bindShellButtons(){
+    const html=$('#btnExportHTML'), tgz=$('#btnExportTGZ'), sha=$('#btnVerifySHA');
+    const ridTop=$('#vspRidTop');
+    async function resolve(){
+      await refreshLatest();
+      if(ridTop) ridTop.textContent = LATEST.rid || '(none)';
+      if(!LATEST.run_dir) throw new Error('No ci_run_dir');
+      return LATEST.run_dir;
+    }
+    if(html) html.onclick = async ()=>{ try{ const rd=await resolve(); window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()), '_blank'); }catch(e){ toast('Open HTML failed ❌', false); } };
+    if(tgz)  tgz.onclick  = async ()=>{ try{ const rd=await resolve(); window.location.href='/api/vsp/export_report_tgz_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()); }catch(e){ toast('Export TGZ failed ❌', false); } };
+    if(sha)  sha.onclick  = async ()=>{ try{ const rd=await resolve(); const j=await fetchJson('/api/vsp/verify_report_sha_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now())); toast(j&&j.ok?'SHA256 OK ✅':'SHA256 FAIL ❌', !!(j&&j.ok)); }catch(e){ toast('Verify error ❌', false); } };
+  }
+
+  async function renderAllForTab(key){
+    // called on hashchange too
+    if(key==='dashboard') await renderDashboard();
+    if(key==='runs') await renderRuns();
+    if(key==='settings') renderSettings();
+    if(key==='datasource') renderDatasource();
+    if(key==='rules') renderRules();
+  }
+
+
+// ---------- boot ----------
+  function boot(){
+    try{ ensureShell(); }catch(_){ }
+
+    try{
+      installDrilldownStub();
+      bindHashRouter();
+      try{ bindShellButtons(); }catch(_){ }
+      try{ renderAllForTab(normalizeHash()); }catch(_){ }
+      bindHeaderExports();
+      installQuickActions();
+      console.log('[VSP_CLEAN_BUNDLE] installed');
+    }catch(e){
+      try{ console.warn('[VSP_CLEAN_BUNDLE] boot err', e); }catch(_){}
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  }else{
+    boot();
+  }
+})();

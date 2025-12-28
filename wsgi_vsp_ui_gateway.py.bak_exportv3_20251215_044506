@@ -1,0 +1,10 @@
+import importlib
+
+m = importlib.import_module("vsp_demo_app")
+
+if hasattr(m, "app"):
+    application = m.app
+elif hasattr(m, "create_app"):
+    application = m.create_app()
+else:
+    raise RuntimeError("vsp_demo_app has no 'app' or 'create_app'")

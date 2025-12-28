@@ -1,0 +1,97 @@
+{
+  "profile_name": "VSP_FULL_EXT_2025",
+  "env": "STAGING / DEMO",
+  "run_id_latest": "RUN_VSP_FULL_EXT_TEST_20251208_121219",
+  "security_score": 0,
+  "tools": [
+    {
+      "id": "bandit",
+      "name": "bandit",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 43,
+      "severity_min": "LOW"
+    },
+    {
+      "id": "gitleaks",
+      "name": "gitleaks",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 19665,
+      "severity_min": "LOW"
+    },
+    {
+      "id": "grype",
+      "name": "grype",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 397,
+      "severity_min": "LOW"
+    },
+    {
+      "id": "kics",
+      "name": "kics",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 2,
+      "severity_min": "LOW"
+    },
+    {
+      "id": "semgrep",
+      "name": "semgrep",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 632,
+      "severity_min": "LOW"
+    },
+    {
+      "id": "syft",
+      "name": "syft",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 6266,
+      "severity_min": "LOW"
+    },
+    {
+      "id": "trivy_fs",
+      "name": "trivy_fs",
+      "type": "AUTO",
+      "mode": "EXT",
+      "enabled": true,
+      "findings": 254,
+      "severity_min": "LOW"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "FULL_EXT",
+      "label": "Full EXT (all tools)",
+      "tools": [
+        "bandit",
+        "gitleaks",
+        "grype",
+        "kics",
+        "semgrep",
+        "syft",
+        "trivy_fs"
+      ],
+      "description": "Full extended profile – all tools enabled for deep scan."
+    },
+    {
+      "id": "FAST",
+      "label": "Fast (secrets + deps)",
+      "tools": [
+        "gitleaks",
+        "grype",
+        "trivy_fs"
+      ],
+      "description": "Fast pre-commit / CI – secrets & dependency risks only."
+    }
+  ]
+}

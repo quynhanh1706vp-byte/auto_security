@@ -1,0 +1,736 @@
+[2025-12-14 09:02:18 +0700] [36205] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:02:18 +0700] [36205] [INFO] Listening at: http://127.0.0.1:8911 (36205)
+[2025-12-14 09:02:18 +0700] [36205] [INFO] Using worker: gthread
+[2025-12-14 09:02:18 +0700] [36207] [INFO] Booting worker with pid: 36207
+[2025-12-14 09:02:28 +0700] [36231] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:02:28 +0700] [36231] [INFO] Listening at: http://127.0.0.1:8911 (36231)
+[2025-12-14 09:02:28 +0700] [36231] [INFO] Using worker: gthread
+[2025-12-14 09:02:28 +0700] [36233] [INFO] Booting worker with pid: 36233
+[2025-12-14 09:04:10 +0700] [36679] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:04:10 +0700] [36679] [INFO] Listening at: http://127.0.0.1:8911 (36679)
+[2025-12-14 09:04:10 +0700] [36679] [INFO] Using worker: gthread
+[2025-12-14 09:04:10 +0700] [36685] [INFO] Booting worker with pid: 36685
+[2025-12-14 09:05:26 +0700] [36679] [INFO] Handling signal: term
+[2025-12-14 09:05:27 +0700] [36685] [INFO] Worker exiting (pid: 36685)
+[2025-12-14 09:05:27 +0700] [36679] [INFO] Shutting down: Master
+[2025-12-14 09:05:27 +0700] [36869] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:05:27 +0700] [36869] [INFO] Listening at: http://127.0.0.1:8911 (36869)
+[2025-12-14 09:05:27 +0700] [36869] [INFO] Using worker: gthread
+[2025-12-14 09:05:27 +0700] [36881] [INFO] Booting worker with pid: 36881
+[2025-12-14 09:12:47 +0700] [36869] [INFO] Handling signal: term
+[2025-12-14 09:12:48 +0700] [36881] [INFO] Worker exiting (pid: 36881)
+[2025-12-14 09:12:48 +0700] [36869] [INFO] Shutting down: Master
+[2025-12-14 09:12:48 +0700] [37030] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:12:48 +0700] [37030] [INFO] Listening at: http://127.0.0.1:8911 (37030)
+[2025-12-14 09:12:48 +0700] [37030] [INFO] Using worker: gthread
+[2025-12-14 09:12:48 +0700] [37033] [INFO] Booting worker with pid: 37033
+[2025-12-14 09:12:57 +0700] [37030] [INFO] Handling signal: term
+[2025-12-14 09:12:57 +0700] [37033] [INFO] Worker exiting (pid: 37033)
+[2025-12-14 09:12:58 +0700] [37030] [INFO] Shutting down: Master
+[2025-12-14 09:12:58 +0700] [37221] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:12:58 +0700] [37221] [INFO] Listening at: http://127.0.0.1:8911 (37221)
+[2025-12-14 09:12:58 +0700] [37221] [INFO] Using worker: gthread
+[2025-12-14 09:12:58 +0700] [37227] [INFO] Booting worker with pid: 37227
+[2025-12-14 09:14:50 +0700] [37221] [INFO] Handling signal: term
+[2025-12-14 09:14:50 +0700] [37227] [INFO] Worker exiting (pid: 37227)
+[2025-12-14 09:14:50 +0700] [37221] [INFO] Shutting down: Master
+[2025-12-14 09:14:50 +0700] [37608] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:14:50 +0700] [37608] [INFO] Listening at: http://127.0.0.1:8911 (37608)
+[2025-12-14 09:14:50 +0700] [37608] [INFO] Using worker: gthread
+[2025-12-14 09:14:50 +0700] [37611] [INFO] Booting worker with pid: 37611
+[2025-12-14 09:14:51 +0700] [37611] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:14:51 +0700] [37611] [INFO] Worker exiting (pid: 37611)
+[2025-12-14 09:14:51 +0700] [37608] [ERROR] Worker (pid:37611) exited with code 3
+[2025-12-14 09:14:51 +0700] [37608] [ERROR] Shutting down: Master
+[2025-12-14 09:14:51 +0700] [37608] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:14:52 +0700] [37625] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:14:52 +0700] [37625] [INFO] Listening at: http://127.0.0.1:8911 (37625)
+[2025-12-14 09:14:52 +0700] [37625] [INFO] Using worker: gthread
+[2025-12-14 09:14:52 +0700] [37627] [INFO] Booting worker with pid: 37627
+[2025-12-14 09:14:52 +0700] [37627] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:14:52 +0700] [37627] [INFO] Worker exiting (pid: 37627)
+[2025-12-14 09:14:52 +0700] [37625] [ERROR] Worker (pid:37627) exited with code 3
+[2025-12-14 09:14:52 +0700] [37625] [ERROR] Shutting down: Master
+[2025-12-14 09:14:52 +0700] [37625] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:14:54 +0700] [37645] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:14:54 +0700] [37645] [INFO] Listening at: http://127.0.0.1:8911 (37645)
+[2025-12-14 09:14:54 +0700] [37645] [INFO] Using worker: gthread
+[2025-12-14 09:14:54 +0700] [37647] [INFO] Booting worker with pid: 37647
+[2025-12-14 09:14:54 +0700] [37647] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:14:54 +0700] [37647] [INFO] Worker exiting (pid: 37647)
+[2025-12-14 09:14:54 +0700] [37645] [ERROR] Worker (pid:37647) exited with code 3
+[2025-12-14 09:14:54 +0700] [37645] [ERROR] Shutting down: Master
+[2025-12-14 09:14:54 +0700] [37645] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:14:55 +0700] [37664] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:14:55 +0700] [37664] [INFO] Listening at: http://127.0.0.1:8911 (37664)
+[2025-12-14 09:14:55 +0700] [37664] [INFO] Using worker: gthread
+[2025-12-14 09:14:55 +0700] [37666] [INFO] Booting worker with pid: 37666
+[2025-12-14 09:14:56 +0700] [37666] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:14:56 +0700] [37666] [INFO] Worker exiting (pid: 37666)
+[2025-12-14 09:14:56 +0700] [37664] [ERROR] Worker (pid:37666) exited with code 3
+[2025-12-14 09:14:56 +0700] [37664] [ERROR] Shutting down: Master
+[2025-12-14 09:14:56 +0700] [37664] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:14:57 +0700] [37685] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:14:57 +0700] [37685] [INFO] Listening at: http://127.0.0.1:8911 (37685)
+[2025-12-14 09:14:57 +0700] [37685] [INFO] Using worker: gthread
+[2025-12-14 09:14:57 +0700] [37687] [INFO] Booting worker with pid: 37687
+[2025-12-14 09:14:57 +0700] [37687] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:14:57 +0700] [37687] [INFO] Worker exiting (pid: 37687)
+[2025-12-14 09:14:57 +0700] [37685] [ERROR] Worker (pid:37687) exited with code 3
+[2025-12-14 09:14:57 +0700] [37685] [ERROR] Shutting down: Master
+[2025-12-14 09:14:57 +0700] [37685] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:15:15 +0700] [37753] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:15:15 +0700] [37753] [INFO] Listening at: http://127.0.0.1:8911 (37753)
+[2025-12-14 09:15:15 +0700] [37753] [INFO] Using worker: gthread
+[2025-12-14 09:15:15 +0700] [37756] [INFO] Booting worker with pid: 37756
+[2025-12-14 09:15:15 +0700] [37756] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:15:15 +0700] [37756] [INFO] Worker exiting (pid: 37756)
+[2025-12-14 09:15:15 +0700] [37753] [ERROR] Worker (pid:37756) exited with code 3
+[2025-12-14 09:15:15 +0700] [37753] [ERROR] Shutting down: Master
+[2025-12-14 09:15:15 +0700] [37753] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:15:16 +0700] [37772] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:15:16 +0700] [37772] [INFO] Listening at: http://127.0.0.1:8911 (37772)
+[2025-12-14 09:15:16 +0700] [37772] [INFO] Using worker: gthread
+[2025-12-14 09:15:16 +0700] [37774] [INFO] Booting worker with pid: 37774
+[2025-12-14 09:15:17 +0700] [37774] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:15:17 +0700] [37774] [INFO] Worker exiting (pid: 37774)
+[2025-12-14 09:15:17 +0700] [37772] [ERROR] Worker (pid:37774) exited with code 3
+[2025-12-14 09:15:17 +0700] [37772] [ERROR] Shutting down: Master
+[2025-12-14 09:15:17 +0700] [37772] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:15:18 +0700] [37791] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:15:18 +0700] [37791] [INFO] Listening at: http://127.0.0.1:8911 (37791)
+[2025-12-14 09:15:18 +0700] [37791] [INFO] Using worker: gthread
+[2025-12-14 09:15:18 +0700] [37793] [INFO] Booting worker with pid: 37793
+[2025-12-14 09:15:18 +0700] [37793] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:15:18 +0700] [37793] [INFO] Worker exiting (pid: 37793)
+[2025-12-14 09:15:18 +0700] [37791] [ERROR] Worker (pid:37793) exited with code 3
+[2025-12-14 09:15:18 +0700] [37791] [ERROR] Shutting down: Master
+[2025-12-14 09:15:18 +0700] [37791] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:15:19 +0700] [37808] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:15:19 +0700] [37808] [INFO] Listening at: http://127.0.0.1:8911 (37808)
+[2025-12-14 09:15:19 +0700] [37808] [INFO] Using worker: gthread
+[2025-12-14 09:15:19 +0700] [37810] [INFO] Booting worker with pid: 37810
+[2025-12-14 09:15:20 +0700] [37810] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:15:20 +0700] [37810] [INFO] Worker exiting (pid: 37810)
+[2025-12-14 09:15:20 +0700] [37808] [ERROR] Worker (pid:37810) exited with code 3
+[2025-12-14 09:15:20 +0700] [37808] [ERROR] Shutting down: Master
+[2025-12-14 09:15:20 +0700] [37808] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:15:21 +0700] [37828] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:15:21 +0700] [37828] [INFO] Listening at: http://127.0.0.1:8911 (37828)
+[2025-12-14 09:15:21 +0700] [37828] [INFO] Using worker: gthread
+[2025-12-14 09:15:21 +0700] [37830] [INFO] Booting worker with pid: 37830
+[2025-12-14 09:15:21 +0700] [37830] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 16, in _load_downstream_app
+    from vsp_demo_app import create_app  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 4396, in <module>
+    @app.get("/api/vsp/run_artifact_v1/<rid>")
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 362, in decorator
+    self.add_url_rule(rule, endpoint, f, **options)
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/scaffold.py", line 47, in wrapper_func
+    return f(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/sansio/app.py", line 657, in add_url_rule
+    raise AssertionError(
+AssertionError: View function mapping is overwriting an existing endpoint function: vsp_run_artifact_v1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+    worker.init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/gthread.py", line 94, in init_process
+    super().init_process()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 135, in init_process
+    self.load_wsgi()
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+    self.wsgi = self.app.wsgi()
+                ^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 21, in <module>
+    _downstream = _load_downstream_app()
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_8910.py", line 19, in _load_downstream_app
+    raise RuntimeError("Cannot obtain downstream WSGI app from vsp_demo_app") from e
+RuntimeError: Cannot obtain downstream WSGI app from vsp_demo_app
+[2025-12-14 09:15:21 +0700] [37830] [INFO] Worker exiting (pid: 37830)
+[2025-12-14 09:15:21 +0700] [37828] [ERROR] Worker (pid:37830) exited with code 3
+[2025-12-14 09:15:21 +0700] [37828] [ERROR] Shutting down: Master
+[2025-12-14 09:15:21 +0700] [37828] [ERROR] Reason: Worker failed to boot.
+[2025-12-14 09:18:54 +0700] [38414] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:18:54 +0700] [38414] [INFO] Listening at: http://127.0.0.1:8911 (38414)
+[2025-12-14 09:18:54 +0700] [38414] [INFO] Using worker: gthread
+[2025-12-14 09:18:54 +0700] [38419] [INFO] Booting worker with pid: 38419
+[2025-12-14 09:21:51 +0700] [38414] [INFO] Handling signal: term
+[2025-12-14 09:21:52 +0700] [38419] [INFO] Worker exiting (pid: 38419)
+[2025-12-14 09:21:52 +0700] [38414] [INFO] Shutting down: Master
+[2025-12-14 09:21:52 +0700] [38510] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:21:52 +0700] [38510] [INFO] Listening at: http://127.0.0.1:8911 (38510)
+[2025-12-14 09:21:52 +0700] [38510] [INFO] Using worker: gthread
+[2025-12-14 09:21:52 +0700] [38515] [INFO] Booting worker with pid: 38515
+[2025-12-14 09:22:43 +0700] [38510] [INFO] Handling signal: term
+[2025-12-14 09:22:43 +0700] [38515] [INFO] Worker exiting (pid: 38515)
+[2025-12-14 09:22:43 +0700] [38510] [INFO] Shutting down: Master
+[2025-12-14 09:22:44 +0700] [38813] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:22:44 +0700] [38813] [INFO] Listening at: http://127.0.0.1:8911 (38813)
+[2025-12-14 09:22:44 +0700] [38813] [INFO] Using worker: gthread
+[2025-12-14 09:22:44 +0700] [38819] [INFO] Booting worker with pid: 38819
+[2025-12-14 09:24:44 +0700] [38813] [INFO] Handling signal: term
+[2025-12-14 09:24:44 +0700] [38819] [INFO] Worker exiting (pid: 38819)
+[2025-12-14 09:24:45 +0700] [38813] [INFO] Shutting down: Master
+[2025-12-14 09:24:45 +0700] [38966] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:24:45 +0700] [38966] [INFO] Listening at: http://127.0.0.1:8911 (38966)
+[2025-12-14 09:24:45 +0700] [38966] [INFO] Using worker: gthread
+[2025-12-14 09:24:45 +0700] [38968] [INFO] Booting worker with pid: 38968
+[2025-12-14 09:27:19 +0700] [38966] [INFO] Handling signal: term
+[2025-12-14 09:27:20 +0700] [38968] [INFO] Worker exiting (pid: 38968)
+[2025-12-14 09:27:20 +0700] [38966] [INFO] Shutting down: Master
+[2025-12-14 09:27:20 +0700] [39315] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:27:20 +0700] [39315] [INFO] Listening at: http://127.0.0.1:8911 (39315)
+[2025-12-14 09:27:20 +0700] [39315] [INFO] Using worker: gthread
+[2025-12-14 09:27:20 +0700] [39317] [INFO] Booting worker with pid: 39317
+[2025-12-14 09:28:53 +0700] [39315] [INFO] Handling signal: term
+[2025-12-14 09:28:53 +0700] [39317] [INFO] Worker exiting (pid: 39317)
+[2025-12-14 09:28:53 +0700] [39315] [INFO] Shutting down: Master
+[2025-12-14 09:28:54 +0700] [39471] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:28:54 +0700] [39471] [INFO] Listening at: http://127.0.0.1:8911 (39471)
+[2025-12-14 09:28:54 +0700] [39471] [INFO] Using worker: gthread
+[2025-12-14 09:28:54 +0700] [39472] [INFO] Booting worker with pid: 39472
+[2025-12-14 09:30:04 +0700] [39471] [INFO] Handling signal: term
+[2025-12-14 09:30:04 +0700] [39472] [INFO] Worker exiting (pid: 39472)
+[2025-12-14 09:30:04 +0700] [39471] [INFO] Shutting down: Master
+[2025-12-14 09:30:04 +0700] [39525] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:30:04 +0700] [39525] [INFO] Listening at: http://127.0.0.1:8911 (39525)
+[2025-12-14 09:30:04 +0700] [39525] [INFO] Using worker: gthread
+[2025-12-14 09:30:04 +0700] [39527] [INFO] Booting worker with pid: 39527
+[2025-12-14 09:31:30 +0700] [39525] [INFO] Handling signal: term
+[2025-12-14 09:31:30 +0700] [39527] [INFO] Worker exiting (pid: 39527)
+[2025-12-14 09:31:31 +0700] [39525] [INFO] Shutting down: Master
+[2025-12-14 09:31:31 +0700] [39835] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 09:31:31 +0700] [39835] [INFO] Listening at: http://127.0.0.1:8911 (39835)
+[2025-12-14 09:31:31 +0700] [39835] [INFO] Using worker: gthread
+[2025-12-14 09:31:31 +0700] [39841] [INFO] Booting worker with pid: 39841
+[2025-12-14 17:52:01 +0700] [2011] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 17:52:01 +0700] [2011] [INFO] Listening at: http://127.0.0.1:8911 (2011)
+[2025-12-14 17:52:01 +0700] [2011] [INFO] Using worker: gthread
+[2025-12-14 17:52:01 +0700] [2074] [INFO] Booting worker with pid: 2074
+[2025-12-14 19:43:33 +0700] [2011] [INFO] Handling signal: term
+[2025-12-14 19:43:34 +0700] [2074] [INFO] Worker exiting (pid: 2074)
+[2025-12-14 19:43:34 +0700] [2011] [INFO] Shutting down: Master

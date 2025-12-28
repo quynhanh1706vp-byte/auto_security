@@ -1,0 +1,73 @@
+/**
+ * vsp_main.js
+ * - Tab routing
+ * - Global bootstrap
+ * - Gọi init() cho từng module nếu tồn tại
+ */
+window.VSP = window.VSP || {};
+
+(function () {
+  const TAB_MAP = {
+    dashboard:  "tab-dashboard",
+    runs:       "tab-runs",
+    datasource: "tab-datasource",
+    settings:   "tab-settings",
+    overrides:  "tab-overrides",
+  };
+
+  function setActiveTab(tabKey) {
+    // Sidebar
+    document.querySelectorAll(".vsp-nav-item").forEach(btn => {
+      if (btn.dataset.tab === tabKey) {
+        btn.classList.add("vsp-nav-item-active");
+      } else {
+        btn.classList.remove("vsp-nav-item-active");
+      }
+    });
+
+    // Sections
+    Object.entries(TAB_MAP).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (key === tabKey) {
+        el.classList.add("vsp-tab-active");
+      } else {
+        el.classList.remove("vsp-tab-active");
+      }
+    });
+
+    // Lazy init per tab
+    if (tabKey === "dashboard" && window.VSP_DASHBOARD && !VSP_DASHBOARD._initialized) {
+      VSP_DASHBOARD.init();
+    }
+    if (tabKey === "runs" && window.VSP_RUNS && !VSP_RUNS._initialized) {
+      VSP_RUNS.init();
+    }
+    if (tabKey === "datasource" && window.VSP_DATASOURCE && !VSP_DATASOURCE._initialized) {
+      VSP_DATASOURCE.init();
+    }
+    if (tabKey === "settings" && window.VSP_SETTINGS && !VSP_SETTINGS._initialized) {
+      VSP_SETTINGS.init();
+    }
+    if (tabKey === "overrides" && window.VSP_OVERRIDES && !VSP_OVERRIDES._initialized) {
+      VSP_OVERRIDES.init();
+    }
+  }
+
+  function bindSidebar() {
+    document.querySelectorAll(".vsp-nav-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tabKey = btn.dataset.tab;
+        setActiveTab(tabKey);
+      });
+    });
+  }
+
+  function init() {
+    bindSidebar();
+    // Mặc định mở Dashboard
+    setActiveTab("dashboard");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();

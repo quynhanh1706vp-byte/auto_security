@@ -1,0 +1,109 @@
+
+// __VSP_CIO_HELPER_V1
+(function(){
+  try{
+    window.__VSP_CIO = window.__VSP_CIO || {};
+    const qs = new URLSearchParams(location.search);
+    window.__VSP_CIO.debug = (qs.get("debug")==="1") || (localStorage.getItem("VSP_DEBUG")==="1");
+    window.__VSP_CIO.visible = function(){ return document.visibilityState === "visible"; };
+    window.__VSP_CIO.sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+    window.__VSP_CIO.backoff = async function(fn, opt){
+      opt = opt || {};
+      let delay = opt.delay || 800;
+      const maxDelay = opt.maxDelay || 8000;
+      const maxTries = opt.maxTries || 6;
+      for(let i=0;i<maxTries;i++){
+        if(!window.__VSP_CIO.visible()){
+          await window.__VSP_CIO.sleep(600);
+          continue;
+        }
+        try { return await fn(); }
+        catch(e){
+          if(window.__VSP_CIO.debug) console.warn("[VSP] backoff retry", i+1, e);
+          await window.__VSP_CIO.sleep(delay);
+          delay = Math.min(maxDelay, delay*2);
+        }
+      }
+      throw new Error("backoff_exhausted");
+    };
+    window.__VSP_CIO.api = {
+      ridLatest: ()=>"/api/vsp/rid_latest_v3",
+      runs: (limit,offset)=>`/api/vsp/runs_v3?limit=${limit||50}&offset=${offset||0}`,
+      gate: (rid)=>`/api/vsp/run_gate_v3?rid=${encodeURIComponent(rid||"")}`,
+      findingsPage: (rid,limit,offset)=>`/api/vsp/findings_v3?rid=${encodeURIComponent(rid||"")}&limit=${limit||100}&offset=${offset||0}`,
+      artifact: (rid,kind,download)=>`/api/vsp/artifact_v3?rid=${encodeURIComponent(rid||"")}&kind=${encodeURIComponent(kind||"")}${download?"&download=1":""}`
+    };
+  }catch(_){}
+})();
+
+
+/* VSP_TABS3_V2 Rule Overrides */
+(() => {
+  if(window.__vsp_rules_v2) return; window.__vsp_rules_v2=true;
+  const { $, esc, api, ensure } = window.__vsp_tabs3_v2 || {};
+  if(!ensure) return;
+
+  async function boot(){
+    ensure();
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    root.innerHTML = `
+      <div class="vsp-row" style="justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-size:18px;font-weight:800">Rule Overrides</div>
+          <div class="vsp-muted" style="font-size:12px;margin-top:2px">Overrides JSON (v2) · stored under ui/out_ci/rule_overrides_v2</div>
+        </div>
+        <div class="vsp-row">
+          <button class="vsp-btn" id="ro_reload">Reload</button>
+          <button class="vsp-btn" id="ro_save">Save</button>
+        </div>
+      </div>
+      <div class="vsp-card" style="margin-bottom:10px">
+        <div class="vsp-muted" id="ro_meta" style="font-size:12px"></div>
+        <div class="vsp-muted" style="font-size:12px;margin-top:6px">
+          schema: {"rules":[ {"tool":"semgrep","rule_id":"...","action":"ignore|downgrade|upgrade","severity":"LOW","reason":"..."} ]}
+        </div>
+      </div>
+      <div class="vsp-card">
+        <textarea id="ro_text" class="vsp-code" spellcheck="false"></textarea>
+        <div id="ro_msg" style="margin-top:8px;font-size:12px"></div>
+      </div>
+    `;
+
+    const meta=$("#ro_meta"), txt=$("#ro_text"), msg=$("#ro_msg");
+
+    function validate(){
+      let obj;
+      try{ obj = JSON.parse(txt.value||"{}"); }
+      catch(e){ msg.innerHTML = `<span class="vsp-err">Invalid JSON:</span> ${esc(e.message||String(e))}`; return null; }
+      if(Array.isArray(obj)) obj={rules:obj};
+      if(!obj || typeof obj!=="object" || !Array.isArray(obj.rules)){
+        msg.innerHTML = `<span class="vsp-err">Invalid:</span> expect {rules:[...]} or [...]`; return null;
+      }
+      return obj;
+    }
+
+    async function load(){
+      msg.innerHTML = `<span class="vsp-muted">Loading...</span>`;
+      const j = await api("/api/vsp/ui_rule_overrides_v2");
+      meta.textContent = `path: ${j.path||""}`;
+      txt.value = JSON.stringify(j.data||{rules:[]}, null, 2);
+      msg.innerHTML = `<span class="vsp-ok">OK</span>`;
+    }
+
+    async function save(){
+      const obj = validate(); if(!obj) return;
+      msg.innerHTML = `<span class="vsp-muted">Saving...</span>`;
+      const j = await api("/api/vsp/ui_rule_overrides_v2", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)});
+      msg.innerHTML = `<span class="vsp-ok">Saved</span> · rules_n=${esc(j.rules_n||"")}`;
+      await load();
+    }
+
+    $("#ro_reload").onclick = ()=>load().catch(e=>msg.innerHTML=`<span class="vsp-err">${esc(e.message||e)}</span>`);
+    $("#ro_save").onclick = ()=>save().catch(e=>msg.innerHTML=`<span class="vsp-err">${esc(e.message||e)}</span>`);
+
+    await load();
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
+})();

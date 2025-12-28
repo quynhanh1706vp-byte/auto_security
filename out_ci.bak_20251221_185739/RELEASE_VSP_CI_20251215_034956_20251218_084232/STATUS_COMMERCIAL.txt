@@ -1,0 +1,18 @@
+VSP COMMERCIAL RELEASE — FINAL STATUS
+
+UI:
+- URL: http://127.0.0.1:8910/vsp4  (Ctrl+Shift+R)
+- Tabs: Dashboard / Runs & Reports / Data Source / Settings / Rule Overrides
+- Smoke 5 tabs: PASS (all HTTP 200)
+- Stability: PASS (300 rounds, no non-200)
+
+Report:
+- VSP_CI_*__REPORT.tgz present
+- Includes ISO evidence:
+  report/__meta/iso/ISO_EVIDENCE_INDEX.json
+  report/__meta/iso/ISO_27001_MAP.csv
+- SHA256 verified via RELEASE_SHA256SUMS.txt
+
+Audit bundle:
+- AUDIT_BUNDLE_*.tgz present (includes COMMERCIAL snapshot)
+- SHA256 verified via RELEASE_SHA256SUMS.txt

@@ -1,0 +1,759 @@
+/* vsp_datasource_tab_v1.js
+ * Commercial Data Source tab:
+ * - calls /api/vsp/run_findings_preview_v1/<RID>?limit=&offset=&tool=&severity=&q=
+ * - renders table, no console spam
+ */
+(function(){
+  const $ = (s)=>document.querySelector(s);
+  const esc = (s)=>String(s??"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+
+  function showPane(){
+    const pane = $("#vsp-pane-datasource");
+    if(!pane) return false;
+    // if router hides panes elsewhere, we just ensure ours visible when hash matches
+    const h = (location.hash||"").replace("#","").trim().toLowerCase();
+    if(h === "datasource"){
+      pane.style.display = "";
+    }
+    return true;
+  }
+
+  async function load(offset){
+    const pane = $("#vsp-pane-datasource");
+    if(!pane) return;
+
+    const rid = ($("#vsp-ds-rid")?.value||"").trim();
+    const tool = ($("#vsp-ds-tool")?.value||"").trim();
+    const sev  = ($("#vsp-ds-sev")?.value||"").trim();
+    const q    = ($("#vsp-ds-q")?.value||"").trim();
+
+    const meta = $("#vsp-ds-meta");
+    const tb   = $("#vsp-ds-tbody");
+    if(!rid){
+      if(meta) meta.textContent = "Run ID is required.";
+      if(tb) tb.innerHTML = "";
+      return;
+    }
+
+    const limit = 50;
+    const off = Math.max(0, Number(offset||0));
+    const qs = new URLSearchParams({limit:String(limit), offset:String(off)});
+    if(tool) qs.set("tool", tool);
+    if(sev)  qs.set("severity", sev);
+    if(q)    qs.set("q", q);
+
+    const url = `/api/vsp/run_findings_preview_v1/${encodeURIComponent(vspRidNorm(rid))}?` + qs.toString();
+    if(meta) meta.textContent = "Loading…";
+
+    try{
+      const r = await fetch(url, {cache:"no-store"});
+      const j = await r.json().catch(()=>null);
+      if(!j || !j.ok){
+        if(meta) meta.textContent = `Not ready (${r.status})`;
+        if(tb) tb.innerHTML = "";
+        return;
+      }
+
+      const total = j.total ?? 0;
+      const has = !!j.has_findings;
+      const file = j.file || null;
+      const warn = j.warning || null;
+      const lim = j.limit ?? limit;
+      const curOff = j.offset ?? off;
+
+      if(meta){
+        meta.textContent =
+          `RID=${rid} • total=${total} • showing ${curOff+1}-${Math.min(curOff+lim,total)} • ` +
+          (has ? "has_findings=YES" : "has_findings=NO") +
+          (warn ? ` • warning=${warn}` : "") +
+          (file ? ` • file=${file}` : "");
+      }
+
+      const items = Array.isArray(j.items) ? j.items : [];
+      if(tb){
+        tb.innerHTML = items.map(it=>{
+          const tool2 = esc(it.tool||"");
+          const sev2  = esc(it.severity||"");
+          const title = esc(it.title||"");
+          const file2 = esc(it.file||"");
+          const line  = esc(it.line||"");
+          const rule  = esc(it.rule_id||"");
+          return `<tr>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${tool2}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${sev2}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${title}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${file2}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${line}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${rule}</td>
+          </tr>`;
+        }).join("");
+      }
+
+      // remember for Next
+      pane.dataset.vspDsOffset = String(curOff);
+      pane.dataset.vspDsTotal  = String(total);
+      pane.dataset.vspDsLimit  = String(lim);
+
+    }catch(_e){
+      if(meta) meta.textContent = "Load failed (network).";
+      if(tb) tb.innerHTML = "";
+    }
+  }
+
+  function bind(){
+    const btn = $("#vsp-ds-load");
+    const nxt = $("#vsp-ds-next");
+    if(btn) btn.addEventListener("click", ()=>load(0));
+    if(nxt) nxt.addEventListener("click", ()=>{
+      const pane = $("#vsp-pane-datasource");
+      const off = Number(pane?.dataset?.vspDsOffset||"0");
+      const lim = Number(pane?.dataset?.vspDsLimit||"50");
+      load(off + lim);
+    });
+  }
+
+  function boot(){
+    if(!showPane()) return;
+    bind();
+  }
+
+  window.addEventListener("hashchange", ()=>{ showPane(); });
+  document.addEventListener("DOMContentLoaded", boot);
+})();
+
+
+// === VSP_DS_DRILLDOWN_SINK_V1_FOR_TAB_V1 ===
+
+// === VSP_P2_RID_NORM_V1 ===
+function vspRidNorm(rid){
+  rid = String(rid||"").trim();
+  if (!rid) return rid;
+  if (rid.startsWith("RUN_")) return rid.slice(4);
+  return rid;
+}
+
+(function(){
+  const KEY = "vsp_ds_drill_url_v1";
+
+  function pane(){
+    return document.getElementById("vsp-pane-datasource") || document.body;
+  }
+
+  function ensureBox(){
+    let box = document.getElementById("vsp_ds_drill_box_v1");
+    if(!box){
+      box = document.createElement("div");
+      box.id = "vsp_ds_drill_box_v1";
+      box.style.marginTop = "10px";
+      box.style.padding = "10px";
+      box.style.borderRadius = "14px";
+      box.style.border = "1px solid rgba(255,255,255,.10)";
+      box.style.background = "rgba(0,0,0,.25)";
+      box.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;">
+          <div style="font-weight:700;letter-spacing:.2px;">Drill Result</div>
+          <button id="vsp_ds_drill_clear_v1" style="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;">Clear</button>
+        </div>
+        <div id="vsp_ds_drill_url_v1" style="opacity:.7;font-size:12px;margin-top:6px;word-break:break-all;"></div>
+        <pre id="vsp_ds_drill_pre_v1" style="white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.35;margin:10px 0 0 0;"></pre>
+      `;
+      // insert near top of datasource pane
+      const p = pane();
+      p.insertBefore(box, p.children[1] || null);
+      document.getElementById("vsp_ds_drill_clear_v1").onclick = ()=>{
+        try{ sessionStorage.removeItem(KEY); }catch(e){}
+        document.getElementById("vsp_ds_drill_url_v1").textContent = "";
+        document.getElementById("vsp_ds_drill_pre_v1").textContent = "";
+      };
+    }
+    return box;
+  }
+
+  async function renderFromUrl(url){
+    if(!url) return;
+    ensureBox();
+    const urlEl = document.getElementById("vsp_ds_drill_url_v1");
+    const preEl = document.getElementById("vsp_ds_drill_pre_v1");
+    urlEl.textContent = url;
+    preEl.textContent = "Loading…";
+
+    try{
+      const r = await fetch(url, {credentials:"same-origin"});
+      const ct = (r.headers.get("content-type")||"").toLowerCase();
+      if(!ct.includes("application/json")){
+        const tx = await r.text();
+        preEl.textContent = "Non-JSON response\n\n" + tx.slice(0, 6000);
+        return;
+      }
+      const j = await r.json();
+      preEl.textContent = JSON.stringify(j, null, 2);
+    }catch(e){
+      preEl.textContent = "ERR: " + String(e);
+    }
+  }
+
+  // API for dashboard to call
+  window.VSP_DS_APPLY_DRILL_URL_V1 = function(url){
+    try{ sessionStorage.setItem(KEY, url); }catch(e){}
+    renderFromUrl(url);
+  };
+
+  function autoApplyIfDatasource(){
+    const h = String(location.hash||"");
+    if(!h.toLowerCase().includes("datasource")) return;
+    let url=null;
+    try{ url = sessionStorage.getItem(KEY); }catch(e){}
+    if(url) setTimeout(()=>renderFromUrl(url), 200);
+  }
+
+  window.addEventListener("load", autoApplyIfDatasource);
+  window.addEventListener("hashchange", autoApplyIfDatasource);
+})();
+
+// === VSP_P2_DATASOURCE_TABLE_V1 ===
+// Commercial Data Source: hash drilldown + filters + table renderer
+(function(){
+  function esc(s){
+    if (s === null || s === undefined) return "";
+    return String(s)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#39;");
+  }
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+
+  function ensureRoot(){
+    // Prefer the real datasource pane rendered by template to avoid duplicate IDs
+    let root =
+         document.querySelector("#vsp-pane-datasource")
+      || document.querySelector("section#vsp-pane-datasource")
+      || document.querySelector("[data-tab='datasource']")
+      || document.querySelector("[data-tab-content='datasource']")
+      || document.getElementById("vsp4-datasource")
+      || document.getElementById("vsp-datasource-root")
+      || null;
+
+    // Guard: if we accidentally matched a tab header/button/link, ignore it
+    if (root){
+      const tn = (root.tagName || "").toUpperCase();
+      const role = (root.getAttribute && root.getAttribute("role")) || "";
+      if (tn === "A" || tn === "BUTTON" || role === "tab") root = null;
+    }
+
+    if (!root){
+      // Last resort: create ONE root under main container (avoid duplicates)
+      root = document.createElement("div");
+      root.id = "vsp-datasource-root";
+      const host =
+           document.querySelector("#vsp4-main")
+        || document.querySelector("#vsp-content")
+        || document.body;
+      host.appendChild(root);
+    }
+    if (!root.id) root.id = "vsp-datasource-root";
+    return root;
+  }
+
+  function parseHashParams(){
+    // accept "#tab=datasource&sev=HIGH" or "#/tab=datasource&sev=HIGH"
+    let h = (location.hash || "").replace(/^#\/?/,"");
+    if (!h) return {};
+    // allow "tab=datasource" plus extra
+    const out = {};
+    for (const part of h.split("&")){
+      if (!part) continue;
+      const [k,v] = part.split("=",2);
+      if (!k) continue;
+      out[decodeURIComponent(k)] = decodeURIComponent(v||"");
+    }
+    return out;
+  }
+
+  function buildQuery(params){
+    const sp = new URLSearchParams();
+    for (const [k,v] of Object.entries(params||{})){
+      if (v === undefined || v === null) continue;
+      const sv = String(v).trim();
+      if (!sv) continue;
+      sp.set(k, sv);
+    }
+    return sp.toString();
+  }
+
+  function setStatus(root, html){
+    const st = qs("#vsp-ds-status", root);
+    if (st) st.innerHTML = html || "";
+  }
+
+  function renderSkeleton(root){
+    if (qs("#vsp-ds-toolbar", root)) return;
+
+    root.innerHTML = `
+      <div id="vsp-ds-toolbar" class="vsp-panel" style="margin:10px 0; padding:10px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <div style="min-width:130px;">
+            <div class="vsp-label">Severity</div>
+            <select id="vsp-ds-sev" class="vsp-input">
+              <option value="">(all)</option>
+              <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option>
+              <option>LOW</option><option>INFO</option><option>TRACE</option>
+            </select>
+          </div>
+          <div style="min-width:200px;">
+            <div class="vsp-label">Tool</div>
+            <select id="vsp-ds-tool" class="vsp-input">
+              <option value="">(all)</option>
+            </select>
+          </div>
+          <div style="min-width:160px;">
+            <div class="vsp-label">CWE</div>
+            <input id="vsp-ds-cwe" class="vsp-input" placeholder="CWE-79">
+          </div>
+          <div style="min-width:220px; flex:1;">
+            <div class="vsp-label">Text</div>
+            <input id="vsp-ds-q" class="vsp-input" placeholder="title/file/rule contains...">
+          </div>
+          <div style="min-width:110px;">
+            <div class="vsp-label">Limit</div>
+            <input id="vsp-ds-limit" class="vsp-input" type="number" min="1" max="2000" value="200">
+          </div>
+          <label style="display:flex; gap:8px; align-items:center; margin:0 6px;">
+            <input id="vsp-ds-show-supp" type="checkbox">
+            <span class="vsp-label" style="margin:0;">Show suppressed</span>
+          </label>
+          <button id="vsp-ds-apply" class="vsp-btn">Load</button>
+          <button id="vsp-ds-clear" class="vsp-btn vsp-btn-ghost">Clear</button>
+        </div>
+        <div id="vsp-ds-status" style="margin-top:10px; opacity:.9;"></div>
+      </div>
+
+      <div class="vsp-panel" style="padding:10px;">
+        <div style="overflow:auto;">
+          <table id="vsp-ds-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:8px;">Sev</th>
+                <th style="text-align:left; padding:8px;">Tool</th>
+                <th style="text-align:left; padding:8px;">CWE</th>
+                <th style="text-align:left; padding:8px;">Title</th>
+                <th style="text-align:left; padding:8px;">File</th>
+                <th style="text-align:left; padding:8px;">Line</th>
+                <th style="text-align:left; padding:8px;">Rule</th>
+                <th style="text-align:left; padding:8px;">Flags</th>
+              </tr>
+            </thead>
+            <tbody id="vsp-ds-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function rowFlags(it){
+    const flags = [];
+    // try to detect override effects in a tolerant way
+    const sup = it.suppressed || it.is_suppressed || (it.override && it.override.action === "suppress");
+    const down = it.downgraded || (it.override && it.override.action === "downgrade");
+    if (sup) flags.push("SUPPRESSED");
+    if (down) flags.push("DOWNGRADED");
+    if (it.degraded) flags.push("DEGRADED");
+    return flags.join(", ");
+  }
+
+  function getField(it, keys, dflt=""){
+    for (const k of keys){
+      const v = it?.[k];
+      if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+    }
+    return dflt;
+  }
+
+  function renderTable(root, items){
+    const tb = qs("#vsp-ds-tbody", root);
+    if (!tb) return;
+    tb.innerHTML = "";
+
+    if (!items || !items.length){
+      tb.innerHTML = `<tr><td colspan="8" style="padding:12px; opacity:.8;">No findings.</td></tr>`;
+      return;
+    }
+
+    for (const it of items){
+      const sev  = getField(it, ["severity","sev","severity_norm","severity_normalized"], "");
+      const tool = getField(it, ["tool","scanner","engine"], "");
+      const cwe  = getField(it, ["cwe","cwe_id","cwe_name"], "");
+      const title= getField(it, ["title","name","issue","message"], "");
+      const file = getField(it, ["file","path","filename","location"], "");
+      const line = getField(it, ["line","start_line","line_start"], "");
+      const rule = getField(it, ["rule","rule_id","check_id","id"], "");
+      const flags= rowFlags(it);
+
+      // expandable details row
+      const fid = esc(getField(it, ["fingerprint","hash","key","finding_id"], "")) || Math.random().toString(16).slice(2);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="padding:8px; white-space:nowrap;">${esc(sev)}</td>
+        <td style="padding:8px; white-space:nowrap;">${esc(tool)}</td>
+        <td style="padding:8px; white-space:nowrap;">${esc(cwe)}</td>
+        <td style="padding:8px;">
+          <a href="#" data-vsp-expand="${esc(fid)}" style="text-decoration:underline;">${esc(title)}</a>
+        </td>
+        <td style="padding:8px; max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(file)}</td>
+        <td style="padding:8px; white-space:nowrap;">${esc(line)}</td>
+        <td style="padding:8px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(rule)}</td>
+        <td style="padding:8px; white-space:nowrap; opacity:.9;">${esc(flags)}</td>
+      `;
+      tb.appendChild(tr);
+
+      const tr2 = document.createElement("tr");
+      tr2.id = "vsp-ds-details-"+fid;
+      tr2.style.display = "none";
+      tr2.innerHTML = `
+        <td colspan="8" style="padding:10px;">
+          <pre style="margin:0; white-space:pre-wrap; word-break:break-word; opacity:.95;">${esc(JSON.stringify(it, null, 2))}</pre>
+        </td>
+      `;
+      tb.appendChild(tr2);
+    }
+
+    // bind expand
+    qsa("[data-vsp-expand]", root).forEach(a=>{
+      a.addEventListener("click", (e)=>{
+        e.preventDefault();
+        const fid = a.getAttribute("data-vsp-expand");
+        const el = document.getElementById("vsp-ds-details-"+fid);
+        if (!el) return;
+        el.style.display = (el.style.display === "none") ? "" : "none";
+      });
+    });
+  }
+
+  async function loadToolOptions(root){
+    const sel = qs("#vsp-ds-tool", root);
+    if (!sel || sel._vspLoaded) return;
+    sel._vspLoaded = true;
+
+    try{
+      const r = await fetch("/api/vsp/dashboard_latest_v1", {cache:"no-store"});
+      const j = await r.json();
+      const tools = new Set();
+
+      // best-effort extraction
+      const byTool = j?.summary_all?.by_tool || j?.kpi?.by_tool || j?.charts?.by_tool || null;
+      if (byTool && typeof byTool === "object"){
+        Object.keys(byTool).forEach(t=>tools.add(t));
+      }
+      const series = j?.charts?.tool_bar?.series || j?.charts?.by_tool?.series || null;
+      if (Array.isArray(series)){
+        series.forEach(s=>{
+          const name = s?.name || s?.tool;
+          if (name) tools.add(name);
+        });
+      }
+      const labels = j?.charts?.tool_bar?.labels || j?.charts?.by_tool?.labels || null;
+      if (Array.isArray(labels)){
+        labels.forEach(x=>tools.add(x));
+      }
+
+      const list = Array.from(tools).filter(Boolean).sort((a,b)=>String(a).localeCompare(String(b)));
+      for (const t of list){
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        sel.appendChild(opt);
+      }
+    }catch(e){
+      // ignore
+    }
+  }
+
+  
+  // === VSP_P2_AUTORID_V1 ===
+  let _vspLatestRidCache = null;
+  async function resolveLatestRid(){
+    if (_vspLatestRidCache) return _vspLatestRidCache;
+    try{
+      const r = await fetch("/api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1", {cache:"no-store"});
+      const j = await r.json();
+      const rid = j?.items?.[0]?.run_id || j?.items?.[0]?.rid || j?.items?.[0]?.id || null;
+      if (rid) _vspLatestRidCache = rid;
+      return rid;
+    }catch(e){
+      return null;
+    }
+  }
+
+async function fetchFindings(filters){
+    const f = Object.assign({}, (filters||{}));
+
+    // auto-resolve latest rid if missing
+    if (!f.rid && !f.run_id){
+      const rid0 = (typeof resolveLatestRid === "function") ? await resolveLatestRid() : null;
+      if (rid0) f.rid = rid0;
+    }
+
+    // prefer PATH endpoint to hit correct WSGI lane
+    const rid = (f.rid || f.run_id || "").toString().trim();
+    if (rid){
+      delete f.rid;
+      delete f.run_id;
+      const q = buildQuery(f || {});
+      const url = "/api/vsp/findings_preview_v2/" + encodeURIComponent(vspRidNorm(rid)) + (q ? ("?"+q) : "");
+      const r = await fetch(url, {cache:"no-store"});
+      return await r.json();
+    }
+
+    // fallback (no rid)
+    const q = buildQuery(f || {});
+    const url = "/api/vsp/findings_preview_v2" + (q ? ("?"+q) : "");
+    const r = await fetch(url, {cache:"no-store"});
+    return await r.json();
+  }
+
+  function getFiltersFromUI(root){
+    const sev = (qs("#vsp-ds-sev", root)?.value || "").trim();
+    const tool= (qs("#vsp-ds-tool", root)?.value || "").trim();
+    const cwe = (qs("#vsp-ds-cwe", root)?.value || "").trim();
+    const q   = (qs("#vsp-ds-q", root)?.value || "").trim();
+    const limit = (qs("#vsp-ds-limit", root)?.value || "200").trim();
+    const show_suppressed = !!qs("#vsp-ds-show-supp", root)?.checked;
+
+    // API supports: sev, tool, cwe, limit, show_suppressed
+    // Optional "q" is best-effort: if backend doesn't support, it will just ignore.
+    const out = { limit };
+    if (sev) out.sev = sev;
+    if (tool) out.tool = tool;
+    if (cwe) out.cwe = cwe;
+    if (q) out.q = q;
+    if (show_suppressed) out.show_suppressed = "1";
+    return out;
+  }
+
+  function setUIFromFilters(root, f){
+    if (!f) return;
+    const setv=(id,val)=>{
+      const el = qs(id, root);
+      if (!el) return;
+      if (el.type === "checkbox") el.checked = !!val && String(val) !== "0";
+      else el.value = val ?? "";
+    };
+    setv("#vsp-ds-sev", f.sev || "");
+    setv("#vsp-ds-tool", f.tool || "");
+    setv("#vsp-ds-cwe", f.cwe || "");
+    setv("#vsp-ds-q", f.q || "");
+    setv("#vsp-ds-limit", f.limit || "200");
+    setv("#vsp-ds-show-supp", f.show_suppressed || "");
+  }
+
+  async function loadWithFilters(filters, opts){
+    const root = ensureRoot();
+    renderSkeleton(root);
+    await loadToolOptions(root);
+
+    setUIFromFilters(root, filters);
+
+    setStatus(root, `<span style="opacity:.9;">Loading…</span>`);
+    let j;
+    try{
+      j = await fetchFindings(filters);
+    }catch(e){
+      setStatus(root, `<span style="color:#fca5a5;">Fetch failed: ${esc(e?.message||e)}</span>`);
+      renderTable(root, []);
+      return;
+    }
+
+    const total = j?.total ?? j?.items_n ?? (Array.isArray(j?.items)?j.items.length:0);
+    const items = j?.items || [];
+    const warn  = j?.warning ? ` <span style="opacity:.8;">(${esc(j.warning)})</span>` : "";
+    setStatus(root, `<b>Total</b>: ${esc(total)}${warn}`);
+
+    
+renderTable(root, items);
+
+// === VSP_P2_DS_DEMO_BUTTON_V1 ===
+// If total=0, show "Load demo dataset" button to populate table (commercial demo)
+try{
+  if ((total === 0) && Array.isArray(items)) {
+    const st = qs("#vsp-ds-status", root);
+    if (st && !qs("#vsp-ds-demo-btn", root)) {
+      const btn = document.createElement("button");
+      btn.id = "vsp-ds-demo-btn";
+      btn.className = "vsp-btn vsp-btn-ghost";
+      btn.textContent = "Load demo dataset";
+      btn.style.marginLeft = "10px";
+      btn.addEventListener("click", async function(){
+        try{
+          const r = await fetch("/static/sample/findings_demo.json", {cache:"no-store"});
+          const demo = await r.json();
+          setStatus(root, "<b>Demo</b>: loaded " + (demo.length||0) + " items");
+          renderTable(root, demo);
+        }catch(e){
+          setStatus(root, "<span style='color:#fca5a5;'>Demo load failed</span>");
+        }
+      });
+      st.appendChild(btn);
+    }
+  }
+}catch(_){}
+
+
+    // optionally sync hash
+    if (!(opts && opts.noHashSync)){
+      const hp = Object.assign({tab:"datasource"}, filters||{});
+      const h = "#" + buildQuery(hp);
+      if (location.hash !== h) history.replaceState(null, "", h);
+    }
+  }
+
+  function bindUI(root){
+    const apply = qs("#vsp-ds-apply", root);
+    const clear = qs("#vsp-ds-clear", root);
+    if (apply && !apply._vspBound){
+      apply._vspBound = true;
+      apply.addEventListener("click", ()=>{
+        const f = getFiltersFromUI(root);
+        loadWithFilters(f);
+      });
+    }
+    if (clear && !clear._vspBound){
+      clear._vspBound = true;
+      clear.addEventListener("click", ()=>{
+        setUIFromFilters(root, {sev:"",tool:"",cwe:"",q:"",limit:"200",show_suppressed:""});
+        loadWithFilters({limit:"200"}, {});
+      });
+    }
+  }
+
+  function ensureInit(){
+    const root = ensureRoot();
+    renderSkeleton(root);
+    bindUI(root);
+
+    // expose a stable global sink for drill router
+    window.VSP_DATASOURCE_APPLY_FILTERS_V1 = async function(filters, opts){
+      const r = ensureRoot();
+      renderSkeleton(r);
+      bindUI(r);
+      await loadWithFilters(filters||{}, opts||{});
+    };
+
+    // if opened directly with hash
+    const hp = parseHashParams();
+    if ((hp.tab||"") === "datasource"){
+      const f = Object.assign({limit:"200"}, hp);
+      delete f.tab;
+      window.VSP_DATASOURCE_APPLY_FILTERS_V1(f, {noHashSync:true});
+    }
+  }
+
+  // run init lazily after DOM is ready
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ensureInit);
+  }else{
+    ensureInit();
+  }
+})();
+
+
+// === VSP_P2_DS_HASH_AUTOLOAD_V2 ===
+// Support router hash format: #datasource&sev=HIGH&tool=gitleaks&limit=200
+// Auto-load when entering datasource tab, and always resolve RID from runs_index if missing.
+(function(){
+  function esc(s){ try{ return String(s); }catch(_){ return ""; } }
+
+  function parseHash(){
+    // accepts:
+    //  - #datasource
+    //  - #datasource&sev=HIGH&tool=gitleaks
+    //  - #tab=datasource&sev=HIGH...
+    let h = (location.hash || "").replace(/^#\/?/,"").trim();
+    if (!h) return {tab:"dashboard", params:{}};
+
+    // normalize: if starts with "tab="
+    if (h.startsWith("tab=")){
+      const sp = new URLSearchParams(h);
+      const tab = sp.get("tab") || "";
+      const params = {};
+      sp.forEach((v,k)=>{ if(k!=="tab") params[k]=v; });
+      return {tab, params};
+    }
+
+    // normalize: first token is tab name
+    const parts = h.split("&");
+    const tab = parts[0] || "";
+    const params = {};
+    for (let i=1;i<parts.length;i++){
+      const part = parts[i];
+      if (!part) continue;
+      const kv = part.split("=",2);
+      const k = decodeURIComponent(kv[0]||"");
+      const v = decodeURIComponent(kv[1]||"");
+      if (k) params[k]=v;
+    }
+    return {tab, params};
+  }
+
+  async function resolveLatestRID(){
+    try{
+      const r = await fetch("/api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1", {cache:"no-store"});
+      const j = await r.json();
+      const rid = j?.items?.[0]?.run_id || "";
+      return rid;
+    }catch(_){
+      return "";
+    }
+  }
+
+  async function applyFromHash(){
+    const x = parseHash();
+    if ((x.tab||"").toLowerCase() !== "datasource") return;
+
+    const sink = window.VSP_DATASOURCE_APPLY_FILTERS_V1;
+    if (typeof sink !== "function") return;
+
+    const f = Object.assign({limit:"200"}, x.params || {});
+    // ensure rid
+    if (!f.rid){
+      const rid = await resolveLatestRID();
+      if (rid) f.rid = rid;
+    }
+
+    try{
+      await sink(f, {noHashSync:true});
+    }catch(e){
+      console.warn("[VSP_DS_HASH_AUTOLOAD_V2] sink failed:", e);
+    }
+  }
+
+  // Patch drill router compatibility: if someone sets #tab=datasource..., convert to #datasource&...
+  function normalizeHashIfNeeded(){
+    const h = (location.hash || "");
+    if (h.startsWith("#tab=datasource")){
+      try{
+        const sp = new URLSearchParams(h.replace(/^#/, ""));
+        sp.delete("tab");
+        const qs = sp.toString();
+        const nh = "#datasource" + (qs ? ("&"+qs) : "");
+        if (location.hash !== nh) history.replaceState(null, "", nh);
+      }catch(_){}
+    }
+  }
+
+  async function onHash(){
+    normalizeHashIfNeeded();
+    await applyFromHash();
+  }
+
+  window.addEventListener("hashchange", onHash);
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", onHash);
+  }else{
+    onHash();
+  }
+})();
+

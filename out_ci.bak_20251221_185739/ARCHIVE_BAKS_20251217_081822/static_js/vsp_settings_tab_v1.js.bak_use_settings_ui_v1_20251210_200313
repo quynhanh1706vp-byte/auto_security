@@ -1,0 +1,291 @@
+;(function () {
+  const LOG_PREFIX = "[VSP_SETTINGS_TAB]";
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  let currentSettings = null;
+
+  function clone(obj) {
+    return obj ? JSON.parse(JSON.stringify(obj)) : null;
+  }
+
+  function injectSettingsForm() {
+    const pane = document.getElementById("vsp-tab-settings");
+    if (!pane) {
+      console.log(LOG_PREFIX, "Không tìm thấy #vsp-tab-settings – skip.");
+      return null;
+    }
+
+    if (document.getElementById("vsp-settings-form-zone")) {
+      console.log(LOG_PREFIX, "Form zone đã tồn tại – bỏ qua inject.");
+      return $("vsp-settings-form-zone");
+    }
+
+    const formZone = document.createElement("section");
+    formZone.id = "vsp-settings-form-zone";
+    formZone.className = "vsp-section vsp-section-stack vsp-settings-form-zone";
+
+    formZone.innerHTML = `
+      <div class="vsp-section-header">
+        <div>
+          <h2 class="vsp-section-title">Settings – friendly form</h2>
+          <p class="vsp-section-subtitle">
+            Cấu hình nhanh SRC path, RUN root, profile và tool stack. JSON editor bên dưới là chế độ Advanced.
+          </p>
+        </div>
+      </div>
+
+      <div class="vsp-grid vsp-grid-2">
+        <!-- General -->
+        <div class="vsp-card vsp-card-soft">
+          <div class="vsp-card-header">
+            <h3 class="vsp-card-title">General</h3>
+            <p class="vsp-card-subtitle">Đường dẫn nguồn, run root và giới hạn bảng.</p>
+          </div>
+          <div class="vsp-card-body vsp-form">
+            <label class="vsp-field">
+              <span class="vsp-field-label">Source root</span>
+              <input type="text" id="vsp-set-src-root" class="vsp-input" placeholder="/home/test/Data/khach6">
+            </label>
+
+            <label class="vsp-field">
+              <span class="vsp-field-label">Run root (out)</span>
+              <input type="text" id="vsp-set-run-root" class="vsp-input" placeholder="/home/test/Data/SECURITY_BUNDLE/out">
+            </label>
+
+            <label class="vsp-field">
+              <span class="vsp-field-label">Default profile</span>
+              <input type="text" id="vsp-set-default-profile" class="vsp-input" placeholder="FULL_EXT">
+            </label>
+
+            <label class="vsp-field">
+              <span class="vsp-field-label">Max rows Data Source</span>
+              <input type="number" id="vsp-set-max-rows" class="vsp-input" min="50" step="50" placeholder="500">
+            </label>
+          </div>
+        </div>
+
+        <!-- Tool stack -->
+        <div class="vsp-card vsp-card-soft">
+          <div class="vsp-card-header">
+            <h3 class="vsp-card-title">Tool stack</h3>
+            <p class="vsp-card-subtitle">Bật/tắt các tool trong profile chính.</p>
+          </div>
+          <div class="vsp-card-body vsp-form vsp-grid vsp-grid-2 vsp-tools-grid">
+            ${["semgrep","gitleaks","bandit","trivy","syft","grype","kics","codeql"].map(t => `
+            <label class="vsp-field vsp-field-checkbox">
+              <input type="checkbox" id="vsp-tool-${t}">
+              <span>${t}</span>
+            </label>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+
+      <div class="vsp-section-footer vsp-flex vsp-justify-end vsp-gap-2">
+        <button type="button" class="vsp-btn vsp-btn-soft" id="vsp-settings-form-reload">
+          Reload from JSON
+        </button>
+        <button type="button" class="vsp-btn vsp-btn-primary" id="vsp-settings-form-save">
+          Save Settings (form)
+        </button>
+      </div>
+    `;
+
+    // Chèn form lên phía trên JSON editor nếu tìm được, else đặt đầu tab
+    const jsonArea = $("vsp-settings-json");
+    if (jsonArea && jsonArea.parentNode && jsonArea.parentNode.parentNode === pane) {
+      pane.insertBefore(formZone, jsonArea.parentNode);
+    } else if (pane.firstChild) {
+      pane.insertBefore(formZone, pane.firstChild);
+    } else {
+      pane.appendChild(formZone);
+    }
+
+    console.log(LOG_PREFIX, "Injected Settings form zone.");
+    return formZone;
+  }
+
+  function getToolNames() {
+    return ["semgrep","gitleaks","bandit","trivy","syft","grype","kics","codeql"];
+  }
+
+  function fillFormFromSettings(settings) {
+    if (!settings) return;
+    const srcRoot = settings.src_root || settings.source_root || "";
+    const runRoot = settings.run_root || settings.out_root || settings.run_dir_root || "";
+    const defProfile = settings.default_profile || settings.profile_default || "";
+    const maxRows = settings.max_rows || settings.datasource_max_rows || "";
+
+    const elSrc = $("vsp-set-src-root");
+    const elRun = $("vsp-set-run-root");
+    const elProf = $("vsp-set-default-profile");
+    const elMax = $("vsp-set-max-rows");
+
+    if (elSrc) elSrc.value = srcRoot;
+    if (elRun) elRun.value = runRoot;
+    if (elProf) elProf.value = defProfile;
+    if (elMax) elMax.value = maxRows;
+
+    const toolsCfg = settings.tools || settings.tool_stack || {};
+
+    for (const name of getToolNames()) {
+      const el = $("vsp-tool-" + name);
+      if (!el) continue;
+      const t = toolsCfg[name] || {};
+      const enabled =
+        typeof t.enabled === "boolean"
+          ? t.enabled
+          : (t.on === true || t.active === true);
+      el.checked = !!enabled;
+    }
+  }
+
+  function collectFormToSettings(base) {
+    const s = clone(base || {}) || {};
+
+    const elSrc = $("vsp-set-src-root");
+    const elRun = $("vsp-set-run-root");
+    const elProf = $("vsp-set-default-profile");
+    const elMax = $("vsp-set-max-rows");
+
+    s.src_root = elSrc ? elSrc.value.trim() : s.src_root || "";
+    s.run_root = elRun ? elRun.value.trim() : s.run_root || s.out_root || "";
+    s.default_profile = elProf ? elProf.value.trim() : s.default_profile || s.profile_default || "";
+    if (elMax && elMax.value) {
+      const n = parseInt(elMax.value, 10);
+      if (!Number.isNaN(n)) {
+        s.max_rows = n;
+        s.datasource_max_rows = n;
+      }
+    }
+
+    if (!s.tools) s.tools = {};
+    for (const name of getToolNames()) {
+      const el = $("vsp-tool-" + name);
+      if (!el) continue;
+      const enabled = !!el.checked;
+      if (!s.tools[name]) s.tools[name] = {};
+      s.tools[name].enabled = enabled;
+    }
+
+    return s;
+  }
+
+  async function fetchSettings() {
+    console.log(LOG_PREFIX, "Loading /api/vsp/settings_v1 ...");
+    let resp, data;
+    try {
+      resp = await fetch("/api/vsp/settings_v1", { method: "GET" });
+    } catch (e) {
+      console.error(LOG_PREFIX, "fetch error", e);
+      return null;
+    }
+
+    try {
+      data = await resp.json();
+    } catch (e) {
+      console.error(LOG_PREFIX, "JSON parse error", e);
+      return null;
+    }
+
+    if (!data) return null;
+
+    // Có thể dạng {ok: true, settings: {...}} hoặc {...}
+    let settings = null;
+    if (data.ok && data.settings) {
+      settings = data.settings;
+    } else {
+      settings = data;
+    }
+
+    currentSettings = settings;
+    console.log(LOG_PREFIX, "Settings loaded.");
+    return settings;
+  }
+
+  async function saveSettingsFromForm() {
+    if (!currentSettings) {
+      console.log(LOG_PREFIX, "currentSettings rỗng, load lại trước khi save.");
+      await fetchSettings();
+    }
+    const merged = collectFormToSettings(currentSettings);
+
+    // Gửi trực tiếp object settings thô, tương thích backend hiện tại
+    const body = JSON.stringify(merged);
+
+    console.log(LOG_PREFIX, "POST /api/vsp/settings_v1 ...");
+    let resp, data;
+    try {
+      resp = await fetch("/api/vsp/settings_v1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+    } catch (e) {
+      console.error(LOG_PREFIX, "POST error", e);
+      alert("Lỗi khi lưu settings (network). Xem console.");
+      return;
+    }
+
+    try {
+      data = await resp.json();
+    } catch (e) {
+      console.error(LOG_PREFIX, "JSON parse error (response)", e);
+      alert("Settings đã gửi nhưng không parse được phản hồi.");
+      return;
+    }
+
+    if (data && data.ok === false) {
+      console.error(LOG_PREFIX, "API error", data.error);
+      alert("Lưu settings thất bại: " + (data.error || "unknown"));
+      return;
+    }
+
+    currentSettings = merged;
+    console.log(LOG_PREFIX, "Settings saved.");
+    alert("Settings đã được lưu (form).");
+  }
+
+  function bindButtons() {
+    const btnReload = $("vsp-settings-form-reload");
+    const btnSave = $("vsp-settings-form-save");
+
+    if (btnReload) {
+      btnReload.addEventListener("click", async function () {
+        const s = await fetchSettings();
+        if (s) fillFormFromSettings(s);
+      });
+    }
+
+    if (btnSave) {
+      btnSave.addEventListener("click", function () {
+        saveSettingsFromForm().catch((err) =>
+          console.error(LOG_PREFIX, "saveSettingsFromForm error", err)
+        );
+      });
+    }
+  }
+
+  async function init() {
+    const pane = document.getElementById("vsp-tab-settings");
+    if (!pane) {
+      console.log(LOG_PREFIX, "Không trong layout Settings – skip init.");
+      return;
+    }
+    injectSettingsForm();
+    const s = await fetchSettings();
+    if (s) fillFormFromSettings(s);
+    bindButtons();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  console.log(LOG_PREFIX, "vsp_settings_tab_v1.js loaded.");
+})();

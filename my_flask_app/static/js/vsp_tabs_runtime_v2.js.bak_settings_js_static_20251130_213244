@@ -1,0 +1,1418 @@
+function vspNum(n) {
+  if (n === null || n === undefined) return 0;
+  const x = Number(n);
+  return Number.isNaN(x) ? 0 : x;
+}
+function vspFmt(n) {
+  return vspNum(n).toLocaleString("en-US");
+}
+async function vspGet(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(url + " -> " + res.status);
+  return await res.json();
+}
+
+/* ========= TAB 1 – DASHBOARD ========= */
+async function renderVspDashboard() {
+  const sec = document.getElementById("tab-dashboard");
+  if (!sec) return;
+  const root = document.createElement("div");
+  root.id = "vsp-dashboard-root";
+  root.className = "vsp-dashboard-root";
+  sec.innerHTML = "";
+  sec.appendChild(root);
+
+  root.innerHTML = '<div class="vsp-loading">Loading dashboard...</div>';
+
+  try {
+    const dash = await vspGet("/api/vsp/dashboard");
+    const runsIndex = await vspGet("/api/vsp/runs_index");
+    const datasource = await vspGet("/api/vsp/datasource?mode=dashboard");
+
+    const kpi = dash.kpi || {};
+    const rowsData = datasource.rows || [];
+
+    // Compute TOP exploited CVEs from unified findings
+    const cveStats = {};
+    rowsData.forEach(r => {
+      const cve = (r.cve || "").trim();
+      if (!cve) return;
+      const sevName = (r.severity || "").toUpperCase();
+      const weight = sevName === "CRITICAL" ? 3 : (sevName === "HIGH" ? 2 : 1);
+      if (!cveStats[cve]) cveStats[cve] = { score: 0, tools: new Set() };
+      cveStats[cve].score += weight;
+      if (r.tool) cveStats[cve].tools.add(r.tool);
+    });
+    const topCves = Object.entries(cveStats)
+      .map(([cve, v]) => ({ cve, score: v.score, tools: Array.from(v.tools).sort() }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+    // Aggregate severity directly from unified findings
+    const sevAgg = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+    rowsData.forEach(r => {
+      const s = r.severity || "INFO";
+      if (sevAgg[s] === undefined) sevAgg[s] = 0;
+      sevAgg[s] = (sevAgg[s] || 0) + 1;
+    });
+    const sevRaw = kpi.severity || {};
+    const hasKpiSev = Object.values(sevRaw).some(v => vspNum(v) > 0);
+    const sev = hasKpiSev ? sevRaw : sevAgg;
+
+    // Render TOP exploited CVEs bảng (dùng card cũ "noisy")
+    const cveBody = document.querySelector('#vsp-table-top-noisy tbody');
+    if (cveBody) {
+      cveBody.innerHTML = '';
+      if (!topCves.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        td.textContent = 'No data.';
+        tr.appendChild(td);
+        cveBody.appendChild(tr);
+      } else {
+        topCves.forEach((item, idx) => {
+          const tr = document.createElement('tr');
+          const toolsLabel = item.tools.join(', ') || '-';
+          tr.innerHTML =
+            `<td>${idx + 1}</td>` +
+            `<td>${item.cve}</td>` +
+            `<td>${item.score}</td>` +
+            `<td>${toolsLabel}</td>`;
+          cveBody.appendChild(tr);
+        });
+      }
+    }
+
+    /* ---------- Top risk / noisy TOP 10 ---------- */
+    const sorted = [...rowsData].sort((a, b) => {
+      const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4, TRACE: 5 };
+      return (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
+    });
+
+    const topRisk = sorted.filter(r => ["CRITICAL","HIGH"].includes(r.severity)).slice(0, 10);
+    const noisy = sorted.filter(r => ["MEDIUM","LOW","INFO","TRACE"].includes(r.severity)).slice(0, 10);
+
+    const byToolSev = {};
+    rowsData.forEach(r => {
+      const t = r.tool || "unknown";
+      const s = r.severity || "INFO";
+      if (!byToolSev[t]) byToolSev[t] = { CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0 };
+      byToolSev[t][s] = (byToolSev[t][s] || 0) + 1;
+    });
+
+    const TOOL_ORDER = ["semgrep","codeql","trivy_fs","gitleaks","grype","kics","bandit","syft"];
+    const PRETTY_TOOL = {
+      semgrep: "Semgrep",
+      codeql: "CodeQL",
+      trivy_fs: "Trivy FS",
+      gitleaks: "Gitleaks",
+      grype: "Grype",
+      kics: "KICS",
+      bandit: "Bandit",
+      syft: "Syft SBOM"
+    };
+    const prettyToolName = (t) => PRETTY_TOOL[t] || t;
+
+    function renderRows(list, cols) {
+      if (!list.length) return `<tr><td colspan="${cols}">No data.</td></tr>`;
+      return list.map((r, idx)=>`
+        <tr>
+          <td>${idx+1}</td>
+          <td title="${r.file || ""}">${r.file || "-"}</td>
+          <td>${r.line || "-"}</td>
+          <td>${r.severity || "-"}</td>
+          <td>${r.rule_id || r.check_id || "-"}</td>
+          <td>${r.title || r.message || "-"}</td>
+        </tr>`).join("");
+    }
+
+    const topRiskHtml = `
+      <div class="vsp-card">
+        <div class="vsp-card-title">Top risk findings (Critical/High) – TOP 10</div>
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table">
+            <thead>
+              <tr>
+                <th>#</th><th>File</th><th>Line</th><th>Severity</th><th>Rule</th><th>Message</th>
+              </tr>
+            </thead>
+            <tbody>${renderRows(topRisk, 6)}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    const noisyHtml = `
+      <div class="vsp-card">
+        <div class="vsp-card-title">Top noisy findings (Medium/Low/Info/Trace) – TOP 10</div>
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table">
+            <thead>
+              <tr>
+                <th>#</th><th>File</th><th>Line</th><th>Severity</th><th>Rule</th><th>Message</th>
+              </tr>
+            </thead>
+            <tbody>${renderRows(noisy, 6)}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    const toolRows = Object.keys(byToolSev).length
+      ? Object.entries(byToolSev).map(([t, s])=>`
+        <tr>
+          <td>${prettyToolName(t)}</td>
+          <td class="text-right">${vspFmt(s.CRITICAL || 0)}</td>
+          <td class="text-right">${vspFmt(s.HIGH || 0)}</td>
+          <td class="text-right">${vspFmt(s.MEDIUM || 0)}</td>
+          <td class="text-right">${vspFmt(s.LOW || 0)}</td>
+          <td class="text-right">${vspFmt(s.INFO || 0)}</td>
+          <td class="text-right">${vspFmt(s.TRACE || 0)}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="7">No tool data.</td></tr>`;
+
+    const toolHtml = `
+      <div class="vsp-card">
+        <div class="vsp-card-title">By tool – severity buckets</div>
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table">
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th class="text-right">CRIT</th>
+                <th class="text-right">HIGH</th>
+                <th class="text-right">MED</th>
+                <th class="text-right">LOW</th>
+                <th class="text-right">INFO</th>
+                <th class="text-right">TRACE</th>
+              </tr>
+            </thead>
+            <tbody>${toolRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    /* ---------- KPI (10 ô) ---------- */
+    const infoTrace = vspNum(sev.INFO) + vspNum(sev.TRACE);
+    const kpiHtml = `
+      <div class="vsp-kpi-row">
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Total findings</div>
+          <div class="vsp-kpi-value">${vspFmt(kpi.total_findings)}</div>
+        </div>
+        <div class="vsp-kpi-card sev-critical">
+          <div class="vsp-kpi-label">Critical</div>
+          <div class="vsp-kpi-value">${vspFmt(sev.CRITICAL)}</div>
+        </div>
+        <div class="vsp-kpi-card sev-high">
+          <div class="vsp-kpi-label">High</div>
+          <div class="vsp-kpi-value">${vspFmt(sev.HIGH)}</div>
+        </div>
+        <div class="vsp-kpi-card sev-medium">
+          <div class="vsp-kpi-label">Medium</div>
+          <div class="vsp-kpi-value">${vspFmt(sev.MEDIUM)}</div>
+        </div>
+        <div class="vsp-kpi-card sev-low">
+          <div class="vsp-kpi-label">Low</div>
+          <div class="vsp-kpi-value">${vspFmt(sev.LOW)}</div>
+        </div>
+        <div class="vsp-kpi-card sev-info">
+          <div class="vsp-kpi-label">Info/Trace</div>
+          <div class="vsp-kpi-value">${vspFmt(infoTrace)}</div>
+        </div>
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Security posture</div>
+          <div class="vsp-kpi-value">${kpi.security_score == null ? "-" : kpi.security_score + " / 100"}</div>
+        </div>
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Top risky tool</div>
+          <div class="vsp-kpi-value">${kpi.top_risky_tool || "-"}</div>
+        </div>
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Highest impacted CWE</div>
+          <div class="vsp-kpi-value">${kpi.top_cwe || "-"}</div>
+        </div>
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Top vulnerable module</div>
+          <div class="vsp-kpi-value">${kpi.top_module || "-"}</div>
+        </div>
+      </div>`;
+
+    /* ---------- Data cho Chart.js (giống mẫu) ---------- */
+    const runs = (runsIndex.runs || []).slice(0, 10);
+    const trendLabels = runs.map((_, idx) => `Run ${idx + 1}`);
+    const trendTooltipIds = runs.map(r => r.run_id || "");
+    const trendValues = runs.map(r => vspNum(r.total_findings || 0));
+
+    const sevLabels = ["Critical","High","Medium","Low","Info","Trace"];
+    const sevKeys   = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    const sevValues = sevKeys.map(k => vspNum(sev[k] || 0));
+
+    const allTools = Object.keys(byToolSev);
+    // Luôn ưu tiên 6 tool chính; nếu thiếu thì vẫn show với giá trị 0
+    const baseTools = TOOL_ORDER.length ? TOOL_ORDER.slice(0, 6) : allTools;
+    const toolNames = baseTools;
+    const toolLabels = toolNames.map(prettyToolName);
+    const critData = toolNames.map(t => vspNum((byToolSev[t] && byToolSev[t].CRITICAL) || 0));
+    const highData = toolNames.map(t => vspNum((byToolSev[t] && byToolSev[t].HIGH) || 0));
+
+    root.innerHTML = `
+      <div class="vsp-dashboard-grid">
+        ${kpiHtml}
+        <div class="vsp-dashboard-charts">
+          <div class="vsp-card">
+            <div class="vsp-card-title">Severity distribution (6 buckets)</div>
+            <canvas id="vsp-chart-severity"></canvas>
+          </div>
+          <div class="vsp-card">
+            <div class="vsp-card-title">Trend – findings over time</div>
+            <div class="vsp-subtitle">Last ${runs.length || 0} runs.</div>
+            <canvas id="vsp-chart-trend"></canvas>
+          </div>
+          <div class="vsp-card">
+            <div class="vsp-card-title">Critical / High by tool</div>
+            <canvas id="vsp-chart-tool-crit-high"></canvas>
+          </div>
+        </div>
+        <div class="vsp-dashboard-bottom">
+          ${topRiskHtml}
+          ${noisyHtml}
+          ${toolHtml}
+        </div>
+      </div>
+    `;
+
+    /* ---------- Vẽ Chart.js theo style mẫu ---------- */
+    if (window.Chart) {
+      // Donut severity
+      const sevCtx = document.getElementById("vsp-chart-severity");
+      if (sevCtx) {
+        new Chart(sevCtx, {
+          type: "doughnut",
+          data: {
+            labels: sevLabels,
+            datasets: [{
+              data: sevValues,
+              backgroundColor: [
+                "#3b82f6", // Critical - blue
+                "#f97373", // High - red/pink
+                "#fb923c", // Medium - orange
+                "#facc15", // Low - yellow
+                "#2dd4bf", // Info - teal
+                "#a855f7"  // Trace - purple
+              ],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            cutout: "60%",
+            plugins: {
+              legend: {
+                position: "top",
+                labels: {
+                  usePointStyle: true,
+                  boxWidth: 10,
+                  padding: 12
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Trend line with area fill
+      const trendCtx = document.getElementById("vsp-chart-trend");
+      if (trendCtx) {
+        new Chart(trendCtx, {
+          type: "line",
+          data: {
+            labels: trendLabels,
+            datasets: [{
+              label: "Total findings",
+              data: trendValues,
+              tension: 0.35,
+              borderWidth: 2,
+              borderColor: "#38bdf8",
+              backgroundColor: "rgba(56,189,248,0.25)",
+              pointRadius: 3,
+              pointHoverRadius: 4,
+              fill: "start"
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            scales: {
+              x: {
+                grid: { color: "rgba(148,163,184,0.15)" }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: "rgba(148,163,184,0.2)" }
+              }
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  title: (items) => {
+                    const idx = items[0].dataIndex;
+                    const id = trendTooltipIds[idx] || "";
+                    return id ? `${trendLabels[idx]} – ${id}` : trendLabels[idx];
+                  }
+                }
+              },
+              legend: {
+                display: false
+              }
+            }
+          }
+        });
+      }
+
+      // Critical / High by tool – grouped bar
+      const toolCtx = document.getElementById("vsp-chart-tool-crit-high");
+      if (toolCtx) {
+        new Chart(toolCtx, {
+          type: "bar",
+          data: {
+            labels: toolLabels,
+            datasets: [
+              {
+                label: "Critical",
+                data: critData,
+                backgroundColor: "#3b82f6",
+                borderWidth: 0,
+                maxBarThickness: 32
+              },
+              {
+                label: "High",
+                data: highData,
+                backgroundColor: "#fb7185",
+                borderWidth: 0,
+                maxBarThickness: 32
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                grid: { display: false }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: "rgba(148,163,184,0.2)" }
+              }
+            },
+            plugins: {
+              legend: {
+                position: "top",
+                labels: {
+                  usePointStyle: true,
+                  boxWidth: 10,
+                  padding: 10
+                }
+              }
+            }
+          }
+        });
+      }
+    } else {
+      console.warn("Chart.js not available – skip charts.");
+    }
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = '<div class="vsp-error">Không tải được dashboard.</div>';
+  }
+}
+
+/* ========= TAB 2 – RUNS & REPORTS ========= */
+async function renderVspRuns() {
+  const sec = document.getElementById("tab-runs");
+  if (!sec) return;
+  const root = document.createElement("div");
+  root.id = "vsp-runs-root";
+  root.className = "vsp-runs-root";
+  sec.innerHTML = "";
+  sec.appendChild(root);
+
+  root.innerHTML = '<div class="vsp-loading">Loading runs...</div>';
+
+  try {
+    const data = await vspGet("/api/vsp/runs_index");
+    const runs = data.runs || [];
+
+    const totalRuns = runs.length;
+    const last10 = runs.slice(0, 10);
+    const successes = last10.length;
+    const avgFindings =
+      runs.reduce((sum, r) => sum + vspNum(r.total_findings || 0), 0) /
+      (runs.length || 1);
+
+    const kpiHtml = `
+      <div class="vsp-kpi-row">
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Total runs</div>
+          <div class="vsp-kpi-value">${vspFmt(totalRuns)}</div>
+        </div>
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Last 10 runs (ok)</div>
+          <div class="vsp-kpi-value">${vspFmt(successes)}</div>
+        </div>
+        <div class="vsp-kpi-card">
+          <div class="vsp-kpi-label">Avg findings/run</div>
+          <div class="vsp-kpi-value">${vspFmt(Math.round(avgFindings))}</div>
+        </div>
+      </div>`;
+
+    const rows = runs.length
+      ? runs.map((r, i) => {
+          const s = r.severity || {};
+          const tools = (r.tools || []).join(", ");
+          return `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${r.run_id || "-"}</td>
+              <td>${r.ts || "-"}</td>
+              <td>${r.profile || "-"}</td>
+              <td title="${r.src_path || ""}">${r.src_path || "-"}</td>
+              <td class="text-right">${vspFmt(r.total_findings || 0)}</td>
+              <td class="text-right">${vspFmt(s.CRITICAL || 0)}</td>
+              <td class="text-right">${vspFmt(s.HIGH || 0)}</td>
+              <td class="text-right">${vspFmt(s.MEDIUM || 0)}</td>
+              <td class="text-right">${vspFmt(s.LOW || 0)}</td>
+              <td class="text-right">${vspFmt(s.INFO || 0)}</td>
+              <td class="text-right">${vspFmt(s.TRACE || 0)}</td>
+              <td>${tools}</td>
+              <td>
+                ${r.report_html ? `<a href="${r.report_html}" target="_blank">HTML</a>` : ""}
+                ${r.report_pdf ? ` | <a href="${r.report_pdf}" target="_blank">PDF</a>` : ""}
+              </td>
+            </tr>`;
+        }).join("")
+      : `<tr><td colspan="14">No runs in out/.</td></tr>`;
+
+    const tableHtml = `
+      <div class="vsp-card full">
+        <div class="vsp-card-title">Runs & Reports</div>
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Run ID</th>
+                <th>Timestamp</th>
+                <th>Profile</th>
+                <th>SRC path</th>
+                <th class="text-right">Total</th>
+                <th class="text-right">CRIT</th>
+                <th class="text-right">HIGH</th>
+                <th class="text-right">MED</th>
+                <th class="text-right">LOW</th>
+                <th class="text-right">INFO</th>
+                <th class="text-right">TRACE</th>
+                <th>Tools</th>
+                <th>Reports</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    root.innerHTML = `
+      <div class="vsp-runs-layout">
+        ${kpiHtml}
+        ${tableHtml}
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = '<div class="vsp-error">Không tải được runs index.</div>';
+  }
+}
+
+/* ========= TAB 3 – DATA SOURCE ========= */
+async function renderVspDataSource() {
+  const sec = document.getElementById("tab-data");
+  if (!sec) return;
+  const root = document.createElement("div");
+  root.id = "vsp-data-root";
+  root.className = "vsp-data-root";
+  sec.innerHTML = "";
+  sec.appendChild(root);
+
+  root.innerHTML = '<div class="vsp-loading">Loading datasource...</div>';
+
+  try {
+    const data = await vspGet("/api/vsp/datasource");
+    const rowsData = data.rows || [];
+    let currentSeverity = "ALL";
+    let currentTool = "ALL";
+
+    function renderTable() {
+      const tbodyRows = rowsData
+        .filter(r => currentSeverity === "ALL" || r.severity === currentSeverity)
+        .filter(r => currentTool === "ALL" || (r.tool || "unknown") === currentTool)
+        .slice(0, 300)
+        .map((r, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${r.tool || "-"}</td>
+            <td>${r.severity || "-"}</td>
+            <td>${r.rule_id || r.check_id || "-"}</td>
+            <td>${r.title || r.message || "-"}</td>
+            <td title="${r.file || ""}">${r.file || "-"}</td>
+            <td>${r.line || "-"}</td>
+            <td>${r.cwe || "-"}</td>
+            <td>${r.cve || "-"}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="9">No findings.</td></tr>`;
+
+      const table = root.querySelector(".vsp-data-table-body");
+      if (table) table.innerHTML = tbodyRows;
+    }
+
+    const sevSet = new Set(["ALL"]);
+    rowsData.forEach(r => sevSet.add(r.severity || "INFO"));
+    const toolSet = new Set(["ALL"]);
+    rowsData.forEach(r => toolSet.add(r.tool || "unknown"));
+
+    const severityOptions = Array.from(sevSet).map(s => `<option value="${s}">${s}</option>`).join("");
+    const toolOptions = Array.from(toolSet).map(t => `<option value="${t}">${t}</option>`).join("");
+
+    root.innerHTML = `
+      <div class="vsp-card full">
+        <div class="vsp-card-title">
+          Data Source – unified findings
+          <span class="vsp-subtitle">
+            Run: ${data.run_id || "-"} – total: ${vspFmt(data.total_rows || rowsData.length)} (showing max 300)
+          </span>
+        </div>
+
+        <div class="vsp-filter-row">
+          <label>Severity:
+            <select id="vsp-data-filter-sev">${severityOptions}</select>
+          </label>
+          <label>Tool:
+            <select id="vsp-data-filter-tool">${toolOptions}</select>
+          </label>
+        </div>
+
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tool</th>
+                <th>Severity</th>
+                <th>Rule</th>
+                <th>Title</th>
+                <th>File</th>
+                <th>Line</th>
+                <th>CWE</th>
+                <th>CVE</th>
+              </tr>
+            </thead>
+            <tbody class="vsp-data-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    root.querySelector("#vsp-data-filter-sev").addEventListener("change", (e) => {
+      currentSeverity = e.target.value;
+      renderTable();
+    });
+    root.querySelector("#vsp-data-filter-tool").addEventListener("change", (e) => {
+      currentTool = e.target.value;
+      renderTable();
+    });
+
+    renderTable();
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = '<div class="vsp-error">Không tải được datasource.</div>';
+  }
+}
+
+/* ========= TAB 4 – SETTINGS ========= */
+async function renderVspSettings() {
+  const sec = document.getElementById("tab-settings");
+  if (!sec) return;
+  const root = document.createElement("div");
+  root.id = "vsp-settings-root";
+  root.className = "vsp-settings-root";
+  sec.innerHTML = "";
+  sec.appendChild(root);
+
+  root.innerHTML = '<div class="vsp-loading">Loading settings...</div>';
+
+  try {
+    const data = await vspGet("/api/vsp/settings");
+    const tools = data.tools_enabled || [];
+    const pills = tools.length
+      ? tools.map(t => `<span class="vsp-pill">${t}</span>`).join(" ")
+      : "<span class='vsp-subtitle'>No tools detected.</span>";
+
+    root.innerHTML = `
+      <div class="vsp-settings-grid">
+        <div class="vsp-card">
+          <div class="vsp-card-title">Profile</div>
+          <div class="vsp-kpi-value">${data.profile_label || "-"}</div>
+        </div>
+        <div class="vsp-card">
+          <div class="vsp-card-title">Source path</div>
+          <div class="vsp-kpi-value">${data.src_path || "-"}</div>
+        </div>
+        <div class="vsp-card">
+          <div class="vsp-card-title">Engine mode</div>
+          <div class="vsp-kpi-value">${data.engine_mode || "-"}</div>
+        </div>
+        <div class="vsp-card">
+          <div class="vsp-card-title">Last run</div>
+          <div class="vsp-kpi-value">${data.last_run_id || "-"}</div>
+        </div>
+      </div>
+
+      <div class="vsp-card full">
+        <div class="vsp-card-title">Tools enabled</div>
+        <div class="vsp-pill-row">${pills}</div>
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = '<div class="vsp-error">Không tải được settings.</div>';
+  }
+}
+
+/* ========= TAB 5 – RULE OVERRIDES ========= */
+async function renderVspRules() {
+  const sec = document.getElementById("tab-rules");
+  if (!sec) return;
+  const root = document.createElement("div");
+  root.id = "vsp-rules-root";
+  root.className = "vsp-rules-root";
+  sec.innerHTML = "";
+  sec.appendChild(root);
+
+  root.innerHTML = '<div class="vsp-loading">Loading rule overrides...</div>';
+
+  try {
+    const data = await vspGet("/api/vsp/rule_overrides");
+    const rules = data.rules || [];
+
+    const rows = rules.length
+      ? rules.map((r, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${r.tool || "-"}</td>
+            <td>${r.rule_id || r.id || "-"}</td>
+            <td>${r.match || r.scope || "-"}</td>
+            <td>${r.action || r.severity || "-"}</td>
+            <td>${r.note || r.description || "-"}</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="6">${data.note || "No overrides."}</td></tr>`;
+
+    root.innerHTML = `
+      <div class="vsp-card full">
+        <div class="vsp-card-title">Rule Overrides</div>
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tool</th>
+                <th>Rule ID</th>
+                <th>Match / Scope</th>
+                <th>Action</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = '<div class="vsp-error">Không tải được rule overrides.</div>';
+  }
+}
+
+/* ========= INIT ========= */
+document.addEventListener("DOMContentLoaded", () => {
+  renderVspDashboard();
+  renderVspRuns();
+  renderVspDataSource();
+  renderVspSettings();
+  renderVspRules();
+});
+
+
+/* ===== TOP EXPLOITED CVES – addon cho dashboard ===== */
+async function vspInitTopCves() {
+  try {
+    const table = document.getElementById('vsp-table-top-noisy');
+    if (!table) return;
+
+    // Đổi tiêu đề card thành TOP EXPLOITED CVES – TOP 10
+    const card = table.closest('.vsp-card');
+    if (card) {
+      const titleEl = card.querySelector('.vsp-card-title');
+      if (titleEl) {
+        titleEl.textContent = 'TOP EXPLOITED CVES – TOP 10';
+      }
+    }
+
+    const res = await fetch('/api/vsp/datasource?mode=dashboard');
+    if (!res.ok) return;
+    const data = await res.json();
+    const rows = data.rows || [];
+
+    // Gom thống kê CVE
+    const cveStats = {};
+    rows.forEach(r => {
+      const cve = (r.cve || '').trim();
+      if (!cve) return;
+      const sev = (r.severity || '').toUpperCase();
+      const weight = sev === 'CRITICAL' ? 3 : (sev === 'HIGH' ? 2 : 1);
+      if (!cveStats[cve]) cveStats[cve] = { score: 0, tools: new Set() };
+      cveStats[cve].score += weight;
+      if (r.tool) cveStats[cve].tools.add(r.tool);
+    });
+
+    const topCves = Object.entries(cveStats)
+      .map(([cve, v]) => ({ cve, score: v.score, tools: Array.from(v.tools).sort() }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!topCves.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 4;
+      td.textContent = 'No data.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    // Ghi header lại cho đúng
+    const thead = table.querySelector('thead');
+    if (thead) {
+      thead.innerHTML = '<tr><th>#</th><th>CVE</th><th>SCORE</th><th>TOOLS</th></tr>';
+    }
+
+    topCves.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      const toolsLabel = item.tools.join(', ') || '-';
+      tr.innerHTML =
+        '<td>' + (idx + 1) + '</td>' +
+        '<td>' + item.cve + '</td>' +
+        '<td>' + item.score + '</td>' +
+        '<td>' + toolsLabel + '</td>';
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.warn('[TOP_CVES] error:', e);
+  }
+}
+
+// Gọi addon sau khi dashboard đã load xong lần đầu
+document.addEventListener('DOMContentLoaded', function () {
+  // delay nhẹ để đảm bảo HTML đã render
+  setTimeout(function() {
+    try { vspInitTopCves(); } catch (e) { console.warn(e); }
+  }, 800);
+});
+
+/* =========================================================
+ * VSP – 4 TAB CÒN LẠI (RUNS, DATA, SETTINGS, RULES)
+ * Không đụng dashboard, chỉ render nội dung trong JS
+ * =======================================================*/
+
+/* =========================================================
+ * VSP – SIMPLE TAB SWITCHER (SIDE MENU -> 5 CONTENT TABS)
+ * Không đụng layout Dashboard, chỉ bật/tắt 5 <section>.
+ * =======================================================*/
+
+function vspActivateTab(targetId) {
+  try {
+    var sections = document.querySelectorAll('section[id^="tab-"]');
+    sections.forEach(function (sec) {
+      sec.classList.remove('active', 'vsp-active');
+      sec.style.display = 'none';
+    });
+    var target = document.getElementById(targetId);
+    if (target) {
+      target.classList.add('active', 'vsp-active');
+      target.style.display = 'block';
+    }
+  } catch (e) {
+    console.warn('[VSP][TAB] vspActivateTab error', e);
+  }
+}
+
+function vspSetupSidebarTabs() {
+  var labelToTab = {
+    'Dashboard': 'tab-dashboard',
+    'Runs & Reports': 'tab-runs',
+    'Data Source': 'tab-data',
+    'Settings': 'tab-settings',
+    'Rule Overrides': 'tab-rules'
+  };
+
+  // Ẩn tất cả, chỉ bật dashboard lúc khởi tạo
+  vspActivateTab('tab-dashboard');
+
+  // Bắt click trên mọi a / button / li có text trùng label
+  var candidates = Array.prototype.slice.call(
+    document.querySelectorAll('a, button, li')
+  );
+
+  candidates.forEach(function (el) {
+    var label = (el.textContent || '').trim();
+    if (!label || !labelToTab[label]) return;
+
+    var tabId = labelToTab[label];
+    el.addEventListener('click', function (ev) {
+      try {
+        // Để menu cũ vẫn đổi màu, chỉ chặn điều hướng nếu là anchor #
+        var node = ev.currentTarget;
+        if (node.tagName === 'A') {
+          var href = node.getAttribute('href') || '';
+          if (href === '#' || href === '') {
+            ev.preventDefault();
+          }
+        }
+        vspActivateTab(tabId);
+      } catch (e) {
+        console.warn('[VSP][TAB] click handler error', e);
+      }
+    });
+  });
+
+  console.log('[VSP][TAB] sidebar tab switcher ready.');
+}
+
+// Gắn vào DOMContentLoaded (giữ nguyên các init khác)
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    try { vspSetupSidebarTabs(); } catch (e) { console.warn(e); }
+  }, 300);
+});
+/* =========================================================
+ * VSP – 4 TAB CÒN LẠI (RUNS, DATA, SETTINGS, RULES)
+ * Không đụng dashboard, chỉ render nội dung trong JS
+ * =======================================================*/
+
+// Helper fetch JSON
+async function vspFetchJson(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+// ---- TAB 2 – RUNS & REPORTS ----
+async function renderVspRunsTab() {
+  const tab = document.getElementById('tab-runs');
+  if (!tab) return;
+
+  tab.innerHTML = `
+    <div class="vsp-tab-body vsp-runs-tab">
+      <div class="vsp-top-row">
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Total runs</div>
+          <div class="vsp-card-value" id="vsp-runs-kpi-total">-</div>
+        </div>
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Last run</div>
+          <div class="vsp-card-value" id="vsp-runs-kpi-last">-</div>
+        </div>
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Avg findings / run</div>
+          <div class="vsp-card-value" id="vsp-runs-kpi-avg">-</div>
+        </div>
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Profiles used</div>
+          <div class="vsp-card-value" id="vsp-runs-kpi-profiles">-</div>
+        </div>
+      </div>
+      <div class="vsp-main-row">
+        <div class="vsp-card vsp-card-table">
+          <div class="vsp-card-title">RUNS & REPORTS – HISTORY (LAST 50 RUNS)</div>
+          <div class="vsp-table-wrapper">
+            <table id="vsp-table-runs" class="vsp-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>RUN ID</th>
+                  <th>TIMESTAMP</th>
+                  <th>PROFILE</th>
+                  <th>SRC PATH</th>
+                  <th>TOTAL</th>
+                  <th>CRIT</th>
+                  <th>HIGH</th>
+                  <th>MED</th>
+                  <th>LOW</th>
+                  <th>INFO</th>
+                  <th>TRACE</th>
+                  <th>TOOLS</th>
+                  <th>REPORT</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="14">Loading runs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  let data;
+  try {
+    data = await vspFetchJson('/api/vsp/runs_index');
+  } catch (e) {
+    console.warn('[RUNS] error', e);
+    const tbody = document.querySelector('#vsp-table-runs tbody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="14">Failed to load runs_index.</td></tr>';
+    }
+    return;
+  }
+
+  const runs = data.runs || data || [];
+  const total = runs.length;
+  const totalFindings = runs.reduce((acc, r) => acc + (Number(r.total_findings || 0) || 0), 0);
+  const avg = total ? Math.round(totalFindings / total) : 0;
+  const profiles = Array.from(new Set(runs.map(r => (r.profile || '').trim()).filter(Boolean)));
+
+  const kTotal = document.getElementById('vsp-runs-kpi-total');
+  const kLast = document.getElementById('vsp-runs-kpi-last');
+  const kAvg = document.getElementById('vsp-runs-kpi-avg');
+  const kProfiles = document.getElementById('vsp-runs-kpi-profiles');
+
+  if (kTotal) kTotal.textContent = String(total || 0);
+  if (kLast) kLast.textContent = (runs[0] && runs[0].run_id) || '-';
+  if (kAvg) kAvg.textContent = total ? String(avg) : '-';
+  if (kProfiles) kProfiles.textContent = profiles.length ? profiles.join(', ') : '-';
+
+  const tbody = document.querySelector('#vsp-table-runs tbody');
+  if (!tbody) return;
+
+  if (!runs.length) {
+    tbody.innerHTML = '<tr><td colspan="14">No runs found in out/.</td></tr>';
+    return;
+  }
+
+  const rowsHtml = runs.map((r, idx) => {
+    const sev = r.severity || {};
+    const tools = (r.tools || r.tool || []).join
+      ? r.tools.join(', ')
+      : (r.tools || r.tool || '').toString();
+    const reportLinks = [];
+    if (r.report_html) {
+      reportLinks.push('<a href="' + r.report_html + '" target="_blank">HTML</a>');
+    }
+    if (r.report_pdf) {
+      reportLinks.push('<a href="' + r.report_pdf + '" target="_blank">PDF</a>');
+    }
+    const reportsCell = reportLinks.length ? reportLinks.join(' · ') : '-';
+    return `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${r.run_id || ''}</td>
+        <td>${r.ts || ''}</td>
+        <td>${r.profile || ''}</td>
+        <td>${r.src_path || ''}</td>
+        <td>${r.total_findings || 0}</td>
+        <td>${sev.CRITICAL || 0}</td>
+        <td>${sev.HIGH || 0}</td>
+        <td>${sev.MEDIUM || 0}</td>
+        <td>${sev.LOW || 0}</td>
+        <td>${sev.INFO || 0}</td>
+        <td>${sev.TRACE || 0}</td>
+        <td>${tools || '-'}</td>
+        <td>${reportsCell}</td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rowsHtml;
+}
+
+// ---- TAB 3 – DATA SOURCE ----
+async function renderVspDataTab() {
+  const tab = document.getElementById('tab-data');
+  if (!tab) return;
+
+  tab.innerHTML = `
+    <div class="vsp-tab-body vsp-data-tab">
+      <div class="vsp-main-row">
+        <div class="vsp-card vsp-card-table">
+          <div class="vsp-card-title">DATA SOURCE – UNIFIED FINDINGS (FIRST 300 ROWS)</div>
+          <div class="vsp-card-subtitle" id="vsp-data-meta"></div>
+          <div class="vsp-table-wrapper">
+            <table id="vsp-table-data" class="vsp-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>TOOL</th>
+                  <th>SEVERITY</th>
+                  <th>RULE</th>
+                  <th>TITLE / MESSAGE</th>
+                  <th>FILE</th>
+                  <th>LINE</th>
+                  <th>CWE</th>
+                  <th>CVE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="9">Loading unified findings...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  let data;
+  try {
+    data = await vspFetchJson('/api/vsp/datasource');
+  } catch (e) {
+    console.warn('[DATA] error', e);
+    const tbody = document.querySelector('#vsp-table-data tbody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="9">Failed to load datasource.</td></tr>';
+    }
+    return;
+  }
+
+  const rows = data.rows || [];
+  const totalRows = Number(data.total_rows || rows.length || 0);
+  const runId = data.run_id || '-';
+
+  const meta = document.getElementById('vsp-data-meta');
+  if (meta) {
+    meta.textContent = `Run: ${runId} – showing ${rows.length} / ${totalRows} findings`;
+  }
+
+  const tbody = document.querySelector('#vsp-table-data tbody');
+  if (!tbody) return;
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9">No unified findings found.</td></tr>';
+    return;
+  }
+
+  const limited = rows.slice(0, 300);
+  const rowsHtml = limited.map((r, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${r.tool || ''}</td>
+      <td>${r.severity || ''}</td>
+      <td>${r.rule_id || r.check_id || ''}</td>
+      <td>${r.title || r.message || ''}</td>
+      <td>${r.file || ''}</td>
+      <td>${r.line || ''}</td>
+      <td>${r.cwe || ''}</td>
+      <td>${r.cve || ''}</td>
+    </tr>
+  `).join('');
+
+  tbody.innerHTML = rowsHtml;
+}
+
+// ---- TAB 4 – SETTINGS ----
+async function renderVspSettingsTab() {
+  const tab = document.getElementById('tab-settings');
+  if (!tab) return;
+
+  tab.innerHTML = `
+    <div class="vsp-tab-body vsp-settings-tab">
+      <div class="vsp-top-row vsp-settings-top">
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Profile</div>
+          <div class="vsp-card-value" id="vsp-settings-profile">-</div>
+        </div>
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Source path</div>
+          <div class="vsp-card-value" id="vsp-settings-src">-</div>
+        </div>
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Engine mode</div>
+          <div class="vsp-card-value" id="vsp-settings-mode">-</div>
+        </div>
+        <div class="vsp-card vsp-kpi-card">
+          <div class="vsp-card-label">Last run</div>
+          <div class="vsp-card-value" id="vsp-settings-last-run">-</div>
+        </div>
+      </div>
+      <div class="vsp-main-row">
+        <div class="vsp-card">
+          <div class="vsp-card-title">TOOL STACK – ENABLED TOOLS</div>
+          <div class="vsp-tools-pill-row" id="vsp-settings-tools">
+            Loading...
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  let data;
+  try {
+    data = await vspFetchJson('/api/vsp/settings');
+  } catch (e) {
+    console.warn('[SETTINGS] error', e);
+    const toolsRow = document.getElementById('vsp-settings-tools');
+    if (toolsRow) toolsRow.textContent = 'Failed to load settings.';
+    return;
+  }
+
+  const profileLabel = data.profile_label || '-';
+  const srcPath = data.src_path || data.source_path || '-';
+  const engineMode = data.engine_mode || data.mode || '-';
+  const lastRun = data.last_run_id || data.run_id || '-';
+  const toolsEnabled = data.tools_enabled || data.tools || [];
+
+  const elProfile = document.getElementById('vsp-settings-profile');
+  const elSrc = document.getElementById('vsp-settings-src');
+  const elMode = document.getElementById('vsp-settings-mode');
+  const elLast = document.getElementById('vsp-settings-last-run');
+  const elTools = document.getElementById('vsp-settings-tools');
+
+  if (elProfile) elProfile.textContent = profileLabel;
+  if (elSrc) elSrc.textContent = srcPath;
+  if (elMode) elMode.textContent = engineMode;
+  if (elLast) elLast.textContent = lastRun;
+
+  if (elTools) {
+    if (!toolsEnabled || !toolsEnabled.length) {
+      elTools.textContent = 'No tool info.';
+    } else {
+      elTools.innerHTML = toolsEnabled.map(t => {
+        const name = (t.name || t).toString();
+        return `<span class="vsp-tool-pill">${name}</span>`;
+      }).join('');
+    }
+  }
+}
+
+// ---- TAB 5 – RULE OVERRIDES ----
+async function renderVspRulesTab() {
+  const tab = document.getElementById('tab-rules');
+  if (!tab) return;
+
+  tab.innerHTML = `
+    <div class="vsp-tab-body vsp-rules-tab">
+      <div class="vsp-main-row">
+        <div class="vsp-card vsp-card-table">
+          <div class="vsp-card-title">RULE OVERRIDES – ACTIVE RULES</div>
+          <div class="vsp-table-wrapper">
+            <table id="vsp-table-rules" class="vsp-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>TOOL</th>
+                  <th>RULE ID</th>
+                  <th>MATCH</th>
+                  <th>ACTION</th>
+                  <th>NOTE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="6">Loading rule overrides...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  let data;
+  try {
+    data = await vspFetchJson('/api/vsp/rule_overrides');
+  } catch (e) {
+    console.warn('[RULES] error', e);
+    const tbody = document.querySelector('#vsp-table-rules tbody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="6">Failed to load rule_overrides.</td></tr>';
+    }
+    return;
+  }
+
+  const rules = data.rules || data || [];
+  const tbody = document.querySelector('#vsp-table-rules tbody');
+  if (!tbody) return;
+
+  if (!rules.length) {
+    tbody.innerHTML = '<tr><td colspan="6">No rule overrides defined. Source: rules/vsp_rule_overrides.json</td></tr>';
+    return;
+  }
+
+  const rowsHtml = rules.map((r, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${r.tool || ''}</td>
+      <td>${r.rule_id || ''}</td>
+      <td>${r.match || ''}</td>
+      <td>${r.action || ''}</td>
+      <td>${r.note || ''}</td>
+    </tr>
+  `).join('');
+
+  tbody.innerHTML = rowsHtml;
+}
+
+// ---- Init tất cả tab (Dashboard giữ nguyên) ----
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    try { renderVspRunsTab(); } catch (e) { console.warn(e); }
+    try { renderVspDataTab(); } catch (e) { console.warn(e); }
+    try { renderVspSettingsTab(); } catch (e) { console.warn(e); }
+    try { renderVspRulesTab(); } catch (e) { console.warn(e); }
+  }, 400);
+});
+
+
+/* =========================================================
+ * VSP – RUNS & REPORTS TAB (render từ /api/vsp/runs_index)
+ * =======================================================*/
+
+function vspRenderRunsTab() {
+  var container = document.getElementById('tab-runs');
+  if (!container) {
+    console.warn('[VSP][RUNS] Không tìm thấy #tab-runs');
+    return;
+  }
+
+  // Skeleton layout cho tab Runs & Reports
+  container.innerHTML =
+    '<div class="vsp-section-title">RUNS &amp; REPORTS</div>' +
+    '<div class="vsp-row vsp-row-kpi">' +
+      '<div class="vsp-kpi-card"><div class="vsp-kpi-label">Total runs</div><div class="vsp-kpi-value" id="vsp-runs-total">-</div></div>' +
+      '<div class="vsp-kpi-card"><div class="vsp-kpi-label">Avg findings / run</div><div class="vsp-kpi-value" id="vsp-runs-avg">-</div></div>' +
+      '<div class="vsp-kpi-card"><div class="vsp-kpi-label">Last run id</div><div class="vsp-kpi-value" id="vsp-runs-last-id">-</div></div>' +
+      '<div class="vsp-kpi-card"><div class="vsp-kpi-label">Last run findings</div><div class="vsp-kpi-value" id="vsp-runs-last-total">-</div></div>' +
+    '</div>' +
+    '<div class="vsp-card vsp-card-table">' +
+      '<div class="vsp-card-header">RUN HISTORY</div>' +
+      '<div class="vsp-card-body">' +
+        '<table class="vsp-table vsp-table-runs">' +
+          '<thead>' +
+            '<tr>' +
+              '<th>#</th>' +
+              '<th>Run ID</th>' +
+              '<th>Timestamp</th>' +
+              '<th>Profile</th>' +
+              '<th>Source path</th>' +
+              '<th>Total</th>' +
+              '<th>CRIT</th>' +
+              '<th>HIGH</th>' +
+              '<th>MED</th>' +
+              '<th>LOW</th>' +
+              '<th>INFO</th>' +
+              '<th>TRACE</th>' +
+              '<th>Tools</th>' +
+              '<th>Reports</th>' +
+            '</tr>' +
+          '</thead>' +
+          '<tbody id="vsp-runs-tbody">' +
+            '<tr><td colspan="14" class="vsp-table-empty">Loading runs...</td></tr>' +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+    '</div>';
+
+  fetch('/api/vsp/runs_index')
+    .then(function (resp) { return resp.json(); })
+    .then(function (data) {
+      var runs = data && (data.runs || data.items || data) || [];
+      var tbody = document.getElementById('vsp-runs-tbody');
+      if (!tbody) return;
+
+      if (!runs.length) {
+        tbody.innerHTML = '<tr><td colspan="14" class="vsp-table-empty">No runs found in /out. Please execute a scan first.</td></tr>';
+        return;
+      }
+
+      var total = 0;
+      var cnt   = 0;
+
+      var rowsHtml = runs.map(function (run, idx) {
+        var sev = run.severity || {};
+        var t   = (typeof run.total_findings === 'number') ? run.total_findings : null;
+        if (t !== null) {
+          total += t;
+          cnt   += 1;
+        }
+        var tools = (run.tools || run.tools_enabled || []).join(', ');
+        var htmlReport = run.report_html ? '<a href="' + run.report_html + '" target="_blank">HTML</a>' : '';
+        var pdfReport  = run.report_pdf  ? '<a href="' + run.report_pdf  + '" target="_blank">PDF</a>' : '';
+        var reports = [htmlReport, pdfReport].filter(Boolean).join(' | ') || '-';
+
+        return '' +
+          '<tr>' +
+            '<td>' + (idx + 1) + '</td>' +
+            '<td>' + (run.run_id || '-') + '</td>' +
+            '<td>' + (run.ts || run.timestamp || '-') + '</td>' +
+            '<td>' + (run.profile || '-') + '</td>' +
+            '<td class="vsp-cell-path">' + (run.src_path || '-') + '</td>' +
+            '<td>' + (t !== null ? t : '-') + '</td>' +
+            '<td>' + (sev.CRITICAL || 0) + '</td>' +
+            '<td>' + (sev.HIGH || 0) + '</td>' +
+            '<td>' + (sev.MEDIUM || 0) + '</td>' +
+            '<td>' + (sev.LOW || 0) + '</td>' +
+            '<td>' + (sev.INFO || 0) + '</td>' +
+            '<td>' + (sev.TRACE || 0) + '</td>' +
+            '<td>' + (tools || '-') + '</td>' +
+            '<td>' + reports + '</td>' +
+          '</tr>';
+      }).join('');
+
+      tbody.innerHTML = rowsHtml;
+
+      // KPI
+      var totalRuns = runs.length;
+      var avg       = cnt ? Math.round(total / cnt) : '-';
+      var last      = runs[0] || {};
+      var lastTotal = (typeof last.total_findings === 'number') ? last.total_findings : '-';
+
+      var elTotal  = document.getElementById('vsp-runs-total');
+      var elAvg    = document.getElementById('vsp-runs-avg');
+      var elLastId = document.getElementById('vsp-runs-last-id');
+      var elLastT  = document.getElementById('vsp-runs-last-total');
+
+      if (elTotal)  elTotal.textContent  = totalRuns;
+      if (elAvg)    elAvg.textContent    = avg;
+      if (elLastId) elLastId.textContent = last.run_id || '-';
+      if (elLastT)  elLastT.textContent  = lastTotal;
+    })
+    .catch(function (err) {
+      var tbody = document.getElementById('vsp-runs-tbody');
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="14" class="vsp-table-empty">Error loading /api/vsp/runs_index: ' + err + '</td></tr>';
+      }
+      console.warn('[VSP][RUNS] fetch error', err);
+    });
+}
+
+// Tự động render nội dung tab-runs sau khi DOM sẵn sàng
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () {
+    try { vspRenderRunsTab(); } catch (e) { console.warn('[VSP][RUNS] init error', e); }
+  }, 600);
+});

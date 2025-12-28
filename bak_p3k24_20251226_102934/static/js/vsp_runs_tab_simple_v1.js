@@ -1,0 +1,235 @@
+(function () {
+
+  // VSP_ROUTE_GUARD_RUNS_ONLY_V1
+  function __vsp_is_runs_only_v1(){
+    try {
+      const h = (location.hash||"").toLowerCase();
+      return h.startsWith("#runs") || h.includes("#runs/");
+    } catch(_) { return false; }
+  }
+  if(!__vsp_is_runs_only_v1()){
+    try{ console.info("[VSP_ROUTE_GUARD_RUNS_ONLY_V1] skip", "vsp_runs_tab_simple_v1.js", "hash=", location.hash); } catch(_){}
+    return;
+  }
+
+  const LOG_PREFIX = "[VSP_RUNS_TAB_SIMPLE_V1]";
+
+  function log(msg, extra) {
+    if (extra !== undefined) console.log(LOG_PREFIX, msg, extra);
+    else console.log(LOG_PREFIX, msg);
+  }
+
+  function ensureContainer() {
+    let container = document.getElementById("vsp-runs-overlay");
+    if (container) return container;
+
+    container = document.createElement("div");
+    container.id = "vsp-runs-overlay";
+
+    Object.assign(container.style, {
+      position: "absolute",
+      top: "140px",
+      left: "260px",
+      right: "24px",
+      maxHeight: "360px",
+      overflow: "auto",
+      padding: "16px",
+      borderRadius: "12px",
+      background: "rgba(15,23,42,0.96)",
+      border: "1px solid rgba(148,163,184,0.45)",
+      backdropFilter: "blur(10px)",
+      color: "#e5e7eb",
+      zIndex: 9999
+    });
+
+    document.body.appendChild(container);
+    return container;
+  }
+
+  function injectStyles() {
+    if (document.getElementById("vsp-runs-tab-simple-style")) return;
+
+    const css = `
+      #vsp-runs-overlay h3 {
+        margin: 0 0 12px 0;
+        font-size: 14px;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #e5e7eb;
+        opacity: .9;
+      }
+      #vsp-runs-overlay table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      #vsp-runs-overlay thead {
+        border-bottom: 1px solid rgba(55,65,81,0.9);
+      }
+      #vsp-runs-overlay th,
+      #vsp-runs-overlay td {
+        padding: 8px 10px;
+        text-align: left;
+        white-space: nowrap;
+      }
+      #vsp-runs-overlay th {
+        font-weight: 500;
+        color: #9ca3af;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: .08em;
+      }
+      #vsp-runs-overlay tbody tr:nth-child(even) {
+        background: rgba(15,23,42,0.8);
+      }
+      #vsp-runs-overlay tbody tr:hover {
+        background: rgba(30,64,175,0.45);
+      }
+      #vsp-runs-overlay .run-id {
+        font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+        font-size: 12px;
+        color: #e5e7eb;
+      }
+      #vsp-runs-overlay .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+      #vsp-runs-overlay .badge-ci {
+        background: rgba(248,113,113,0.15);
+        color: #fecaca;
+        border: 1px solid rgba(248,113,113,0.7);
+      }
+      #vsp-runs-overlay .badge-full {
+        background: rgba(52,211,153,0.15);
+        color: #bbf7d0;
+        border: 1px solid rgba(52,211,153,0.7);
+      }
+      #vsp-runs-overlay .score-pill {
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        border: 1px solid rgba(148,163,184,0.8);
+        color: #e5e7eb;
+      }
+      #vsp-runs-overlay .score-pill-empty {
+        opacity: .7;
+        font-style: italic;
+      }
+    `;
+    const style = document.createElement("style");
+    style.id = "vsp-runs-tab-simple-style";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString();
+  }
+
+  function detectBadge(item) {
+    const id = String(item.run_id || "");
+    if (id.startsWith("RUN_VSP_CI_")) return { label: "CI", className: "badge badge-ci" };
+    return { label: "FULL_EXT", className: "badge badge-full" };
+  }
+
+  function renderTable(container, items) {
+    injectStyles();
+    container.innerHTML = "";
+
+    const title = document.createElement("h3");
+    title.textContent = "Runs history (overlay simple view)";
+    container.appendChild(title);
+
+    if (!items || !items.length) {
+      const empty = document.createElement("div");
+      empty.textContent = "No runs found.";
+      empty.style.fontSize = "13px";
+      empty.style.color = "#9ca3af";
+      container.appendChild(empty);
+      return;
+    }
+
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th>Run ID</th>
+        <th>Type</th>
+        <th>Total findings</th>
+        <th>Score</th>
+        <th>Started at</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    items.forEach((item, idx) => {
+      const tr = document.createElement("tr");
+
+      const tdId = document.createElement("td");
+      tdId.innerHTML = `<span class="run-id">${item.run_id || "-"}</span>`;
+      tr.appendChild(tdId);
+
+      const tdType = document.createElement("td");
+      const badge = detectBadge(item);
+      tdType.innerHTML = `<span class="${badge.className}">${badge.label}</span>`;
+      tr.appendChild(tdType);
+
+      const tdTotal = document.createElement("td");
+      tdTotal.textContent = item.total_findings != null ? item.total_findings : "-";
+      tr.appendChild(tdTotal);
+
+      const tdScore = document.createElement("td");
+      const scoreVal = item.security_posture_score;
+      if (typeof scoreVal === "number") {
+        tdScore.innerHTML = `<span class="score-pill">${scoreVal}</span>`;
+      } else {
+        tdScore.innerHTML = `<span class="score-pill score-pill-empty">n/a</span>`;
+      }
+      tr.appendChild(tdScore);
+
+      const tdStarted = document.createElement("td");
+      tdStarted.textContent = formatDate(item.started_at);
+      tr.appendChild(tdStarted);
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  async function loadRunsSimple() {
+    const container = ensureContainer();
+    try {
+      const resp = await fetch("/api/vsp/runs_v3?limit=20");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      if (!data || !data.ok) {
+        log("API error", data);
+        container.textContent = "Failed to load runs (API error).";
+        return;
+      }
+      const items = Array.isArray(data.items) ? data.items : [];
+      log("Loaded runs", { count: items.length });
+      renderTable(container, items);
+    } catch (err) {
+      console.error(LOG_PREFIX, "Fetch error", err);
+      const c = ensureContainer();
+      c.textContent = "Failed to load runs (network error).";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadRunsSimple);
+  window.vspRunsSimpleReload = loadRunsSimple;
+})();

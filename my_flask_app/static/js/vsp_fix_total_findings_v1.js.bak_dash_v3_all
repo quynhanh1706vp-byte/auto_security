@@ -1,0 +1,92 @@
+/**
+ * [VSP][FIX_TOTAL] Đồng bộ TOTAL FINDINGS + badge "Tổng findings"
+ * Tách riêng để không ảnh hưởng tới logic KPI hiện tại.
+ */
+(function () {
+  function updateTotalFindings(total) {
+    try {
+      var totalNum = Number(total || 0);
+      if (isNaN(totalNum) || totalNum < 0) totalNum = 0;
+
+      // 1) Badge "Tổng findings: ..."
+      var badgeText = "Tổng findings:";
+      var nodes = document.querySelectorAll("span, div");
+      nodes.forEach(function (el) {
+        if (!el || !el.textContent) return;
+        var txt = el.textContent.trim();
+        if (!txt) return;
+        if (txt.indexOf(badgeText) === 0) {
+          el.textContent = badgeText + " " + String(totalNum);
+        }
+      });
+
+      // 2) KPI card "TOTAL FINDINGS"
+      var all = document.querySelectorAll("*");
+      all.forEach(function (el) {
+        if (!el || !el.textContent) return;
+        var label = el.textContent.trim();
+        if (label === "TOTAL FINDINGS") {
+          var parent = el.closest(".kpi-card") || el.parentElement;
+          if (!parent) return;
+          // Tìm phần value trong card (ưu tiên class 'kpi-value' hoặc 'vsp-kpi-value')
+          var valueEl =
+            parent.querySelector(".kpi-value") ||
+            parent.querySelector(".vsp-kpi-value") ||
+            parent.querySelector("strong") ||
+            parent.querySelector("span");
+          if (!valueEl || valueEl === el) return;
+          valueEl.textContent = String(totalNum);
+        }
+      });
+
+      console.log("[VSP][FIX_TOTAL] Updated TOTAL FINDINGS to", totalNum);
+    } catch (e) {
+      console.warn("[VSP][FIX_TOTAL] Error while updating total findings:", e);
+    }
+  }
+
+  function fetchAndApply() {
+    fetch("/api/vsp/dashboard_v3")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        var sev = data.by_severity || {};
+        var sumBuckets =
+          Number(sev.CRITICAL || 0) +
+          Number(sev.HIGH || 0) +
+          Number(sev.MEDIUM || 0) +
+          Number(sev.LOW || 0) +
+          Number(sev.INFO || 0) +
+          Number(sev.TRACE || 0);
+
+        var total = data.total_findings;
+        if (total == null || Number(total) === 0) {
+          total = sumBuckets;
+        }
+        updateTotalFindings(total);
+      })
+      .catch(function (e) {
+        console.warn("[VSP][FIX_TOTAL] Cannot fetch /api/vsp/dashboard_v3:", e);
+      });
+  }
+
+  function init() {
+    // Gọi một lần khi dashboard load xong, sau đó thêm vài lần để chắc chắn card đã render.
+    var count = 0;
+    var timer = setInterval(function () {
+      fetchAndApply();
+      count += 1;
+      if (count >= 3) {
+        clearInterval(timer);
+      }
+    }, 700);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

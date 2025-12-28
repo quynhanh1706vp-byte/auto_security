@@ -1,0 +1,164 @@
+/* VSP_SETTINGS_REWRITE_P401 - clean & stable (no observer) */
+(function(){
+  "use strict";
+  const log = (...a)=>console.log("[settings:p401]", ...a);
+  const warn = (...a)=>console.warn("[settings:p401]", ...a);
+
+  function el(tag, attrs, html){
+    const e = document.createElement(tag);
+    if (attrs) for (const [k,v] of Object.entries(attrs)) {
+      if (k === "class") e.className = v;
+      else if (k === "style") e.setAttribute("style", v);
+      else e.setAttribute(k, v);
+    }
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function findMount(){
+    return document.querySelector("#vsp_tab_content")
+      || document.querySelector("#content")
+      || document.querySelector("main")
+      || document.body;
+  }
+
+  async function fetchWithTimeout(url, opts){
+    const ms = (opts && opts.timeoutMs) ? opts.timeoutMs : 4500;
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), ms);
+    const t0 = performance.now();
+    try{
+      const r = await fetch(url, { signal: ctl.signal, cache:"no-store", credentials:"same-origin" });
+      const text = await r.text();
+      let data = null;
+      try{ data = JSON.parse(text); }catch(_){}
+      return { ok:r.ok, status:r.status, ms:(performance.now()-t0), text, data };
+    }finally{ clearTimeout(t); }
+  }
+
+  function candidateProbeUrls(){
+    // optional override: export VSP_SETTINGS_PROBES="/api/vsp/health,/api/vsp/top_findings_v2"
+    const env = (window.VSP_SETTINGS_PROBES || "").trim();
+    if (env) return env.split(",").map(s=>s.trim()).filter(Boolean);
+
+    return [
+      "/api/vsp/health",
+      "/api/vsp/healthz",
+      "/api/vsp/probes_v1",
+      "/api/vsp/top_findings_v2?limit=5",
+      "/api/vsp/runs_v3?limit=5&include_ci=1",
+      "/api/vsp/datasource_v3?limit=5",
+      "/api/vsp/exports_v1",
+      "/api/vsp/run_status_v1",
+    ];
+  }
+
+  function cssOnce(){
+    if (document.getElementById("vsp_settings_css_p401")) return;
+    const css = `
+      .vsp-p401-wrap{ padding:16px; }
+      .vsp-p401-h1{ font-size:18px; margin:0 0 12px 0; }
+      .vsp-p401-grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:12px; }
+      .vsp-p401-card{ border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); border-radius:14px; padding:12px; }
+      .vsp-p401-card h2{ font-size:13px; margin:0 0 10px 0; opacity:.9; }
+      .vsp-p401-table{ width:100%; border-collapse:collapse; font-size:12px; }
+      .vsp-p401-table td,.vsp-p401-table th{ border-bottom:1px solid rgba(255,255,255,.08); padding:6px 6px; text-align:left; }
+      .vsp-p401-badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid rgba(255,255,255,.15); }
+      .ok{ background:rgba(0,255,0,.08); }
+      .bad{ background:rgba(255,0,0,.08); }
+      .mid{ background:rgba(255,255,0,.08); }
+      .muted{ opacity:.75; }
+      @media (max-width: 1100px){ .vsp-p401-grid{ grid-template-columns:1fr; } }
+    `;
+    const st = el("style",{id:"vsp_settings_css_p401"},css);
+    document.head.appendChild(st);
+  }
+
+  function badgeFor(status, ok){
+    const cls = ok ? "ok" : (status>=500 ? "bad" : "mid");
+    return `<span class="vsp-p401-badge ${cls}">${ok ? "OK" : "ERR"} ${status}</span>`;
+  }
+
+  async function ensureViewerLoaded(){
+    if (window.VSP && window.VSP.jsonViewer) return true;
+    // viewer is a static file; should already be included by template, but if not, inject it
+    return await new Promise((resolve)=>{
+      const s = document.createElement("script");
+      s.src = "/static/js/vsp_json_viewer_v1.js?v=" + Date.now();
+      s.onload = ()=>resolve(true);
+      s.onerror = ()=>resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+
+  async function main(){
+    cssOnce();
+    const mount = findMount();
+
+    const root = el("div",{class:"vsp-p401-wrap"});
+    root.appendChild(el("div",{class:"vsp-p401-h1"}, "Settings (Commercial) • P401 rewrite"));
+
+    const grid = el("div",{class:"vsp-p401-grid"});
+    const cardProbes = el("div",{class:"vsp-p401-card"});
+    const cardJson   = el("div",{class:"vsp-p401-card"});
+
+    cardProbes.appendChild(el("h2",null,"Endpoint probes"));
+    const table = el("table",{class:"vsp-p401-table"});
+    table.innerHTML = `<thead><tr><th>Endpoint</th><th>Status</th><th>Time</th></tr></thead><tbody></tbody>`;
+    const tbody = table.querySelector("tbody");
+    cardProbes.appendChild(table);
+    cardProbes.appendChild(el("div",{class:"muted",style:"margin-top:8px;font-size:12px;"},
+      "Tip: hard refresh Ctrl+Shift+R if JS cached."
+    ));
+
+    cardJson.appendChild(el("h2",null,"Raw JSON (stable collapsible)"));
+    const jsonBox = el("div");
+    cardJson.appendChild(jsonBox);
+
+    grid.appendChild(cardProbes);
+    grid.appendChild(cardJson);
+    root.appendChild(grid);
+
+    // Replace only if we detect this is the settings tab area; otherwise append on top
+    mount.innerHTML = "";
+    mount.appendChild(root);
+
+    const urls = candidateProbeUrls();
+    const results = [];
+    for (const u of urls){
+      const r = await fetchWithTimeout(u, { timeoutMs: 4500 });
+      results.push({ url:u, ...r });
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        `<td><code>${u}</code></td>
+         <td>${badgeFor(r.status, r.ok)}</td>
+         <td>${Math.round(r.ms)} ms</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const viewerOk = await ensureViewerLoaded();
+    if (!viewerOk || !(window.VSP && window.VSP.jsonViewer)) {
+      warn("jsonViewer missing; fallback to <pre>");
+      jsonBox.innerHTML = `<pre style="white-space:pre-wrap;word-break:break-word;opacity:.9">${results.map(x=>x.text||"").join("\n\n")}</pre>`;
+      return;
+    }
+
+    window.VSP.jsonViewer.render(jsonBox, {
+      tab:"settings",
+      ts: new Date().toISOString(),
+      origin: location.origin,
+      path: location.pathname,
+      probes: results.map(r=>({
+        url:r.url, ok:r.ok, status:r.status, ms:Math.round(r.ms),
+        data: (r.data !== null ? r.data : undefined),
+        text: (r.data === null ? (r.text||"").slice(0, 1200) : undefined),
+      }))
+    }, { title:"Settings.probes", maxDepth: 7 });
+
+    log("rendered");
+  }
+
+  // run when DOM ready
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();

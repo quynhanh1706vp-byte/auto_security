@@ -1,0 +1,667 @@
+(function(){try{if(window.__VSP_PIN_BADGE_V1)return;var s=document.createElement("script");s.src="/static/js/vsp_pin_dataset_badge_v1.js?v="+Date.now();document.head.appendChild(s);}catch(e){}})();
+/* VSP_NATIVE_TIMER_SNAPSHOT_V1 */
+/* VSP__WINDOW_ALIAS_V1 */
+var _window = (typeof window!=='undefined'?window:this);
+(function(){
+  try{
+    if(!window.__vspNativeSetInterval) window.__vspNativeSetInterval = window.setInterval.bind(window);
+    if(!window.__vspNativeClearInterval) window.__vspNativeClearInterval = window.clearInterval.bind(window);
+    if(!window.__vspNativeSetTimeout) window.__vspNativeSetTimeout = window.setTimeout.bind(window);
+    if(!window.__vspNativeClearTimeout) window.__vspNativeClearTimeout = window.clearTimeout.bind(window);
+  }catch(e){}
+})();
+
+// === CIO: hard-block luxe outside /vsp5 (AUTO) ===
+(function(){
+  try{
+    if (location && location.pathname && location.pathname !== "/vsp5") {
+      // remove any luxe script tag if already present
+      document.querySelectorAll('script[src*="vsp_dashboard_luxe_v1.js"]').forEach(s=>{ try{s.remove();}catch(e){} });
+      // block future injection attempts
+      const _origAppend = Element.prototype.appendChild;
+      Element.prototype.appendChild = function(node){
+        try{
+          if (node && node.tagName === "SCRIPT" && node.src && node.src.includes("vsp_dashboard_luxe_v1.js")) {
+            return node; // drop
+          }
+        }catch(e){}
+        return _origAppend.call(this, node);
+      };
+    }
+  }catch(e){}
+})();
+ // === END CIO hard-block luxe ===
+/* VSP_P2_JS_ASSET_V_PINNED_V1 */
+(function(){
+  try {
+    if (!window.__VSP_ASSET_V) window.__VSP_ASSET_V = "20251224_122204";
+  } catch(e) {}
+})();
+function __vspAssetV(){
+  try {
+    return (window.__VSP_ASSET_V || "20251224_122204");
+  } catch(e) {
+    return "20251224_122204";
+  }
+}
+
+
+/* ===================== VSP_P0_STATELESS_RID_NOHOTCALLS_V1N6 =====================
+   - If rid present in URL or localStorage: never call rid_latest / rid_latest_gate_root
+   - Provide shared helpers for rid resolution (stateless-first)
+=============================================================================== */
+(function(){
+  try{
+    if (window.__VSP_RID_GUARD_V1N6__) return;
+    window.__VSP_RID_GUARD_V1N6__ = true;
+
+    window.__vspGetRidFromUrl = function(){
+      try{ return (new URL(location.href)).searchParams.get("rid") || ""; }catch(e){ return ""; }
+    };
+    window.__vspGetRidFromLS = function(){
+      try{ return localStorage.getItem("vsp_rid") || localStorage.getItem("VSP_RID") || ""; }catch(e){ return ""; }
+    };
+    window.__vspHasUserRid = function(){
+      const u = window.__vspGetRidFromUrl();
+      const l = window.__vspGetRidFromLS();
+      return !!(u || l);
+    };
+    window.__vspResolveRidFast = function(){
+      const u = window.__vspGetRidFromUrl();
+      if (u) return u;
+      const l = window.__vspGetRidFromLS();
+      if (l) return l;
+      return "";
+    };
+    window.__vspBlockHotRidEndpoints = function(url){
+      try{
+        const u = new URL(String(url), location.origin);
+        if (u.origin !== location.origin) return false;
+        const p = u.pathname || "";
+        if ((p === "/api/vsp/rid_latest" || p === "/api/vsp/rid_latest_gate_root") && window.__vspHasUserRid()){
+          return true;
+        }
+      }catch(e){}
+      return false;
+    };
+  }catch(e){}
+})();
+ /* ===================== /VSP_P0_STATELESS_RID_NOHOTCALLS_V1N6 ===================== */
+
+
+/* ===================== VSP_P0_NO_POLL_REFRESH_ON_RID_CHANGE_V1L =====================
+   Purpose: stop timer polling that causes XHR spam; refresh only when RID changes.
+   Strategy:
+   - Wrap setInterval for known polling intervals (>=2000ms) to no-op.
+   - Provide a lightweight rid-change notifier.
+=============================================================================== */
+(function(){
+  try{
+    if (window.__VSP_NO_POLL_V1L__) return;
+    window.__VSP_NO_POLL_V1L__ = true;
+
+    // 1) Disable long polling intervals (keep short UI animation timers)
+    const _setInterval = window.setInterval.bind(window);
+    window.setInterval = function(fn, ms){
+      try{
+        const t = Number(ms||0);
+        if (t >= 2000){
+          // no-op: return a fake id
+          return 0;
+        }
+      }catch(e){}
+      return _window.__vspSafeInterval(fn, ms);
+    };
+
+    // 2) RID change detection
+    function getRid(){
+      try{ return (new URL(location.href)).searchParams.get("rid") || ""; }catch(e){ return ""; }
+    }
+    let last = getRid();
+
+    function notify(){
+      try{
+        const cur = getRid();
+        if (cur && cur !== last){
+          last = cur;
+          // fire a soft event so tabs can re-render if they want
+          window.dispatchEvent(new CustomEvent("vsp:rid_changed", { detail: { rid: cur } }));
+        }
+      }catch(e){}
+    }
+
+    // Hook history changes + popstate
+    const _push = history.pushState;
+    history.pushState = function(){
+      const r = _push.apply(this, arguments);
+      notify();
+      return r;
+    };
+    const _replace = history.replaceState;
+    history.replaceState = function(){
+      const r = _replace.apply(this, arguments);
+      notify();
+      return r;
+    };
+    window.addEventListener("popstate", notify);
+
+  }catch(e){}
+})();
+
+
+/* VSP_P1_TABS4_AUTORID_NODASH_V1
+   - Only for non-dashboard tabs (Runs/Settings/Data Source/Rule Overrides)
+   - Poll rid_latest_gate_root_v2 + ui_health_v2
+   - Store RID in localStorage + dispatch event vsp:rid-changed
+*/
+(function(){
+  const POLL_MS = 5000;
+  const LS_KEY = "vsp_current_rid_v2";
+
+  function pageIsDashboard(){
+    // hard block: never run on /vsp5 (dashboard)
+    try { return (location.pathname || "").startsWith("/vsp5"); } catch(e) { return false; }
+  }
+  if(pageIsDashboard()) return;
+
+  function ensureBadge(){
+    let el = document.getElementById("vsp-ui-ok-badge");
+    if(el) return el;
+    el = document.createElement("div");
+    el.id = "vsp-ui-ok-badge";
+    el.style.cssText = [
+      "position:fixed","right:14px","bottom:14px","z-index:99999",
+      "padding:10px 12px","border-radius:12px","font:600 12px/1.2 system-ui,Segoe UI,Roboto,Arial",
+      "background:#1b2333","color:#d6e2ff","border:1px solid rgba(255,255,255,.12)",
+      "box-shadow:0 10px 30px rgba(0,0,0,.35)"
+    ].join(";");
+    el.textContent = "UI OK: …";
+    document.body.appendChild(el);
+    return el;
+  }
+
+  async function fetchJSON(url){
+    try{
+      const r = await fetch(url, {cache:"no-store"});
+      const ct = (r.headers.get("content-type")||"").toLowerCase();
+      if(!ct.includes("application/json")){
+        return {ok:false, err:"non-json", status:r.status, url};
+      }
+      const j = await r.json();
+      if(typeof j !== "object" || j === null) return {ok:false, err:"bad-json", status:r.status, url};
+      j._http_status = r.status;
+      return j;
+    }catch(e){
+      return {ok:false, err:String(e), url};
+    }
+  }
+
+  function setBadge(ok, rid, detail){
+    const el = ensureBadge();
+    if(ok){
+      el.textContent = `UI OK: GREEN • ${rid||"-"}`;
+      el.style.borderColor = "rgba(65,255,164,.35)";
+      el.style.background = "rgba(10,28,18,.92)";
+      el.style.color = "#bfffe0";
+    }else{
+      el.textContent = `UI OK: RED • ${rid||"-"}`;
+      el.style.borderColor = "rgba(255,96,96,.45)";
+      el.style.background = "rgba(35,10,12,.92)";
+      el.style.color = "#ffd4d4";
+    }
+    if(detail && detail.err){ el.title = detail.err; }
+    else if(detail && detail.checks && (!detail.ok)){
+      try{ el.title = JSON.stringify(detail.checks).slice(0,700); }catch(e){ el.title=""; }
+    } else el.title = "";
+  }
+
+  function tryUpdateRidPickers(rid){
+    if(!rid) return;
+    try{
+      // Update <select> / <input> that looks like rid picker
+      const nodes = Array.from(document.querySelectorAll("select, input"));
+      for(const n of nodes){
+        const id = (n.id||"").toLowerCase();
+        const nm = (n.name||"").toLowerCase();
+        if(id.includes("rid") || nm.includes("rid")){
+          if(n.tagName === "SELECT"){
+            // set if option exists
+            const opt = Array.from(n.options||[]).find(o => (o.value===rid || (o.textContent||"").includes(rid)));
+            if(opt){
+              n.value = opt.value;
+              n.dispatchEvent(new Event("change", {bubbles:true}));
+            }
+          }else{
+            // input
+            if(n.value !== rid){
+              n.value = rid;
+              n.dispatchEvent(new Event("input", {bubbles:true}));
+              n.dispatchEvent(new Event("change", {bubbles:true}));
+            }
+          }
+        }
+      }
+    }catch(e){}
+  }
+
+  async function callReloadHooks(){
+    // Soft hooks (if tabs define them)
+    const hooks = [
+      "VSP_reloadAll",
+      "VSP_reloadRuns",
+      "VSP_reloadReports",
+      "VSP_reloadSettings",
+      "VSP_reloadDataSource",
+      "VSP_reloadRuleOverrides",
+    ];
+    let called = false;
+    for(const h of hooks){
+      try{
+        const fn = window[h];
+        if(typeof fn === "function"){
+          called = true;
+          await Promise.resolve(fn());
+        }
+      }catch(e){}
+    }
+    return called;
+  }
+
+  let lastRID = null;
+
+  function getStoredRID(){
+    try{ return localStorage.getItem(LS_KEY) || ""; }catch(e){ return ""; }
+  }
+  function storeRID(rid){
+    try{ localStorage.setItem(LS_KEY, rid); }catch(e){}
+  }
+
+  async function tick(){
+    const latest = await fetchJSON("/api/vsp/rid_latest_gate_root_v2");
+    const rid = (latest && latest.ok && latest.rid) ? latest.rid : null;
+
+    if(rid && rid !== lastRID){
+      lastRID = rid;
+      storeRID(rid);
+      window.VSP_CURRENT_RID = rid;
+
+      // sync any rid picker on page
+      tryUpdateRidPickers(rid);
+
+      // notify others
+      try{
+        window.dispatchEvent(new CustomEvent("vsp:rid-changed", {detail:{rid, latest}}));
+      }catch(e){}
+
+      // reload tab data without full refresh
+      const called = await callReloadHooks();
+      // If nothing can reload AND page isn't critical, do nothing.
+      // (No hard reload here to keep it safe/commercial.)
+      if(!called){
+        // Optional: if you really want, enable soft reload:
+        // setTimeout(()=>location.reload(), 1200);
+      }
+    }else if(!lastRID){
+      // initialize from localStorage if available
+      const st = getStoredRID();
+      if(st) lastRID = st;
+    }
+
+    const health = await fetchJSON("/api/vsp/ui_health_v2?rid=" + encodeURIComponent(lastRID||""));
+    setBadge(!!(health && health.ok), lastRID, health);
+  }
+
+  setTimeout(()=>{ ensureBadge(); tick(); window.__vspSafeInterval(tick, POLL_MS); }, 900);
+})();
+
+/* VSP_P1_AUTORID_CALL_PATH_HOOKS_V1C */
+(function(){
+  try{
+    window.addEventListener("vsp:rid-changed", async ()=>{
+      try{
+        const p = (location.pathname||"").toLowerCase();
+        if(p.startsWith("/vsp5")) return; // never dashboard
+        if(p.startsWith("/settings") && typeof window.VSP_reloadSettings==="function") return void window.VSP_reloadSettings();
+        if(p.startsWith("/data_source") && typeof window.VSP_reloadDataSource==="function") return void window.VSP_reloadDataSource();
+        if(p.startsWith("/rule_overrides") && typeof window.VSP_reloadRuleOverrides==="function") return void window.VSP_reloadRuleOverrides();
+        if((p.startsWith("/runs") || p.startsWith("/runs_reports")) && typeof window.VSP_reloadRuns==="function") return void window.VSP_reloadRuns();
+        if(p.startsWith("/reports") && typeof window.VSP_reloadReports==="function") return void window.VSP_reloadReports();
+      }catch(e){}
+    });
+  }catch(e){}
+})();
+
+
+/* VSP_P1_TABS4_AUTORID_DISPATCH_EVT_V1 */
+(()=>{
+  try{
+    const KEY='VSP_RID_CURRENT';
+    const emit=(rid,prev)=>{
+      try{ window.dispatchEvent(new CustomEvent('VSP_RID_CHANGED',{detail:{rid,prev,ts:Date.now()}})); }catch(e){}
+    };
+    // best-effort wrap setRid if exists
+    const w=window;
+    const oldSet = w.VSP_setRid || null;
+    if(typeof oldSet==='function'){
+      w.VSP_setRid = function(rid){
+        const prev = (localStorage.getItem(KEY)||'');
+        const out = oldSet.apply(this, arguments);
+        try{ localStorage.setItem(KEY, String(rid||'')); }catch(e){}
+        if(String(rid||'') && String(rid||'')!==String(prev||'')) emit(String(rid||''), String(prev||''));
+        return out;
+      };
+    }
+    // also emit once on load if rid exists
+    const cur = (localStorage.getItem(KEY)||'');
+    if(cur) emit(cur,'');
+  }catch(e){}
+})();
+
+
+
+/* VSP_P1_TABS4_AUTORID_POLL_LATEST_AUTOREFRESH_V2
+ * - Poll /api/vsp/rid_latest_gate_root_v2 periodically
+ * - If RID changes: store to localStorage + dispatch VSP_RID_CHANGED
+ * - Auto refresh only for 4 tabs (NO /vsp5 dashboard)
+ * - Safe fallback: location.reload() if no reload function exists
+ */
+(()=> {
+  try {
+    const RID_API = "/api/vsp/rid_latest_gate_root_v2";
+    const KEY = "VSP_RID_CURRENT";
+    const POLL_MS = 12000; // commercial default 12s
+    const PATHS = new Set(["/runs","/runs_reports","/settings","/data_source","/rule_overrides"]);
+    const isTabs4 = () => {
+      try {
+        const p = (location.pathname || "/").replace(/\/$/,"") || "/";
+        if (p.startsWith("/vsp5")) return false;
+        return PATHS.has(p);
+      } catch(e){ return false; }
+    };
+
+    const toast = (msg) => {
+      try {
+        let el = document.getElementById("vspTabs4ToastV2");
+        if(!el){
+          el = document.createElement("div");
+          el.id = "vspTabs4ToastV2";
+          el.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:99999;background:rgba(10,18,32,0.92);border:1px solid rgba(255,255,255,0.12);color:#e7eefc;padding:10px 12px;border-radius:12px;font:12px/1.35 system-ui;max-width:360px;box-shadow:0 14px 40px rgba(0,0,0,0.45)";
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.display = "block";
+        clearTimeout(window.__vspTabs4ToastT);
+        window.__vspTabs4ToastT = setTimeout(()=>{ try{ el.style.display="none"; }catch(e){} }, 2600);
+      } catch(e){}
+    };
+
+    const getCur = () => {
+      try { return localStorage.getItem(KEY) || ""; } catch(e){ return ""; }
+    };
+
+    const setCur = (rid) => {
+      try { localStorage.setItem(KEY, String(rid||"")); } catch(e){}
+    };
+
+    const emit = (rid, prev) => {
+      try {
+        window.dispatchEvent(new CustomEvent("VSP_RID_CHANGED", { detail: { rid, prev, ts: Date.now(), via: "poll_v2" }}));
+      } catch(e){}
+    };
+
+    const callReloadOrFallback = (detail) => {
+      if(!isTabs4()) return;
+
+      const p = (location.pathname || "/").replace(/\/$/,"") || "/";
+      // never touch dashboard
+      if(p.startsWith("/vsp5")) return;
+
+      const tryCall = (fnName) => {
+        try {
+          const f = window[fnName];
+          if(typeof f === "function"){
+            f(detail||{});
+            return true;
+          }
+        } catch(e){}
+        return false;
+      };
+
+      // prefer real reload functions if available
+      let ok = false;
+      if(p === "/runs" || p === "/runs_reports"){
+        ok = tryCall("VSP_reloadRuns");
+      } else if(p === "/data_source"){
+        ok = tryCall("VSP_reloadDataSource");
+      } else if(p === "/settings"){
+        ok = tryCall("VSP_reloadSettings");
+      } else if(p === "/rule_overrides"){
+        // safety: avoid nuking unsaved edits if page exposes a dirty flag
+        try {
+          if(window.__VSP_RULE_OVERRIDES_DIRTY) {
+            toast("RID changed → not auto-reloading Rule Overrides (unsaved edits).");
+            return;
+          }
+        } catch(e){}
+        ok = tryCall("VSP_reloadRuleOverrides");
+      }
+
+      if(ok){
+        toast("RID changed → refreshed data");
+        return;
+      }
+
+      // fallback: soft reload this tab (commercial-safe)
+      toast("RID changed → reloading tab to get latest results…");
+      try {
+        // throttle to avoid reload storm
+        const now = Date.now();
+        const last = window.__vspTabs4LastReloadTs || 0;
+        if(now - last < 8000) return;
+        window.__vspTabs4LastReloadTs = now;
+        location.reload();
+      } catch(e){}
+    };
+
+    async function pollOnce(){
+      if(!isTabs4()) return;
+      try {
+        const r = await fetch(RID_API, { cache: "no-store" });
+        const j = await r.json();
+        const rid = (j && j.ok && j.rid) ? String(j.rid) : "";
+        if(!rid) return;
+
+        const prev = getCur();
+        if(rid && rid !== prev){
+          setCur(rid);
+          emit(rid, prev);
+          callReloadOrFallback({ rid, prev });
+        }
+      } catch(e){}
+    }
+
+    // Listen to RID changes from other sources too
+    try {
+      window.addEventListener("VSP_RID_CHANGED", (ev)=>{
+        try {
+          const d = ev && ev.detail ? ev.detail : {};
+          // only react if we're on tabs4
+          if(isTabs4()){
+            // don't double reload: ignore if via poll already handled
+            if(d && d.via === "poll_v2") return;
+            callReloadOrFallback(d);
+          }
+        } catch(e){}
+      });
+    } catch(e){}
+
+    // Start poll loop (only if tabs4)
+    if(isTabs4()){
+      setTimeout(pollOnce, 600);
+      window.__vspSafeInterval(pollOnce, POLL_MS);
+    }
+  } catch(e){}
+})();
+
+/* VSP_P2_ERRTRAP_V1 */
+(() => {
+  if (window.__VSP_ERRTRAP_INSTALLED__) return;
+  window.__VSP_ERRTRAP_INSTALLED__ = true;
+
+  const debug = (() => {
+    try {
+      if (/[?&]debug=1\b/.test(location.search)) return true;
+      const v = localStorage.getItem('vsp_debug');
+      return v === '1' || v === 'true';
+    } catch (e) { return false; }
+  })();
+
+  const orig = {
+    log: console.log ? console.log.bind(console) : ()=>{},
+    info: console.info ? console.info.bind(console) : ()=>{},
+    debug: console.debug ? console.debug.bind(console) : ()=>{},
+    warn: console.warn ? console.warn.bind(console) : ()=>{},
+    error: console.error ? console.error.bind(console) : ()=>{},
+  };
+
+  // Commercial default: keep warn/error only (reduce noise)
+  if (!debug) {
+    try {
+      console.log = () => {};
+      console.info = () => {};
+      console.debug = () => {};
+    } catch (e) {}
+  }
+
+  function ctx() {
+    let rid = '';
+    try { rid = new URLSearchParams(location.search).get('rid') || ''; } catch (e) {}
+    if (!rid && window.VSP_RID) rid = String(window.VSP_RID);
+    if (!rid) {
+      try { rid = localStorage.getItem('vsp_rid_latest') || ''; } catch (e) {}
+    }
+    const tab = (location.pathname || '').replace(/\/+$/,'') || '/';
+    return { rid, tab, url: location.href };
+  }
+
+  function emit(kind, msg) {
+    const c = ctx();
+    const m = (msg || '').toString().replace(/\s+/g,' ').slice(0, 220);
+    orig.error(`[VSP_UI_ERR] ${kind} tab=${c.tab} rid=${c.rid || '-'} msg=${m}`);
+  }
+
+  // window.onerror (capture)
+  window.addEventListener('error', (ev) => {
+    try {
+      const m = (ev && ev.message) ? ev.message : 'error';
+      emit('error', m);
+    } catch (e) {}
+  }, true);
+
+  // Promise rejection
+  window.addEventListener('unhandledrejection', (ev) => {
+    try {
+      let msg = 'unhandledrejection';
+      const r = ev && ev.reason;
+      if (typeof r === 'string') msg = r;
+      else if (r && r.message) msg = r.message;
+      else {
+        try { msg = JSON.stringify(r); } catch (e) { msg = String(r); }
+      }
+      emit('unhandledrejection', msg);
+    } catch (e) {}
+  });
+})();
+/* /VSP_P2_ERRTRAP_V1 */
+
+
+/* VSP_P1_TABS5_ADD_DASHBOARD_V1 (fallback DOM injection: ensure Dashboard tab exists) */
+(function(){
+  try{
+    // If already has dashboard link => done
+    if(document.querySelector('a[href="/vsp5"],a[href="/dashboard"]')) return;
+
+    const nav =
+      document.querySelector('#vspTabs') ||
+      document.querySelector('.vsp-tabs') ||
+      document.querySelector('nav.vsp') ||
+      document.querySelector('.topbar nav') ||
+      document.querySelector('nav');
+
+    if(!nav) return;
+
+    const a = document.createElement('a');
+    a.href = '/vsp5';
+    a.textContent = 'Dashboard';
+    a.className = (a.className || '') + ' vsp-tab vsp-tab-dashboard';
+    nav.insertBefore(a, nav.firstChild);
+  }catch(_){}
+})();
+ /* /VSP_P1_TABS5_ADD_DASHBOARD_V1 */
+
+
+// VSP_P2_RELEASES_FAB_ON_RUNS_V1
+(function(){
+  function add(){
+    try{
+      if (!location || !location.pathname) return;
+      if (location.pathname !== "/runs") return;
+      if (document.getElementById("vsp-releases-fab")) return;
+
+      var b = document.createElement("button");
+      b.id = "vsp-releases-fab";
+      b.textContent = "Releases";
+      b.setAttribute("type","button");
+
+      b.style.position = "fixed";
+      b.style.right = "18px";
+      b.style.bottom = "18px";
+      b.style.zIndex = "999999";
+      b.style.padding = "10px 14px";
+      b.style.borderRadius = "14px";
+      b.style.border = "1px solid rgba(255,255,255,0.16)";
+      b.style.background = "rgba(20,20,26,0.92)";
+      b.style.color = "#fff";
+      b.style.cursor = "pointer";
+      b.style.boxShadow = "0 10px 30px rgba(0,0,0,0.45)";
+      b.style.backdropFilter = "blur(6px)";
+
+      b.onmouseenter = function(){ b.style.transform = "translateY(-1px)"; };
+      b.onmouseleave = function(){ b.style.transform = ""; };
+      b.onclick = function(){ window.location.href = "/releases"; };
+
+      (document.body || document.documentElement).appendChild(b);
+    }catch(e){
+      try{ console.warn("[VSP] releases fab add failed", e); }catch(_){}
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", add);
+  else add();
+
+  window.addEventListener("popstate", add);
+})();
+
+
+// VSP_P0_STATELESS_RID_NOHOTCALLS_V1N6 helper
+async function __vspFetchJsonGuardV1N6(url){
+  if (window.__vspBlockHotRidEndpoints && window.__vspBlockHotRidEndpoints(url)){
+    // Return a synthetic response consistent enough for callers to proceed.
+    // Prefer rid from URL/LS.
+    const rid = (window.__vspResolveRidFast && window.__vspResolveRidFast()) || "";
+    return { ok:true, rid: rid, blocked:true };
+  }
+  const r = await fetch(url, { credentials: "same-origin" });
+  if (!r.ok) throw new Error("HTTP "+r.status+" for "+url);
+  return await r.json();
+}
+
+/* VSP_FORCE_NATIVE_TIMERS_V1 */
+(function(){
+  try{
+    if(window.__vspNativeSetInterval) window.setInterval = window.__vspNativeSetInterval;
+    if(window.__vspNativeClearInterval) window.clearInterval = window.__vspNativeClearInterval;
+    if(window.__vspNativeSetTimeout) window.setTimeout = window.__vspNativeSetTimeout;
+    if(window.__vspNativeClearTimeout) window.clearTimeout = window.__vspNativeClearTimeout;
+  }catch(e){}
+})();

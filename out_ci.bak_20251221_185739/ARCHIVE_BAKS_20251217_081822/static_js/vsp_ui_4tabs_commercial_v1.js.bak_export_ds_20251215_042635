@@ -1,0 +1,222 @@
+/* === VSP_UI_4TABS_COMMERCIAL_V1 === */
+(function(){
+  const API = {
+    runsIndex: "/api/vsp/runs_index_v3_fs_resolved?limit=20&hide_empty=0&filter=1",
+    statusV2: (rid) => `/api/vsp/run_status_v2/${encodeURIComponent(rid)}`,
+    artIndex: (rid) => `/api/vsp/run_artifacts_index_v1/${encodeURIComponent(rid)}`
+  };
+
+  const $ = (s, r=document) => r.querySelector(s);
+  const $all = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {headers: {"Accept":"application/json"}});
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.json();
+  }
+
+  function normRid(runId){
+    if (!runId) return "";
+    runId = String(runId).trim();
+    if (runId.startsWith("RUN_")) return runId;
+    if (runId.startsWith("VSP_CI_")) return "RUN_" + runId;
+    return runId;
+  }
+
+  function badge(verdict, label){
+    const v = (verdict||"").toUpperCase();
+    let cls="vsp-badge-muted", dot="vsp-dot-muted", text=v||"N/A";
+    if (v==="GREEN"){cls="vsp-badge-green";dot="vsp-dot-green";}
+    else if (v==="AMBER"||v==="YELLOW"){cls="vsp-badge-amber";dot="vsp-dot-amber";text="AMBER";}
+    else if (v==="RED"){cls="vsp-badge-red";dot="vsp-dot-red";}
+    else if (v==="DISABLED"||v==="NOT_RUN"||v==="DEGRADED"){cls="vsp-badge-muted";dot="vsp-dot-muted";text=v;}
+    return `<span class="vsp-badge ${cls}" title="${label||""}"><span class="vsp-dot ${dot}"></span>${text}</span>`;
+  }
+
+  function setHTML(id, html){ const el=document.getElementById(id); if (el) el.innerHTML=html; }
+  function setText(id, txt){ const el=document.getElementById(id); if (el) el.textContent=txt; }
+
+  function tabSwitch(name){
+    const tabs = ["dashboard","runs","settings","data"];
+    tabs.forEach(t=>{
+      const sec = document.getElementById(`tab-${t}`);
+      if (sec) sec.style.display = (t===name) ? "" : "none";
+    });
+    $all("#nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
+    const titleMap = {dashboard:"Dashboard", runs:"Runs & Reports", settings:"Settings", data:"Data Source"};
+    setText("page-title", titleMap[name] || "VSP");
+  }
+
+  function renderGateByTool(s){
+    const rg = s.run_gate_summary || {};
+    const bt = rg.by_tool || {};
+    const rows = Object.keys(bt).sort().map(k=>{
+      const o = bt[k]||{};
+      const v = o.verdict || "N/A";
+      const total = o.total ?? 0;
+      return `<div class="vsp-row" style="margin:8px 0">
+        <div style="min-width:92px;font-weight:800">${k}</div>
+        <div>${badge(v, k)}</div>
+        <div class="vsp-muted">total: <span class="vsp-mono">${total}</span></div>
+      </div>`;
+    }).join("");
+    $("#gate-bytool").innerHTML = rows || `<div class="vsp-muted">No gate summary</div>`;
+    setText("gate-ts", rg.ts ? `ts: ${rg.ts}` : "ts: -");
+  }
+
+  function updateKpis(s){
+    const overall = s.overall_verdict || s.overall || (s.run_gate_summary && s.run_gate_summary.overall) || "N/A";
+    const gateOverall = (s.run_gate_summary && (s.run_gate_summary.overall_verdict || s.run_gate_summary.overall)) || overall || "N/A";
+
+    const glV = s.gitleaks_verdict || "NOT_RUN";
+    const glT = Number(s.gitleaks_total || 0);
+
+    let cqV = s.codeql_verdict || (s.has_codeql ? "AMBER" : "DISABLED");
+    let cqT = Number(s.codeql_total || 0);
+    if (!s.has_codeql && (cqV==="GREEN"||cqV==="AMBER"||cqV==="RED")) cqV="DISABLED";
+
+    setHTML("kpi-overall", badge(overall,"status_v2.overall_verdict"));
+    setText("kpi-overall-sub", s.rid_norm ? `RID: ${s.rid_norm}` : "");
+    setHTML("kpi-gate", badge(gateOverall,"run_gate_summary.overall"));
+    setText("kpi-gate-sub", s.run_gate_summary && s.run_gate_summary.ts ? `ts: ${s.run_gate_summary.ts}` : "");
+    setHTML("kpi-gitleaks", badge(glV,"gitleaks_verdict"));
+    setText("kpi-gitleaks-sub", `total: ${glT}`);
+    setHTML("kpi-codeql", badge(cqV,"codeql_verdict"));
+    setText("kpi-codeql-sub", `total: ${cqT}`);
+
+    setHTML("pill-overall", badge(overall));
+  }
+
+  function updateMeta(s){
+    const lines = [
+      `rid: ${s.rid || "-"}`,
+      `rid_norm: ${s.rid_norm || "-"}`,
+      `ci_run_dir: ${s.ci_run_dir || "-"}`,
+      `status: ${s.status || "-"}`,
+      `stage: ${s.stage_name || "-"}`,
+      `degraded_n: ${s.degraded_n ?? (Array.isArray(s.degraded_tools) ? s.degraded_tools.length : 0)}`
+    ];
+    $("#run-meta").textContent = lines.join("\n");
+  }
+
+  async function renderArtifacts(rid){
+    try{
+      const j = await fetchJSON(API.artIndex(rid));
+      const items = j.items || j.artifacts || j.files || [];
+      setText("art-count", `count: ${items.length}`);
+      $("#pill-art").textContent = String(items.length);
+      $("#art-list").textContent = items.slice(0,300).map(x=>{
+        if (typeof x === "string") return x;
+        return x.path || x.name || JSON.stringify(x);
+      }).join("\n");
+    }catch(e){
+      setText("art-count", "count: -");
+      $("#art-list").textContent = String(e);
+    }
+  }
+
+  async function loadRuns(){
+    const idx = await fetchJSON(API.runsIndex);
+    const items = idx.items || idx.runs || idx.data || [];
+    $("#pill-runs").textContent = String(items.length || 0);
+
+    // build picker
+    const optHtml = items.map(it=>{
+      const runId = it.run_id || it.id || it.rid || it.rid_norm || it.name || "";
+      const rid = normRid(runId);
+      return `<option value="${rid}">${rid}</option>`;
+    }).join("");
+    $("#run-picker").innerHTML = optHtml || `<option value="">(no runs)</option>`;
+
+    // build runs table (with status_v2)
+    const tbody = $("#runs-tbody");
+    tbody.innerHTML = "";
+    for (const it of items.slice(0,20)){
+      const runId = it.run_id || it.id || it.rid || it.rid_norm || it.name || "";
+      const rid = normRid(runId);
+      if (!rid.startsWith("RUN_")) continue;
+
+      let s = null;
+      try { s = await fetchJSON(API.statusV2(rid)); } catch(e){ s = null; }
+
+      const overall = s ? (s.overall_verdict || (s.run_gate_summary && s.run_gate_summary.overall) || "N/A") : "N/A";
+      const gate = s && s.run_gate_summary ? (s.run_gate_summary.overall || "N/A") : "N/A";
+      const glV = s ? (s.gitleaks_verdict || "NOT_RUN") : "N/A";
+      const cqV = s ? (s.codeql_verdict || (s.has_codeql ? "AMBER" : "DISABLED")) : "N/A";
+      const deg = s ? (s.degraded_n ?? (Array.isArray(s.degraded_tools)?s.degraded_tools.length:0)) : "-";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="vsp-mono">${rid}</td>
+        <td>${badge(overall)}</td>
+        <td>${badge(gate)}</td>
+        <td>${badge(glV)} <span class="vsp-muted">(t=${Number((s&&s.gitleaks_total)||0)})</span></td>
+        <td>${badge(cqV)} <span class="vsp-muted">(t=${Number((s&&s.codeql_total)||0)})</span></td>
+        <td class="vsp-mono">${deg}</td>
+      `;
+      tr.style.cursor="pointer";
+      tr.addEventListener("click", async ()=>{
+        $("#run-picker").value = rid;
+        await loadOne(rid);
+        tabSwitch("dashboard");
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function loadOne(rid){
+    if (!rid) return;
+    let s = null;
+    try { s = await fetchJSON(API.statusV2(rid)); } catch(e){ s = null; }
+    if (!s){
+      setText("run-meta", "cannot load status_v2");
+      return;
+    }
+    updateKpis(s);
+    renderGateByTool(s);
+    updateMeta(s);
+    await renderArtifacts(rid);
+  }
+
+  function loadSettingsUi(){
+    const key = (k)=>`vsp_ui_set_${k}`;
+    const enable = localStorage.getItem(key("ENABLE_CODEQL")) ?? "1";
+    const tCodeql = localStorage.getItem(key("TIMEOUT_CODEQL")) ?? "3600s";
+    const tKics = localStorage.getItem(key("TIMEOUT_KICS")) ?? "1800s";
+    $("#set-enable-codeql").value = enable;
+    $("#set-timeout-codeql").value = tCodeql;
+    $("#set-timeout-kics").value = tKics;
+
+    $("#set-enable-codeql").addEventListener("change", ()=>localStorage.setItem(key("ENABLE_CODEQL"), $("#set-enable-codeql").value));
+    $("#set-timeout-codeql").addEventListener("change", ()=>localStorage.setItem(key("TIMEOUT_CODEQL"), $("#set-timeout-codeql").value));
+    $("#set-timeout-kics").addEventListener("change", ()=>localStorage.setItem(key("TIMEOUT_KICS"), $("#set-timeout-kics").value));
+  }
+
+  function bootNav(){
+    $all("#nav button").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        tabSwitch(b.dataset.tab);
+      });
+    });
+    $("#btn-refresh").addEventListener("click", async ()=>{
+      await loadRuns();
+      const rid = $("#run-picker").value;
+      if (rid) await loadOne(rid);
+    });
+    $("#run-picker").addEventListener("change", async ()=>{
+      const rid = $("#run-picker").value;
+      if (rid) await loadOne(rid);
+    });
+  }
+
+  async function boot(){
+    bootNav();
+    loadSettingsUi();
+    await loadRuns();
+    const rid = $("#run-picker").value;
+    if (rid) await loadOne(rid);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();

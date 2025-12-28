@@ -1,0 +1,67 @@
+{
+  "meta": {
+    "schema_version": "1.0",
+    "product": "VSP_UI_RELEASE",
+    "timestamp": "20251219_090623",
+    "api_base": "http://127.0.0.1:8910",
+    "run_id": "btl86-connector_RUN_20251127_095755_000599",
+    "bundle_file": "btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090625.tgz",
+    "git_commit": "",
+    "git_status": "0",
+    "python": "Python 3.12.3",
+    "gunicorn": "gunicorn (version 23.0.0)",
+    "host": "test"
+  },
+  "files": [
+    {
+      "path": "btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090625.tgz",
+      "bytes": 1791,
+      "sha256": "45b45a5b94cc3b76c6cd63b090548edb351145a78a30c281682ac761536687b9"
+    },
+    {
+      "path": "release.log",
+      "bytes": 5068,
+      "sha256": "b4cab85d95b6a494668abde2ed79bd65f5dd75cff0d766f1fb96d459eef83669"
+    },
+    {
+      "path": "bundle_extract/bundle_manifest.json",
+      "bytes": 342,
+      "sha256": "b4fe16ff62366dc7f78de9013b02ad10ab191613f1ac67dbf2b710559b8a3205"
+    },
+    {
+      "path": "bundle_extract/BUNDLE_SHA256SUMS.txt",
+      "bytes": 648,
+      "sha256": "3b76297e85e0036a8badf0fab7b48b89d52a063be1e442fdcf8ab336b1327f73"
+    },
+    {
+      "path": "bundle_extract/reports/findings_unified.csv",
+      "bytes": 47,
+      "sha256": "4610eea0be71384de5a53302d9e54b2dbc5dbd7fc9cebda8e9596c2f1818da42"
+    },
+    {
+      "path": "bundle_extract/reports/findings_unified.json",
+      "bytes": 329,
+      "sha256": "b72608e4743fe48de6dd20508084f95c1039ef542990504da9e7d6a965964921"
+    },
+    {
+      "path": "bundle_extract/reports/index.html",
+      "bytes": 1203,
+      "sha256": "7cf68854025c3e571fbc67c41573282eb615aa24866df841fd6f89cff34f8f90"
+    },
+    {
+      "path": "bundle_extract/reports/run_gate_summary.json",
+      "bytes": 258,
+      "sha256": "f1f916102d387a177d32100573eb0947e2abbd85eabf00c2280791fbacafd3f2"
+    },
+    {
+      "path": "bundle_extract/reports/SHA256SUMS.txt",
+      "bytes": 331,
+      "sha256": "ffafa98442a4e78ae8b594b868b20bcfe5276bad6015e6558a5f7c77bfd2d4a4"
+    },
+    {
+      "path": "bundle_extract/reports/SUMMARY.txt",
+      "bytes": 180,
+      "sha256": "683d3c9754cbe5573d8b06930f86e3eb202de92f3afb9217576aeac1d36640ad"
+    }
+  ]
+}

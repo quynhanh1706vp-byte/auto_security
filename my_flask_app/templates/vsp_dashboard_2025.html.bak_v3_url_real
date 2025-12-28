@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VersaSecure Platform 2025 – EXT+ Security Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Font (optional, có thể bỏ nếu đã load nơi khác) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CSS chính cho VSP -->
+  <link rel="stylesheet" href="/static/css/vsp_main.css">
+</head>
+<body class="vsp-body">
+  <div class="vsp-app">
+    <!-- SIDEBAR -->
+    <aside class="vsp-sidebar">
+      <div class="vsp-logo">
+        <div class="vsp-logo-mark">VSP</div>
+        <div class="vsp-logo-text">
+          <div class="vsp-logo-title">VersaSecure Platform 2025</div>
+          <div class="vsp-logo-subtitle">EXT+ Security Profile</div>
+        </div>
+      </div>
+
+      <nav class="vsp-nav">
+        <button class="vsp-nav-item is-active" data-tab-target="tab-dashboard">
+          <span class="vsp-nav-label">Dashboard</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-runs">
+          <span class="vsp-nav-label">Runs &amp; Reports</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-datasource">
+          <span class="vsp-nav-label">Data Source</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-settings">
+          <span class="vsp-nav-label">Settings</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-overrides">
+          <span class="vsp-nav-label">Rule Overrides</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="vsp-main">
+      <!-- HEADER -->
+      <header class="vsp-header">
+        <div class="vsp-header-title">
+          <h1>VSP 2025 – EXT+ Security Profile</h1>
+          <p class="vsp-header-subtitle">
+            CIO-level security posture dashboard, backed by FULL_EXT run &amp; rule overrides.
+          </p>
+        </div>
+        <div class="vsp-header-meta">
+          <div class="vsp-meta-item">
+            <span class="vsp-meta-label">Current Run ID</span>
+            <span class="vsp-meta-value" id="vsp-current-run-id">–</span>
+          </div>
+          <div class="vsp-meta-item">
+            <span class="vsp-meta-label">Last Updated</span>
+            <span class="vsp-meta-value" id="vsp-last-updated">–</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- TABS CONTENT -->
+      <section class="vsp-tabs">
+
+        <!-- TAB: DASHBOARD -->
+        <section class="vsp-tab is-active" id="tab-dashboard">
+          <!-- KPI ZONE -->
+          <div class="vsp-grid vsp-grid-kpi">
+            <!-- Total Findings -->
+            <article class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Total Findings</div>
+              <div class="vsp-card-value" data-vsp-kpi="total_findings">–</div>
+            </article>
+
+            <!-- Security Score -->
+            <article class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Security Posture Score</div>
+              <div class="vsp-card-value" data-vsp-kpi="security_score">–</div>
+            </article>
+
+            <!-- Top risky tool -->
+            <article class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Top Risky Tool</div>
+              <div class="vsp-card-value" data-vsp-kpi="top_risky_tool">–</div>
+            </article>
+
+            <!-- Top impacted CWE -->
+            <article class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Top Impacted CWE</div>
+              <div class="vsp-card-value" data-vsp-kpi="top_cwe">–</div>
+            </article>
+
+            <!-- Top vulnerable module -->
+            <article class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Top Vulnerable Module</div>
+              <div class="vsp-card-value" data-vsp-kpi="top_module">–</div>
+            </article>
+          </div>
+
+          <!-- SEVERITY KPI ROW -->
+          <div class="vsp-grid vsp-grid-severity">
+            <article class="vsp-card vsp-card-sev sev-critical">
+              <div class="vsp-card-label">CRITICAL</div>
+              <div class="vsp-card-value" data-vsp-kpi="sev_CRITICAL">–</div>
+            </article>
+            <article class="vsp-card vsp-card-sev sev-high">
+              <div class="vsp-card-label">HIGH</div>
+              <div class="vsp-card-value" data-vsp-kpi="sev_HIGH">–</div>
+            </article>
+            <article class="vsp-card vsp-card-sev sev-medium">
+              <div class="vsp-card-label">MEDIUM</div>
+              <div class="vsp-card-value" data-vsp-kpi="sev_MEDIUM">–</div>
+            </article>
+            <article class="vsp-card vsp-card-sev sev-low">
+              <div class="vsp-card-label">LOW</div>
+              <div class="vsp-card-value" data-vsp-kpi="sev_LOW">–</div>
+            </article>
+            <article class="vsp-card vsp-card-sev sev-info">
+              <div class="vsp-card-label">INFO</div>
+              <div class="vsp-card-value" data-vsp-kpi="sev_INFO">–</div>
+            </article>
+            <article class="vsp-card vsp-card-sev sev-trace">
+              <div class="vsp-card-label">TRACE</div>
+              <div class="vsp-card-value" data-vsp-kpi="sev_TRACE">–</div>
+            </article>
+          </div>
+
+          <!-- TREND + PLACEHOLDER CHARTS -->
+          <div class="vsp-grid vsp-grid-main">
+            <!-- Trend over time -->
+            <article class="vsp-card vsp-card-wide">
+              <header class="vsp-card-header">
+                <h2>Trend over time</h2>
+                <span class="vsp-card-subtitle">Last runs – total findings &amp; score</span>
+              </header>
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Run ID</th>
+                      <th>Total findings</th>
+                      <th>Security score</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vsp-trend-table-body">
+                    <tr><td colspan="4" class="vsp-table-empty">Loading trend...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <!-- Severity distribution – placeholder text (chart có thể nối vsp_charts_full sau) -->
+            <article class="vsp-card vsp-card-wide">
+              <header class="vsp-card-header">
+                <h2>Severity distribution (6 levels)</h2>
+                <span class="vsp-card-subtitle">Buckets: CRITICAL, HIGH, MEDIUM, LOW, INFO, TRACE</span>
+              </header>
+              <div class="vsp-placeholder-chart" id="vsp-severity-chart">
+                <p class="vsp-placeholder-text">
+                  Severity buckets loaded from <code>/api/vsp/dashboard_v3</code>.  
+                  (Chart rendering có thể nối thêm vsp_charts_full.js sau.)
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- TAB: RUNS & REPORTS -->
+        <section class="vsp-tab" id="tab-runs">
+          <header class="vsp-tab-header">
+            <h2>Runs &amp; Reports</h2>
+            <p>Lịch sử RUN_VSP_FULL_EXT_* và trạng thái.</p>
+          </header>
+          <div class="vsp-table-wrapper">
+            <table class="vsp-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Run ID</th>
+                  <th>Total findings</th>
+                  <th>Security score</th>
+                  <th>Status</th>
+                  <!-- Sau này thêm Actions: Report / Bundle -->
+                </tr>
+              </thead>
+              <tbody id="vsp-runs-table-body">
+                <tr><td colspan="5" class="vsp-table-empty">Loading runs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB: DATA SOURCE -->
+        <section class="vsp-tab" id="tab-datasource">
+          <header class="vsp-tab-header">
+            <h2>Data Source – Findings</h2>
+            <p>Đọc trực tiếp từ <code>/api/vsp/datasource_v2</code> (filter severity/tool sau).</p>
+          </header>
+
+          <div class="vsp-filter-bar">
+            <label>
+              Severity:
+              <select id="vsp-filter-severity">
+                <option value="">(All)</option>
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="HIGH">HIGH</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="LOW">LOW</option>
+                <option value="INFO">INFO</option>
+                <option value="TRACE">TRACE</option>
+              </select>
+            </label>
+            <label>
+              Tool:
+              <input type="text" id="vsp-filter-tool" placeholder="semgrep, gitleaks, kics, ...">
+            </label>
+            <label>
+              Limit:
+              <input type="number" id="vsp-filter-limit" value="50" min="1" max="500">
+            </label>
+            <button class="vsp-btn" id="vsp-ds-reload-btn">Reload</button>
+          </div>
+
+          <div class="vsp-table-wrapper">
+            <table class="vsp-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Tool</th>
+                  <th>Rule / CWE</th>
+                  <th>File</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="vsp-ds-table-body">
+                <tr><td colspan="5" class="vsp-table-empty">Click "Reload" to load findings.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="vsp-ds-footer">
+            <span id="vsp-ds-total-label">Total: 0</span>
+          </div>
+        </section>
+
+        <!-- TAB: SETTINGS -->
+        <section class="vsp-tab" id="tab-settings">
+          <header class="vsp-tab-header">
+            <h2>Settings / ENV</h2>
+            <p>Thông tin profile, RUN_DIR, tool config từ <code>/api/vsp/settings_v1</code>.</p>
+          </header>
+          <article class="vsp-card">
+            <header class="vsp-card-header">
+              <h3>Raw settings JSON</h3>
+            </header>
+            <pre id="vsp-settings-json" class="vsp-pre">
+Loading settings...
+            </pre>
+          </article>
+        </section>
+
+        <!-- TAB: RULE OVERRIDES (placeholder) -->
+        <section class="vsp-tab" id="tab-overrides">
+          <header class="vsp-tab-header">
+            <h2>Rule Overrides</h2>
+            <p>Đọc từ output của <code>vsp_apply_rule_overrides_v1.py</code> (sẽ nối API sau).</p>
+          </header>
+          <article class="vsp-card">
+            <p>
+              TODO: Thêm API <code>/api/vsp/overrides_v1</code> để show tổng số finding bị override,
+              breakdown theo tool / rule / severity_raw → severity_effective.
+            </p>
+          </article>
+        </section>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- JS runtime cho VSP 2025 -->
+  <script src="/static/js/vsp_dashboard_live_v2.js"></script>
+</body>
+</html>

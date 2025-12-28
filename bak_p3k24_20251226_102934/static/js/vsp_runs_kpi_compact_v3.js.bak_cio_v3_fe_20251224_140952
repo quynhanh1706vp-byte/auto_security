@@ -1,0 +1,797 @@
+/* VSP_P2_RUNS_KPI_COMPACT_V3_SAFE_V4 (single endpoint; layout-safe; no run_file_allow) */
+(()=> {
+  if (window.__vsp_runs_kpi_compact_v3_safe_v4) return;
+  window.__vsp_runs_kpi_compact_v3_safe_v4 = true;
+
+  const $ = (q)=> document.querySelector(q);
+
+  let inflight = false;
+  let lastTs = 0;
+  let lastDays = null;
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = (v===null || v===undefined || v==="") ? "—" : String(v);
+  }
+
+  function hideHeavy(){
+    const ids = ["vsp_runs_kpi_canvas_overall","vsp_runs_kpi_canvas_sev","vsp_runs_kpi_canvas_wrap_overall","vsp_runs_kpi_canvas_wrap_sev"];
+    for (const id of ids){
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    }
+  }
+
+  async function fetchKpi(days){
+    const now = Date.now();
+    const d = String(days || 30);
+
+    if (inflight) return null;
+    if (lastDays === d && (now - lastTs) < 2500) return null;
+
+    inflight = true;
+    lastDays = d;
+    lastTs = now;
+
+    const q = encodeURIComponent(d);
+    const urls = [
+      `/api/ui/runs_kpi_v2?days=${q}`,
+      `/api/ui/runs_kpi_v2?days=${q}`,
+      `/api/ui/runs_kpi_v1?days=${q}`,
+    ];
+
+    try{
+      let lastErr = null;
+      for (const u of urls){
+        try{
+          const r = await fetch(u, {cache:"no-store"});
+          const j = await r.json();
+          if (j && j.ok) return j;
+          lastErr = new Error(j?.err || "not ok");
+        }catch(e){ lastErr = e; }
+      }
+      throw lastErr || new Error("kpi fetch failed");
+    } finally {
+      inflight = false;
+    }
+  }
+
+  function renderTrendOverall(resp){
+    const root = document.getElementById("vsp_runs_kpi_trend_overall_compact");
+    if (!root) return;
+
+    const t = resp && resp.trend_overall;
+    const labels = t && Array.isArray(t.labels) ? t.labels : [];
+    const series = t && t.series ? t.series : null;
+
+    if (!labels.length || !series){
+      root.innerHTML = '<div style="color:#94a3b8;font-size:12px">No trend data (server-side)</div>';
+      return;
+    }
+
+    // last 14 points
+    const take = Math.min(14, labels.length);
+    const start = labels.length - take;
+
+    const keys = ["GREEN","AMBER","RED","UNKNOWN"];
+    let max = 1;
+    for (let i=start;i<labels.length;i++){
+      let sum = 0;
+      for (const k of keys) sum += (Number((series[k]||[])[i]||0) || 0);
+      if (sum > max) max = sum;
+    }
+
+    const rows = [];
+    for (let i=start;i<labels.length;i++){
+      const d = labels[i];
+      const parts = [];
+      for (const k of keys){
+        const v = Number((series[k]||[])[i]||0) || 0;
+        const w = Math.round((v / max) * 100);
+        parts.push(`<div title="${k}: ${v}" style="height:10px;width:${w}%;background:rgba(148,163,184,.18);border-radius:10px;margin-right:6px"></div>`);
+      }
+      rows.push(`
+        <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+          <div style="width:92px;font-size:11px;color:#94a3b8">${d}</div>
+          <div style="flex:1;display:flex;align-items:center;gap:6px">${parts.join("")}</div>
+        </div>
+      `);
+    }
+
+    root.innerHTML = `
+      <div style="margin-top:6px;padding-top:8px;border-top:1px solid rgba(148,163,184,.10)">
+        <div style="font-size:12px;color:#cbd5e1;margin-bottom:4px">Overall trend (server)</div>
+        ${rows.join("")}
+      </div>
+    `;
+  }
+
+  async function fill(days){
+    hideHeavy();
+    setText("vsp_runs_kpi_meta", "Loading KPI…");
+
+    try{
+      const j = await fetchKpi(days);
+      if (!j) return;
+
+      setText("vsp_runs_kpi_total_runs_window", j.total_runs);
+      const bo = j.by_overall || {};
+      setText("vsp_runs_kpi_GREEN", bo.GREEN ?? 0);
+      setText("vsp_runs_kpi_AMBER", bo.AMBER ?? 0);
+      setText("vsp_runs_kpi_RED", bo.RED ?? 0);
+      setText("vsp_runs_kpi_UNKNOWN", bo.UNKNOWN ?? 0);
+      setText("vsp_runs_kpi_findings", j.has_findings ?? "—");
+      setText("vsp_runs_kpi_latest", j.latest_rid ?? "—");
+      setText("vsp_runs_kpi_meta", `ts=${j.ts} • gate=${j.has_gate ?? "—"} • source=v4/v2`);
+
+      renderTrendOverall(j);
+    }catch(e){
+      setText("vsp_runs_kpi_meta", `KPI error: ${String(e && e.message ? e.message : e)}`);
+    }
+  }
+
+  function boot(){
+    const sel = document.getElementById("vsp_runs_kpi_window_days");
+    const btn = document.getElementById("vsp_runs_kpi_reload_btn");
+    const days = sel ? (parseInt(sel.value||"30",10) || 30) : 30;
+
+    if (sel){
+      sel.addEventListener("change", ()=> fill(parseInt(sel.value||"30",10) || 30));
+    }
+    if (btn){
+      btn.addEventListener("click", ()=> fill(sel ? (parseInt(sel.value||"30",10) || 30) : 30));
+    }
+    fill(days);
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot, {once:true});
+  } else {
+    boot();
+  }
+})();
+
+
+
+/* VSP_P2_RUNS_FILTERS_SORT_V1B (real asset) */
+(function(){
+  function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+  function el(tag, attrs, html){
+    const e=document.createElement(tag);
+    if(attrs){ for(const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]); }
+    if(html!==undefined) e.innerHTML=html;
+    return e;
+  }
+  async function jget(url){
+    const r=await fetch(url, {credentials:"same-origin"});
+    const t=await r.text();
+    try { return {ok:true, json: JSON.parse(t)}; } catch(e){ return {ok:false, text:t}; }
+  }
+  function isRuns(){ return String(location.pathname||"").includes("/runs"); }
+
+  function findRoot(){
+    return document.querySelector('[data-testid="vsp-runs-main"]') || document.body;
+  }
+
+  function mount(root, onChange){
+    let bar=document.querySelector('[data-testid="runs-filterbar"]');
+    if(bar) return bar;
+
+    bar=el('div', {'data-testid':'runs-filterbar'});
+    bar.style.cssText="max-width:1200px;margin:12px auto 8px auto;padding:0 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center";
+
+    const q=el('input', {'data-testid':'runs-q', 'placeholder':'Search RID…'});
+    q.style.cssText="flex:1;min-width:220px;padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit";
+
+    const sort=el('select', {'data-testid':'runs-sort'});
+    sort.style.cssText="padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit";
+    sort.innerHTML = `
+      <option value="ts_desc">Newest</option>
+      <option value="ts_asc">Oldest</option>
+      <option value="rid_asc">RID A→Z</option>
+      <option value="rid_desc">RID Z→A</option>
+    `;
+
+    const lim=el('select', {'data-testid':'runs-limit'});
+    lim.style.cssText=sort.style.cssText;
+    lim.innerHTML = `<option>20</option><option selected>50</option><option>100</option>`;
+
+    const btn=el('button', {'data-testid':'runs-refresh'}, 'Refresh');
+    btn.style.cssText="padding:9px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer";
+    btn.onmouseenter=()=>btn.style.background="rgba(255,255,255,0.06)";
+    btn.onmouseleave=()=>btn.style.background="rgba(255,255,255,0.04)";
+
+    bar.appendChild(q); bar.appendChild(sort); bar.appendChild(lim); bar.appendChild(btn);
+    root.prepend(bar);
+
+    function fire(){ onChange({q:q.value||"", sort:sort.value, limit:+lim.value}); }
+    q.addEventListener("input", fire);
+    sort.addEventListener("change", fire);
+    lim.addEventListener("change", fire);
+    btn.addEventListener("click", fire);
+    return bar;
+  }
+
+  function render(root, runs){
+    let host=document.querySelector('[data-testid="runs-table-host"]');
+    if(!host){
+      host=el('div', {'data-testid':'runs-table-host'});
+      host.style.cssText="max-width:1200px;margin:0 auto;padding:0 12px 18px 12px;";
+      root.appendChild(host);
+    }
+    if(!runs || !runs.length){
+      host.innerHTML = `<div style="opacity:.8;padding:14px;border:1px solid rgba(255,255,255,0.10);border-radius:14px;background:rgba(255,255,255,0.03)">No runs</div>`;
+      return;
+    }
+    const rows=runs.map(r=>{
+      const rid=esc(r.rid||r.run_id||"");
+      const ts=esc(r.ts||r.created_ts||"");
+      const rootDir=esc(r.root||"");
+      return `<tr data-rid="${rid}">
+        <td style="padding:10px 12px;font-weight:700;white-space:nowrap">${rid}</td>
+        <td style="padding:10px 12px;opacity:.85;white-space:nowrap">${ts}</td>
+        <td style="padding:10px 12px;opacity:.75;max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rootDir}</td>
+      </tr>`;
+    }).join("");
+    host.innerHTML = `
+      <div style="border:1px solid rgba(255,255,255,0.10);border-radius:14px;overflow:hidden;background:rgba(255,255,255,0.03)">
+        <table style="width:100%;border-collapse:separate;border-spacing:0;font-size:13px">
+          <thead>
+            <tr style="text-align:left;opacity:.75;background:rgba(15,18,24,0.92)">
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)">RID</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)">Time</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)">Root</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="opacity:.7;margin-top:8px">Tip: click a RID row to copy RID.</div>
+    `;
+    host.querySelectorAll("tbody tr").forEach(tr=>{
+      tr.style.cursor="pointer";
+      tr.style.transition="background 120ms ease";
+      tr.onmouseenter=()=>tr.style.background="rgba(255,255,255,0.05)";
+      tr.onmouseleave=()=>tr.style.background="transparent";
+      tr.onclick=()=>{
+        const rid=tr.getAttribute("data-rid")||"";
+        if(rid) navigator.clipboard?.writeText(rid).catch(()=>{});
+      };
+    });
+  }
+
+  async function main(){
+    const root=findRoot();
+    mount(root, async (st)=>{
+      const lim=st.limit||50;
+      const res=await jget(`/api/vsp/runs?limit=${encodeURIComponent(lim)}&offset=0`);
+      const runs=(res.ok && res.json && res.json.runs) ? res.json.runs : [];
+      const q=(st.q||"").toLowerCase().trim();
+      let out=runs;
+      if(q) out=out.filter(r=>String(r.rid||r.run_id||"").toLowerCase().includes(q));
+      const sort=st.sort||"ts_desc";
+      out=[...out].sort((a,b)=>{
+        const ar=String(a.rid||a.run_id||"");
+        const br=String(b.rid||b.run_id||"");
+        const at=String(a.ts||a.created_ts||"");
+        const bt=String(b.ts||b.created_ts||"");
+        if(sort==="rid_asc") return ar.localeCompare(br);
+        if(sort==="rid_desc") return br.localeCompare(ar);
+        if(sort==="ts_asc") return at.localeCompare(bt);
+        return bt.localeCompare(at);
+      });
+      render(root, out);
+    });
+    document.querySelector('[data-testid="runs-refresh"]')?.click();
+  }
+
+  if(isRuns()){
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", main);
+    else main();
+  }
+})();
+
+
+
+/* VSP_P2_RUNS_DRILLDOWN_DRAWER_V1 */
+(function(){
+  function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+  function el(tag, attrs, html){
+    const e=document.createElement(tag);
+    if(attrs){ for(const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]); }
+    if(html!==undefined) e.innerHTML=html;
+    return e;
+  }
+  async function jget(url){
+    const r=await fetch(url, {credentials:"same-origin"});
+    const t=await r.text();
+    try { return {ok:true, json: JSON.parse(t)}; } catch(e){ return {ok:false, text:t, code:r.status}; }
+  }
+  function isRuns(){ return String(location.pathname||"").includes("/runs"); }
+
+  function ensureDrawer(){
+    let d=document.querySelector('[data-testid="runs-drawer"]');
+    if(d) return d;
+
+    d=el('div', {'data-testid':'runs-drawer'});
+    d.style.cssText=[
+      "position:fixed","top:0","right:0","height:100vh","width:min(520px, 96vw)",
+      "background:rgba(15,18,24,0.96)","backdrop-filter:blur(10px)",
+      "border-left:1px solid rgba(255,255,255,0.10)",
+      "box-shadow:-20px 0 40px rgba(0,0,0,0.45)",
+      "transform:translateX(110%)","transition:transform 160ms ease",
+      "z-index:9999","display:flex","flex-direction:column"
+    ].join(";");
+
+    const header=el('div', {'data-testid':'runs-drawer-header'});
+    header.style.cssText="padding:14px 14px 10px 14px;border-bottom:1px solid rgba(255,255,255,0.10);display:flex;justify-content:space-between;align-items:flex-start;gap:10px";
+    header.innerHTML = `
+      <div>
+        <div style="font-size:12px;opacity:.75;letter-spacing:.08em;text-transform:uppercase">Run detail</div>
+        <div data-testid="runs-drawer-rid" style="margin-top:6px;font-size:16px;font-weight:800">—</div>
+        <div data-testid="runs-drawer-ts" style="margin-top:3px;font-size:12px;opacity:.75">—</div>
+      </div>
+      <button data-testid="runs-drawer-close" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer">Close</button>
+    `;
+
+    const actions=el('div', {'data-testid':'runs-drawer-actions'});
+    actions.style.cssText="padding:10px 14px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.10)";
+    actions.innerHTML = `
+      <a data-testid="runs-open-dashboard" href="#" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);text-decoration:none;color:inherit;font-size:13px">Open Dashboard</a>
+      <a data-testid="runs-open-files" href="#" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);text-decoration:none;color:inherit;font-size:13px">Findings JSON</a>
+      <a data-testid="runs-open-gate" href="#" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);text-decoration:none;color:inherit;font-size:13px">Gate Summary</a>
+    `;
+
+    const body=el('div', {'data-testid':'runs-drawer-body'});
+    body.style.cssText="padding:12px 14px;overflow:auto;flex:1";
+    body.innerHTML = `<div style="opacity:.8">Select a run to view details.</div>`;
+
+    d.appendChild(header);
+    d.appendChild(actions);
+    d.appendChild(body);
+    document.body.appendChild(d);
+
+    // close handlers
+    header.querySelector('[data-testid="runs-drawer-close"]').onclick=()=>hideDrawer();
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") hideDrawer(); });
+
+    return d;
+  }
+
+  function showDrawer(){ const d=ensureDrawer(); d.style.transform="translateX(0)"; }
+  function hideDrawer(){ const d=document.querySelector('[data-testid="runs-drawer"]'); if(d) d.style.transform="translateX(110%)"; }
+
+  function sevBadgeRow(counts){
+    const order=["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    const c=counts||{};
+    const pills=order.map(k=>{
+      const v=+(c[k]||0);
+      return `<div style="padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03)">
+        <div style="font-size:11px;opacity:.75;letter-spacing:.06em">${k}</div>
+        <div style="font-size:20px;font-weight:800;margin-top:4px">${v}</div>
+      </div>`;
+    }).join("");
+    return `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">${pills}</div>`;
+  }
+
+  async function loadRunDetail(rid, tsText){
+    const d=ensureDrawer();
+    d.querySelector('[data-testid="runs-drawer-rid"]').textContent=rid||"—";
+    d.querySelector('[data-testid="runs-drawer-ts"]').textContent=tsText||"—";
+
+    // action links
+    d.querySelector('[data-testid="runs-open-dashboard"]').href = "/vsp5?rid="+encodeURIComponent(rid);
+    // Try both findings paths; we’ll set to first that exists
+    d.querySelector('[data-testid="runs-open-files"]').href = "#";
+    d.querySelector('[data-testid="runs-open-gate"]').href = "#";
+
+    const body=d.querySelector('[data-testid="runs-drawer-body"]');
+    body.innerHTML = `<div style="opacity:.8">Loading…</div>`;
+    showDrawer();
+
+    // Helper to check file exists via run_file_allow
+    async function rf(path){
+      return await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}&limit=1`);
+    }
+
+    const gatePaths=[
+      "run_gate_summary.json",
+      "reports/run_gate_summary.json",
+      "report/run_gate_summary.json",
+      "run_gate.json",
+      "reports/run_gate.json",
+      "report/run_gate.json"
+    ];
+    const findPaths=[
+      "findings_unified.json",
+      "reports/findings_unified.json",
+      "report/findings_unified.json"
+    ];
+
+    // Gate summary (try multiple paths)
+    let gatePath="";
+    let gate=null;
+    for(const gp of gatePaths){
+      const g=await rf(gp);
+      // wrapper style: {ok:true, ...}
+      if(g && g.ok && g.json && g.json.ok){ gatePath=gp; gate=g; break; }
+      // direct style: gate summary JSON
+      if(g && g.ok && g.json && (g.json.by_severity || g.json.counts_total || g.json.by_tool)){
+        gatePath=gp; gate=g; break;
+      }
+    }
+    if(!gate){ gatePath="run_gate_summary.json"; gate=await rf(gatePath); }
+
+    // Findings json (try multiple paths)
+    let findPath="";
+    let fj=null;
+    for(const fp of findPaths){
+      const f=await rf(fp);
+      if(f && f.ok && f.json && f.json.ok){ findPath=fp; fj=f; break; }
+      if(f && f.ok && f.json && (f.json.findings || f.json.items || Array.isArray(f.json))){ findPath=fp; fj=f; break; }
+    }
+    if(!fj){ findPath="findings_unified.json"; fj=await rf(findPath); }
+
+    // set action hrefs to the API endpoint (downloadable JSON)
+    if(gate.ok && gate.json && gate.json.ok){
+      d.querySelector('[data-testid="runs-open-gate"]').href =
+        `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(gatePath)}&limit=2000`;
+    } else {
+      d.querySelector('[data-testid="runs-open-gate"]').style.opacity="0.45";
+    }
+    if(fj.ok && fj.json && fj.json.ok){
+      d.querySelector('[data-testid="runs-open-files"]').href =
+        `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(findPath)}&limit=2000`;
+    } else {
+      d.querySelector('[data-testid="runs-open-files"]').style.opacity="0.45";
+    }
+
+    // Render counts from gate if present
+    let counts = null;
+    if(gate.ok && gate.json){
+      // gate.json could be file wrapper or already gate summary depending on backend
+      const g = gate.json;
+      counts = g.by_severity || g.counts_total || g.counts || null;
+    }
+
+    body.innerHTML = `
+      <div style="font-size:12px;opacity:.75;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Severity</div>
+      ${sevBadgeRow(counts)}
+      <div style="height:12px"></div>
+      <div style="font-size:12px;opacity:.75;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Links</div>
+      <div style="display:grid;gap:8px">
+        <div style="padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03)">
+          <div style="opacity:.8">Gate path</div>
+          <div style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; opacity:.85; margin-top:6px">${esc(gatePath)}</div>
+        </div>
+        <div style="padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03)">
+          <div style="opacity:.8">Findings path</div>
+          <div style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; opacity:.85; margin-top:6px">${esc(findPath)}</div>
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <div style="opacity:.7;font-size:12px">Tip: Use “Open Dashboard” to inspect this RID on /vsp5.</div>
+    `;
+  }
+
+  function hookTableClicks(){
+    // Our injected table uses data-testid="runs-table-host" and row data-rid
+    const host=document.querySelector('[data-testid="runs-table-host"]');
+    if(!host) return;
+    host.querySelectorAll("tbody tr[data-rid]").forEach(tr=>{
+      if(tr.getAttribute("data-runs-hooked")==="1") return;
+      tr.setAttribute("data-runs-hooked","1");
+      const rid=tr.getAttribute("data-rid")||"";
+      const tds=tr.querySelectorAll("td");
+      const tsText = (tds && tds.length>1) ? (tds[1].textContent||"") : "";
+      tr.addEventListener("dblclick", (e)=>{ e.preventDefault(); loadRunDetail(rid, tsText).catch(()=>{}); });
+      // single click: if user clicks while holding Alt, open drawer (avoid changing your copy-to-clipboard behavior)
+      tr.addEventListener("click", (e)=>{
+        if(e.altKey){
+          e.preventDefault();
+          loadRunDetail(rid, tsText).catch(()=>{});
+        }
+      });
+    });
+  }
+
+  function boot(){
+    if(!isRuns()) return;
+    ensureDrawer();
+    // watch DOM changes because table is re-rendered by filterbar refresh
+    const obs=new MutationObserver(()=>hookTableClicks());
+    obs.observe(document.body, {subtree:true, childList:true});
+    hookTableClicks();
+  }
+
+  if(isRuns()){
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+    else boot();
+  }
+})();
+
+/* VSP_P2_RUNS_DRILLDOWN_DRAWER_V1B_PATHS_V2 */
+
+
+
+/* VSP_P2_RUNS_UX_CLICK_OPEN_COPY_V1B_DOM */
+(function(){
+  function isRuns(){ return String(location.pathname||"").includes("/runs"); }
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+
+  function ensureActionsHeader(table){
+    const thead = table.querySelector("thead");
+    if(!thead) return;
+    const tr = thead.querySelector("tr");
+    if(!tr) return;
+    const ths = tr.querySelectorAll("th");
+    // If already has Actions, skip
+    for(const th of ths){ if((th.textContent||"").trim().toLowerCase()==="actions") return; }
+    const th=document.createElement("th");
+    th.textContent="Actions";
+    th.style.cssText="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)";
+    tr.appendChild(th);
+  }
+
+  function addCopyButtons(table){
+    const rows=qsa("tbody tr[data-rid]", table);
+    for(const tr of rows){
+      if(tr.getAttribute("data-runs-ux") === "1") continue;
+      tr.setAttribute("data-runs-ux","1");
+
+      // Add actions cell if not present
+      const tds=tr.querySelectorAll("td");
+      // If already has 4th td containing a button, skip adding
+      if(tds.length < 4){
+        const td=document.createElement("td");
+        td.style.cssText="padding:10px 12px;white-space:nowrap";
+        const btn=document.createElement("button");
+        btn.setAttribute("data-testid","runs-copy-rid");
+        btn.textContent="Copy";
+        btn.style.cssText="padding:7px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer;font-size:12px";
+        btn.onmouseenter=()=>btn.style.background="rgba(255,255,255,0.06)";
+        btn.onmouseleave=()=>btn.style.background="rgba(255,255,255,0.04)";
+        btn.onclick=(e)=>{
+          e.preventDefault(); e.stopPropagation();
+          const rid=tr.getAttribute("data-rid")||"";
+          if(rid) navigator.clipboard?.writeText(rid).catch(()=>{});
+        };
+        td.appendChild(btn);
+        tr.appendChild(td);
+      }
+
+      // Row click => open drawer (dispatch dblclick to trigger existing drawer hook)
+      tr.style.cursor="pointer";
+      tr.onclick=(e)=>{
+        // If user clicked the copy button, it already stopped propagation
+        // Open drawer by simulating dblclick (your drawer hook listens to dblclick)
+        try{
+          tr.dispatchEvent(new MouseEvent("dblclick", {bubbles:true, cancelable:true, view:window}));
+        }catch(_){}
+      };
+    }
+  }
+
+  function applyOnce(){
+    const host=qs('[data-testid="runs-table-host"]');
+    if(!host) return;
+    const table=host.querySelector("table");
+    if(!table) return;
+    ensureActionsHeader(table);
+    addCopyButtons(table);
+  }
+
+  function boot(){
+    if(!isRuns()) return;
+    applyOnce();
+    const obs=new MutationObserver(()=>applyOnce());
+    obs.observe(document.body, {subtree:true, childList:true});
+  }
+
+  if(isRuns()){
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+    else boot();
+  }
+})();
+
+
+
+/* VSP_P2_RUNS_DRAWER_EXPORTS_OVERLAY_V1 */
+(function(){
+  function isRuns(){ return String(location.pathname||"").includes("/runs"); }
+  async function jget(url){
+    const r=await fetch(url, {credentials:"same-origin"});
+    const t=await r.text();
+    try { return {ok:true, json: JSON.parse(t)}; } catch(e){ return {ok:false, text:t, code:r.status}; }
+  }
+  function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+
+  function ensureOverlay(){
+    let ov=document.querySelector('[data-testid="runs-overlay"]');
+    if(ov) return ov;
+
+    ov=document.createElement("div");
+    ov.setAttribute("data-testid","runs-overlay");
+    ov.style.cssText=[
+      "position:fixed","inset:0","background:rgba(0,0,0,0.55)",
+      "z-index:10000","display:none","align-items:center","justify-content:center",
+      "padding:18px"
+    ].join(";");
+
+    ov.innerHTML=`
+      <div style="width:min(1200px, 96vw); height:min(90vh, 900px); background:rgba(15,18,24,0.98);
+                  border:1px solid rgba(255,255,255,0.10); border-radius:16px; overflow:hidden;
+                  box-shadow:0 20px 60px rgba(0,0,0,0.55); display:flex; flex-direction:column">
+        <div style="padding:10px 12px; display:flex; align-items:center; justify-content:space-between;
+                    border-bottom:1px solid rgba(255,255,255,0.10); gap:10px">
+          <div data-testid="runs-overlay-title" style="font-weight:800; font-size:13px; opacity:.9">Viewer</div>
+          <div style="display:flex; gap:10px; align-items:center">
+            <a data-testid="runs-overlay-opennew" href="#" target="_blank" rel="noopener"
+               style="padding:7px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
+                      background:rgba(255,255,255,0.04);text-decoration:none;color:inherit;font-size:12px">Open new tab</a>
+            <button data-testid="runs-overlay-close"
+               style="padding:7px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
+                      background:rgba(255,255,255,0.04);color:inherit;cursor:pointer;font-size:12px">Close</button>
+          </div>
+        </div>
+        <iframe data-testid="runs-overlay-frame" src="about:blank"
+                style="border:0; width:100%; height:100%; background:#0b0f14"></iframe>
+      </div>
+    `;
+    document.body.appendChild(ov);
+
+    ov.querySelector('[data-testid="runs-overlay-close"]').onclick=()=>{ ov.style.display="none"; };
+    ov.addEventListener("click",(e)=>{ if(e.target===ov) ov.style.display="none"; });
+    document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") ov.style.display="none"; });
+
+    return ov;
+  }
+
+  function openOverlay(title, url){
+    const ov=ensureOverlay();
+    ov.querySelector('[data-testid="runs-overlay-title"]').textContent=title||"Viewer";
+    ov.querySelector('[data-testid="runs-overlay-opennew"]').href=url;
+    ov.querySelector('[data-testid="runs-overlay-frame"]').src=url;
+    ov.style.display="flex";
+  }
+
+  // Helper: find a file under a RID via run_file_allow trying multiple common paths
+  async function pickFile(rid, paths){
+    for(const p of paths){
+      const res=await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(p)}&limit=1`);
+      if(res.ok && res.json && res.json.ok){
+        return p;
+      }
+    }
+    return null;
+  }
+
+  async function enrichDrawer(rid){
+    const d=document.querySelector('[data-testid="runs-drawer"]');
+    if(!d) return;
+
+    // Add export section if not exists
+    let box=d.querySelector('[data-testid="runs-drawer-exports"]');
+    if(!box){
+      box=document.createElement("div");
+      box.setAttribute("data-testid","runs-drawer-exports");
+      box.style.cssText="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.10);display:flex;gap:10px;flex-wrap:wrap";
+      box.innerHTML=`
+        <button data-testid="runs-exp-zip"
+          style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer;font-size:12px">Download ZIP</button>
+        <button data-testid="runs-exp-html"
+          style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer;font-size:12px">Open HTML</button>
+        <button data-testid="runs-exp-pdf"
+          style="padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer;font-size:12px">Open PDF</button>
+        <a data-testid="runs-exp-audit" href="#" target="_blank" rel="noopener"
+          style="display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);text-decoration:none;color:inherit;font-size:12px">Open Audit</a>
+        <div data-testid="runs-exp-hint" style="opacity:.7;font-size:12px;align-self:center">—</div>
+      `;
+      d.appendChild(box);
+    }
+
+    const hint=box.querySelector('[data-testid="runs-exp-hint"]');
+    hint.textContent="Resolving exports…";
+
+    // release_latest gives audit_url + download_url (global latest package)
+    const rel=await jget("/api/vsp/release_latest");
+    const auditUrl = (rel.ok && rel.json && rel.json.audit_url) ? rel.json.audit_url : "#";
+    const zipUrl   = (rel.ok && rel.json && rel.json.download_url) ? rel.json.download_url : null;
+    const zipBtn=box.querySelector('[data-testid="runs-exp-zip"]');
+
+    // Prefer per-RID ZIP if available
+    const ridZipPath = await pickFile(rid, zipPaths);
+    const ridZipUrl = ridZipPath ? (`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(ridZipPath)}&limit=200000`) : null;
+
+    const auditA=box.querySelector('[data-testid="runs-exp-audit"]');
+    auditA.href = auditUrl || "#";
+    auditA.style.opacity = auditUrl && auditUrl !== "#" ? "1" : "0.45";
+
+    // ZIP: if we have download_url, open it; else disable
+    zipBtn.onclick=()=>{
+      const u = ridZipUrl || zipUrl;
+      if(u) window.open(u, "_blank", "noopener");
+    };
+    zipBtn.style.opacity = zipUrl ? "1" : "0.45";
+
+    // Try find HTML/PDF under this RID (common report names)
+    const zipPaths=[
+      "reports/report.zip",
+      "reports/reports.zip",
+      "reports/run_artifacts.zip",
+      "reports/artifacts.zip",
+      "report/report.zip",
+      "report/reports.zip",
+      "run_artifacts.zip",
+      "artifacts.zip",
+      "package.zip",
+      "bundle.zip"
+    ];
+
+    const htmlPaths=[
+      "reports/report.html","reports/index.html","reports/summary.html","reports/vsp_report.html",
+      "report/report.html","report/index.html"
+    ];
+    const pdfPaths=[
+      "reports/report.pdf","reports/vsp_report.pdf","report/report.pdf","report/vsp_report.pdf"
+    ];
+
+    const htmlPath=await pickFile(rid, htmlPaths);
+    const pdfPath=await pickFile(rid, pdfPaths);
+
+    const htmlBtn=box.querySelector('[data-testid="runs-exp-html"]');
+    const pdfBtn=box.querySelector('[data-testid="runs-exp-pdf"]');
+
+    htmlBtn.style.opacity = htmlPath ? "1" : "0.45";
+    pdfBtn.style.opacity  = pdfPath  ? "1" : "0.45";
+
+    htmlBtn.onclick=()=>{
+      if(!htmlPath) return;
+      const url=`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(htmlPath)}&limit=200000`;
+      openOverlay("HTML Report · "+rid, url);
+    };
+    pdfBtn.onclick=()=>{
+      if(!pdfPath) return;
+      const url=`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(pdfPath)}&limit=200000`;
+      openOverlay("PDF Report · "+rid, url);
+    };
+
+    hint.textContent = `ZIP:${ridZipUrl? "RID":"—"}${(!ridZipUrl && zipUrl)? "(fallback)":""} · HTML:${htmlPath? esc(htmlPath):"—"} · PDF:${pdfPath? esc(pdfPath):"—"}`;
+  }
+
+  // Hook: whenever drawer opens (we detect rid text change), enrich exports
+  function boot(){
+    if(!isRuns()) return;
+    const d=document.querySelector('[data-testid="runs-drawer"]');
+    if(!d) return;
+
+    let lastRid="";
+    const obs=new MutationObserver(()=>{
+      const ridEl=d.querySelector('[data-testid="runs-drawer-rid"]');
+      const rid=(ridEl && ridEl.textContent) ? ridEl.textContent.trim() : "";
+      if(rid && rid !== "—" && rid !== lastRid){
+        lastRid=rid;
+        enrichDrawer(rid).catch(()=>{});
+      }
+    });
+    obs.observe(d, {subtree:true, childList:true, characterData:true});
+  }
+
+  if(isRuns()){
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+    else boot();
+  }
+})();
+
+/* VSP_P2_RUNS_DRAWER_EXPORTS_OVERLAY_V1B_PERRID_ZIP */
+
+/* VSP_P2_RUNS_USE_RAW_V2_LINKS_V1 */
+
+/* VSP_P2_RUNS_USE_RAW_V3_LINKS_V1 */
+
+/* VSP_P2_RUNS_FORCE_RAW_V4_LINKS_V1 */

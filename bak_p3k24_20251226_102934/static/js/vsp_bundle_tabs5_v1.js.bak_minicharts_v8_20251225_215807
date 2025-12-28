@@ -1,0 +1,3599 @@
+/* ===== VSP_P1_FETCH_THROTTLE_TIMEOUT_V1 ===== */
+
+;window.__VSP_MINI_V7_ONLY = true;
+(function(){
+  try{
+    if (window.__VSP_FETCH_THROTTLE_TIMEOUT_V1) return;
+    window.__VSP_FETCH_THROTTLE_TIMEOUT_V1 = 1;
+
+    const origFetch = window.fetch ? window.fetch.bind(window) : null;
+    if (!origFetch) return;
+
+    const MAX_INFLIGHT = 4;
+    const TIMEOUT_MS = 6000;
+    let inflight = 0;
+    const q = [];
+
+    function runNext(){
+      while(inflight < MAX_INFLIGHT && q.length){
+        const job = q.shift();
+        inflight++;
+        job().finally(()=>{ inflight--; runNext(); });
+      }
+    }
+
+    window.fetch = function(input, init){
+      return new Promise((resolve,reject)=>{
+        const job = async () => {
+          const ctrl = new AbortController();
+          const t = setTimeout(()=>ctrl.abort("timeout"), TIMEOUT_MS);
+          try{
+            const ii = Object.assign({}, init||{}, { signal: ctrl.signal });
+            const res = await origFetch(input, ii);
+            resolve(res);
+          }catch(e){
+            reject(e);
+          }finally{
+            clearTimeout(t);
+          }
+        };
+        q.push(job);
+        runNext();
+      });
+    };
+  }catch(e){}
+})();/* ===== VSP_P1_DASH_KILL_LOADING_TEXT_V4 =====
+   MutationObserver + TreeWalker over document.body to eliminate stuck "Loading..."
+   Expose: window.__vspDashKillLoadingNow()
+*/
+(function(){
+  try{
+    if (window.__VSP_DASH_KILL_LOADING_V4) return;
+    window.__VSP_DASH_KILL_LOADING_V4 = true;
+
+    function safeBadge(msg){
+      try{
+        var id="vsp-dash-degraded-badge-v4";
+        var b=document.getElementById(id);
+        if(!b){
+          b=document.createElement("div");
+          b.id=id;
+          b.style.cssText=[
+            "position:fixed","right:14px","bottom:52px","z-index:99999",
+            "padding:8px 10px","border-radius:10px",
+            "font:12px/1.2 system-ui",
+            "background:rgba(0,0,0,.78)","color:#fff",
+            "border:1px solid rgba(255,255,255,.14)",
+            "max-width:46vw","pointer-events:none"
+          ].join(";");
+          (document.body||document.documentElement).appendChild(b);
+        }
+        b.textContent = msg || "DEGRADED";
+      }catch(e){}
+    }
+
+    function normalizeLoading(t){
+      // handle ASCII and unicode ellipsis
+      // examples: "Loading...", "Loading..", "Loading.", "Loading", "Loading..."
+      var tt = (t||"").trim();
+      if (!tt) return null;
+      if (tt==="Loading" || tt==="Loading." || tt==="Loading.." || tt==="Loading..." || tt==="Loading...") return tt;
+      if (tt.indexOf("Loading")>=0) return tt;
+      return null;
+    }
+
+    function replaceLoadingOnce(){
+      var changed=0;
+      try{
+        var root = document.body || document.documentElement;
+        if(!root) return 0;
+
+        var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        var node;
+        while((node = w.nextNode())){
+          var t = node.nodeValue || "";
+          if(!t) continue;
+
+          // skip script/style text nodes (paranoid)
+          var pn = node.parentNode && node.parentNode.nodeName ? String(node.parentNode.nodeName).toLowerCase() : "";
+          if (pn==="script" || pn==="style" || pn==="textarea") continue;
+
+          var hit = normalizeLoading(t);
+          if(!hit) continue;
+
+          // Replace only the "Loading..." parts, keep other text around it
+          var out = t
+            .replace(/Loading\.{0,3}/g, "No data (degraded)")
+            .replace(/Loading.../g, "No data (degraded)");
+
+          if (out !== t){
+            node.nodeValue = out;
+            changed++;
+          }
+        }
+      }catch(e){}
+      return changed;
+    }
+
+    var pending=false;
+    function runDebounced(){
+      if(pending) return;
+      pending=true;
+      setTimeout(function(){
+        pending=false;
+        var n = replaceLoadingOnce();
+        if(n>0) safeBadge("DEGRADED: charts no data (cleaned "+n+")");
+      }, 80);
+    }
+
+    function start(){
+      // initial passes
+      runDebounced();
+      setTimeout(runDebounced, 1200);
+      setTimeout(runDebounced, 4500);
+      setTimeout(runDebounced, 9000);
+
+      // observe DOM changes and clean again
+      try{
+        var obs = new MutationObserver(function(){ runDebounced(); });
+        obs.observe(document.body || document.documentElement, {subtree:true, childList:true, characterData:true});
+      }catch(e){}
+    }
+
+    // expose manual trigger
+    window.__vspDashKillLoadingNow = function(){
+      try{
+        var n = replaceLoadingOnce();
+        safeBadge("DEGRADED: manual cleaned "+n);
+        return n;
+      }catch(e){ return -1; }
+    };
+
+    if (document.readyState === "loading"){
+      document.addEventListener("DOMContentLoaded", start, {once:true});
+    } else {
+      start();
+    }
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_KILL_LOADING_TEXT_V3 =====
+   Robust: replace stuck "Loading..." via TreeWalker (text nodes).
+*/
+(function(){
+  try{
+    if (window.__VSP_DASH_KILL_LOADING_V3) return;
+    window.__VSP_DASH_KILL_LOADING_V3 = true;
+
+    function badge(msg){
+      try{
+        var id="vsp-dash-degraded-badge-v3";
+        var b=document.getElementById(id);
+        if(!b){
+          b=document.createElement("div");
+          b.id=id;
+          b.style.cssText="position:fixed;right:14px;bottom:52px;z-index:99999;padding:8px 10px;border-radius:10px;font:12px/1.2 system-ui;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.12);max-width:46vw";
+          document.body.appendChild(b);
+        }
+        b.textContent=msg||"DEGRADED";
+      }catch(e){}
+    }
+
+    function replaceLoadingOnce(){
+      var changed=0;
+      try{
+        var root = document.querySelector("#vsp-dashboard-main") || document.body;
+        if(!root) return 0;
+
+        var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        var node;
+        while((node = w.nextNode())){
+          var t = node.nodeValue || "";
+          if(!t) continue;
+          // normalize
+          var tt = t.trim();
+          if(tt==="Loading..." || tt==="Loading.." || tt==="Loading." || tt==="Loading"){
+            node.nodeValue = t.replace(tt, "No data (degraded)");
+            changed++;
+            continue;
+          }
+          if(t.indexOf("Loading...")>=0 || t.indexOf("Loading..")>=0 || t.indexOf("Loading.")>=0){
+            node.nodeValue = t.replace(/Loading\.{1,3}/g, "No data (degraded)");
+            changed++;
+          }
+        }
+      }catch(e){}
+      return changed;
+    }
+
+    function run(){
+      var n = replaceLoadingOnce();
+      if(n>0) badge("DEGRADED: charts no data (cleaned "+n+")");
+      return n;
+    }
+
+    // run after initial loads
+    setTimeout(run, 1200);
+    setTimeout(run, 6500);
+
+    // catch late renders: every 2s for 16s
+    var left = 8;
+    var iv = setInterval(function(){
+      try{
+        run();
+        left--;
+        if(left<=0) clearInterval(iv);
+      }catch(e){
+        clearInterval(iv);
+      }
+    }, 2000);
+
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_KILL_LOADING_TEXT_V2 =====
+   Replace stuck "Loading..." placeholders in dashboard panels after timeout.
+*/
+(function(){
+  try{
+    if (window.__VSP_DASH_KILL_LOADING_V2) return;
+    window.__VSP_DASH_KILL_LOADING_V2 = true;
+
+    function mkBadge(msg){
+      try{
+        var id="vsp-dash-degraded-badge-v2";
+        var b=document.getElementById(id);
+        if(!b){
+          b=document.createElement("div");
+          b.id=id;
+          b.style.cssText="position:fixed;right:14px;bottom:52px;z-index:99999;padding:8px 10px;border-radius:10px;font:12px/1.2 system-ui;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.12);max-width:46vw";
+          document.body.appendChild(b);
+        }
+        b.textContent=msg||"DEGRADED";
+      }catch(e){}
+    }
+
+    function killOnce(){
+      var changed=0;
+      try{
+        // Replace exact "Loading..." and common variants
+        var nodes=document.querySelectorAll("*");
+        for (var i=0;i<nodes.length;i++){
+          var el=nodes[i];
+          if(!el || !el.firstChild) continue;
+          // only touch leaf-ish text nodes to avoid nuking big containers
+          if(el.children && el.children.length>0) continue;
+          var t=(el.textContent||"").trim();
+          if(t==="Loading..." || t==="Loading.." || t==="Loading." || t==="Loading"){
+            el.textContent="No data (degraded)";
+            changed++;
+          }
+        }
+
+        // Also catch dashboard list-style placeholders (many lines)
+        var host=document.querySelector("#vsp-dashboard-main") || document.querySelector("main") || document.body;
+        if(host){
+          var txt=(host.innerText||"");
+          if(txt && txt.indexOf("Loading...")>=0){
+            // Best-effort: don't rewrite whole host, just show a badge.
+            mkBadge("DEGRADED: charts pending (auto-clean)");
+          }
+        }
+
+      }catch(e){}
+      return changed;
+    }
+
+    // Run after main fetches likely completed
+    setTimeout(function(){
+      try{
+        var n=killOnce();
+        if(n>0) mkBadge("DEGRADED: charts no data (cleaned "+n+")");
+      }catch(e){}
+    }, 6500);
+
+    // One more pass later (for slow machines)
+    setTimeout(function(){
+      try{
+        var n=killOnce();
+        if(n>0) mkBadge("DEGRADED: charts no data (cleaned "+n+")");
+      }catch(e){}
+    }, 11000);
+
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_WATCHDOG_NOHANG_V1 =====
+   If dashboard stays in "loading" too long, force exit loading + show degraded note.
+*/
+(function(){
+  try{
+    if (window.__VSP_DASH_WD_V1) return;
+    window.__VSP_DASH_WD_V1 = true;
+
+    function q(sel){ try{return document.querySelector(sel);}catch(e){return null;} }
+    function text(el, t){ try{ if(el) el.textContent = String(t||""); }catch(e){} }
+
+    function markDegraded(msg){
+      // Try common places first; fallback: small toast in corner
+      const host = q("#vsp-dashboard-main") || q("main") || document.body;
+      if(!host) return;
+      let b = q("#vsp-dash-degraded-badge-v1");
+      if(!b){
+        b = document.createElement("div");
+        b.id = "vsp-dash-degraded-badge-v1";
+        b.style.cssText = "position:fixed;right:14px;bottom:14px;z-index:99999;padding:8px 10px;border-radius:10px;font:12px/1.2 system-ui;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.12);max-width:46vw";
+        document.body.appendChild(b);
+      }
+      text(b, msg || "DEGRADED");
+    }
+
+    function stopLoading(){
+      // Common loaders/spinners
+      const loaders = [
+        "#vsp-loading", "#vsp-loader", ".vsp-loader", ".loading", ".spinner",
+        "#vsp-dashboard-loading", "#vsp-dashboard-skeleton", ".vsp-skeleton"
+      ];
+      loaders.forEach(sel=>{
+        const el = q(sel);
+        if(el) try{ el.style.display="none"; }catch(e){}
+      });
+      // Also remove "is-loading" body class if any
+      try{ document.body.classList.remove("loading","is-loading","vsp-loading"); }catch(e){}
+    }
+
+    // After 6 seconds, if still looks loading, force stop.
+    setTimeout(function(){
+      try{
+        // Heuristic: if any loader element still visible OR key KPI nodes empty
+        const loader = q("#vsp-dashboard-loading") || q(".vsp-skeleton") || q("#vsp-loading") || q(".spinner");
+        const kpi = q("[data-kpi]") || q(".kpi") || q(".vsp-kpi");
+        const looksLoading = !!loader && (loader.offsetParent !== null);
+        const looksEmpty = !kpi;
+        if(looksLoading || looksEmpty){
+          stopLoading();
+          markDegraded("DEGRADED: dashboard data not ready (watchdog)");
+        }
+      }catch(e){}
+    }, 6000);
+
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_FETCHSHIM_RUNS_LIMIT1_AND_TREND_POINTS_V1 =====
+   목적: commercial-safe UI
+   - rewrite /api/vsp/runs?limit=1 => /api/vsp/rid_latest (wrap back to old schema)
+   - ensure /api/vsp/trend_v1 has at least 1 point (no empty points[] => no spinner hang)
+*/
+(function(){
+  try{
+    if (window.__VSP_DASH_FETCHSHIM_V1) return;
+    window.__VSP_DASH_FETCHSHIM_V1 = true;
+
+    const _fetch = window.fetch ? window.fetch.bind(window) : null;
+    if (!_fetch) return;
+
+    function _asUrl(input){
+      try{
+        if (typeof input === "string") return input;
+        if (input && typeof input.url === "string") return input.url;
+      }catch(e){}
+      return "";
+    }
+
+    function _mkJsonResponse(obj, origRes){
+      try{
+        const headers = new Headers((origRes && origRes.headers) ? origRes.headers : undefined);
+        headers.set("Content-Type","application/json; charset=utf-8");
+        const body = JSON.stringify(obj);
+        return new Response(body, { status: 200, headers });
+      }catch(e){
+        return new Response(JSON.stringify(obj), { status: 200, headers: { "Content-Type":"application/json; charset=utf-8" }});
+      }
+    }
+
+    window.fetch = async function(input, init){
+      const url = _asUrl(input);
+
+      // (1) runs?limit=1 -> rid_latest wrapped as old runs schema
+      try{
+        if (url && url.indexOf("/api/vsp/runs?limit=1") >= 0){
+          // keep original behavior if caller explicitly wants offset!=0
+          if (url.indexOf("offset=") < 0 || url.indexOf("offset=0") >= 0){
+            try{
+              const ridRes = await _fetch("/api/vsp/rid_latest", init);
+              const ridTxt = await ridRes.text();
+              let rid = "";
+              try{ rid = (JSON.parse(ridTxt)||{}).rid || ""; }catch(e){}
+              if (rid){
+                const wrapped = {
+                  ok: true,
+                  total: 1,
+                  limit: 1,
+                  offset: 0,
+                  runs: [{ rid: rid, mtime: Math.floor(Date.now()/1000) }],
+                  roots: [],
+                  ts: Math.floor(Date.now()/1000),
+                  __via__: "VSP_P1_DASH_FETCHSHIM_V1"
+                };
+                return _mkJsonResponse(wrapped, ridRes);
+              }
+            }catch(e){}
+          }
+        }
+      }catch(e){}
+
+      // default fetch
+      const res = await _fetch(input, init);
+
+      // (2) trend_v1: ensure points non-empty (safe fallback)
+      try{
+        if (url && url.indexOf("/api/vsp/trend_v1") >= 0){
+          const txt = await res.text();
+          let j=null;
+          try{ j = JSON.parse(txt); }catch(e){ j=null; }
+          if (j && typeof j === "object"){
+            const pts = Array.isArray(j.points) ? j.points : [];
+            if (pts.length === 0){
+              const latest = j.latest_run_id || "";
+              const total = (typeof j.total_findings === "number") ? j.total_findings : 0;
+              j.points = [{
+                label: latest ? String(latest) : "latest",
+                run_id: latest,
+                total_findings: total,
+                ts: Date.now(),
+                __fallback__: true
+              }];
+              j.__via__ = "VSP_P1_DASH_FETCHSHIM_V1";
+              return _mkJsonResponse(j, res);
+            }
+          }
+          // if not modified, return original by re-wrapping consumed body
+          return new Response(txt, { status: res.status, statusText: res.statusText, headers: res.headers });
+        }
+      }catch(e){
+        // if anything fails, let original response pass through
+      }
+
+      return res;
+    };
+  }catch(e){}
+})();
+
+// VSP_CIO_BUILDSTAMP_V1_LOADER
+try{
+  if(!document.querySelector('script[data-vsp-cio-buildstamp]')){
+    var s=document.createElement('script');
+    s.src='/static/js/vsp_cio_build_stamp_v1.js?v='+(window.__VSP_ASSET_V||Date.now());
+    s.defer=true;
+    s.setAttribute('data-vsp-cio-buildstamp','1');
+    document.head.appendChild(s);
+  }
+}catch(_e){}
+
+try{if(!document.querySelector('script[data-vsp-cio-skeleton]')){var s=document.createElement("script");s.src="/static/js/vsp_cio_skeleton_kpi_v1.js?v=cio_sk_v1";s.defer=true;s.setAttribute("data-vsp-cio-skeleton","1");document.head.appendChild(s);}}catch(_e){};
+// VSP_BADGEPIN_V2_LOADER
+(function(){
+  try{
+    if (window.__VSP_BADGEPIN_V2_LOADER) return;
+    window.__VSP_BADGEPIN_V2_LOADER = true;
+    var id="vsp-pin-dataset-badge-v2";
+    if (document.getElementById(id)) return;
+    var sc=document.createElement("script");
+    sc.id=id;
+    sc.src="/static/js/vsp_pin_dataset_badge_v2.js?v=" + (window.__VSP_ASSET_V || Date.now());
+    sc.async=true;
+    sc.defer=true;
+    (document.head||document.documentElement).appendChild(sc);
+  }catch(e){}
+})();
+
+ // === END CIO hard-block luxe ===
+/* ===== VSP_P1_RULE_OVERRIDES_RULES_ONLY_FINAL_V1 =====
+   Normalize any API shape to {schema:"rules_v1", rules:[...]}.
+*/
+function __vspRO_pickRules(j){
+  try{
+    if(!j || typeof j!=="object") return [];
+    // prefer top-level rules
+    if(Array.isArray(j.rules)) return j.rules.filter(x=>x && typeof x==="object");
+    // allow top-level items legacy
+    if(Array.isArray(j.items)) return j.items.filter(x=>x && typeof x==="object");
+    // allow data.* variants
+    const d = (j.data && typeof j.data==="object") ? j.data : null;
+    if(d){
+      if(Array.isArray(d.rules)) return d.rules.filter(x=>x && typeof x==="object");
+      if(Array.isArray(d.items)) return d.items.filter(x=>x && typeof x==="object");
+    }
+  }catch(e){}
+  return [];
+}
+function __vspRO_norm(j){
+  return { schema:"rules_v1", rules: __vspRO_pickRules(j) };
+}
+function __vspRO_normFromText(txt){
+  try{
+    const obj = JSON.parse(txt || "{}");
+    return __vspRO_norm(obj);
+  }catch(e){
+    return { schema:"rules_v1", rules: [] };
+  }
+}
+/* VSP_P2_JS_ASSET_V_PINNED_V1 */
+(function(){
+  try {
+    if (!window.__VSP_ASSET_V) window.__VSP_ASSET_V = "20251224_122204";
+  } catch(e) {}
+})();
+function __vspAssetV(){
+  try {
+    return (window.__VSP_ASSET_V || "20251224_122204");
+  } catch(e) {
+    return "20251224_122204";
+  }
+}
+
+/* VSP_P2_TREND_PATH_FORCE_V2 */
+/* ===================== VSP_P0_FETCH_CACHE_DEDUPE_V1K =====================
+   Purpose: reduce XHR spam by caching/deduping a few hot JSON endpoints at FE layer.
+   Targets: /api/vsp/rid_latest, /api/vsp/rid_latest_gate_root, /api/vsp/release_latest
+   Notes: strips ts= query param; TTL default 30s; dedup in-flight; returns Response(JSON).
+========================================================================= */
+
+/* ===================== VSP_P0_GLOBAL_FETCH_CACHE_DEDUPE_V1N5 =====================
+   Goal: reduce XHR spam by dedupe+TTL cache across ALL FE modules (single place).
+   - Dedupe inflight identical GETs (same normalized URL)
+   - TTL cache hot endpoints (rid_latest, release_latest, runs, dashboard, gate summary, trend, top_findings)
+   - Strip noisy ts= and sort query params for stable keys
+=============================================================================== */
+(function(){
+  try{
+    if (window.__VSP_FETCHCACHE_V1N5__) return;
+    window.__VSP_FETCHCACHE_V1N5__ = true;
+
+    const _fetch = window.fetch ? window.fetch.bind(window) : null;
+    if (!_fetch) return;
+
+    const now = ()=> Date.now();
+    const inflight = new Map(); // key -> Promise(entry)
+    const cache = new Map();    // key -> { exp, status, headers, text }
+
+    function normUrl(input){
+      try{
+        const u = (input instanceof URL) ? input : new URL(String(input), location.origin);
+        if (u.origin !== location.origin) return null;
+
+        // strip cache-busters
+        u.searchParams.delete("ts");
+        u.searchParams.delete("_ts");
+        u.searchParams.delete("__ts");
+
+        // sort params for stable key
+        const keys = Array.from(u.searchParams.keys()).sort();
+        const pairs = [];
+        for(const k of keys){
+          const vals = u.searchParams.getAll(k);
+          for(const v of vals){
+            pairs.push([k, v]);
+          }
+        }
+        u.search = "";
+        for(const [k,v] of pairs){
+          u.searchParams.append(k, v);
+        }
+        return u.pathname + (u.search ? u.search : "");
+      }catch(e){
+        return null;
+      }
+    }
+
+    function ttlFor(pathq){
+      try{
+        const path = (pathq||"").split("?")[0] || "";
+        // HOT endpoints: cap spam hard
+        if (path === "/api/vsp/rid_latest") return 30000;
+        if (path === "/api/vsp/rid_latest_gate_root") return 30000;
+        if (path === "/api/vsp/release_latest") return 60000;
+        if (path === "/api/vsp/runs") return 30000;
+
+        if (path === "/api/vsp/dashboard_v3") return 12000;
+        if (path === "/api/vsp/run_gate_summary_v1") return 12000;
+
+        if (path === "/api/vsp/trend_v1?path=") return 15000;
+        if (path === "/api/vsp/top_findings_v1") return 15000;
+
+        // Findings paging is noisy/variable => do NOT global-cache it by default
+        if (path.startsWith("/api/vsp/findings_page_")) return 0;
+
+        return 0;
+      }catch(e){ return 0; }
+    }
+
+    function headersToObj(h){
+      const o = {};
+      try{
+        if (!h || !h.forEach) return o;
+        h.forEach((v,k)=>{ o[k]=v; });
+      }catch(e){}
+      return o;
+    }
+    function objToHeaders(o){
+      const h = new Headers();
+      try{
+        for(const k in (o||{})) h.set(k, String(o[k]));
+      }catch(e){}
+      return h;
+    }
+
+    async function fetchAndStore(key, input, init, ttl){
+      const r = await _fetch(input, init);
+      try{
+        const clone = r.clone();
+        const text = await clone.text();
+        const ent = { exp: now()+ttl, status: r.status, headers: headersToObj(r.headers), text };
+        cache.set(key, ent);
+        return ent;
+      }catch(e){
+        // If we can't read body, still don't break callers
+        return { exp: now()+ttl, status: r.status, headers: headersToObj(r.headers), text: "" };
+      }
+    }
+
+    window.fetch = function(input, init){
+      try{
+        const method = ((init && init.method) ? String(init.method) : "GET").toUpperCase();
+        if (method !== "GET") return _fetch(input, init);
+
+        const key = normUrl(input);
+        if (!key) return _fetch(input, init);
+
+        const ttl = ttlFor(key);
+        if (!ttl) return _fetch(input, init);
+
+        const c = cache.get(key);
+        if (c && c.exp > now()){
+          // serve from cache
+          return Promise.resolve(new Response(c.text, { status: c.status, headers: objToHeaders(c.headers) }));
+        }
+
+        const inf = inflight.get(key);
+        if (inf){
+          return inf.then(ent => new Response(ent.text, { status: ent.status, headers: objToHeaders(ent.headers) }));
+        }
+
+        const prom = fetchAndStore(key, input, init, ttl)
+          .finally(()=>{ try{ inflight.delete(key); }catch(e){} });
+        inflight.set(key, prom);
+
+        // Caller gets real network response (not cached one) to preserve streaming semantics.
+        // But to keep it simple and consistent, return a cloned Response built from stored entry.
+        return prom.then(ent => new Response(ent.text, { status: ent.status, headers: objToHeaders(ent.headers) }));
+      }catch(e){
+        return _fetch(input, init);
+      }
+    };
+
+  }catch(e){}
+})(); 
+/* ===================== /VSP_P0_GLOBAL_FETCH_CACHE_DEDUPE_V1N5 ===================== */
+
+/* ===================== VSP_P0_FE_REQ_COUNTER_V1N5B =====================
+   Lightweight request telemetry for commercial audit (no server access log needed).
+   Use in DevTools console:
+     __vspReqTop(10)  // top endpoints in last 10 seconds
+     __vspReqClear()
+============================================================================ */
+(function(){
+  try{
+    if (window.__VSP_REQ_COUNTER_V1N5B__) return;
+    window.__VSP_REQ_COUNTER_V1N5B__ = true;
+
+    window.__VSP_REQ_LOG = window.__VSP_REQ_LOG || [];
+    function norm(u){
+      try{
+        const x = new URL(String(u), location.origin);
+        if (x.origin !== location.origin) return null;
+        if (!x.pathname.startsWith("/api/vsp/")) return null;
+        x.searchParams.delete("ts"); x.searchParams.delete("_ts"); x.searchParams.delete("__ts");
+        // keep rid but normalize ordering
+        const keys = Array.from(x.searchParams.keys()).sort();
+        const pairs=[];
+        for(const k of keys){
+          const vals=x.searchParams.getAll(k);
+          for(const v of vals) pairs.push([k,v]);
+        }
+        x.search="";
+        for(const [k,v] of pairs) x.searchParams.append(k,v);
+        return x.pathname + (x.search?x.search:"");
+      }catch(e){ return null; }
+    }
+
+    const _fetch = window.fetch ? window.fetch.bind(window) : null;
+    if (!_fetch) return;
+
+    window.fetch = function(input, init){
+      try{
+        const method = ((init&&init.method)?String(init.method):"GET").toUpperCase();
+        const key = norm(input);
+        if (key){
+          window.__VSP_REQ_LOG.push({ t: Date.now(), m: method, u: key });
+          // cap memory
+          if (window.__VSP_REQ_LOG.length > 2000) window.__VSP_REQ_LOG.splice(0, 500);
+        }
+      }catch(e){}
+      return _fetch(input, init);
+    };
+
+    window.__vspReqClear = function(){ try{ window.__VSP_REQ_LOG = []; }catch(e){} };
+
+    window.__vspReqTop = function(seconds){
+      try{
+        const sec = Math.max(1, Number(seconds||10));
+        const cut = Date.now() - sec*1000;
+        const arr = (window.__VSP_REQ_LOG||[]).filter(x=>x && x.t>=cut);
+        const m = new Map();
+        for(const x of arr){
+          const k = x.u;
+          m.set(k, (m.get(k)||0)+1);
+        }
+        const out = Array.from(m.entries()).sort((a,b)=>b[1]-a[1]).slice(0,25);
+        console.log("[VSP_REQ_TOP]", { window_sec: sec, total: arr.length });
+        for(const [k,c] of out) console.log(String(c).padStart(4," "), k);
+        return out;
+      }catch(e){
+        console.warn("[VSP_REQ_TOP] error", e);
+        return [];
+      }
+    };
+
+  }catch(e){}
+})(); 
+/* ===================== /VSP_P0_FE_REQ_COUNTER_V1N5B ===================== */
+
+
+/* ===================== VSP_P0_SINGLEFLIGHT_HELPER_V1N7 =====================
+   window.__vspSF(url, ttlMs): single-flight + TTL JSON cache for hot endpoints.
+============================================================================ */
+(function(){
+  try{
+    if (window.__VSP_SF_V1N7__) return;
+    window.__VSP_SF_V1N7__ = true;
+    const inflight = new Map(); // url -> Promise
+    const cache = new Map();    // url -> { exp, val }
+    function now(){ return Date.now(); }
+    window.__vspSF = async function(url, ttlMs){
+      const ttl = Math.max(0, Number(ttlMs||0));
+      const key = String(url||"");
+      const c = cache.get(key);
+      if (c && c.exp > now()) return c.val;
+      const inf = inflight.get(key);
+      if (inf) return await inf;
+      const prom = (async ()=>{
+        const r = await fetch(key, { credentials:"same-origin" });
+        if (!r.ok) throw new Error("HTTP "+r.status+" for "+key);
+        const j = await r.json();
+        if (ttl) cache.set(key, { exp: now()+ttl, val: j });
+        return j;
+      })().finally(()=>{ try{ inflight.delete(key); }catch(e){} });
+      inflight.set(key, prom);
+      return await prom;
+    };
+  }catch(e){}
+})(); 
+/* ===================== /VSP_P0_SINGLEFLIGHT_HELPER_V1N7 ===================== */
+
+
+
+
+
+
+(function(){
+  try{
+    if (window.__VSP_FETCH_CACHE_DEDUPE_V1K__) return;
+    window.__VSP_FETCH_CACHE_DEDUPE_V1K__ = true;
+
+    const TTL_MS = 30 * 1000;
+    const cache = new Map();     // key -> {ts, status, json}
+    const inflight = new Map();  // key -> Promise<{status,json}>
+
+    function isSameOrigin(u){
+      try{ return (new URL(u, location.origin)).origin === location.origin; }
+      catch(e){ return false; }
+    }
+    function normUrl(u){
+      try{
+        const url = new URL(u, location.origin);
+        if (url.searchParams.has("ts")) url.searchParams.delete("ts");
+        return url.pathname + (url.search ? url.search : "");
+      }catch(e){
+        return String(u||"");
+      }
+    }
+    function shouldCache(u){
+      try{
+        const url = new URL(u, location.origin);
+        const p = url.pathname || "";
+        if (!p.startsWith("/api/vsp/")) return false;
+        return (
+          p === "/api/vsp/rid_latest" ||
+          p === "/api/vsp/rid_latest_gate_root" ||
+          p === "/api/vsp/release_latest"
+        );
+      }catch(e){
+        return false;
+      }
+    }
+    function makeJsonResp(obj, status){
+      try{
+        return new Response(JSON.stringify(obj ?? {}), {
+          status: status || 200,
+          headers: { "Content-Type": "application/json; charset=utf-8" }
+        });
+      }catch(e){
+        return new Response("{}", {status: status || 200, headers: {"Content-Type":"application/json"}});
+      }
+    }
+
+    const origFetch = window.fetch.bind(window);
+    window.fetch = function(resource, init){
+      try{
+        const method = ((init && init.method) || (resource && resource.method) || "GET").toUpperCase();
+        const urlStr = (typeof resource === "string") ? resource : (resource && resource.url) ? resource.url : String(resource||"");
+        if (method !== "GET") return origFetch(resource, init);
+        if (!isSameOrigin(urlStr)) return origFetch(resource, init);
+        if (!shouldCache(urlStr)) return origFetch(resource, init);
+
+        const key = method + " " + normUrl(urlStr);
+        const now = Date.now();
+
+        const hit = cache.get(key);
+        if (hit && (now - hit.ts) < TTL_MS){
+          return Promise.resolve(makeJsonResp(hit.json, hit.status));
+        }
+
+        const inF = inflight.get(key);
+        if (inF){
+          return inF.then(r => makeJsonResp(r.json, r.status));
+        }
+
+        const pReq = origFetch(resource, init)
+          .then(async (r) => {
+            let j = {};
+            try{ j = await r.clone().json(); }catch(e){ j = {}; }
+            const pack = { status: r.status || 200, json: j };
+            cache.set(key, { ts: Date.now(), status: pack.status, json: pack.json });
+            return pack;
+          })
+          .finally(() => { try{ inflight.delete(key); }catch(e){} });
+
+        inflight.set(key, pReq);
+        return pReq.then(pack => makeJsonResp(pack.json, pack.status));
+      }catch(e){
+        return origFetch(resource, init);
+      }
+    };
+  }catch(e){}
+})(); 
+/* ===================== /VSP_P0_FETCH_CACHE_DEDUPE_V1K ===================== */
+
+/* ===================== VSP_P0_FETCH_CACHE_DEDUPE_V1K2 =====================
+   Upgrade:
+   - strip ts= for ALL /api/vsp/*
+   - also cache rid-scoped heavy endpoints: dashboard_v3, run_gate_summary_v1 (TTL 12s)
+========================================================================= */
+(function(){
+  try{
+    if (!window.__VSP_FETCH_CACHE_DEDUPE_V1K__) return;
+    if (window.__VSP_FETCH_CACHE_DEDUPE_V1K2__) return;
+    window.__VSP_FETCH_CACHE_DEDUPE_V1K2__ = true;
+
+    const TTL_HEAVY_MS = 12 * 1000;
+
+    // Wrap fetch again but delegate to the already-wrapped fetch cache if present.
+    const prevFetch = window.fetch.bind(window);
+
+    function isSameOrigin(u){
+      try{ return (new URL(u, location.origin)).origin === location.origin; }
+      catch(e){ return false; }
+    }
+    function stripTsAll(u){
+      try{
+        const url = new URL(u, location.origin);
+        if (url.pathname.startsWith("/api/vsp/") && url.searchParams.has("ts")) url.searchParams.delete("ts");
+        return url.pathname + (url.search ? url.search : "");
+      }catch(e){ return String(u||""); }
+    }
+    function isHeavy(u){
+      try{
+        const url = new URL(u, location.origin);
+        if (!url.pathname.startsWith("/api/vsp/")) return false;
+        return (url.pathname === "/api/vsp/dashboard_v3" || url.pathname === "/api/vsp/run_gate_summary_v1");
+      }catch(e){ return false; }
+    }
+
+    const heavyCache = new Map();   // key -> {ts, status, json}
+    const heavyIn = new Map();      // key -> Promise
+
+    function makeJsonResp(obj, status){
+      try{
+        return new Response(JSON.stringify(obj ?? {}), {
+          status: status || 200,
+          headers: { "Content-Type": "application/json; charset=utf-8" }
+        });
+      }catch(e){
+        return new Response("{}", {status: status || 200, headers: {"Content-Type":"application/json"}});
+      }
+    }
+
+    window.fetch = function(resource, init){
+      try{
+        const method = ((init && init.method) || (resource && resource.method) || "GET").toUpperCase();
+        const urlStr = (typeof resource === "string") ? resource : (resource && resource.url) ? resource.url : String(resource||"");
+        if (method !== "GET") return prevFetch(resource, init);
+        if (!isSameOrigin(urlStr)) return prevFetch(resource, init);
+
+        const n = stripTsAll(urlStr);
+
+        // Heavy rid-scoped cache
+        if (isHeavy(urlStr)){
+          const key = method + " " + n;
+          const now = Date.now();
+          const hit = heavyCache.get(key);
+          if (hit && (now - hit.ts) < TTL_HEAVY_MS){
+            return Promise.resolve(makeJsonResp(hit.json, hit.status));
+          }
+          const infl = heavyIn.get(key);
+          if (infl){
+            return infl.then(pack => makeJsonResp(pack.json, pack.status));
+          }
+          const pReq = prevFetch(n, init)
+            .then(async (r)=>{
+              let j = {};
+              try{ j = await r.clone().json(); }catch(e){ j = {}; }
+              const pack = {status: r.status || 200, json: j};
+              heavyCache.set(key, {ts: Date.now(), status: pack.status, json: pack.json});
+              return pack;
+            })
+            .finally(()=>{ try{ heavyIn.delete(key); }catch(e){} });
+          heavyIn.set(key, pReq);
+          return pReq.then(pack => makeJsonResp(pack.json, pack.status));
+        }
+
+        // For all /api/vsp/* just strip ts and delegate
+        if (n !== urlStr && n.startsWith("/api/vsp/")){
+          return prevFetch(n, init);
+        }
+
+        return prevFetch(resource, init);
+      }catch(e){
+        return prevFetch(resource, init);
+      }
+    };
+  }catch(e){}
+})();
+ /* ===================== /VSP_P0_FETCH_CACHE_DEDUPE_V1K2 ===================== */
+
+
+
+
+/* VSP_P2_BUNDLE_TABS5_V1
+ * Router-bundle: load page modules by route, keep templates minimal:
+ * Only include: vsp_tabs4_autorid_v1.js + this file.
+ */
+(function(){
+  "use strict";
+
+  function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
+  function warn(){ try{ console.warn.apply(console, arguments); }catch(e){} }
+
+  function getAssetV(){
+    // Try to reuse existing ?v=<digits> from any script tag.
+    var scripts = document.getElementsByTagName("script");
+    for (var i=0;i<scripts.length;i++){
+      var src = scripts[i].getAttribute("src") || "";
+      var m = src.match(/[?&]v=([0-9]{6,})/);
+      if (m) return m[1];
+    }
+    return "";
+  }
+
+  function withV(url){
+    var v = getAssetV();
+    if(!v) return url;
+    return url + (url.indexOf("?")>=0 ? "&" : "?") + "v=" + encodeURIComponent(v);
+  }
+
+  function loadScript(url){
+    return new Promise(function(resolve, reject){
+      var s = document.createElement("script");
+      s.defer = true;
+      s.src = withV(url);
+      s.onload = function(){ resolve(url); };
+      s.onerror = function(){ reject(new Error("load fail: "+url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function exists(url){
+    // Avoid noisy 404s: HEAD first (fallback GET if HEAD not allowed)
+    var u = withV(url);
+    return fetch(u, { method: "GET", credentials: "same-origin", cache: "no-store" })
+      .then(function(r){
+        if(r && r.ok) return true;
+        if(r && (r.status === 405 || r.status === 403)) {
+          return fetch(u, { method: "GET", credentials: "same-origin", cache: "no-store" })
+            .then(function(r2){ return !!(r2 && r2.ok); })
+            .catch(function(){ return false; });
+        }
+        return false;
+      })
+      .catch(function(){ return false; });
+  }
+
+  function loadIfExists(url){
+    return exists(url).then(function(ok){
+      if(!ok) return false;
+      return loadScript(url).then(function(){ return true; }).catch(function(){ return false; });
+    });
+  }
+
+  function pickRoute(){
+    var p = (location.pathname || "/").toLowerCase();
+    // normalize
+    if (p === "/" || p === "/index") return "/vsp5";
+    return p;
+  }
+
+  // Candidate modules: router will only load ones that exist.
+  var ROUTES = {
+    "/vsp5": [
+      "/static/js/vsp_dash_only_v1.js",
+      "/static/js/vsp_dashboard_kpi_force_any_v1.js",
+      "/static/js/vsp_dashboard_gate_story_v1.js",
+      "/static/js/vsp_dashboard_charts_pretty_v3.js"
+    ],
+    "/runs": [
+      "/static/js/vsp_runs_reports_overlay_v1.js",
+      "/static/js/vsp_runs_quick_actions_v1.js",
+      "/static/js/vsp_runs_tab_resolved_v1.js"
+    ],
+    "/settings": [
+      "/static/js/vsp_settings_tab_v1.js"
+    ],
+    "/data_source": [
+      "/static/js/vsp_data_source_lazy_v1.js"
+    ],
+    "/rule_overrides": [
+      "/static/js/vsp_rule_overrides_v1.js"
+    ]
+  };
+
+  var route = pickRoute();
+  var list = ROUTES[route] || [];
+  if(!list.length){
+    warn("[BundleTabs5] no modules mapped for route:", route);
+    return;
+  }
+
+  log("[BundleTabs5] route=", route, "candidates=", list.length);
+
+  // Load sequentially to keep deterministic order
+  (function seq(i){
+    if(i >= list.length){
+      log("[BundleTabs5] done route=", route);
+      return;
+    }
+    loadIfExists(list[i]).then(function(loaded){
+      if(loaded) log("[BundleTabs5] loaded:", list[i]);
+      seq(i+1);
+    });
+  })(0);
+
+
+  // ===================== VSP_P2_BADGES_RID_OVERALL_V1 =====================
+  (function(){
+    function safeLog(){ try{ console.log.apply(console, arguments); }catch(e){} }
+    function safeWarn(){ try{ console.warn.apply(console, arguments); }catch(e){} }
+
+    function ensureStyle(){
+      if (document.getElementById("vsp_p2_badges_style")) return;
+      var st = document.createElement("style");
+      st.id = "vsp_p2_badges_style";
+      st.textContent = `
+        .vsp-p2-badges{display:flex;gap:8px;align-items:center;margin-left:auto}
+        .vsp-badge{font:12px/1.2 ui-sans-serif,system-ui; padding:4px 8px; border-radius:999px;
+          border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#e8eefc;
+          letter-spacing:.2px; white-space:nowrap}
+        .vsp-badge b{font-weight:700}
+        .vsp-badge.green{border-color:rgba(46,204,113,.45); background:rgba(46,204,113,.12)}
+        .vsp-badge.amber{border-color:rgba(241,196,15,.45); background:rgba(241,196,15,.12)}
+        .vsp-badge.red{border-color:rgba(231,76,60,.45); background:rgba(231,76,60,.12)}
+        .vsp-badge.gray{opacity:.85}
+        .vsp-badge-click:hover{filter:brightness(1.18)}
+      `;
+      document.head.appendChild(st);
+    }
+
+    function findTopbar(){
+      // Your pages use .topnav in /vsp5; other tabs may also have it.
+      return document.querySelector(".topnav") || document.querySelector("#topbar") || null;
+    }
+
+    function ensureContainer(topbar){
+      var id = "vsp_p2_badges";
+      var c = document.getElementById(id);
+      if (c) return c;
+      c = document.createElement("div");
+      c.id = id;
+      c.className = "vsp-p2-badges";
+      if (topbar){
+        topbar.appendChild(c);
+      } else {
+        // fallback: put at top of body (should rarely happen)
+        c.style.position = "fixed";
+        c.style.top = "10px";
+        c.style.right = "10px";
+        c.style.zIndex = "9999";
+        document.body.appendChild(c);
+      }
+      return c;
+    }
+
+    
+    function mkBadge(cls, text, opts){
+      opts = opts || {};
+      var el = document.createElement("span");
+      el.className = "vsp-badge " + cls + (opts.click ? " vsp-badge-click" : "");
+      el.textContent = text;
+      if (opts.click){
+        el.style.cursor = "pointer";
+        el.title = opts.title || "Open";
+        if (opts.action) el.dataset.vspAction = opts.action;
+        if (opts.payload) el.dataset.vspPayload = opts.payload;
+        el.addEventListener("click", function(){
+          try{
+            var a = el.dataset.vspAction || "";
+            var p = el.dataset.vspPayload || "";
+            if (a === "runs_rid"){
+              // p is rid
+              location.href = "/runs?rid=" + encodeURIComponent(p);
+            } else if (a === "dash_gate"){
+              location.href = "/vsp5?gate=1";
+            }
+          }catch(e){}
+        });
+      }
+      return el;
+    }
+
+
+    function timeoutFetch(url, ms){
+      var ctrl = new AbortController();
+      var t = setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, ms);
+      return fetch(url, {cache:"no-store", credentials:"same-origin", signal: ctrl.signal})
+        .finally(function(){ clearTimeout(t); });
+    }
+
+    function pickOverallClass(v){
+      v = (v || "").toString().toUpperCase();
+      if (v === "GREEN" || v === "PASS" || v === "OK") return "green";
+      if (v === "AMBER" || v === "WARN" || v === "WARNING" || v === "DEGRADED") return "amber";
+      if (v === "RED" || v === "FAIL" || v === "BLOCK") return "red";
+      return "gray";
+    }
+
+    function shortRid(rid){
+      rid = (rid || "").toString();
+      if (rid.length <= 18) return rid;
+      return rid.slice(0, 10) + "..." + rid.slice(-6);
+    }
+
+    async function run(){
+      try{
+        ensureStyle();
+        var topbar = findTopbar();
+        var c = ensureContainer(topbar);
+
+        // clear old
+        c.innerHTML = "";
+        c.appendChild(mkBadge("gray", "RID: ..."));
+        c.appendChild(mkBadge("gray", "Overall: ..."));
+
+        // 1) rid_latest
+        var rid = "";
+        try{
+          var r1 = await timeoutFetch("/api/vsp/rid_latest", 3500);
+          var j1 = await r1.json();
+          rid = (j1 && j1.rid) ? j1.rid : "";
+        }catch(e){
+          safeWarn("[P2Badges] rid_latest fetch fail", e);
+        }
+
+        // 2) run_gate_summary
+        var overall = "";
+        var degraded = false;
+        try{
+          if (rid){
+            var url = "/api/vsp/run_gate_summary_v1?rid=" + encodeURIComponent(rid);
+            var r2 = await timeoutFetch(url, 4000);
+            var j2 = await r2.json();
+
+            overall = (j2 && j2.overall) ? j2.overall : "";
+            // Best-effort degraded detection (flexible)
+            degraded = !!(
+              (j2 && j2.degraded) ||
+              (j2 && j2.status && (""+j2.status).toUpperCase().includes("DEGRADED")) ||
+              (j2 && j2.degraded_tools && Array.isArray(j2.degraded_tools) && j2.degraded_tools.length) ||
+              (j2 && j2.missing_tools && Array.isArray(j2.missing_tools) && j2.missing_tools.length)
+            );
+          }
+        }catch(e){
+          safeWarn("[P2Badges] run_gate_summary fetch fail", e);
+        }
+
+        // render
+        c.innerHTML = "";
+        c.appendChild(mkBadge("gray", "RID: " + (rid ? shortRid(rid) : "n/a"), {click:true, action:"runs_rid", payload: rid || "", title:"Open Runs & Reports (RID)"}));
+        var oc = pickOverallClass(overall);
+        c.appendChild(mkBadge(oc, "Overall: " + (overall ? overall.toString().toUpperCase() : "n/a"), {click:true, action:"dash_gate", payload:"1", title:"Open Dashboard (Gate)"}));
+        if (degraded){
+          c.appendChild(mkBadge("amber", "DEGRADED", {click:true, action:"dash_gate", payload:"1", title:"Open Dashboard (Gate)"}));
+        }
+
+        safeLog("[P2Badges] ok rid=", rid, "overall=", overall, "degraded=", degraded);
+      }catch(e){
+        // no throw to avoid breaking UI
+      }
+    }
+
+    // Run after DOM is ready enough
+    if (document.readyState === "loading"){
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
+    }
+  })();
+  // ===================== /VSP_P2_BADGES_RID_OVERALL_V1 =====================
+
+})();
+
+/* VSP_P2_BADGES_CLICK_ACTIONS_V1 */
+
+
+/* VSP_P2_SETTINGS_TOOL_POLICY_PANEL_V1 */
+(function(){
+  function _vspEl(tag, attrs, html){
+    const e = document.createElement(tag);
+    if (attrs) for (const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]);
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function _vspTryMountSettingsPanel(){
+    try {
+      if (location.pathname !== "/settings") return;
+      if (document.getElementById("vsp-settings-commercial-panel")) return;
+
+      const anchor = document.querySelector("#vsp-settings-main") || document.querySelector("main") || document.body;
+      const panel = _vspEl("div", {id:"vsp-settings-commercial-panel"}, `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="font-weight:800;letter-spacing:.2px;">Tool Coverage & Policy (Commercial)</div>
+          <div style="opacity:.75;font-size:12px;">8 tools • degrade-graceful • evidence-first</div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">
+          <span class="vsp-pill">Bandit</span>
+          <span class="vsp-pill">Semgrep</span>
+          <span class="vsp-pill">Gitleaks</span>
+          <span class="vsp-pill">KICS</span>
+          <span class="vsp-pill">Trivy</span>
+          <span class="vsp-pill">Syft</span>
+          <span class="vsp-pill">Grype</span>
+          <span class="vsp-pill">CodeQL</span>
+        </div>
+        <div style="margin-top:10px;opacity:.85;font-size:13px;line-height:1.5;">
+          <ul style="margin:0;padding-left:18px;">
+            <li><b>Timeout & degrade:</b> long tools (KICS/CodeQL) must timeout and mark <i>degraded</i>, not hang the pipeline.</li>
+            <li><b>Severity normalization:</b> CRITICAL/HIGH/MEDIUM/LOW/INFO/TRACE.</li>
+            <li><b>Artifacts:</b> always keep logs + raw outputs + unified findings + reports for audit/ISO mapping.</li>
+            <li><b>Dashboard:</b> if KPI is disabled by policy, UI should show a degraded badge (not blank).</li>
+          </ul>
+        </div>
+      `);
+
+      // lightweight styling (works even without CSS)
+      panel.style.cssText = "background:rgba(70,130,255,0.08);border:1px solid rgba(70,130,255,0.22);border-radius:14px;padding:12px 14px;margin:12px auto;max-width:1200px;color:#e9edf6;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;";
+      // add pill style if missing
+      if (!document.getElementById("vsp-pill-style")) {
+        const st = _vspEl("style", {id:"vsp-pill-style"}, `
+          .vsp-pill{display:inline-block;padding:5px 10px;border-radius:999px;
+          background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);
+          font-size:12px;opacity:.92;}
+        `);
+        document.head.appendChild(st);
+      }
+
+      // insert near top
+      try {
+        if (anchor && anchor.firstChild) anchor.insertBefore(panel, anchor.firstChild);
+        else anchor.appendChild(panel);
+      } catch(e) {
+        document.body.insertBefore(panel, document.body.firstChild);
+      }
+      console.log("[VSP][P2] settings commercial panel injected");
+    } catch(e) {
+      console.warn("[VSP][P2] settings panel inject failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", _vspTryMountSettingsPanel);
+  else _vspTryMountSettingsPanel();
+})();
+
+
+/* VSP_P2_RULE_OVERRIDES_SAVE_BAR_V1 */
+(function(){
+  function _vspEl(tag, attrs, html){
+    const e = document.createElement(tag);
+    if (attrs) for (const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]);
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function _pickStringKey(obj){
+    if (!obj || typeof obj !== "object") return null;
+    const prefer = ["text","content","raw","rules","overrides","yaml","json","data","value","body"];
+    for (const k of prefer) if (typeof obj[k] === "string") return k;
+    // fallback: first string field
+    for (const k of Object.keys(obj)) if (typeof obj[k] === "string") return k;
+    return null;
+  }
+
+  async function _ensureRuleOverridesBar(){
+    try {
+      if (location.pathname !== "/rule_overrides") return;
+      if (document.getElementById("vsp-ro-savebar")) return;
+
+      const anchor = document.querySelector("#vsp-rule-overrides-main") || document.querySelector("main") || document.body;
+
+      // find textarea (existing editor) or create one
+      let ta = document.querySelector("textarea");
+      if (!ta) {
+        ta = _vspEl("textarea", {id:"vsp-ro-textarea"}, "");
+        ta.style.cssText = "width:100%;min-height:360px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:10px;color:#e9edf6;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;font-size:12px;line-height:1.45;";
+        anchor.appendChild(ta);
+      }
+
+      const bar = _vspEl("div", {id:"vsp-ro-savebar"}, `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div style="font-weight:800;">Rule Overrides</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button id="vsp-ro-reload" type="button">Reload</button>
+            <button id="vsp-ro-save" type="button">Save</button>
+            <span id="vsp-ro-status" style="opacity:.8;font-size:12px;"></span>
+          </div>
+        </div>
+      `);
+      bar.style.cssText = "background:rgba(0,255,170,0.06);border:1px solid rgba(0,255,170,0.20);border-radius:14px;padding:10px 12px;margin:12px auto;max-width:1200px;color:#e9edf6;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;";
+
+      // button style
+      const st = _vspEl("style", {id:"vsp-ro-btn-style"}, `
+        #vsp-ro-savebar button{padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);
+          background:rgba(255,255,255,0.08);color:#e9edf6;cursor:pointer;}
+        #vsp-ro-savebar button:hover{background:rgba(255,255,255,0.12);}
+      `);
+      document.head.appendChild(st);
+
+      try {
+        if (anchor && anchor.firstChild) anchor.insertBefore(bar, anchor.firstChild);
+        else anchor.appendChild(bar);
+      } catch(e) {
+        document.body.insertBefore(bar, document.body.firstChild);
+      }
+
+      const status = document.getElementById("vsp-ro-status");
+      const setStatus = (t, isErr=false)=>{ if(status) status.textContent = t; if(status) status.style.opacity=isErr? "1":"0.85"; };
+
+      let apiKey = null;
+
+      async function load() {
+        setStatus("Loading...");
+        const j = await fetch("/api/ui/rule_overrides_v2", {credentials:"same-origin"}).then(r=>r.json());
+        apiKey = _pickStringKey(j);
+        if (apiKey && typeof j[apiKey] === "string") {
+          ta.value = j[apiKey];
+          setStatus("Loaded ("+apiKey+")");
+        } else {
+          // if server returns structured JSON, store pretty text
+          ta.value = JSON.stringify(__vspRO_norm(j), null, 2);
+          setStatus("Loaded (json)");
+        }
+      }
+
+      async function save() {
+        setStatus("Saving...");
+        let payload = null;
+        if (apiKey) {
+          payload = {[apiKey]: ta.value};
+        } else {
+          // fallback - try common key
+          payload = {text: ta.value};
+        }
+        const res = await fetch("/api/ui/rule_overrides_v2", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(__vspRO_norm(payload)),
+        });
+        const txt = await res.text();
+        if (res.ok) {
+          setStatus("Saved ✓");
+        } else {
+          setStatus("Save failed: HTTP "+res.status, true);
+          console.warn("[VSP][P2] rule_overrides save failed:", res.status, txt.slice(0,300));
+        }
+      }
+
+      document.getElementById("vsp-ro-reload")?.addEventListener("click", ()=>load().catch(e=>setStatus("Load error", true)));
+      document.getElementById("vsp-ro-save")?.addEventListener("click", ()=>save().catch(e=>setStatus("Save error", true)));
+
+      await load();
+      console.log("[VSP][P2] rule_overrides save bar injected");
+    } catch(e) {
+      console.warn("[VSP][P2] rule_overrides inject failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", _ensureRuleOverridesBar);
+  else _ensureRuleOverridesBar();
+})();
+
+
+/* VSP_P2_RULE_OVERRIDES_SAVE_CONTRACT_RULES_V1C
+   Backend:
+     GET  /api/ui/rule_overrides_v2 -> {"ok":true,"schema":"rules_v1","rules":[...],...}
+     POST /api/ui/rule_overrides_v2 expects same shape (schema + rules at least)
+*/
+(function(){
+  async function roFix(){
+    try{
+      if (location.pathname !== "/rule_overrides") return;
+
+      var btnSave = document.getElementById("vsp-ro-save");
+      var btnReload = document.getElementById("vsp-ro-reload");
+      var ta = document.querySelector("textarea");
+      var status = document.getElementById("vsp-ro-status");
+
+      if (!btnSave || !btnReload || !ta) return;
+
+      function setStatus(t, isErr){
+        if (!status) return;
+        status.textContent = t;
+        status.style.opacity = isErr ? "1" : "0.85";
+      }
+
+      var schema = "rules_v1";
+
+      async function loadRules(){
+        setStatus("Loading...", false);
+        var j = await fetch("/api/ui/rule_overrides_v2", {credentials:"same-origin"}).then(function(r){return r.json();});
+        schema = (j && j.schema) ? j.schema : "rules_v1";
+        var rules = (j && Array.isArray(j.rules)) ? j.rules : [];
+        ta.value = JSON.stringify((Array.isArray(rules)?{schema:"rules_v1",rules:rules}:__vspRO_norm(rules)), null, 2);
+        setStatus("Loaded (" + schema + "), rules=" + rules.length, false);
+      }
+
+      async function saveRules(){
+        setStatus("Saving...", false);
+        var parsed;
+        try{
+          parsed = JSON.parse(ta.value || "[]");
+        }catch(e){
+          setStatus("Textarea is not valid JSON", true);
+          return;
+        }
+
+        var rules = [];
+        if (Array.isArray(parsed)) rules = parsed;
+        else if (parsed && Array.isArray(parsed.rules)) rules = parsed.rules;
+        else{
+          setStatus("JSON must be an array or object with 'rules' array", true);
+          return;
+        }
+
+        var payload = {schema: (schema || "rules_v1"), rules: rules, notes: "ui"};
+        var res = await fetch("/api/ui/rule_overrides_v2", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(__vspRO_norm(payload))
+        });
+
+        var txt = await res.text();
+        if (!res.ok){
+          setStatus("Save failed HTTP " + res.status, true);
+          try{ console.warn("[VSP][P2] rule_overrides save failed:", res.status, txt.slice(0,300)); }catch(e){}
+          return;
+        }
+
+        // try parse {ok:true}
+        try{
+          var j2 = JSON.parse(txt);
+          if (j2 && j2.ok === true) setStatus("Saved ✓ rules=" + rules.length, false);
+          else setStatus("Saved (server response not ok?)", false);
+        }catch(e){
+          setStatus("Saved ✓ rules=" + rules.length, false);
+        }
+      }
+
+      // Override handlers at capture phase (stop older injected handlers)
+      btnReload.addEventListener("click", function(ev){
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        loadRules().catch(function(){ setStatus("Load error", true); });
+      }, true);
+
+      btnSave.addEventListener("click", function(ev){
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        saveRules().catch(function(){ setStatus("Save error", true); });
+      }, true);
+
+      if (!window.__VSP_RO_FIX_V1C__){
+        window.__VSP_RO_FIX_V1C__ = 1;
+        loadRules().catch(function(){});
+        try{ console.log("[VSP][P2] rule_overrides save contract fixed (rules_v1) v1c"); }catch(e){}
+      }
+    }catch(e){
+      try{ console.warn("[VSP][P2] roFix v1c error:", e); }catch(_e){}
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", roFix);
+  else roFix();
+})();
+
+
+/* VSP_P0_SETTINGS_RENDER_TOOLS_TABLE_V1
+   Render a real tools table on /settings using /api/ui/settings_v2
+*/
+(function(){
+  function el(tag, cls, html){
+    var d=document.createElement(tag);
+    if (cls) d.className=cls;
+    if (html!=null) d.innerHTML=html;
+    return d;
+  }
+  function cssOnce(){
+    if (document.getElementById("vsp-settings-tools-style")) return;
+    var st=el("style", null, `
+      .vsp-tools-wrap{margin-top:12px;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
+      .vsp-tools-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+      .vsp-tools-title{font-weight:800;font-size:14px;opacity:.92}
+      .vsp-tools-sub{font-size:12px;opacity:.75;margin-top:4px;line-height:1.35}
+      .vsp-tools-meta{font-size:11px;opacity:.7}
+      .vsp-tools-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:10px;overflow:hidden;border-radius:14px}
+      .vsp-tools-table th{font-size:11px;letter-spacing:.02em;text-transform:uppercase;opacity:.75;padding:10px 10px;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+      .vsp-tools-table td{padding:10px 10px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;opacity:.92}
+      .vsp-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18)}
+      .vsp-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35)}
+      .vsp-dot.on{background:rgba(140,255,170,.9)}
+      .vsp-dot.off{background:rgba(255,120,120,.9)}
+      .vsp-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+      .vsp-right{margin-left:auto}
+      .vsp-btn{cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.2);color:inherit;padding:6px 10px;border-radius:12px;font-size:12px;opacity:.9}
+      .vsp-btn:hover{opacity:1}
+    `);
+    st.id="vsp-settings-tools-style";
+    document.head.appendChild(st);
+  }
+
+  async function getJSON(url){
+    try{
+      var r=await fetch(url,{credentials:"same-origin"});
+      return await r.json();
+    }catch(e){ return null; }
+  }
+
+  function pickSettingsMount(){
+    // Try common containers: a main content div, or fallback to body
+    return document.querySelector("#vsp-settings-main")
+      || document.querySelector("#vsp-settings")
+      || document.querySelector(".vsp-settings-main")
+      || document.querySelector("main")
+      || document.body;
+  }
+
+  function renderTable(mount, data){
+    cssOnce();
+    if (document.getElementById("vsp-tools-wrap")) return;
+
+    var wrap=el("div","vsp-tools-wrap","");
+    wrap.id="vsp-tools-wrap";
+
+    var h=el("div","vsp-tools-h","");
+    var left=el("div","", "");
+    left.appendChild(el("div","vsp-tools-title","Tool Coverage & Policy"));
+    var sub="Live data from <span class='vsp-mono'>/api/ui/settings_v2</span>.";
+    if (data && data.ui && data.ui.kpi_mode) sub += " KPI mode: <span class='vsp-mono'>"+data.ui.kpi_mode+"</span>.";
+    left.appendChild(el("div","vsp-tools-sub",sub));
+    h.appendChild(left);
+
+    var meta=el("div","vsp-tools-meta vsp-right","");
+    var via = (data && (data.__via__ || data.notes || data.source)) ? (data.__via__ || data.notes || data.source) : "-";
+    meta.innerHTML = "source: <span class='vsp-mono'>"+ String(via).slice(0,120) +"</span>";
+    h.appendChild(meta);
+
+    var btn=el("button","vsp-btn","Refresh");
+    btn.onclick = async function(){
+      var d = await getJSON("/api/ui/settings_v2");
+      if (!d || !d.tools){ alert("settings_v2 unavailable"); return; }
+      // simple refresh: remove + re-render
+      try{ wrap.remove(); }catch(e){}
+      renderTable(pickSettingsMount(), d);
+    };
+    h.appendChild(btn);
+
+    wrap.appendChild(h);
+
+    var tbl=el("table","vsp-tools-table","");
+    var thead=el("thead","", "");
+    thead.appendChild(el("tr","",
+      "<th>Tool</th><th>Enabled</th><th>Timeout</th><th>Degrade</th><th>Notes</th>"
+    ));
+    tbl.appendChild(thead);
+
+    var tb=el("tbody","", "");
+    var tools = (data && data.tools) ? data.tools : {};
+    var order = ["BANDIT","SEMGREP","GITLEAKS","KICS","TRIVY","SYFT","GRYPE","CODEQL"];
+    order.forEach(function(tid){
+      var t = tools[tid] || {};
+      var en = !!t.enabled;
+      var dot = "<span class='vsp-dot "+(en?"on":"off")+"'></span>";
+      var pill = "<span class='vsp-pill'>"+dot+(en?"Enabled":"Disabled")+"</span>";
+      var tout = (t.timeout_sec==null || t.timeout_sec==="") ? "-" : String(t.timeout_sec)+"s";
+      var deg = (t.degrade_on_fail===false) ? "No" : "Yes";
+      var notes = (t.notes||"").toString();
+      var tr=el("tr","",
+        "<td class='vsp-mono'>"+tid+"</td>"+
+        "<td>"+pill+"</td>"+
+        "<td class='vsp-mono'>"+tout+"</td>"+
+        "<td>"+deg+"</td>"+
+        "<td>"+(notes ? notes.replace(/[<>]/g,"") : "-")+"</td>"
+      );
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb);
+    wrap.appendChild(tbl);
+
+    // insert near top of settings page
+    mount.prepend(wrap);
+  }
+
+  async function init(){
+    try{
+      if (location.pathname !== "/settings") return;
+      // wait for page JS to build layout
+      for (var i=0;i<12;i++){
+        await new Promise(r=>setTimeout(r,120));
+        var mount = pickSettingsMount();
+        if (mount) break;
+      }
+      var d = await getJSON("/api/ui/settings_v2");
+      if (!d || !d.tools){
+        var mount = pickSettingsMount();
+        if (!mount) return;
+        cssOnce();
+        var warn=el("div","vsp-tools-wrap","<div class='vsp-tools-title'>Tool Coverage & Policy</div><div class='vsp-tools-sub'>settings_v2 unavailable. (degraded)</div>");
+        warn.id="vsp-tools-wrap";
+        mount.prepend(warn);
+        return;
+      }
+      renderTable(pickSettingsMount(), d);
+    }catch(e){}
+  }
+
+  if (document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+
+/* VSP_SAFE_INTERVAL_V1 */
+
+/* VSP_SAFE_INTERVAL_V1 */
+(function(){
+  try{
+    // default: live OFF, only ON if /vsp5?live=1
+    if (typeof window.__VSP_SAFE_LIVE === "undefined") {
+      var sp = new URLSearchParams(location.search||"");
+      window.__VSP_SAFE_LIVE = (sp.get("live")==="1");
+    }
+    window.__vspSafeInterval = window.__vspSafeInterval || function(fn, ms){
+      var safeMs = Math.max(parseInt(ms||0,10) || 0, 2000);
+      return window.__vspSafeInterval(function(){
+        try{
+          if (document.hidden) return;
+          if (window.__VSP_SAFE_LIVE === false) return;
+          fn && fn();
+        }catch(e){
+          console.warn("[VSP_SAFE_INTERVAL]", e);
+        }
+      }, safeMs);
+    };
+    window.__vspSafeTimeout = window.__vspSafeTimeout || function(fn, ms){
+      var safeMs = Math.max(parseInt(ms||0,10) || 0, 200);
+      return setTimeout(function(){
+        try{
+          if (window.__VSP_SAFE_LIVE === false && safeMs < 800) return;
+          fn && fn();
+        }catch(e){
+          console.warn("[VSP_SAFE_TIMEOUT]", e);
+        }
+      }, safeMs);
+    };
+  }catch(e){
+    console.warn("[VSP_SAFE_INIT]", e);
+  }
+})();
+
+/* VSP_SAFE_INTERVAL_V2 */
+(function(){
+  try{
+    var nativeSI = (window.__vspNativeSetInterval) ? window.__vspNativeSetInterval : window.setInterval.bind(window);
+    // commercial-safe clamp: >=800ms, <=30000ms
+    window.__vspSafeInterval = function(fn, ms){
+      var v = Number(ms);
+      if(!isFinite(v)) v = 0;
+      if(v < 800) v = 800;
+      if(v > 30000) v = 30000;
+      return nativeSI(fn, v);
+    };
+  }catch(e){}
+})();
+
+
+/* VSP_COMMERCE_UI5_LOADER_V1 */
+(function(){
+  try{
+    var p = (location && location.pathname) ? String(location.pathname) : "";
+    if (!p.startsWith("/c/")) return;
+    // CSS
+    var l=document.createElement("link");
+    l.rel="stylesheet";
+    l.href="/static/css/vsp_commercial_ui5_v1.css?v=" + (window.__VSP_ASSET_V || Date.now());
+    document.head.appendChild(l);
+    // JS
+    var sc=document.createElement("script");
+    sc.src="/static/js/vsp_commercial_ui5_v1.js?v=" + (window.__VSP_ASSET_V || Date.now());
+    sc.defer=true;
+    document.head.appendChild(sc);
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_MINICHARTS_FROM_FINDINGS_V1 =====
+   Purpose: eliminate stuck Loading/No data placeholders on /vsp5 by deriving stats from findings_page_v3.
+   Safe: no infinite loops, single-shot, timeout fetch, only touches known section labels if placeholders still present.
+*/
+(function(){
+  if (window.__VSP_MINI_V7_ONLY) { return; }
+
+  try{
+    if(!location || !/\/vsp5\b/.test(String(location.pathname||""))) return;
+    const ONCE="__vspMiniChartsFromFindingsOnce";
+    if(window[ONCE]) return;
+    window[ONCE]=true;
+
+    function getRID(){
+      try{
+        const u=new URL(location.href);
+        const rid=u.searchParams.get("rid");
+        if(rid) return rid;
+      }catch(e){}
+      // try common globals
+      if(window.__VSP_RID) return String(window.__VSP_RID);
+      if(window.__rid) return String(window.__rid);
+      // try stamp text: "RID: XXX"
+      const t=(document.body && document.body.innerText) ? document.body.innerText : "";
+      const m=t.match(/\bRID:\s*([A-Za-z0-9_:-]{6,})\b/);
+      return m ? m[1] : "";
+    }
+
+    async function fetchJson(url, timeoutMs){
+      const ctrl=new AbortController();
+      const to=setTimeout(()=>{ try{ ctrl.abort(); }catch(e){} }, Math.max(800, timeoutMs|0));
+      try{
+        const r=await fetch(url, {signal: ctrl.signal, credentials:"same-origin"});
+        const txt=await r.text();
+        try{ return JSON.parse(txt); }catch(e){ return {ok:false, err:"not_json", status:r.status, head: String(txt||"").slice(0,200)}; }
+      }catch(e){
+        return {ok:false, err:"fetch_failed", msg:String(e||"")};
+      }finally{
+        try{ clearTimeout(to); }catch(e){}
+      }
+    }
+
+    function normItems(j){
+      if(!j) return [];
+      if(Array.isArray(j.items)) return j.items;
+      if(Array.isArray(j.findings)) return j.findings;
+      if(j.data && Array.isArray(j.data.items)) return j.data.items;
+      return [];
+    }
+
+    function countBy(items, keyFn){
+      const m=new Map();
+      for(const it of items){
+        const k=keyFn(it);
+        if(!k) continue;
+        m.set(k, (m.get(k)||0)+1);
+      }
+      return m;
+    }
+
+    function topN(map, n){
+      const arr=[...map.entries()].sort((a,b)=> (b[1]-a[1]) || String(a[0]).localeCompare(String(b[0])));
+      return arr.slice(0, n);
+    }
+
+    function findLabelEl(label){
+      // find an element whose trimmed text starts with label
+      const all = document.querySelectorAll("div,span,h1,h2,h3,h4,h5,section");
+      label=String(label||"").trim();
+      for(const el of all){
+        const tx=(el.textContent||"").trim();
+        if(tx === label) return el;
+      }
+      // fallback: contains
+      for(const el of all){
+        const tx=(el.textContent||"").trim();
+        if(tx.startsWith(label)) return el;
+      }
+      return null;
+    }
+
+    function sectionLooksPlaceholder(container){
+      if(!container) return true;
+      const tx=(container.textContent||"").toLowerCase();
+      return tx.includes("loading") || tx.includes("no data") || tx.includes("degraded");
+    }
+
+    function renderUnderLabel(label, lines){
+      const lab=findLabelEl(label);
+      if(!lab) return false;
+
+      // choose a container near label
+      let box = lab.parentElement;
+      if(!box) return false;
+
+      // if placeholder was scrubbed somewhere deeper, still override only when placeholder-like
+      if(!sectionLooksPlaceholder(box)){
+        // sometimes placeholder is in next siblings
+        let sib=lab.nextElementSibling;
+        if(sib && sectionLooksPlaceholder(sib)) box=sib;
+        else return false;
+      }
+
+      const pre=document.createElement("pre");
+      pre.style.margin="6px 0 0 0";
+      pre.style.padding="8px 10px";
+      pre.style.borderRadius="10px";
+      pre.style.background="rgba(255,255,255,0.03)";
+      pre.style.border="1px solid rgba(255,255,255,0.06)";
+      pre.style.fontSize="12px";
+      pre.style.lineHeight="1.35";
+      pre.style.whiteSpace="pre-wrap";
+      pre.textContent=lines.join("\n");
+
+      // keep the label itself, replace rest
+      // safest: remove siblings after label within same parent
+      try{
+        const parent=lab.parentElement;
+        if(parent){
+          // remove any existing placeholder-like nodes under same parent (except label)
+          const kids=[...parent.children];
+          for(const k of kids){
+            if(k===lab) continue;
+            const t=(k.textContent||"").toLowerCase();
+            if(t.includes("loading") || t.includes("no data") || t.includes("degraded")){
+              try{ k.remove(); }catch(e){}
+            }
+          }
+          parent.appendChild(pre);
+          return true;
+        }
+      }catch(e){}
+      try{
+        box.appendChild(pre);
+        return true;
+      }catch(e){}
+      return false;
+    }
+
+    async function run(){
+      const rid=getRID();
+      if(!rid) return;
+
+      const url = "/api/vsp/findings_page_v3?rid="+encodeURIComponent(rid)+"&limit=2000&offset=0";
+      const j = await fetchJson(url, 9000);
+      const items = normItems(j);
+
+      if(!(j && j.ok===true) || !items.length){
+        // still try to erase placeholders gently
+        renderUnderLabel("Severity Distribution", ["No data (API missing or empty).", "Hint: /api/vsp/findings_page_v3 must return ok:true and items[]."]);
+        renderUnderLabel("Top CWE Exposure", ["No data."]);
+        renderUnderLabel("Critical/High by Tool", ["No data."]);
+        renderUnderLabel("Top Risk Findings", ["No data."]);
+        renderUnderLabel("By Tool Buckets", ["No data."]);
+        renderUnderLabel("Trend (Findings over time)", ["No trend data (needs history API)."]);
+        return;
+      }
+
+      const sev = countBy(items, it => String(it.severity||"").toUpperCase());
+      const tool = countBy(items, it => String(it.tool||"").toLowerCase());
+      const cwe = countBy(items, it => {
+        const v = it.cwe;
+        if(v===null || v===undefined) return "";
+        const s = String(v).trim();
+        if(!s) return "";
+        return s.startsWith("CWE-") ? s : ("CWE-"+s);
+      });
+
+      // critical/high by tool
+      const chByTool = new Map();
+      for(const it of items){
+        const s=String(it.severity||"").toUpperCase();
+        if (s !== "CRITICAL" && s !== "HIGH") continue;
+        const t=String(it.tool||"").toLowerCase()||"unknown";
+        chByTool.set(t, (chByTool.get(t)||0)+1);
+      }
+
+      // top risk findings (pick CRITICAL/HIGH first)
+      const rank = {"CRITICAL": 5, "HIGH":4, "MEDIUM":3, "LOW":2, "INFO":1, "TRACE":0};
+      const top = items.slice().sort((a,b)=>{
+        const ra=rank[String(a.severity||"").toUpperCase()] ?? -1
+        const rb=rank[String(b.severity||"").toUpperCase()] ?? -1
+        if(rb!==ra) return rb-ra;
+        return String(a.title||"").localeCompare(String(b.title||""));
+      }).slice(0, 8);
+
+      // buckets by tool (all severities)
+      const toolTop = topN(tool, 12);
+
+      renderUnderLabel("Severity Distribution", [
+        `RID=${rid}`,
+        `TOTAL(items sample)= ${items.length}`,
+        ...topN(sev, 20).map(([k,v])=> `${k.padEnd(8)} ${v}`)
+      ]);
+
+      renderUnderLabel("Critical/High by Tool", [
+        ...topN(chByTool, 20).map(([k,v])=> `${String(k).padEnd(12)} ${v}`)
+      ]);
+
+      renderUnderLabel("Top CWE Exposure", [
+        ...topN(cwe, 15).map(([k,v])=> `${String(k).padEnd(10)} ${v}`),
+        cwe.size ? "" : "(no CWE field in items)"
+      ]);
+
+      renderUnderLabel("Top Risk Findings", top.map(it=>{
+        const s=String(it.severity||"").toUpperCase();
+        const t=String(it.tool||"").toLowerCase();
+        const title=String(it.title||"").slice(0,120);
+        return `${s.padEnd(8)} ${t.padEnd(10)} ${title}`;
+      }));
+
+      renderUnderLabel("By Tool Buckets", toolTop.map(([k,v])=> `${String(k).padEnd(12)} ${v}`));
+
+      renderUnderLabel("Trend (Findings over time)", [
+        "No trend data (single-run view).",
+        "To enable: implement /api/vsp/trend_v1 backed by runs history."
+      ]);
+    }
+
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", run);
+    else run();
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_MINICHARTS_OVERRIDE_DEGRADED_V2 =====
+   Goal: when trend/topcwe APIs are blocked/degraded, still populate dashboard sections from findings_page_v3.
+   - Scrub "No data (degraded)..." and "Loading..." text nodes.
+   - Insert mini summary tables under headings:
+     Severity Distribution / Trend / Critical|High by Tool / Top CWE Exposure / Top Risk Findings / By Tool Buckets
+*/
+(function(){
+  if (window.__VSP_MINI_V7_ONLY) { return; }
+
+  "use strict";
+
+  function esc(s){
+    try{ return String(s ?? "").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+    catch(e){ return ""; }
+  }
+  function now(){ return Date.now(); }
+
+  function getRID(){
+    try{
+      const u=new URL(window.location.href);
+      const rid=u.searchParams.get("rid");
+      if (rid) return rid;
+    }catch(e){}
+    // fallback: try to read from the RID stamp on page
+    try{
+      const t=document.body.innerText||"";
+      const m=t.match(/\bVSP_[A-Z]+_\d{8}_\d{6}\b/);
+      if(m) return m[0];
+      const m2=t.match(/\bVSP_CI_\d{8}_\d{6}\b/);
+      if(m2) return m2[0];
+    }catch(e){}
+    return "";
+  }
+
+  async function fetchJSON(url, timeoutMs){
+    const ctrl = new AbortController();
+    const to = setTimeout(()=>ctrl.abort(), timeoutMs||6000);
+    try{
+      const r = await fetch(url, {credentials:"same-origin", cache:"no-store", signal: ctrl.signal});
+      const txt = await r.text();
+      try{ return JSON.parse(txt); } catch(e){ return {ok:false, err:"NOT_JSON", _text:(txt||"").slice(0,200)}; }
+    } finally {
+      clearTimeout(to);
+    }
+  }
+
+  async function fetchFindings(rid){
+    const base = "";
+    // limit large enough for dashboard summaries
+    const u = `${base}/api/vsp/findings_page_v3?rid=${encodeURIComponent(rid)}&limit=5000&offset=0`;
+    const j = await fetchJSON(u, 8000);
+    // support multiple shapes
+    const arr = (j && (j.findings || j.items || j.data || j.results)) || [];
+    return {ok: j && j.ok===true, raw:j, findings: Array.isArray(arr)?arr:[]};
+  }
+
+  function sevRank(s){
+    switch(String(s||"").toUpperCase()){
+      case "CRITICAL": return 0;
+      case "HIGH": return 1;
+      case "MEDIUM": return 2;
+      case "LOW": return 3;
+      case "INFO": return 4;
+      case "TRACE": return 5;
+      default: return 9;
+    }
+  }
+
+  function compute(findings){
+    const sevCount = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,OTHER:0};
+    const byTool = {}; // tool -> {TOTAL, CRITICAL, HIGH, MEDIUM, LOW, INFO, TRACE}
+    const cweCount = {}; // cwe -> count
+    const bucketTool = {}; // tool -> total
+    const risk = []; // items
+
+    for(const f of (findings||[])){
+      const sev = String((f.severity||f.sev||"")||"").toUpperCase();
+      const tool = String((f.tool||f.engine||"")||"unknown");
+      const cwe = (f.cwe===None?null:f.cwe) ?? f.cwe_id ?? f.cweId ?? null;
+      const title = f.title || f.name || f.rule_id || f.id || "Finding";
+      const file = f.file || f.path || f.location || f.target || "";
+
+      if(sevCount[sev]!==undefined) sevCount[sev]++; else sevCount.OTHER++;
+
+      if(!byTool[tool]) byTool[tool]={TOTAL:0,CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,OTHER:0};
+      byTool[tool].TOTAL++;
+      if(byTool[tool][sev]!==undefined) byTool[tool][sev]++; else byTool[tool].OTHER++;
+
+      bucketTool[tool]=(bucketTool[tool]||0)+1;
+
+      if(cwe){
+        const k=String(cwe);
+        cweCount[k]=(cweCount[k]||0)+1;
+      }
+
+      risk.push({sev, tool, title, file});
+    }
+
+    risk.sort((a,b)=>{
+      const ra=sevRank(a.sev), rb=sevRank(b.sev);
+      if(ra!==rb) return ra-rb;
+      return String(a.title).localeCompare(String(b.title));
+    });
+
+    const topCWE = Object.entries(cweCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const toolBuckets = Object.entries(bucketTool).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+    const critHighByTool = Object.entries(byTool)
+      .map(([t,v])=>({tool:t, crit:v.CRITICAL||0, high:v.HIGH||0, total:v.TOTAL||0}))
+      .filter(x=> (x.crit+x.high)>0)
+      .sort((a,b)=>(b.crit+b.high)-(a.crit+a.high))
+      .slice(0,10);
+
+    return {sevCount, topCWE, toolBuckets, critHighByTool, topRisk: risk.slice(0,8)};
+  }
+
+  function scrubDegradedText(){
+    try{
+      const walker=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+      const kills=[];
+      while(walker.nextNode()){
+        const n=walker.currentNode;
+        const t=(n.nodeValue||"").trim();
+        if(!t) continue;
+        if(/No data\s*\(degraded\)\.?/i.test(t) || /^Loading\.\.\.$/i.test(t) || /^Loading\.\.$/i.test(t) || /^Loading\.$/i.test(t)){
+          kills.push(n);
+        }
+      }
+      for(const n of kills){
+        try{ n.nodeValue=""; }catch(e){}
+      }
+    }catch(e){}
+  }
+
+  function findHeadingEl(text){
+    const want=String(text||"").trim().toLowerCase();
+    if(!want) return null;
+    const els=[...document.querySelectorAll("h1,h2,h3,h4,div,span,label")];
+    for(const el of els){
+      const t=(el.textContent||"").trim().toLowerCase();
+      if(t===want) return el;
+    }
+    // fallback: contains
+    for(const el of els){
+      const t=(el.textContent||"").trim().toLowerCase();
+      if(t && t.indexOf(want)>=0) return el;
+    }
+    return null;
+  }
+
+  function ensureBoxAfter(headingEl, boxId){
+    try{
+      if(!headingEl) return null;
+      const existing=document.getElementById(boxId);
+      if(existing) return existing;
+      const box=document.createElement("div");
+      box.id=boxId;
+      box.style.margin="6px 0 14px 0";
+      box.style.padding="8px 10px";
+      box.style.border="1px solid rgba(255,255,255,0.08)";
+      box.style.borderRadius="10px";
+      box.style.background="rgba(255,255,255,0.02)";
+      box.style.fontSize="12px";
+      box.style.lineHeight="1.35";
+      // insert right after heading
+      if(headingEl.parentElement){
+        if(headingEl.nextSibling) headingEl.parentElement.insertBefore(box, headingEl.nextSibling);
+        else headingEl.parentElement.appendChild(box);
+      }
+      return box;
+    }catch(e){ return null; }
+  }
+
+  function renderTable(rows){
+    // rows: array of arrays
+    let h='<table style="width:100%; border-collapse:collapse;">';
+    for(const r of rows){
+      h+='<tr>';
+      for(const c of r){
+        h+=`<td style="padding:2px 6px; border-bottom:1px solid rgba(255,255,255,0.06); vertical-align:top;">${c}</td>`;
+      }
+      h+='</tr>';
+    }
+    h+='</table>';
+    return h;
+  }
+
+  function applyMiniCharts(stats){
+    scrubDegradedText();
+
+    // 1) Severity Distribution
+    {
+      const h = findHeadingEl("Severity Distribution");
+      const box = ensureBoxAfter(h, "vsp-mini-sevdist");
+      if(box){
+        const s=stats.sevCount||{};
+        const rows=[
+          ["CRITICAL", String(s.CRITICAL||0)],
+          ["HIGH", String(s.HIGH||0)],
+          ["MEDIUM", String(s.MEDIUM||0)],
+          ["LOW", String(s.LOW||0)],
+          ["INFO", String(s.INFO||0)],
+          ["TRACE", String(s.TRACE||0)],
+        ];
+        box.innerHTML = renderTable(rows);
+      }
+    }
+
+    // 2) Trend (no timestamps in findings => show stable note instead of degraded)
+    {
+      const h = findHeadingEl("Trend (Findings over time)");
+      const box = ensureBoxAfter(h, "vsp-mini-trend");
+      if(box){
+        box.innerHTML = `<div style="opacity:0.85">Trend: not available (findings do not include time series). Using current RID snapshot.</div>`;
+      }
+    }
+
+    // 3) Critical/High by Tool
+    {
+      const h = findHeadingEl("Critical/High by Tool");
+      const box = ensureBoxAfter(h, "vsp-mini-chbytool");
+      if(box){
+        const rows=[["Tool","CRITICAL","HIGH","TOTAL"]];
+        for(const it of (stats.critHighByTool||[])){
+          rows.push([esc(it.tool), String(it.crit||0), String(it.high||0), String(it.total||0)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No CRITICAL/HIGH findings.</div>`;
+      }
+    }
+
+    // 4) Top CWE Exposure
+    {
+      const h = findHeadingEl("Top CWE Exposure");
+      const box = ensureBoxAfter(h, "vsp-mini-topcwe");
+      if(box){
+        const rows=[["CWE","Count"]];
+        for(const [c,n] of (stats.topCWE||[])){
+          rows.push([esc(c), String(n)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No CWE data in findings.</div>`;
+      }
+    }
+
+    // 5) Top Risk Findings
+    {
+      const h = findHeadingEl("Top Risk Findings");
+      const box = ensureBoxAfter(h, "vsp-mini-risk");
+      if(box){
+        const rows=[["Sev","Tool","Title","File"]];
+        for(const it of (stats.topRisk||[])){
+          rows.push([esc(it.sev), esc(it.tool), esc(it.title), esc(it.file)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No findings.</div>`;
+      }
+    }
+
+    // 6) By Tool Buckets
+    {
+      const h = findHeadingEl("By Tool Buckets");
+      const box = ensureBoxAfter(h, "vsp-mini-buckets");
+      if(box){
+        const rows=[["Tool","Count"]];
+        for(const [t,n] of (stats.toolBuckets||[])){
+          rows.push([esc(t), String(n)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No tool buckets.</div>`;
+      }
+    }
+
+    scrubDegradedText();
+  }
+
+  async function run(){
+    try{
+      const rid=getRID();
+      if(!rid) return;
+      const res = await fetchFindings(rid);
+      if(!res.ok || !(res.findings||[]).length){
+        // still scrub degraded text (avoid scary UI)
+        scrubDegradedText();
+        return;
+      }
+      const stats = compute(res.findings);
+      applyMiniCharts(stats);
+    }catch(e){
+      try{ scrubDegradedText(); }catch(_){}
+    }
+  }
+
+  // run now + rerun a few times to win race vs other scripts
+  let tries=0;
+  function tick(){
+    tries++;
+    run();
+    if(tries<8) setTimeout(tick, 900);
+  }
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", ()=>setTimeout(tick, 50));
+  } else {
+    setTimeout(tick, 50);
+  }
+
+  // expose for manual use (optional)
+  window.__vspDashMiniChartsOverrideDegradedV2 = function(){ tick(); };
+})();
+
+/* ===== VSP_P1_DASH_MINICHARTS_OVERRIDE_DEGRADED_V3 =====
+   Fix: DO NOT call /api/vsp/findings_page_v3 (may be "not allowed").
+   Use allowlisted endpoint: /api/vsp/run_file_allow?rid=...&path=findings_unified.json&limit=...
+   Also scrub any text that CONTAINS "No data (degraded)" or "Loading..."
+*/
+(function(){
+  if (window.__VSP_MINI_V7_ONLY) { return; }
+
+  "use strict";
+
+  function esc(s){
+    try{ return String(s ?? "").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+    catch(e){ return ""; }
+  }
+  function getRID(){
+    try{
+      const u=new URL(window.location.href);
+      const rid=u.searchParams.get("rid");
+      if (rid) return rid;
+    }catch(e){}
+    try{
+      const t=document.body.innerText||"";
+      const m=t.match(/\bVSP_CI_\d{8}_\d{6}\b/);
+      if(m) return m[0];
+    }catch(e){}
+    return "";
+  }
+
+  async function fetchText(url, timeoutMs){
+    const ctrl=new AbortController();
+    const to=setTimeout(()=>ctrl.abort(), timeoutMs||6000);
+    try{
+      const r=await fetch(url,{credentials:"same-origin",cache:"no-store",signal:ctrl.signal});
+      return await r.text();
+    } finally { clearTimeout(to); }
+  }
+  async function fetchJSON(url, timeoutMs){
+    const txt = await fetchText(url, timeoutMs);
+    try{ return JSON.parse(txt); } catch(e){ return {ok:false, err:"NOT_JSON", _text:(txt||"").slice(0,200)}; }
+  }
+
+  async function fetchFindingsAllow(rid){
+    const base="";
+    const paths=[
+      "findings_unified.json",
+      "reports/findings_unified.json",
+      "report/findings_unified.json"
+    ];
+    for(const path of paths){
+      const u = `${base}/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}&limit=5000`;
+      const j = await fetchJSON(u, 9000);
+      const arr = (j && (j.findings||j.items)) || [];
+      if (j && j.ok===true && Array.isArray(arr) && arr.length){
+        return {ok:true, findings:arr, from:(j.from||path), raw:j};
+      }
+    }
+    // last resort: top_findings_v1 (usually allowlisted)
+    const u2 = `${base}/api/vsp/top_findings_v1?rid=${encodeURIComponent(rid)}&limit=5000`;
+    const j2 = await fetchJSON(u2, 8000);
+    const arr2 = (j2 && (j2.items||j2.findings)) || [];
+    if (j2 && j2.ok===true && Array.isArray(arr2) && arr2.length){
+      return {ok:true, findings:arr2, from:"top_findings_v1", raw:j2};
+    }
+    return {ok:false, findings:[], from:"", raw:null};
+  }
+
+  function sevRank(s){
+    switch(String(s||"").toUpperCase()){
+      case "CRITICAL": return 0;
+      case "HIGH": return 1;
+      case "MEDIUM": return 2;
+      case "LOW": return 3;
+      case "INFO": return 4;
+      case "TRACE": return 5;
+      default: return 9;
+    }
+  }
+
+  function compute(findings){
+    const sevCount = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,OTHER:0};
+    const byTool = {};
+    const cweCount = {};
+    const bucketTool = {};
+    const risk = [];
+
+    for(const f of (findings||[])){
+      const sev = String((f.severity||f.sev||"")||"").toUpperCase();
+      const tool = String((f.tool||f.engine||"")||"unknown");
+      const cwe = (f.cwe ?? f.cwe_id ?? f.cweId ?? null);
+      const title = f.title || f.name || f.rule_id || f.id || "Finding";
+      const file = f.file || f.path || f.location || f.target || "";
+
+      if(sevCount[sev]!==undefined) sevCount[sev]++; else sevCount.OTHER++;
+
+      if(!byTool[tool]) byTool[tool]={TOTAL:0,CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,OTHER:0};
+      byTool[tool].TOTAL++;
+      if(byTool[tool][sev]!==undefined) byTool[tool][sev]++; else byTool[tool].OTHER++;
+
+      bucketTool[tool]=(bucketTool[tool]||0)+1;
+
+      if(cwe){
+        const k=String(cwe);
+        cweCount[k]=(cweCount[k]||0)+1;
+      }
+
+      risk.push({sev, tool, title, file});
+    }
+
+    risk.sort((a,b)=>{
+      const ra=sevRank(a.sev), rb=sevRank(b.sev);
+      if(ra!==rb) return ra-rb;
+      return String(a.title).localeCompare(String(b.title));
+    });
+
+    const topCWE = Object.entries(cweCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const toolBuckets = Object.entries(bucketTool).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+    const critHighByTool = Object.entries(byTool)
+      .map(([t,v])=>({tool:t, crit:v.CRITICAL||0, high:v.HIGH||0, total:v.TOTAL||0}))
+      .filter(x=> (x.crit+x.high)>0)
+      .sort((a,b)=>(b.crit+b.high)-(a.crit+a.high))
+      .slice(0,10);
+
+    return {sevCount, topCWE, toolBuckets, critHighByTool, topRisk: risk.slice(0,8)};
+  }
+
+  function scrubText(){
+    try{
+      const walker=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+      const kills=[];
+      while(walker.nextNode()){
+        const n=walker.currentNode;
+        const t=(n.nodeValue||"").trim();
+        if(!t) continue;
+        if(t.toLowerCase().includes("no data (degraded)") || t.toLowerCase().includes("loading...") || t.toLowerCase().includes("loading..") || t.toLowerCase().includes("loading.")){
+          kills.push(n);
+        }
+      }
+      for(const n of kills){
+        try{ n.nodeValue=""; }catch(e){}
+      }
+    }catch(e){}
+  }
+
+  function findHeadingContainer(phrase){
+    const want=String(phrase||"").trim().toLowerCase();
+    if(!want) return null;
+    const els=[...document.querySelectorAll("*")];
+    let best=null, bestLen=1e9;
+    for(const el of els){
+      if(!el || !el.textContent) continue;
+      const t=el.textContent.trim().toLowerCase();
+      if(!t) continue;
+      if(t===want || t.startsWith(want) || t.includes(want)){
+        // choose smallest container to avoid huge blocks
+        if(t.length<bestLen){
+          best=el; bestLen=t.length;
+        }
+      }
+    }
+    return best;
+  }
+
+  function ensureBoxAfter(el, id){
+    try{
+      if(!el) return null;
+      const ex=document.getElementById(id);
+      if(ex) return ex;
+      const box=document.createElement("div");
+      box.id=id;
+      box.style.margin="6px 0 14px 0";
+      box.style.padding="8px 10px";
+      box.style.border="1px solid rgba(255,255,255,0.08)";
+      box.style.borderRadius="10px";
+      box.style.background="rgba(255,255,255,0.02)";
+      box.style.fontSize="12px";
+      box.style.lineHeight="1.35";
+      const parent = el.parentElement || el;
+      if(el.nextSibling) parent.insertBefore(box, el.nextSibling);
+      else parent.appendChild(box);
+      return box;
+    }catch(e){ return null; }
+  }
+
+  function renderTable(rows){
+    let h='<table style="width:100%; border-collapse:collapse;">';
+    for(const r of rows){
+      h+='<tr>';
+      for(const c of r){
+        h+=`<td style="padding:2px 6px; border-bottom:1px solid rgba(255,255,255,0.06); vertical-align:top;">${c}</td>`;
+      }
+      h+='</tr>';
+    }
+    h+='</table>';
+    return h;
+  }
+
+  function apply(stats){
+    scrubText();
+
+    // Severity Distribution
+    {
+      const h=findHeadingContainer("Severity Distribution");
+      const box=ensureBoxAfter(h,"vsp-mini-sevdist-v3");
+      if(box){
+        const s=stats.sevCount||{};
+        box.innerHTML = renderTable([
+          ["CRITICAL", String(s.CRITICAL||0)],
+          ["HIGH", String(s.HIGH||0)],
+          ["MEDIUM", String(s.MEDIUM||0)],
+          ["LOW", String(s.LOW||0)],
+          ["INFO", String(s.INFO||0)],
+          ["TRACE", String(s.TRACE||0)],
+        ]);
+      }
+    }
+
+    // Trend
+    {
+      const h=findHeadingContainer("Trend (Findings over time)");
+      const box=ensureBoxAfter(h,"vsp-mini-trend-v3");
+      if(box) box.innerHTML = `<div style="opacity:0.85">Trend: snapshot-only (RID), no time-series available in findings.</div>`;
+    }
+
+    // Critical/High by Tool
+    {
+      const h=findHeadingContainer("Critical/High by Tool");
+      const box=ensureBoxAfter(h,"vsp-mini-chbytool-v3");
+      if(box){
+        const rows=[["Tool","CRITICAL","HIGH","TOTAL"]];
+        for(const it of (stats.critHighByTool||[])){
+          rows.push([esc(it.tool), String(it.crit||0), String(it.high||0), String(it.total||0)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No CRITICAL/HIGH findings.</div>`;
+      }
+    }
+
+    // Top CWE Exposure
+    {
+      const h=findHeadingContainer("Top CWE Exposure");
+      const box=ensureBoxAfter(h,"vsp-mini-topcwe-v3");
+      if(box){
+        const rows=[["CWE","Count"]];
+        for(const [c,n] of (stats.topCWE||[])){
+          rows.push([esc(c), String(n)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No CWE data in findings.</div>`;
+      }
+    }
+
+    // Top Risk Findings
+    {
+      const h=findHeadingContainer("Top Risk Findings");
+      const box=ensureBoxAfter(h,"vsp-mini-risk-v3");
+      if(box){
+        const rows=[["Sev","Tool","Title","File"]];
+        for(const it of (stats.topRisk||[])){
+          rows.push([esc(it.sev), esc(it.tool), esc(it.title), esc(it.file)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No findings.</div>`;
+      }
+    }
+
+    // By Tool Buckets
+    {
+      const h=findHeadingContainer("By Tool Buckets");
+      const box=ensureBoxAfter(h,"vsp-mini-buckets-v3");
+      if(box){
+        const rows=[["Tool","Count"]];
+        for(const [t,n] of (stats.toolBuckets||[])){
+          rows.push([esc(t), String(n)]);
+        }
+        box.innerHTML = rows.length>1 ? renderTable(rows) : `<div style="opacity:0.85">No tool buckets.</div>`;
+      }
+    }
+
+    scrubText();
+  }
+
+  async function runOnce(){
+    try{
+      const rid=getRID();
+      if(!rid) { scrubText(); return; }
+      const res=await fetchFindingsAllow(rid);
+      if(!res.ok || !(res.findings||[]).length){ scrubText(); return; }
+      apply(compute(res.findings));
+    }catch(e){ scrubText(); }
+  }
+
+  // race-safe: rerun a few times to override other scripts
+  let tries=0;
+  function tick(){
+    tries++;
+    runOnce();
+    if(tries<10) setTimeout(tick, 700);
+  }
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", ()=>setTimeout(tick, 60));
+  } else {
+    setTimeout(tick, 60);
+  }
+
+  window.__vspDashMiniChartsOverrideDegradedV3 = function(){ tick(); };
+})();
+
+/* ===== VSP_P1_DASH_MINICHARTS_PANEL_V4 =====
+   Always render a mini-charts panel INSIDE #vsp-dashboard-main (no heading dependency).
+   Data source: /api/vsp/run_file_allow?rid=...&path=findings_unified.json
+   Expose: window.__vspMiniPanelV4Refresh()
+*/
+(function(){
+  if (window.__VSP_MINI_V7_ONLY) { return; }
+
+  "use strict";
+
+  function esc(s){
+    try{ return String(s ?? "").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+    catch(e){ return ""; }
+  }
+  function getRID(){
+    try{
+      const u=new URL(window.location.href);
+      const rid=u.searchParams.get("rid");
+      if (rid) return rid;
+    }catch(e){}
+    try{
+      const t=document.body.innerText||"";
+      const m=t.match(/\bVSP_CI_\d{8}_\d{6}\b/);
+      if(m) return m[0];
+    }catch(e){}
+    return "";
+  }
+  async function fetchText(url, timeoutMs){
+    const ctrl=new AbortController();
+    const to=setTimeout(()=>ctrl.abort(), timeoutMs||8000);
+    try{
+      const r=await fetch(url,{credentials:"same-origin",cache:"no-store",signal:ctrl.signal});
+      return await r.text();
+    } finally { clearTimeout(to); }
+  }
+  async function fetchJSON(url, timeoutMs){
+    const txt = await fetchText(url, timeoutMs);
+    try{ return JSON.parse(txt); }catch(e){ return {ok:false, err:"NOT_JSON", _head:(txt||"").slice(0,200)}; }
+  }
+
+  async function fetchFindingsAllow(rid){
+    const paths=["findings_unified.json","reports/findings_unified.json","report/findings_unified.json"];
+    for(const path of paths){
+      const u = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}&limit=5000`;
+      const j = await fetchJSON(u, 12000);
+      const arr = (j && (j.findings||j.items)) || [];
+      if(j && j.ok===true && Array.isArray(arr) && arr.length){
+        return {ok:true, from:(j.from||path), findings:arr};
+      }
+    }
+    return {ok:false, from:"", findings:[]};
+  }
+
+  function sevRank(s){
+    switch(String(s||"").toUpperCase()){
+      case "CRITICAL": return 0;
+      case "HIGH": return 1;
+      case "MEDIUM": return 2;
+      case "LOW": return 3;
+      case "INFO": return 4;
+      case "TRACE": return 5;
+      default: return 9;
+    }
+  }
+
+  function compute(findings){
+    const sevCount = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,OTHER:0};
+    const byTool = {};
+    const cweCount = {};
+    const bucketTool = {};
+    const risk = [];
+
+    for(const f of (findings||[])){
+      const sev = String((f.severity||f.sev||"")||"").toUpperCase();
+      const tool = String((f.tool||f.engine||"")||"unknown");
+      const cwe = (f.cwe ?? f.cwe_id ?? f.cweId ?? null);
+      const title = f.title || f.name || f.rule_id || f.id || "Finding";
+      const file = f.file || f.path || f.location || f.target || "";
+
+      if(sevCount[sev]!==undefined) sevCount[sev]++; else sevCount.OTHER++;
+
+      if(!byTool[tool]) byTool[tool]={TOTAL:0,CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,OTHER:0};
+      byTool[tool].TOTAL++;
+      if(byTool[tool][sev]!==undefined) byTool[tool][sev]++; else byTool[tool].OTHER++;
+
+      bucketTool[tool]=(bucketTool[tool]||0)+1;
+
+      if(cwe){
+        const k=String(cwe);
+        cweCount[k]=(cweCount[k]||0)+1;
+      }
+
+      risk.push({sev, tool, title, file});
+    }
+
+    risk.sort((a,b)=>{
+      const ra=sevRank(a.sev), rb=sevRank(b.sev);
+      if(ra!==rb) return ra-rb;
+      return String(a.title).localeCompare(String(b.title));
+    });
+
+    const topCWE = Object.entries(cweCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const toolBuckets = Object.entries(bucketTool).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+    const critHighByTool = Object.entries(byTool)
+      .map(([t,v])=>({tool:t, crit:v.CRITICAL||0, high:v.HIGH||0, total:v.TOTAL||0}))
+      .filter(x=> (x.crit+x.high)>0)
+      .sort((a,b)=>(b.crit+b.high)-(a.crit+a.high))
+      .slice(0,10);
+
+    return {sevCount, topCWE, toolBuckets, critHighByTool, topRisk:risk.slice(0,8)};
+  }
+
+  function mkPanel(){
+    const host = document.getElementById("vsp-dashboard-main") || document.body;
+    if(!host) return null;
+
+    let ex = document.getElementById("vsp-mini-panel-v4");
+    if(ex) return ex;
+
+    const wrap = document.createElement("div");
+    wrap.id = "vsp-mini-panel-v4";
+    wrap.style.margin="14px 0 18px 0";
+    wrap.style.padding="12px 12px";
+    wrap.style.border="1px solid rgba(255,255,255,0.10)";
+    wrap.style.borderRadius="14px";
+    wrap.style.background="rgba(255,255,255,0.02)";
+
+    wrap.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div style="font-weight:600; letter-spacing:.2px;">Mini Charts (fallback)</div>
+        <div id="vsp-mini-panel-v4-status" style="opacity:.75; font-size:12px;">init…</div>
+      </div>
+      <div style="height:10px;"></div>
+      <div id="vsp-mini-panel-v4-body" style="font-size:12px; line-height:1.35; opacity:.95;">
+        <div style="opacity:.75;">Loading…</div>
+      </div>
+    `;
+    host.appendChild(wrap);
+    return wrap;
+  }
+
+  function renderTable(rows){
+    let h='<table style="width:100%; border-collapse:collapse;">';
+    for(const r of rows){
+      h+='<tr>';
+      for(const c of r){
+        h+=`<td style="padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.06); vertical-align:top;">${c}</td>`;
+      }
+      h+='</tr>';
+    }
+    h+='</table>';
+    return h;
+  }
+
+  function render(panel, rid, from, stats){
+    const st = panel.querySelector("#vsp-mini-panel-v4-status");
+    const body = panel.querySelector("#vsp-mini-panel-v4-body");
+    if(st) st.textContent = `RID=${rid} • from=${from}`;
+
+    const s = stats.sevCount || {};
+    const rowsSev = [
+      ["Severity","Count"],
+      ["CRITICAL", String(s.CRITICAL||0)],
+      ["HIGH", String(s.HIGH||0)],
+      ["MEDIUM", String(s.MEDIUM||0)],
+      ["LOW", String(s.LOW||0)],
+      ["INFO", String(s.INFO||0)],
+      ["TRACE", String(s.TRACE||0)],
+    ];
+
+    const rowsCH = [["Tool","CRITICAL","HIGH","TOTAL"]];
+    for(const it of (stats.critHighByTool||[])){
+      rowsCH.push([esc(it.tool), String(it.crit||0), String(it.high||0), String(it.total||0)]);
+    }
+
+    const rowsCWE = [["CWE","Count"]];
+    for(const [c,n] of (stats.topCWE||[])){
+      rowsCWE.push([esc(c), String(n)]);
+    }
+
+    const rowsBuckets = [["Tool","Count"]];
+    for(const [t,n] of (stats.toolBuckets||[])){
+      rowsBuckets.push([esc(t), String(n)]);
+    }
+
+    const rowsRisk = [["Sev","Tool","Title","File"]];
+    for(const it of (stats.topRisk||[])){
+      rowsRisk.push([esc(it.sev), esc(it.tool), esc(it.title), esc(it.file)]);
+    }
+
+    if(body){
+      body.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div>
+            <div style="opacity:.75; margin-bottom:6px;">Severity Distribution</div>
+            ${renderTable(rowsSev)}
+          </div>
+          <div>
+            <div style="opacity:.75; margin-bottom:6px;">Critical/High by Tool</div>
+            ${rowsCH.length>1 ? renderTable(rowsCH) : `<div style="opacity:.75;">No CRITICAL/HIGH</div>`}
+          </div>
+          <div>
+            <div style="opacity:.75; margin-bottom:6px;">Top CWE Exposure</div>
+            ${rowsCWE.length>1 ? renderTable(rowsCWE) : `<div style="opacity:.75;">No CWE</div>`}
+          </div>
+          <div>
+            <div style="opacity:.75; margin-bottom:6px;">By Tool Buckets</div>
+            ${rowsBuckets.length>1 ? renderTable(rowsBuckets) : `<div style="opacity:.75;">No buckets</div>`}
+          </div>
+        </div>
+        <div style="height:12px;"></div>
+        <div style="opacity:.75; margin-bottom:6px;">Top Risk Findings</div>
+        ${rowsRisk.length>1 ? renderTable(rowsRisk) : `<div style="opacity:.75;">No findings</div>`}
+      `;
+    }
+  }
+
+  async function refresh(){
+    const rid = getRID();
+    const panel = mkPanel();
+    if(!panel) return;
+
+    const st = panel.querySelector("#vsp-mini-panel-v4-status");
+    const body = panel.querySelector("#vsp-mini-panel-v4-body");
+
+    if(!rid){
+      if(st) st.textContent="no RID";
+      if(body) body.innerHTML='<div style="opacity:.75;">No RID found on page URL. Try /vsp5?rid=...</div>';
+      return;
+    }
+
+    if(st) st.textContent=`RID=${rid} • fetching…`;
+    if(body) body.innerHTML='<div style="opacity:.75;">Fetching findings_unified.json…</div>';
+
+    const res = await fetchFindingsAllow(rid);
+    if(!res.ok || !(res.findings||[]).length){
+      if(st) st.textContent=`RID=${rid} • no findings (allowlist)`;
+      if(body) body.innerHTML='<div style="opacity:.75;">Could not load findings via run_file_allow. Check server allowlist.</div>';
+      return;
+    }
+
+    render(panel, rid, res.from, compute(res.findings));
+  }
+
+  // run a few times to win race
+  let tries=0;
+  function loop(){
+    tries++;
+    refresh();
+    if(tries<6) setTimeout(loop, 900);
+  }
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", ()=>setTimeout(loop, 120));
+  } else {
+    setTimeout(loop, 120);
+  }
+
+  window.__vspMiniPanelV4Refresh = function(){ loop(); };
+})();
+
+
+/* ===== VSP_P1_DASH_MINICHARTS_RENDERBARS_V5 =====
+   Render lightweight mini-bars (no canvas) from DOM KPIs + visible tables.
+   - Inserts bars under: Severity Distribution / By Tool Buckets / Top CWE Exposure
+   - Best-effort: if anchors not found => no-op
+*/
+(function(){
+  if (window.__VSP_MINI_V7_ONLY) { return; }
+
+  try{
+    if(window.__vspMiniBarsV5) return;
+    window.__vspMiniBarsV5 = true;
+
+    function onReady(fn){
+      if(document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 50);
+      else document.addEventListener("DOMContentLoaded", ()=>setTimeout(fn,50), {once:true});
+    }
+
+    function injectCSS(){
+      if(document.getElementById("vsp-mini-bars-v5-css")) return;
+      const st=document.createElement("style");
+      st.id="vsp-mini-bars-v5-css";
+      st.textContent = `
+        .vsp-mini-bars-v5{ margin:10px 0 14px 0; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(255,255,255,.02); }
+        .vsp-mini-bars-v5 .row{ display:flex; align-items:center; gap:10px; margin:6px 0; }
+        .vsp-mini-bars-v5 .lab{ width:140px; font-size:12px; opacity:.86; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .vsp-mini-bars-v5 .bar{ flex:1; height:10px; border-radius:999px; background:rgba(255,255,255,.06); position:relative; overflow:hidden; }
+        .vsp-mini-bars-v5 .bar > i{ display:block; height:100%; width:0%; background:rgba(110,168,255,.75); }
+        .vsp-mini-bars-v5 .val{ width:70px; text-align:right; font-variant-numeric: tabular-nums; font-size:12px; opacity:.9; }
+        .vsp-mini-bars-v5 .hint{ margin-top:6px; font-size:11px; opacity:.6; }
+      `;
+      document.head.appendChild(st);
+    }
+
+    function norm(s){ return (s||"").replace(/\s+/g," ").trim().toLowerCase(); }
+
+    function findHeaderLike(title){
+      const want = norm(title);
+      // prefer headings only (cheap)
+      const hs = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5"));
+      for(const e of hs){
+        const t = norm(e.textContent);
+        if(t === want || t.includes(want)) return e;
+      }
+      // fallback: TreeWalker over text nodes with early stop + cap
+      try{
+        const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+        let n=0, node=null;
+        while((node = tw.nextNode())){
+          n++; if(n>8000) break;
+          const txt = norm(node.nodeValue || "");
+          if(!txt) continue;
+          if(txt === want || txt.includes(want)){
+            return node.parentElement || null;
+          }
+        }
+      }catch(e){}
+      return null;
+    }
+
+    function hideIfNoData(node){
+      if(!node) return;
+      const t = (node.textContent||"").toLowerCase();
+      if(t.includes("loading") || t.includes("no data") || t.includes("degraded")) node.style.display="none";
+    }
+
+    // Read KPI numbers from the 4 KPI cards by label text
+    function readKPINum(label){
+      const want = norm(label);
+      // First: try common KPI card selectors (cheap)
+      const sel = [
+        "[data-kpi]", ".kpi", ".kpi-card", ".kpiCard", ".metric", ".metric-card",
+        ".stat", ".stat-card", ".vsp-kpi", ".vsp-kpi-card"
+      ].join(",");
+      try{
+        const nodes = document.querySelectorAll(sel);
+        for(const el of nodes){
+          const t = norm(el.textContent || "");
+          if(!t.includes(want)) continue;
+          const m = (el.textContent||"").match(/(\d{1,9})/);
+          if(m) return parseInt(m[1],10);
+        }
+      }catch(e){}
+
+      // Fallback: TreeWalker over text nodes, stop early, cap nodes
+      try{
+        const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+        let n=0, node=null;
+        while((node = tw.nextNode())){
+          n++; if(n>9000) break;
+          const txt = norm(node.nodeValue || "");
+          if(!txt) continue;
+          if(!txt.includes(want)) continue;
+
+          // walk up a few levels to find a nearby number (cap text length)
+          let el = node.parentElement;
+          for(let hop=0; hop<6 && el; hop++){
+            const t = (el.textContent||"");
+            const slice = t.length>600 ? t.slice(0,600) : t;
+            const m = slice.match(/(\d{1,9})/);
+            if(m) return parseInt(m[1],10);
+            el = el.parentElement;
+          }
+          break;
+        }
+      }catch(e){}
+      return 0;
+    }
+
+    function mkBarRow(label, val, max){
+      const row=document.createElement("div");
+      row.className="row";
+      const lab=document.createElement("div"); lab.className="lab"; lab.textContent=label;
+      const bar=document.createElement("div"); bar.className="bar";
+      const fill=document.createElement("i");
+      const pct = max>0 ? Math.max(0, Math.min(100, (val/max)*100)) : 0;
+      fill.style.width = pct.toFixed(1) + "%";
+      bar.appendChild(fill);
+      const v=document.createElement("div"); v.className="val"; v.textContent=String(val);
+      row.appendChild(lab); row.appendChild(bar); row.appendChild(v);
+      return row;
+    }
+
+    function ensurePanelAfter(headerEl, panelId){
+      if(!headerEl) return null;
+      // avoid duplicates
+      const exist = document.getElementById(panelId);
+      if(exist) return exist;
+      const panel=document.createElement("div");
+      panel.className="vsp-mini-bars-v5";
+      panel.id=panelId;
+
+      // insert right after header element (or after its parent line)
+      const anchor = headerEl;
+      if(anchor && anchor.parentNode){
+        if(anchor.nextSibling) anchor.parentNode.insertBefore(panel, anchor.nextSibling);
+        else anchor.parentNode.appendChild(panel);
+      }
+      return panel;
+    }
+
+    function renderSeverity(){
+      const h = findHeaderLike("Severity Distribution");
+      if(!h) return;
+
+      // Hide the old “Loading/No data …” blocks immediately under the header (best effort)
+      let sib = h.nextElementSibling;
+      for(let i=0;i<4 && sib;i++){
+        hideIfNoData(sib);
+        sib = sib.nextElementSibling;
+      }
+
+      const total = readKPINum("Total Findings") || 0;
+      const crit  = readKPINum("Critical") || 0;
+      const high  = readKPINum("High") || 0;
+      const med   = readKPINum("Medium") || 0;
+
+      // fallback parse from visible debug text if KPI not reliable
+      let low=0, info=0, trace=0;
+
+      const max = Math.max(crit, high, med, low, info, trace, 1);
+      const panel = ensurePanelAfter(h, "vsp-mini-bars-v5-sev");
+      if(!panel) return;
+      panel.innerHTML = "";
+      panel.appendChild(mkBarRow("CRITICAL", crit, max));
+      panel.appendChild(mkBarRow("HIGH",     high, max));
+      panel.appendChild(mkBarRow("MEDIUM",   med, max));
+      panel.appendChild(mkBarRow("LOW",      low, max));
+      panel.appendChild(mkBarRow("INFO",     info, max));
+      panel.appendChild(mkBarRow("TRACE",    trace, max));
+
+      const hint=document.createElement("div");
+      hint.className="hint";
+      hint.textContent = "Source: KPI cards on this page (no extra API). Total=" + total;
+      panel.appendChild(hint);
+    }
+
+    function countToolsFromTopTable(){
+      // Count tool values from the visible “Top Findings” table (best-effort).
+      const counts = {};
+      const tables = Array.from(document.querySelectorAll("table"));
+      for(const t of tables){
+        const headTxt = (t.textContent||"").toLowerCase();
+        if(!headTxt.includes("tool")) continue;
+        const ths = Array.from(t.querySelectorAll("thead th"));
+        let toolIdx = -1;
+        ths.forEach((th,i)=>{ if(norm(th.textContent)==="tool") toolIdx=i; });
+        if(toolIdx<0) continue;
+
+        const rows = Array.from(t.querySelectorAll("tbody tr"));
+        if(rows.length<2) continue;
+        for(const r of rows){
+          const tds = Array.from(r.querySelectorAll("td"));
+          const tool = (tds[toolIdx]?.textContent || "").trim();
+          if(!tool) continue;
+          counts[tool] = (counts[tool]||0) + 1;
+        }
+        // use first suitable table only
+        break;
+      }
+      return counts;
+    }
+
+    function renderToolBuckets(){
+      const h = findHeaderLike("By Tool Buckets") || findHeaderLike("Critical/High by Tool");
+      if(!h) return;
+
+      let sib = h.nextElementSibling;
+      for(let i=0;i<4 && sib;i++){
+        hideIfNoData(sib);
+        sib = sib.nextElementSibling;
+      }
+
+      const counts = countToolsFromTopTable();
+      const items = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      if(items.length===0) return;
+
+      const max = Math.max(...items.map(x=>x[1]), 1);
+      const panel = ensurePanelAfter(h, "vsp-mini-bars-v5-tools");
+      if(!panel) return;
+      panel.innerHTML = "";
+      for(const [tool,val] of items){
+        panel.appendChild(mkBarRow(tool, val, max));
+      }
+      const hint=document.createElement("div");
+      hint.className="hint";
+      hint.textContent = "Source: visible Top Findings table rows (sample only).";
+      panel.appendChild(hint);
+    }
+
+    function renderTopCWE(){
+      const h = findHeaderLike("Top CWE Exposure");
+      if(!h) return;
+
+      let sib = h.nextElementSibling;
+      for(let i=0;i<4 && sib;i++){
+        hideIfNoData(sib);
+        sib = sib.nextElementSibling;
+      }
+
+      // If page doesn't expose CWE in table, show a helpful note
+      const panel = ensurePanelAfter(h, "vsp-mini-bars-v5-cwe");
+      if(!panel) return;
+      panel.innerHTML = "";
+      const msg=document.createElement("div");
+      msg.style.fontSize="12px";
+      msg.style.opacity=".8";
+      msg.textContent = "CWE not available in current view (no CWE field in visible items).";
+      panel.appendChild(msg);
+    }
+
+    onReady(function(){
+  if (window.__VSP_MINI_V7_ONLY) { return; }
+
+      injectCSS();
+      renderSeverity();
+      renderToolBuckets();
+      renderTopCWE();
+    });
+
+  }catch(e){}
+})();
+
+
+/* ===== VSP_P1_DASH_MINICHARTS_V6_FROM_TOP_TABLE_V1 =====
+   Fast + correct: compute counts from rendered "Top Findings" table (no extra API).
+   Avoid scanning whole DOM / avoid KPI-card parsing.
+*/
+(function(){
+  try{
+    if(window.__vspMiniChartsV6_FromTopTable) return;
+    window.__vspMiniChartsV6_FromTopTable = true;
+
+    function norm(s){ return (s||"").toString().trim().toUpperCase(); }
+
+    function findSectionHeader(title){
+      const want = norm(title);
+      // prefer headings only
+      const hs = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,div,span"));
+      for(const el of hs){
+        const t = norm(el.textContent);
+        if(!t) continue;
+        if(t === want || t.includes(want)) return el;
+      }
+      return null;
+    }
+
+    function findTopFindingsTable(){
+      // Heuristic: find element containing "Top Findings" then locate nearest table under same container
+      const hdr = findSectionHeader("Top Findings");
+      if(!hdr) return null;
+
+      // walk up to a reasonable container, then search for table
+      let root = hdr;
+      for(let i=0;i<6 && root;i++){
+        const t = (root.textContent||"");
+        if(t && t.length > 40) break;
+        root = root.parentElement || root;
+      }
+      // in case that didn't help, just use parent chain
+      let container = hdr.parentElement;
+      for(let i=0;i<8 && container;i++){
+        const tbl = container.querySelector("table");
+        if(tbl) return tbl;
+        container = container.parentElement;
+      }
+      // fallback: first table on page
+      return document.querySelector("table");
+    }
+
+    function readRowsFromTopTable(limit){
+      const tbl = findTopFindingsTable();
+      if(!tbl) return [];
+
+      const rows = Array.from(tbl.querySelectorAll("tbody tr"));
+      if(!rows.length) return [];
+
+      const items = [];
+      for(const tr of rows.slice(0, limit)){
+        const tds = Array.from(tr.querySelectorAll("td"));
+        if(!tds.length) continue;
+
+        // Expect columns: Severity | Title | Tool | (File/Location...)
+        const sev = norm(tds[0] ? tds[0].textContent : "");
+        const title = (tds[1] ? (tds[1].textContent||"").trim() : "");
+        const tool = norm(tds[2] ? tds[2].textContent : "");
+        const file = (tds[3] ? (tds[3].textContent||"").trim() : "");
+
+        if(!sev || sev==="NOT LOADED") continue;
+        items.push({severity: sev, title, tool: tool||"UNKNOWN", file});
+      }
+      return items;
+    }
+
+    function computeFromItems(items){
+      const sevOrder = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+      const sevCount = Object.create(null);
+      for(const s of sevOrder) sevCount[s]=0;
+
+      const toolCount = Object.create(null);
+      for(const it of items){
+        const s = norm(it.severity);
+        if(sevCount[s] === undefined) continue;
+        sevCount[s] = (sevCount[s]||0) + 1;
+        const t = norm(it.tool) || "UNKNOWN";
+        toolCount[t] = (toolCount[t]||0) + 1;
+      }
+      return {sevCount, toolCount, total: items.length};
+    }
+
+    function ensureMiniArea(){
+      // Place under "Severity Distribution" section, as a small preformatted block
+      const hdr = findSectionHeader("Severity Distribution");
+      const host = hdr ? (hdr.parentElement || document.body) : document.body;
+
+      let box = document.getElementById("vsp-mini-v6-box");
+      if(box) return box;
+
+      box = document.createElement("div");
+      box.id = "vsp-mini-v6-box";
+      box.style.cssText = "margin-top:8px; padding:10px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; color:rgba(255,255,255,0.88); background:rgba(0,0,0,0.18);";
+      box.textContent = "MiniCharts V6: waiting...";
+      host.appendChild(box);
+      return box;
+    }
+
+    function renderTextBars(sevCount, total){
+      const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+      const box = ensureMiniArea();
+      const max = Math.max(1, ...order.map(k => sevCount[k]||0));
+      const lines = [];
+      lines.push(`RID=${(window.__VSP_RID||"") || (new URL(location.href).searchParams.get("rid")||"")}`);
+      lines.push(`TOTAL(top_table_rows)=${total}`);
+      for(const k of order){
+        const v = sevCount[k]||0;
+        const w = Math.round((v/max)*40);
+        lines.push(`${k.padEnd(8)} ${String(v).padStart(4)}  ${"█".repeat(w)}`);
+      }
+      box.textContent = lines.join("\n");
+    }
+
+    function renderToolBuckets(toolCount){
+      const box = document.getElementById("vsp-mini-v6-tools") || (function(){
+        const d = document.createElement("div");
+        d.id="vsp-mini-v6-tools";
+        d.style.cssText="margin-top:10px; padding:10px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; color:rgba(255,255,255,0.88); background:rgba(0,0,0,0.18);";
+        (document.getElementById("vsp-mini-v6-box")?.parentElement || document.body).appendChild(d);
+        return d;
+      })();
+
+      const entries = Object.entries(toolCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const lines = ["By Tool (top-table)"];
+      for(const [k,v] of entries){
+        lines.push(`${(k||"UNKNOWN").padEnd(10)} ${String(v).padStart(4)}`);
+      }
+      box.textContent = lines.join("\n");
+    }
+
+    function runOnce(){
+      const items = readRowsFromTopTable(400);
+      if(items.length < 5) return false;
+      const {sevCount, toolCount, total} = computeFromItems(items);
+      renderTextBars(sevCount, total);
+      renderToolBuckets(toolCount);
+      return true;
+    }
+
+    // Retry a few times because table may render async
+    let tries = 0;
+    function tick(){
+      tries++;
+      if(runOnce()) return;
+      if(tries >= 12) {
+        ensureMiniArea().textContent = "MiniCharts V6: Top Findings table not ready / not found.";
+        return;
+      }
+      setTimeout(tick, 250);
+    }
+    setTimeout(tick, 50);
+  }catch(e){}
+})();
+
+
+
+/* ===== VSP_P1_DASH_MINICHARTS_V7_ONLY_SAFE_V1 =====
+   - Disable legacy minicharts (V1..V6) via window.__VSP_MINI_V7_ONLY
+   - Render mini charts using /api/vsp/top_findings_v1 (no run_file_allow, no huge DOM scans)
+   - Bounded work: limit items, 1 fetch, 1 render, no intervals
+*/
+(function(){
+  try{
+    if (window.__VSP_MINI_V7_INIT) return;
+    window.__VSP_MINI_V7_INIT = true;
+
+    function qs(sel, root){ try{return (root||document).querySelector(sel);}catch(e){return null;} }
+    function qsa(sel, root){ try{return Array.from((root||document).querySelectorAll(sel));}catch(e){return [];} }
+    function el(tag, attrs, text){
+      var n=document.createElement(tag);
+      if(attrs){ for(var k in attrs){ try{ n.setAttribute(k, String(attrs[k])); }catch(e){} } }
+      if(text!=null) n.textContent = String(text);
+      return n;
+    }
+
+    function getRID(){
+  try{
+    var u = new URL(location.href);
+    var rid = u.searchParams.get("rid") || u.searchParams.get("RID") || "";
+    rid = (rid||"").trim();
+    if (rid && rid !== "YOUR_RID") return rid;
+  }catch(e){}
+  // cached/global
+  try{
+    var cr = (window.__VSP_RID||"").toString().trim();
+    if (cr && cr !== "YOUR_RID") return cr;
+  }catch(e){}
+  // bounded DOM sniff
+  try{
+    var chips = Array.prototype.slice.call(document.querySelectorAll("a,button,span,div"), 0, 160);
+    for(var i=0;i<chips.length;i++){
+      var t=(chips[i].textContent||"").trim();
+      if(t.startsWith("VSP_") && t.length<80 && t!=="YOUR_RID") return t;
+      if(t.indexOf("RID:")>=0){
+        var mm=t.match(/RID:\s*([A-Za-z0-9_:-]{6,80})/);
+        if(mm && mm[1] && mm[1]!=="YOUR_RID") return mm[1];
+      }
+    }
+  }catch(e){}
+  return "";
+}
+
+async function fetchRidLatest(){
+  var ctrl = new AbortController();
+  var to = setTimeout(function(){ try{ctrl.abort();}catch(e){} }, 1500);
+  try{
+    var r = await fetch("/api/vsp/rid_latest", {credentials:"same-origin", signal: ctrl.signal});
+    var j = await r.json().catch(function(){ return null; });
+    var rid = (j && (j.rid||j.RID) || "").toString().trim();
+    if (rid && rid !== "YOUR_RID") return rid;
+  }catch(e){}
+  finally{ clearTimeout(to); }
+  return "";
+}
+
+
+
+    function ensurePanel(){
+      // Prefer to attach near bottom of Dashboard; fall back to body
+      var host = qs("#vsp-dashboard-main") || qs("[data-tab='dashboard']") || qs("main") || qs("body");
+      var id="vsp-mini-v7-panel";
+      var old = qs("#"+id);
+      if(old) return old;
+
+      var wrap = el("div", {id:id});
+      wrap.style.cssText = [
+        "margin:14px 0 24px 0",
+        "padding:14px 14px",
+        "border:1px solid rgba(255,255,255,.08)",
+        "border-radius:14px",
+        "background:rgba(255,255,255,.03)",
+        "backdrop-filter: blur(6px)"
+      ].join(";");
+
+      var h = el("div", null, "Mini Charts (safe)");
+      h.style.cssText="font-weight:700;letter-spacing:.2px;font-size:13px;opacity:.92;margin:0 0 10px 0";
+      wrap.appendChild(h);
+
+      var sub = el("div", null, "Source: /api/vsp/top_findings_v1 (no allowlist file fetch).");
+      sub.style.cssText="font-size:12px;opacity:.65;margin:0 0 10px 0";
+      wrap.appendChild(sub);
+
+      var body = el("div");
+      body.id = "vsp-mini-v7-body";
+      wrap.appendChild(body);
+
+      try{ host.appendChild(wrap); }catch(e){ document.body.appendChild(wrap); }
+      return wrap;
+    }
+
+    function barRow(label, val, total){
+      var row = el("div");
+      row.style.cssText="display:flex;align-items:center;gap:10px;margin:6px 0";
+
+      var left = el("div", null, label);
+      left.style.cssText="width:130px;font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      row.appendChild(left);
+
+      var track = el("div");
+      track.style.cssText="flex:1;height:10px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden";
+      var fill = el("div");
+      var pct = total>0 ? Math.max(0, Math.min(100, (val*100/total))) : 0;
+      fill.style.cssText="height:100%;width:"+pct.toFixed(1)+"%;border-radius:999px;background:rgba(120,170,255,.55)";
+      track.appendChild(fill);
+      row.appendChild(track);
+
+      var right = el("div", null, String(val));
+      right.style.cssText="width:52px;text-align:right;font-size:12px;opacity:.85";
+      row.appendChild(right);
+
+      return row;
+    }
+
+    function listBlock(title, arr){
+      var box = el("div");
+      box.style.cssText="margin-top:12px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.10)";
+      var h = el("div", null, title);
+      h.style.cssText="font-weight:700;font-size:12px;opacity:.9;margin-bottom:8px";
+      box.appendChild(h);
+
+      var pre = el("pre");
+      pre.style.cssText="margin:0;white-space:pre-wrap;word-break:break-word;font-size:12px;opacity:.85;line-height:1.35";
+      pre.textContent = arr.length ? arr.join("\n") : "(no data)";
+      box.appendChild(pre);
+      return box;
+    }
+
+    function compute(items){
+      var sev = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+      var tool = {};
+      var cwe = {};
+      var risk = [];
+
+      for(var i=0;i<items.length;i++){
+        var it = items[i] || {};
+        var s = String(it.severity||"").toUpperCase();
+        if(sev[s] == null) sev[s]=0;
+        sev[s]++;
+
+        var tl = String(it.tool||"").toLowerCase() || "unknown";
+        tool[tl] = (tool[tl]||0) + 1;
+
+        var cw = it.cwe;
+        if(cw!=null && cw!=="" && cw!=="None"){
+          var k = String(cw);
+          cwe[k] = (cwe[k]||0)+1;
+        }
+
+        if(risk.length < 10){
+          var title = (it.title||it.rule||it.id||"").toString().slice(0,140);
+          var file = (it.file||it.path||it.location||"").toString().slice(0,120);
+          risk.push((s||"UNK") + "  " + (it.tool||"") + "  " + title + (file?("  ::  "+file):""));
+        }
+      }
+
+      var toolTop = Object.entries(tool).sort(function(a,b){return b[1]-a[1]}).slice(0,8)
+        .map(function(x){ return x[0] + "  " + x[1]; });
+
+      var cweTop = Object.entries(cwe).sort(function(a,b){return b[1]-a[1]}).slice(0,8)
+        .map(function(x){ return x[0] + "  " + x[1]; });
+
+      return {sev:sev, toolTop:toolTop, cweTop:cweTop, risk:risk, total:items.length};
+    }
+
+    async function fetchTop(rid){
+      var u = "/api/vsp/top_findings_v1?limit=400";
+      if(rid && rid!=="YOUR_RID") u += "&rid=" + encodeURIComponent(rid);
+
+      var ctrl = new AbortController();
+      var to = setTimeout(function(){ try{ctrl.abort();}catch(e){} }, 2500);
+
+      try{
+        var r = await fetch(u, {credentials:"same-origin", signal: ctrl.signal});
+        var j = await r.json().catch(function(){ return null; });
+        return j;
+      } finally {
+        clearTimeout(to);
+      }
+    }
+
+    async function main(){
+      var panel = ensurePanel();
+      var body = qs("#vsp-mini-v7-body") || panel;
+      body.textContent = "Loading /api/vsp/top_findings_v1 ...";
+
+      var rid = getRID();
+  if(!rid || rid==='YOUR_RID'){ try{ rid = await fetchRidLatest() || rid; }catch(e){} }
+      var j = null;
+      try{ j = await fetchTop(rid); }catch(e){ j = null; }
+
+      if(!j || j.ok !== true){
+        body.textContent = "No data (API unavailable): /api/vsp/top_findings_v1";
+        return;
+      }
+      var items = j.items || j.findings || [];
+      if(!Array.isArray(items) || !items.length){
+        body.textContent = "No findings (items empty).";
+        return;
+      }
+
+      // render
+      body.textContent = "";
+      var info = el("div", null, "RID=" + (j.run_id || rid || "(none)") + "  •  items(sample)=" + items.length);
+      info.style.cssText="font-size:12px;opacity:.75;margin-bottom:10px";
+      body.appendChild(info);
+
+      var data = compute(items);
+      var total = data.total || 0;
+
+      body.appendChild(barRow("CRITICAL", data.sev.CRITICAL||0, total));
+      body.appendChild(barRow("HIGH", data.sev.HIGH||0, total));
+      body.appendChild(barRow("MEDIUM", data.sev.MEDIUM||0, total));
+      body.appendChild(barRow("LOW", data.sev.LOW||0, total));
+      body.appendChild(barRow("INFO", data.sev.INFO||0, total));
+      body.appendChild(barRow("TRACE", data.sev.TRACE||0, total));
+
+      body.appendChild(listBlock("By Tool (top 8)", data.toolTop));
+      body.appendChild(listBlock("Top CWE (top 8)", data.cweTop));
+      body.appendChild(listBlock("Top Risk (sample 10)", data.risk));
+    }
+
+    // run once, soon, no intervals
+    setTimeout(function(){ main(); }, 80);
+  }catch(e){}
+})();
+
+/* ===== VSP_P1_FETCH_INJECT_RIDLATEST_TOPFINDINGS_V1 =====
+   Goal: if URL has ?rid=YOUR_RID (or missing), make /api/vsp/top_findings_v1 always receive a real RID.
+   - scrub rid=YOUR_RID from location (history.replaceState)
+   - wrap fetch(): for /api/vsp/top_findings_v1, inject rid_latest when rid missing/YOUR_RID
+*/
+(function(){
+  try{
+    if(window.__VSP_FETCH_RID_INJECTED_V1) return;
+    window.__VSP_FETCH_RID_INJECTED_V1 = true;
+
+    // 1) scrub URL rid=YOUR_RID
+    (function scrub(){
+      try{
+        var u = new URL(location.href);
+        var rid = (u.searchParams.get("rid") || u.searchParams.get("RID") || "").toString().trim();
+        if(rid === "YOUR_RID"){
+          u.searchParams.delete("rid");
+          u.searchParams.delete("RID");
+          history.replaceState(null, "", u.toString());
+          try{ window.__VSP_RID = ""; }catch(e){}
+        }
+      }catch(e){}
+    })();
+
+    // 2) cache rid_latest
+    var __rid_cache = { rid:"", ts:0 };
+    async function getRidLatest(){
+      var now = Date.now();
+      if(__rid_cache.rid && (now - __rid_cache.ts) < 30000) return __rid_cache.rid;
+      try{
+        var r = await fetch("/api/vsp/rid_latest", { credentials:"same-origin" });
+        var j = await r.json().catch(function(){ return null; });
+        var rid = (j && (j.rid || j.RID) || "").toString().trim();
+        if(rid && rid !== "YOUR_RID"){
+          __rid_cache.rid = rid; __rid_cache.ts = now;
+          return rid;
+        }
+      }catch(e){}
+      return __rid_cache.rid || "";
+    }
+
+    // 3) wrap fetch for top_findings_v1 only
+    var _fetch = window.fetch ? window.fetch.bind(window) : null;
+    if(!_fetch) return;
+
+    window.fetch = async function(input, init){
+      try{
+        var url = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+        if(url && url.indexOf("/api/vsp/top_findings_v1") >= 0){
+          var u = new URL(url, location.origin);
+          var rid = (u.searchParams.get("rid") || u.searchParams.get("RID") || "").toString().trim();
+          if(!rid || rid === "YOUR_RID"){
+            var lr = await getRidLatest();
+            if(lr){
+              u.searchParams.set("rid", lr);
+              if(typeof input === "string"){
+                input = u.toString();
+              }else{
+                // preserve request method/headers by cloning when possible
+                try{
+                  input = new Request(u.toString(), input);
+                }catch(e){
+                  input = u.toString();
+                }
+              }
+            }
+          }
+        }
+      }catch(e){}
+      return _fetch(input, init);
+    };
+  }catch(e){}
+})();

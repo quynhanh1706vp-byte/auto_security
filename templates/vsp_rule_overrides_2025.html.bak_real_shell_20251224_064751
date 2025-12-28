@@ -1,0 +1,61 @@
+<!doctype html><html lang="vi"><head>
+<!-- ===================== VSP_P2_6C_DASH_FETCH_SHIM_PRELOAD_V1 ===================== -->
+<script>
+(function(){
+  if(window.__VSP_FETCH_SHIM_PRELOAD_V1) return;
+  window.__VSP_FETCH_SHIM_PRELOAD_V1 = true;
+
+  // Root fallback helper (used by some dash scripts)
+  window.__VSP_DASH_ROOT = function(){
+    return document.querySelector('#vsp-dashboard-main')
+        || document.querySelector('#vsp_dashboard_main')
+        || document.querySelector('#vsp-dashboard')
+        || document.body;
+  };
+
+  const _fetch = window.fetch ? window.fetch.bind(window) : null;
+  if(!_fetch) return;
+
+  window.fetch = async function(input, init){
+    try{
+      if(init && typeof init === 'object'){
+        const m = String(init.method || '').toUpperCase();
+        if(m === 'HEAD'){
+          init = Object.assign({}, init, {method:'GET'});
+        }
+      }
+    }catch(e){}
+
+    const res = await _fetch(input, init);
+
+    try{
+      const url = (typeof input === 'string') ? input : (input && input.url) || '';
+      // unwrap wrapper payload for findings_unified.json
+      if(url.includes('/api/vsp/run_file_allow') && url.includes('path=findings_unified.json')){
+        const clone = res.clone();
+        const j = await clone.json().catch(()=>null);
+        if(j && j.ok === true && Array.isArray(j.findings)){
+          const body = JSON.stringify({ meta: j.meta || {}, findings: j.findings || [] });
+          return new Response(body, { status: res.status, headers: res.headers });
+        }
+      }
+    }catch(e){}
+
+    return res;
+  };
+})();
+</script>
+<!-- ===================== /VSP_P2_6C_DASH_FETCH_SHIM_PRELOAD_V1 ===================== -->
+
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>VSP • Rule Overrides</title>
+<link rel="stylesheet" href="/static/css/vsp_dark_commercial_p1_2.css"/>
+<style>html,body{background:#070e1a;color:#e5e7eb;margin:0;}</style>
+</head><body>
+<!-- VSP_P2_COMM_ANCHOR_ASSETV_V1 -->
+<div id="vsp-dashboard-main"></div>
+
+<div id="vsp_tab_root" data-vsp-tab="rule_overrides" style="padding:16px"><div style="color:#94a3b8;font-size:12px">Loading...</div></div>
+<script src="/static/js/vsp_tabs3_common_v3.js?v={{ asset_v|default('') }}"></script>
+<script src="/static/js/vsp_rule_overrides_tab_v3.js?v={{ asset_v|default('') }}"></script>
+<script src="/static/js/vsp_dashboard_luxe_v1.js?v={{ asset_v }}"></script></body></html>

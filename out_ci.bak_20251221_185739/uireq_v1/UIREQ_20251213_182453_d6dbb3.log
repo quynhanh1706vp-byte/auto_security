@@ -1,0 +1,49 @@
+[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER
+[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data
+[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER_RUNNERLOG_V1] runner_log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/runner.log
+[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251213_182453
+[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453
+[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===
+[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh
+[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data
+[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453
+[VSP_CI_GATE] RUN_ID      = VSP_CI_20251213_182453
+[VSP_CI_GATE_AUTOPICK_RUNNER_V1] RUNNER=/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] RUNNER      = /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] === CHẠY RUNNER VSP (FULL SCAN) ===
+[VSP_CI_GATE] Cmd: /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh "/home/test/Data/SECURITY-10-10-v4" "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453"
+===== [BOOT] runner.log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/runner.log ts=2025-12-13T18:24:53+07:00 =====
+==============================================
+[VSP] RUN ALL TOOLS V2 – PROFILE=FULL_EXT LEVEL=FULL_EXT
+ROOT     = /home/test/Data/SECURITY_BUNDLE
+SRC      = /home/test/Data/SECURITY-10-10-v4
+OUT_DIR  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453
+NO_NET   = 0
+==============================================
+
+===== [3/8] KICS (EXT) =====
+[KICS] ROOT = /home/test/Data/SECURITY_BUNDLE
+[KICS] OUT  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453
+[KICS] SRC  = /home/test/Data/SECURITY-10-10-v4
+[KICS] OUT_KICS = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/kics
+[KICS] NORM = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/kics/kics.json
+[KICS] LOG  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/kics/kics.log
+[KICS] Dùng local KICS CLI: `kics scan`
+[KICS] RAW_JSON detect = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/kics/results.json
+[KICS][META] files_scanned   = 26
+[KICS][META] queries_total   = 0
+[KICS][META] findings_total ≈ 0
+[KICS] Done. RC=0
+[KICS] rc=0
+
+===== [1/8] Gitleaks (EXT) =====
+[Gitleaks] ROOT    = /home/test/Data/SECURITY_BUNDLE
+[Gitleaks] OUT_DIR = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453
+[Gitleaks] SRC     = /home/test/Data/SECURITY-10-10-v4
+[Gitleaks] PROFILE = ext
+[Gitleaks] MODE    = BUILTIN_RULES
+[Gitleaks] JSON    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/gitleaks/gitleaks.json
+[Gitleaks] LOG     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_182453/gitleaks/gitleaks.log

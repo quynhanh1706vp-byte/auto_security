@@ -1,0 +1,235 @@
+
+/* ===================== VSP_P0_CIO_KPI_NO_NA_CONSIST_V1P4 ===================== */
+(function(){
+  try{
+    if (window.__VSP_CIO_KPI_V1P4__) return;
+    window.__VSP_CIO_KPI_V1P4__ = true;
+
+    function _num(v){
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+    function _upperKey(k){ try{return String(k||"").toUpperCase();}catch(e){return "";} }
+
+    function _extractSevBag(obj){
+      if(!obj || typeof obj !== "object") return null;
+      return obj.counts_by_severity || obj.by_severity || obj.severity || obj.counts || null;
+    }
+
+    window.__vspCioNormalizeCountsV1P4 = function(obj){
+      try{
+        if(!obj || typeof obj !== "object") return obj;
+
+        // normalize severity bucket
+        const bag = _extractSevBag(obj);
+        const sev = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0, INFO:0, TRACE:0 };
+        if (bag && typeof bag === "object"){
+          for (const k in bag){
+            const uk = _upperKey(k);
+            if (uk in sev) sev[uk] = _num(bag[k]);
+          }
+        }
+
+        // prefer explicit totals if present, else compute from sev
+        const explicitTotal =
+          obj.total ??
+          obj.total_findings ??
+          obj.findings_total ??
+          (obj.counts_total && (obj.counts_total.TOTAL ?? obj.counts_total.total)) ??
+          null;
+
+        const computedTotal = sev.CRITICAL + sev.HIGH + sev.MEDIUM + sev.LOW + sev.INFO + sev.TRACE;
+        const total = _num(explicitTotal) || computedTotal;
+
+        // stamp back stable keys (no N/A)
+        obj.total = total;
+        obj.total_findings = total;
+        obj.findings_total = total;
+
+        obj.critical = _num(obj.critical) || sev.CRITICAL;
+        obj.high = _num(obj.high) || sev.HIGH;
+
+        obj.counts_by_severity = { ...sev };
+        obj.by_severity = { ...sev };
+
+        // stable counts_total shape
+        obj.counts_total = { ...sev, TOTAL: total };
+
+        return obj;
+      }catch(e){ return obj; }
+    };
+
+    window.__vspCioNormalizePayloadV1P4 = function(payload){
+      try{
+        if(!payload || typeof payload !== "object") return payload;
+
+        // common containers
+        const cands = [
+          payload,
+          payload.data,
+          payload.dashboard,
+          payload.summary,
+          payload.gate,
+          payload.run_gate,
+          payload.run,
+          payload.counts_total
+        ];
+        for (const c of cands){
+          if (c && typeof c === "object") window.__vspCioNormalizeCountsV1P4(c);
+        }
+
+        // if payload has counts_total as object with sev keys, also ensure TOTAL
+        if (payload.counts_total && typeof payload.counts_total === "object"){
+          const sev = { CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0 };
+          for (const k in payload.counts_total){
+            const uk = _upperKey(k);
+            if (uk in sev) sev[uk] = _num(payload.counts_total[k]);
+          }
+          const tot = _num(payload.counts_total.TOTAL ?? payload.counts_total.total) || (sev.CRITICAL+sev.HIGH+sev.MEDIUM+sev.LOW+sev.INFO+sev.TRACE);
+          payload.counts_total = { ...sev, TOTAL: tot };
+        }
+
+        return payload;
+      }catch(e){ return payload; }
+    };
+
+    // scrub any "N/A" appearing in UI (CIO trust)
+    function scrubNA(root){
+      try{
+        root = root || document;
+        const nodes = root.querySelectorAll("*");
+        for (const n of nodes){
+          const t = (n && n.childNodes && n.childNodes.length===1 && n.childNodes[0].nodeType===3) ? (n.textContent||"") : "";
+          if(!t) continue;
+          if (t.trim() === "N/A" || t.trim() === "not available"){
+            n.textContent = "0";
+            n.setAttribute("title","No data for this run");
+          }
+          // common pattern: "Total findings: N/A"
+          if (t.includes("N/A")){
+            const tt = t.replace(/\bN\/A\b/g, "0").replace(/not available/gi,"0");
+            if (tt !== t){
+              n.textContent = tt;
+              n.setAttribute("title","No data for this run");
+            }
+          }
+        }
+      }catch(e){}
+    }
+
+    function attachObserver(){
+      try{
+        scrubNA(document);
+        const obs = new MutationObserver(function(){ scrubNA(document); });
+        obs.observe(document.documentElement || document.body, { childList:true, subtree:true, characterData:true });
+      }catch(e){}
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", attachObserver, { once:true });
+    else attachObserver();
+
+  }catch(e){}
+})();
+/* ===================== /VSP_P0_CIO_KPI_NO_NA_CONSIST_V1P4 ===================== */
+
+(function () {
+  if (window.VSP_DASH_FORCE_INIT) {
+    console.log('[VSP_DASH_FORCE] already initialized, skip');
+    return;
+  }
+  window.VSP_DASH_FORCE_INIT = true;
+
+  console.log('[VSP_DASH_FORCE] vsp_dashboard_kpi_force_any_v1.js loaded');
+
+  function fmtInt(n) {
+    if (n == null || isNaN(n)) return '--';
+    return Number(n).toLocaleString('en-US');
+  }
+
+  function setText(id, value, isNumber) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (value == null || value === '') {
+      el.textContent = '--';
+      return;
+    }
+    el.textContent = isNumber ? fmtInt(value) : String(value);
+  }
+
+  async function loadKpiOnce() {
+    try {
+      const res = await fetch('/api/vsp/dashboard_v3');
+      if (!res.ok) {
+        console.warn('[VSP_DASH_FORCE] dashboard_v3 HTTP != 200', res.status);
+        return;
+      }
+      const data = await res.json();
+      const sev = data.by_severity || data.severity_cards || {};
+
+      let topTool   = data.top_risky_tool;
+      let topCwe    = data.top_impacted_cwe;
+      let topModule = data.top_vulnerable_module;
+
+      if (topCwe && typeof topCwe === 'object') {
+        topCwe =
+          topCwe.cwe_id ||
+          topCwe.cwe ||
+          topCwe.id ||
+          topCwe.name ||
+          JSON.stringify(topCwe);
+      }
+      if (topModule && typeof topModule === 'object') {
+        topModule =
+          topModule.path ||
+          topModule.module ||
+          topModule.id ||
+          topModule.name ||
+          JSON.stringify(topModule);
+      }
+
+      // 5 KPI chính
+      setText('vsp-kpi-total-findings', data.total_findings, true);
+      setText('vsp-kpi-score',          data.security_posture_score, true);
+      setText('vsp-kpi-top-tool',       topTool, false);
+      setText('vsp-kpi-top-cwe',        topCwe, false);
+      setText('vsp-kpi-top-module',     topModule, false);
+
+      // 6 severity
+      setText('vsp-kpi-sev-critical', sev.CRITICAL || 0, true);
+      setText('vsp-kpi-sev-high',     sev.HIGH     || 0, true);
+      setText('vsp-kpi-sev-medium',   sev.MEDIUM   || 0, true);
+      setText('vsp-kpi-sev-low',      sev.LOW      || 0, true);
+      setText('vsp-kpi-sev-info',     sev.INFO     || 0, true);
+      setText('vsp-kpi-sev-trace',    sev.TRACE    || 0, true);
+
+      console.log('[VSP_DASH_FORCE] KPI applied', {
+        total: data.total_findings,
+        score: data.security_posture_score,
+        topTool, topCwe, topModule,
+        by_severity: sev
+      });
+    } catch (e) {
+      console.error('[VSP_DASH_FORCE] Error loading KPI', e);
+    }
+  }
+
+  function init() {
+    var tries = 0;
+    var t = setInterval(function () {
+      var pane = document.getElementById('vsp-dashboard-main');
+      if (pane) {
+        clearInterval(t);
+        loadKpiOnce();
+      } else if (tries++ > 20) {
+        clearInterval(t);
+        console.warn('[VSP_DASH_FORCE] Hết retries, không thấy #vsp-dashboard-main');
+      }
+    }, 500);
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+})();

@@ -1,0 +1,157 @@
+/* P121 - generated */
+
+(function(){
+  "use strict";
+  const W = window;
+  const log = (...a)=>console.log("[VSPC]", ...a);
+  const warn = (...a)=>console.warn("[VSPC]", ...a);
+
+  function qs(sel, root=document){ return root.querySelector(sel); }
+  function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+  function text(el, s){ if(!el) return; el.textContent = (s==null?"":String(s)); }
+
+  function sanitizeRid(r){
+    r = (r==null?"":String(r)).trim();
+    // allow typical RID chars only
+    r = r.replace(/[^\w\-:.]/g, "");
+    if (r.length>160) r = r.slice(0,160);
+    return r;
+  }
+
+  function getParam(name){
+    try { return new URLSearchParams(location.search).get(name) || ""; }
+    catch(e){ return ""; }
+  }
+
+  function getRid(){
+    const u = sanitizeRid(getParam("rid"));
+    const ls = sanitizeRid(localStorage.getItem("VSP_C_RID")||"");
+    return u || ls || "";
+  }
+  function setRid(rid){
+    rid = sanitizeRid(rid);
+    if (rid) localStorage.setItem("VSP_C_RID", rid);
+    return rid;
+  }
+
+  async function fetchJSON(url, opt={}){
+    const to = opt.timeout_ms || 8000;
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), to);
+    try{
+      const r = await fetch(url, {signal: ctl.signal, cache:"no-store", credentials:"same-origin"});
+      const ct = (r.headers.get("content-type")||"").toLowerCase();
+      const body = await r.text();
+      let j = null;
+      if (ct.includes("application/json")) {
+        try { j = JSON.parse(body); } catch(e){ j=null; }
+      } else {
+        try { j = JSON.parse(body); } catch(e){ j=null; }
+      }
+      return {ok:r.ok, status:r.status, json:j, text:body, url};
+    } finally { clearTimeout(t); }
+  }
+
+  async function firstOK(urls){
+    for (const u of urls){
+      const res = await fetchJSON(u, {timeout_ms: 9000});
+      if (res.ok && res.json) return res;
+    }
+    return null;
+  }
+
+  // expose minimal bus (optional)
+  W.VSP_C = W.VSP_C || {};
+  W.VSP_C.p121 = {qs,qsa,text,log,warn,sanitizeRid,getParam,getRid,setRid,fetchJSON,firstOK};
+})();
+
+(function(){
+  'use strict';
+  const H = window.VSP_C && window.VSP_C.p121;
+  if(!H){ console.warn('[VSPC] missing helpers'); return; }
+  const {qs,qsa,log,warn,getRid,firstOK} = H;
+
+  function findDataTable(){
+    // prefer the big preview table (many columns)
+    const tables = qsa('table');
+    let best = null, bestScore = -1;
+    for(const t of tables){
+      const th = Array.from(t.querySelectorAll('th')).map(x=>x.textContent.trim().toLowerCase());
+      const score =
+        (th.includes('severity')?2:0) +
+        (th.includes('title')?2:0) +
+        (th.includes('tool')?1:0) +
+        (th.includes('location')?1:0) +
+        (th.length>=6?1:0);
+      if(score>bestScore){ best=t; bestScore=score; }
+    }
+    return best || qs('table');
+  }
+
+  function cell(s){
+    const td=document.createElement('td');
+    td.textContent = (s==null?'':String(s));
+    return td;
+  }
+
+  function render(tbody, rows){
+    tbody.innerHTML='';
+    for(const r of rows){
+      const tr=document.createElement('tr');
+      tr.appendChild(cell(r.id||''));
+      tr.appendChild(cell(r.tool||''));
+      tr.appendChild(cell(r.type||''));
+      tr.appendChild(cell(r.severity||''));
+      tr.appendChild(cell(r.title||''));
+      tr.appendChild(cell(r.component||''));
+      tr.appendChild(cell(r.version||''));
+      tr.appendChild(cell(r.location||''));
+      tr.appendChild(cell(r.fix||''));
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function main(){
+    const rid = getRid();
+    const tbl = findDataTable();
+    if(!tbl){ warn('data_source: table not found'); return; }
+    let tb = tbl.querySelector('tbody');
+    if(!tb){ tb=document.createElement('tbody'); tbl.appendChild(tb); }
+
+    let offset = 0;
+    const limit = 200;
+
+    async function load(){
+      tb.innerHTML = '<tr><td colspan="12" style="opacity:.7">Loading...</td></tr>';
+
+      const r = encodeURIComponent(rid||'');
+      const res = await firstOK([
+        ,
+        ,
+        ,
+        
+      ]);
+
+      if(!res){
+        tb.innerHTML = '<tr><td colspan="12" style="color:#ffb">Cannot load datasource API</td></tr>';
+        return;
+      }
+      const j = res.json;
+      const rows = (j.items || j.rows || j.data || []);
+      render(tb, rows);
+      log('data_source rows=', rows.length, 'offset=', offset);
+    }
+
+    // hook next button if exists
+    const nextBtn = qsa('button').find(b=>(b.textContent||'').toLowerCase().includes('next')) || null;
+    if(nextBtn){
+      nextBtn.onclick = ()=>{ offset += limit; load().catch(console.error); };
+    }
+
+    await load();
+  }
+
+  window.addEventListener('DOMContentLoaded', ()=>{ main().catch(e=>console.error(e)); });
+})();
+

@@ -1,0 +1,54 @@
+{% extends "vsp_c_base_v1.html" %}
+{% block body %}
+  <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr)); margin-bottom:12px">
+    <div class="panel">
+      <div class="h"><div class="hh">Total Findings</div><div class="hh2 mono" id="k-time">…</div></div>
+      <div style="font-size:26px;font-weight:900" id="k-total">…</div>
+      <div class="muted mono" id="k-from">from_path: …</div>
+    </div>
+    <div class="panel">
+      <div class="h"><div class="hh">Top Findings</div><div class="hh2">limit 200</div></div>
+      <div style="font-size:26px;font-weight:900" id="k-toplen">…</div>
+      <div class="muted mono" id="k-topmeta">source: top_findings_v3c</div>
+    </div>
+    <div class="panel">
+      <div class="h"><div class="hh">Trend</div><div class="hh2">points</div></div>
+      <div style="font-size:26px;font-weight:900" id="k-trend">…</div>
+      <div class="muted mono" id="k-trendmeta">source: trend_v1</div>
+    </div>
+    <div class="panel">
+      <div class="h"><div class="hh">Status</div><div class="hh2 mono" id="k-status">LIVE</div></div>
+      <div class="muted mono">Commercial suite: /c/*</div>
+      <div class="muted mono">No heavy DOM • freeze-safe</div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1.55fr .45fr;">
+    <div class="panel">
+      <div class="h"><div class="hh">Top Findings</div><div class="hh2 mono" id="t-meta">…</div></div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:140px">SEVERITY</th>
+            <th>TITLE</th>
+            <th style="width:110px">TOOL</th>
+            <th style="width:220px">FILE</th>
+          </tr>
+        </thead>
+        <tbody id="tb">
+          <tr><td colspan="4" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="h"><div class="hh">Trend (mini)</div><div class="hh2">preview</div></div>
+      <div class="panel" style="padding:10px; border-radius:14px; background:rgba(0,0,0,.10)" id="trend-mini">Loading…</div>
+      <div class="spacer"></div>
+      <div class="muted mono">Tip: dùng PIN GLOBAL khi demo, AUTO khi chạy thường.</div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/vsp_c_dashboard_v1.js?v={{ asset_v }}"></script>
+{% endblock %}

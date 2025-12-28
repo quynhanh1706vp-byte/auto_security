@@ -1,0 +1,990 @@
+/* VSP_P2_6E_LUXE_JGET_UNWRAP_RUN_FILE_ALLOW_V1 */
+/* VSP_P2_6D_LUXE_HEAD_ROOT_FIX_V1 */
+/* VSP_LUXE_HIDE_LEGACY_V1 */
+/* VSP_DASH_LUXE_V1 (Commercial polish; safe, no-throw) */
+(() => {
+  
+
+/* VSP_RUNFILEALLOW_FETCH_GUARD_V3C
+   - prevent 404 spam when rid missing/invalid
+   - auto add default path when missing
+   - covers fetch + XMLHttpRequest
+*/
+(()=> {
+  try {
+    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+    window.__vsp_runfileallow_fetch_guard_v3c = true;
+
+    function _isLikelyRid(rid){
+      if(!rid || typeof rid !== "string") return false;
+      if(rid.length < 6) return false;
+      if(rid.includes("{") || rid.includes("}")) return false;
+      return /^[A-Za-z0-9_\-]+$/.test(rid);
+    }
+
+    function _fix(url0){
+      try{
+        if(!url0 || typeof url0 !== "string") return {action:"pass"};
+        if(!url0.includes("/api/vsp/run_file_allow")) return {action:"pass"};
+        const u = new URL(url0, window.location.origin);
+        const rid = u.searchParams.get("rid") || "";
+        const path = u.searchParams.get("path") || "";
+        if(!_isLikelyRid(rid)) return {action:"skip"};
+        if(!path){
+          u.searchParams.set("path","run_gate_summary.json");
+          return {action:"rewrite", url: u.toString().replace(window.location.origin,"")};
+        }
+        return {action:"pass"};
+      }catch(e){
+        return {action:"pass"};
+      }
+    }
+
+    // fetch
+    const _origFetch = window.fetch ? window.fetch.bind(window) : null;
+    if (_origFetch){
+      window.fetch = function(input, init){
+        try{
+          const url0 = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+          const fx = _fix(url0);
+          if (fx.action === "skip"){
+            const body = JSON.stringify({ok:false, skipped:true, reason:"no rid"});
+            return Promise.resolve(new Response(body, {status:200, headers:{"Content-Type":"application/json; charset=utf-8"}}));
+          }
+          if (fx.action === "rewrite"){
+            if (typeof input === "string") input = fx.url;
+            else input = new Request(fx.url, input);
+          }
+        }catch(e){}
+        return _origFetch(input, init);
+      };
+    }
+
+    // XHR
+    const XHR = window.XMLHttpRequest;
+    if (XHR && XHR.prototype && XHR.prototype.open){
+      const _open = XHR.prototype.open;
+      XHR.prototype.open = function(method, url, async, user, password){
+        try{
+          const url0 = (typeof url === "string") ? url : "";
+          const fx = _fix(url0);
+          if (fx.action === "skip"){
+            const body = encodeURIComponent(JSON.stringify({ok:false, skipped:true, reason:"no rid"}));
+            url = "data:application/json;charset=utf-8," + body;
+          } else if (fx.action === "rewrite"){
+            url = fx.url;
+          }
+        }catch(e){}
+        return _open.call(this, method, url, async, user, password);
+      };
+    }
+  } catch(e) {}
+})();
+
+if (window.__vsp_dash_luxe_v1) return;
+  window.__vsp_dash_luxe_v1 = true;
+
+  const el = (sel, root=document) => root.querySelector(sel);
+  const els = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+
+  function injectCSS(){
+    if (el('#VSP_DASH_LUXE_V1_CSS')) return;
+    const css = document.createElement('style');
+    css.id = 'VSP_DASH_LUXE_V1_CSS';
+    css.textContent = `
+      :root{
+        --vsp-bg:#070e1a;
+        --vsp-card:rgba(255,255,255,.04);
+        --vsp-card2:rgba(255,255,255,.055);
+        --vsp-line:rgba(255,255,255,.08);
+        --vsp-text:#dbe6ff;
+        --vsp-muted:#8da2d6;
+        --vsp-glow:rgba(90,120,255,.35);
+        --vsp-ok:#32d583;
+        --vsp-warn:#fdb022;
+        --vsp-bad:#f97066;
+        --vsp-sky:#7aa7ff;
+      }
+      .vsp-luxe-wrap{max-width:1220px;margin:0 auto;padding:14px 14px 28px;}
+      .vsp-luxe-hero{
+        border:1px solid var(--vsp-line);
+        background: radial-gradient(900px 240px at 15% 0%, rgba(122,167,255,.18), transparent 60%),
+                    radial-gradient(700px 220px at 80% 0%, rgba(249,112,102,.10), transparent 62%),
+                    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+        border-radius:18px; padding:14px 14px 12px; box-shadow: 0 10px 28px rgba(0,0,0,.35);
+      }
+      .vsp-luxe-top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+      .vsp-luxe-title{display:flex;gap:12px;align-items:center}
+      .vsp-luxe-badge{
+        width:36px;height:36px;border-radius:12px;
+        background:linear-gradient(135deg, rgba(122,167,255,.35), rgba(90,120,255,.12));
+        border:1px solid var(--vsp-line);
+        box-shadow:0 0 0 6px rgba(122,167,255,.06);
+      }
+      .vsp-luxe-h1{font-weight:800;letter-spacing:.2px;color:var(--vsp-text);font-size:18px;margin:0;line-height:1.1}
+      .vsp-luxe-sub{color:var(--vsp-muted);font-size:12px;margin-top:2px}
+      .vsp-luxe-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+      .vsp-btn{
+        cursor:pointer; user-select:none;
+        border:1px solid var(--vsp-line); color:var(--vsp-text);
+        background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+        padding:8px 10px;border-radius:12px;font-size:12px;
+        display:flex;gap:8px;align-items:center;
+      }
+      .vsp-btn:hover{border-color:rgba(122,167,255,.35); box-shadow:0 0 0 6px rgba(122,167,255,.06)}
+      .vsp-chip{font-size:12px;border:1px solid var(--vsp-line);border-radius:999px;padding:6px 10px;color:var(--vsp-muted);background:rgba(0,0,0,.12)}
+      .vsp-chip.ok{color:#bff7da;border-color:rgba(50,213,131,.28);background:rgba(50,213,131,.08)}
+      .vsp-chip.warn{color:#ffe9bf;border-color:rgba(253,176,34,.28);background:rgba(253,176,34,.08)}
+      .vsp-chip.bad{color:#ffd1cd;border-color:rgba(249,112,102,.28);background:rgba(249,112,102,.08)}
+      .vsp-grid{display:grid;gap:12px;margin-top:12px}
+      .vsp-grid.kpis{grid-template-columns:repeat(12,1fr)}
+      .vsp-card{
+        border:1px solid var(--vsp-line);
+        background:linear-gradient(180deg, var(--vsp-card), rgba(255,255,255,.02));
+        border-radius:16px;padding:12px;
+        box-shadow:0 10px 22px rgba(0,0,0,.28);
+        min-height:78px;
+      }
+      .vsp-kpi{grid-column:span 3}
+      @media (max-width:1100px){ .vsp-kpi{grid-column:span 6} }
+      @media (max-width:640px){ .vsp-kpi{grid-column:span 12} }
+      .vsp-kpi-label{color:var(--vsp-muted);font-size:12px}
+      .vsp-kpi-val{color:var(--vsp-text);font-weight:800;font-size:24px;margin-top:6px;letter-spacing:.3px}
+      .vsp-kpi-mini{margin-top:6px;display:flex;gap:8px;align-items:center;color:var(--vsp-muted);font-size:12px}
+      .vsp-dot{width:8px;height:8px;border-radius:99px;background:var(--vsp-sky);box-shadow:0 0 0 4px rgba(122,167,255,.10)}
+      .vsp-dot.ok{background:var(--vsp-ok);box-shadow:0 0 0 4px rgba(50,213,131,.10)}
+      .vsp-dot.warn{background:var(--vsp-warn);box-shadow:0 0 0 4px rgba(253,176,34,.10)}
+      .vsp-dot.bad{background:var(--vsp-bad);box-shadow:0 0 0 4px rgba(249,112,102,.10)}
+      .vsp-row{display:flex;gap:12px;flex-wrap:wrap}
+      .vsp-row > .vsp-card{flex:1 1 360px}
+      .vsp-h2{margin:0 0 8px;color:var(--vsp-text);font-size:13px;letter-spacing:.2px}
+      .vsp-muted{color:var(--vsp-muted);font-size:12px}
+      .vsp-bar{height:10px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;border:1px solid var(--vsp-line)}
+      .vsp-bar > span{display:block;height:100%;background:linear-gradient(90deg, rgba(122,167,255,.70), rgba(90,120,255,.20))}
+      .vsp-sev{display:grid;grid-template-columns:120px 1fr 54px;gap:10px;align-items:center;margin-top:10px}
+      .vsp-sev .name{color:var(--vsp-muted);font-size:12px}
+      .vsp-sev .num{color:var(--vsp-text);font-weight:700;font-size:12px;text-align:right}
+      .vsp-tools{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:10px}
+      @media (max-width:900px){ .vsp-tools{grid-template-columns:repeat(4,1fr)}}
+      @media (max-width:520px){ .vsp-tools{grid-template-columns:repeat(2,1fr)}}
+      .vsp-tool{
+        border:1px solid var(--vsp-line);border-radius:14px;padding:10px 10px 8px;
+        background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      }
+      .vsp-tool .t{color:var(--vsp-text);font-weight:700;font-size:12px}
+      .vsp-tool .s{color:var(--vsp-muted);font-size:11px;margin-top:4px}
+      .vsp-degraded{
+        margin-top:10px;
+        border:1px dashed rgba(253,176,34,.35);
+        background:rgba(253,176,34,.08);
+        border-radius:16px;padding:10px 12px;color:#ffe9bf;font-size:12px;
+      }
+      .vsp-skel{
+        background:linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.08), rgba(255,255,255,.04));
+        background-size:200% 100%;
+        animation: vspShimmer 1.25s linear infinite;
+        border-radius:12px;
+      }
+      @keyframes vspShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    `;
+    document.head.appendChild(css);
+  }
+
+  async function jget(url){
+    const r = await fetch(url, {credentials:'same-origin', headers:{'Accept':'application/json'}});
+    const ct = r.headers.get('content-type') || '';
+    const txt = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url} :: ${txt.slice(0,160)}`);
+    if (ct.includes('application/json')) return JSON.parse(txt);
+    // sometimes server sends json with wrong header => try parse
+    try { return JSON.parse(txt); } catch { throw new Error(`Non-JSON response for ${url}: ${txt.slice(0,120)}`); }
+  }
+
+  function mountRoot(){
+    // Try to place inside main content; fallback to body.
+    const anchors = [
+      '#vsp_luxe_host',
+'#vsp_dashboard_root',
+      '#dashboard',
+      'main',
+      '#main',
+      '.vsp-main',
+      '.content',
+      'body'
+    
+    ];
+    let a = null;
+    for (const sel of anchors){
+      a = el(sel);
+      if (a) break;
+    }
+    if (!a) a = document.body;
+
+    let root = el('#vspDashLuxeRoot');
+    if (root) return root;
+
+    root = document.createElement('div');
+    root.id = 'vspDashLuxeRoot';
+    // Put at top
+    a.prepend(root);
+    return root;
+  }
+
+  function renderSkeleton(root){
+    root.innerHTML = `
+      <div class="vsp-luxe-wrap">
+        <div class="vsp-luxe-hero">
+          <div class="vsp-luxe-top">
+            <div class="vsp-luxe-title">
+              <div class="vsp-luxe-badge"></div>
+              <div>
+                <h1 class="vsp-luxe-h1">VSP Dashboard</h1>
+                <div class="vsp-luxe-sub">Loading latest run data…</div>
+              </div>
+            </div>
+            <div class="vsp-luxe-actions">
+              <div class="vsp-chip vsp-skel" style="width:180px;height:30px"></div>
+              <div class="vsp-btn vsp-skel" style="width:92px;height:32px"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vsp-grid kpis">
+          ${Array.from({length:4}).map(()=>`
+            <div class="vsp-card vsp-kpi">
+              <div class="vsp-skel" style="height:12px;width:120px"></div>
+              <div class="vsp-skel" style="height:26px;width:110px;margin-top:10px"></div>
+              <div class="vsp-skel" style="height:12px;width:180px;margin-top:10px"></div>
+            </div>`).join('')}
+        </div>
+
+        <div class="vsp-row">
+          <div class="vsp-card">
+            <div class="vsp-skel" style="height:14px;width:180px"></div>
+            <div class="vsp-skel" style="height:12px;width:260px;margin-top:10px"></div>
+            <div class="vsp-skel" style="height:10px;width:100%;margin-top:16px"></div>
+            <div class="vsp-skel" style="height:10px;width:100%;margin-top:10px"></div>
+            <div class="vsp-skel" style="height:10px;width:100%;margin-top:10px"></div>
+          </div>
+          <div class="vsp-card">
+            <div class="vsp-skel" style="height:14px;width:180px"></div>
+            <div class="vsp-tools" style="margin-top:12px">
+              ${Array.from({length:8}).map(()=>`<div class="vsp-tool"><div class="vsp-skel" style="height:12px;width:90px"></div><div class="vsp-skel" style="height:10px;width:120px;margin-top:8px"></div></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+
+  function hideLegacyByDefault(root){
+    try{
+      const legacy = document.querySelector('#vsp5_root');
+      if (!legacy) return;
+      // hide legacy UI (old dashboard) to keep luxe clean
+      if (legacy.dataset && legacy.dataset.vspLuxeHidden === '1') return;
+      legacy.style.display = 'none';
+      if (legacy.dataset) legacy.dataset.vspLuxeHidden = '1';
+    } catch {}
+  }
+
+  function statusChip(overall){
+    const o = String(overall||'UNKNOWN').toUpperCase();
+    if (o.includes('PASS') || o === 'GREEN') return ['ok','PASS'];
+    if (o.includes('WARN') || o === 'AMBER') return ['warn','WARN'];
+    if (o.includes('FAIL') || o.includes('BLOCK') || o === 'RED') return ['bad','FAIL'];
+    return ['','UNKNOWN'];
+  }
+
+  function num(n){ return (n===0||n) ? String(n) : '—'; }
+
+  function render(root, state){
+    const { rid, gate_root, overall_status, counts, degraded, served_by, tools } = state;
+
+    const [cls, label] = statusChip(overall_status);
+
+    const total = Object.values(counts||{}).reduce((a,b)=>a+(+b||0),0);
+    const c = (k)=>+((counts||{})[k]||0);
+
+    const sevRows = [
+      ['CRITICAL', c('CRITICAL')],
+      ['HIGH', c('HIGH')],
+      ['MEDIUM', c('MEDIUM')],
+      ['LOW', c('LOW')],
+      ['INFO', c('INFO')],
+      ['TRACE', c('TRACE')],
+    ];
+    const maxSev = Math.max(1, ...sevRows.map(x=>x[1]));
+
+    const toolList = tools?.length ? tools : [
+      'Bandit','Semgrep','Gitleaks','KICS','Trivy','Syft','Grype','CodeQL'
+    ].map(t=>({name:t, status:'OK'}));
+
+    root.innerHTML = `
+      <div class="vsp-luxe-wrap">
+        <div class="vsp-luxe-hero">
+          <div class="vsp-luxe-top">
+            <div class="vsp-luxe-title">
+              <div class="vsp-luxe-badge"></div>
+              <div>
+                <h1 class="vsp-luxe-h1">VSP Dashboard</h1>
+                <div class="vsp-luxe-sub">
+                  RID: <b style="color:var(--vsp-text)">${esc(rid)}</b>
+                  <span style="opacity:.6">•</span>
+                  gate_root: <span style="color:var(--vsp-text)">${esc(gate_root||'—')}</span>
+                  <span style="opacity:.6">•</span>
+                  served_by: <span style="color:var(--vsp-muted)">${esc(served_by||'—')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="vsp-luxe-actions">
+              <span class="vsp-chip ${cls}"><span class="vsp-dot ${cls}"></span>&nbsp;Overall: <b>${esc(label)}</b></span>
+              <button class="vsp-btn" id="vspLuxeRefreshBtn" title="Refresh">
+                ⟳ Refresh
+              </button>
+              <button class="vsp-btn" id="vspLuxeOpenRunsBtn" title="Runs & Reports">
+                ↗ Runs
+              </button>
+              <button class="vsp-btn" id="vspLuxeToggleLegacyBtn" title="Toggle legacy dashboard">▦ Legacy</button>
+              <button class="vsp-btn" id="vspLuxeOpenRunsBtn" title="Runs & Reports">
+                ↗ Runs
+              </button>
+            </div>
+          </div>
+
+          ${degraded ? `
+          <div class="vsp-degraded">
+            <b>Degraded mode:</b> gate_root_path chưa resolve (RUNS_ROOT chưa cấu hình hoặc evidence chưa nằm trong vùng đọc được).
+            Dashboard vẫn chạy, nhưng evidence index/manifest là “virtual”.
+          </div>` : ``}
+        </div>
+
+        <div class="vsp-grid kpis">
+          <div class="vsp-card vsp-kpi">
+            <div class="vsp-kpi-label">Total findings</div>
+            <div class="vsp-kpi-val">${num(total)}</div>
+            <div class="vsp-kpi-mini"><span class="vsp-dot ${cls}"></span>From unified severity counts</div>
+          </div>
+          <div class="vsp-card vsp-kpi">
+            <div class="vsp-kpi-label">Critical</div>
+            <div class="vsp-kpi-val">${num(c('CRITICAL'))}</div>
+            <div class="vsp-kpi-mini"><span class="vsp-dot bad"></span>Immediate attention</div>
+          </div>
+          <div class="vsp-card vsp-kpi">
+            <div class="vsp-kpi-label">High</div>
+            <div class="vsp-kpi-val">${num(c('HIGH'))}</div>
+            <div class="vsp-kpi-mini"><span class="vsp-dot warn"></span>Prioritize in sprint</div>
+          </div>
+          <div class="vsp-card vsp-kpi">
+            <div class="vsp-kpi-label">Medium+</div>
+            <div class="vsp-kpi-val">${num(c('MEDIUM') + c('HIGH') + c('CRITICAL'))}</div>
+            <div class="vsp-kpi-mini"><span class="vsp-dot"></span>Risk-bearing backlog</div>
+          </div>
+        </div>
+
+        <div class="vsp-row">
+          <div class="vsp-card">
+            <h3 class="vsp-h2">Severity distribution</h3>
+            <div class="vsp-muted">Normalized to 6 DevSecOps levels</div>
+            ${sevRows.map(([name, n])=>`
+              <div class="vsp-sev">
+                <div class="name">${esc(name)}</div>
+                <div class="vsp-bar"><span style="width:${Math.round((n/maxSev)*100)}%"></span></div>
+                <div class="num">${num(n)}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="vsp-card">
+            <h3 class="vsp-h2">Tool lanes</h3>
+            <div class="vsp-muted">8-tool pipeline health (display-only)</div>
+            <div class="vsp-tools">
+              ${toolList.map(t=>`
+                <div class="vsp-tool">
+                  <div class="t">${esc(t.name)}</div>
+                  <div class="s">status: ${esc(t.status||'OK')}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const btn = el('#vspLuxeRefreshBtn', root);
+    if (btn) btn.addEventListener('click', () => window.__vsp_dash_luxe_v1_reload?.());
+    const tog = el('#vspLuxeToggleLegacyBtn', root);
+    if (tog) tog.addEventListener('click', () => {
+      try{
+        const legacy = document.querySelector('#vsp5_root');
+        if (!legacy) return;
+        legacy.style.display = (legacy.style.display === 'none') ? '' : 'none';
+      } catch {}
+    });
+
+    const runsBtn = el('#vspLuxeOpenRunsBtn', root);
+    if (runsBtn) runsBtn.addEventListener('click', () => {
+      // best effort navigation
+      const cands = ['/runs', '/runs_reports', '/runs&reports', '/runs-reports', '/runs_reports_v1'];
+      for (const u of cands){
+        // try same-origin navigation
+        window.location.href = u;
+        break;
+      }
+    });
+  }
+
+  async function loadState(){
+    // 1) latest rid + gate_root
+    const latest = await jget('/api/vsp/rid_latest_gate_root');
+    const rid = latest?.rid || '';
+    const gate_root = latest?.gate_root || '';
+
+    // 2) manifest (degraded/served_by)
+    let manifest = null;
+    try { manifest = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_manifest.json`); } catch {}
+
+    // 3) gate summary (overall + counts if present)
+    let gateSummary = null;
+    try { gateSummary = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`); } catch {}
+
+    // 4) fallback counts from findings_unified meta if gate summary doesn't have
+    let counts = (gateSummary?.meta?.counts_by_severity) || (gateSummary?.counts_by_severity) || null;
+    if (!counts){
+      try {
+        const fu = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json&limit=25`);
+        counts = fu?.meta?.counts_by_severity || null;
+      } catch {}
+    }
+    counts = counts || {"CRITICAL":0,"HIGH":0,"MEDIUM":0,"LOW":0,"INFO":0,"TRACE":0};
+
+    const overall_status =
+      gateSummary?.overall_status ||
+      gateSummary?.overall ||
+      gateSummary?.meta?.overall_status ||
+      'UNKNOWN';
+
+    const degraded = !!(manifest && (manifest.degraded === true));
+    const served_by = manifest?.served_by || gateSummary?.served_by || '';
+
+    return {
+      rid, gate_root,
+      overall_status,
+      counts,
+      degraded,
+      served_by,
+      tools: null
+    };
+  }
+
+  async function main(){
+    try{
+      injectCSS();
+      const root = mountRoot();
+      renderSkeleton(root);
+      // [NONINTR] legacy stays visible by default
+      // hideLegacyByDefault(root);
+
+const run = async () => {
+        try{
+          renderSkeleton(root);
+          const st = await loadState();
+          render(root, st);
+        } catch (e){
+          // never throw -> show minimal error card
+          root.innerHTML = `
+            <div class="vsp-luxe-wrap">
+              <div class="vsp-luxe-hero">
+                <div class="vsp-luxe-top">
+                  <div class="vsp-luxe-title">
+                    <div class="vsp-luxe-badge"></div>
+                    <div>
+                      <h1 class="vsp-luxe-h1">VSP Dashboard</h1>
+                      <div class="vsp-luxe-sub">Failed to load data: <span style="color:#ffd1cd">${esc(e?.message||e)}</span></div>
+                    </div>
+                  </div>
+                  <div class="vsp-luxe-actions">
+                    <button class="vsp-btn" id="vspLuxeRetryBtn">⟳ Retry</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          const b = el('#vspLuxeRetryBtn', root);
+          if (b) b.addEventListener('click', () => run());
+        }
+      };
+
+      window.__vsp_dash_luxe_v1_reload = run;
+
+      // slight delay to avoid fighting existing scripts during initial render
+      await sleep(60);
+      await run();
+    } catch {
+      // swallow
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', main);
+  } else {
+    main();
+  }
+})();
+
+
+/* ===================== VSP_P0_DASH_AUTO_REFRESH_RID_V1 ===================== */
+/* Goal: after a new scan run is created, dashboard auto-detects and reloads to pick latest RID & data */
+(()=> {
+  if (window.__vsp_p0_dash_auto_refresh_rid_v1) return;
+  window.__vsp_p0_dash_auto_refresh_rid_v1 = true;
+
+  const API = "/api/vsp/runs?limit=1";
+  let lastRid = null;
+  let inFlight = false;
+
+  async function tick(){
+    if (inFlight) return;
+    inFlight = true;
+    try{
+      const r = await fetch(API, {cache:"no-store", credentials:"same-origin"});
+      if (!r.ok) return;
+      const j = await r.json();
+      const runs = (j && (j.runs || j.items || j.data)) || [];
+      const rid = (runs[0] && (runs[0].rid || runs[0].run_id || runs[0].id)) || null;
+      if (!rid) return;
+
+      if (lastRid === null){
+        lastRid = rid;
+        return;
+      }
+      if (rid && lastRid && rid !== lastRid){
+        // new run detected => reload to pick latest gate + release headers etc.
+        /* VSP_P1_DASH_DISABLE_AUTO_REFRESH_RID_V1: blocked legacy location.reload() */
+      }
+    }catch(e){
+      // ignore
+    }finally{
+      inFlight = false;
+    }
+  }
+  /* VSP_P1_DASH_DISABLE_LEGACY_TICK_V1B_FIX: disabled legacy tick(12000) to prevent UI freeze */
+  /* VSP_P1_DASH_DISABLE_AUTO_REFRESH_RID_V1: disabled legacy auto-refresh tick start */
+})();
+/* ===================== /VSP_P0_DASH_AUTO_REFRESH_RID_V1 ===================== */
+
+
+/* VSP_P1_DASHBOARD_KPI_OVERALL_SOT_V1C_NOFREEZE
+   commercial SOT:
+   - KPI = run_gate_summary.counts_total (+TOTAL auto)
+   - Chip = run_gate_summary.overall
+   - NO setInterval 1s; cache DOM once; idle execution; refresh only on RID change
+*/
+(function(){
+  if (window.__VSP_KPI_SOT_NOFREEZE) return;
+  window.__VSP_KPI_SOT_NOFREEZE = true;
+
+  const ORIGIN = "";
+  const SEVS = ["TOTAL","CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+  const cache = new Map(); // sev -> [els]
+
+  const defer = (fn) => {
+    try{
+      if (window.requestIdleCallback) return requestIdleCallback(fn, { timeout: 1200 });
+    }catch(_){}
+    return setTimeout(fn, 0);
+  };
+
+  function api(path){ return ORIGIN + path; }
+
+  function setText(el, val){
+    if(!el) return;
+    const t = (val===null || val===undefined || val==="") ? "—" : String(val);
+    if(el.textContent !== t) el.textContent = t;
+  }
+
+  function uniq(arr){
+    const out=[]; const seen=new Set();
+    for(const x of arr){ if(x && !seen.has(x)){ seen.add(x); out.push(x); } }
+    return out;
+  }
+
+  function buildCache(){
+    // cache targets once to avoid heavy querySelectorAll loops
+    for (const sev of SEVS){
+      const s = String(sev).toLowerCase();
+      const sels = [
+        `[data-kpi="${sev}"]`, `[data-kpi="${s}"]`,
+        `[data-sev="${sev}"]`, `[data-sev="${s}"]`,
+        `#kpi_${s}`, `#kpi-${s}`,
+        `.kpi-${s} .kpi-value`,
+        `.kpi[data-sev="${s}"] .kpi-value`,
+        `.kpi[data-kpi="${s}"] .kpi-value`
+      ];
+      let els = [];
+      for (const sel of sels){
+        try{ document.querySelectorAll(sel).forEach(e=>els.push(e)); }catch(_){}
+      }
+      cache.set(sev, uniq(els));
+    }
+  }
+
+  function applyCounts(counts){
+    if(!counts || typeof counts !== "object") return;
+
+    let total = 0;
+    for(const k of Object.keys(counts)){
+      const n = Number(counts[k] ?? 0);
+      if(Number.isFinite(n)) total += n;
+    }
+    const map = Object.assign({}, counts, { TOTAL: total });
+
+    for(const sev of SEVS){
+      const val = (map[sev] ?? map[sev.toUpperCase()] ?? map[String(sev).toLowerCase()]);
+      const targets = cache.get(sev) || [];
+      if(!targets.length) continue;
+      for(const el of targets) setText(el, val);
+    }
+  }
+
+  function setOverallChip(overall){
+    const v = String(overall||"").toUpperCase();
+    const sels = [
+      '[data-overall-chip]','#overallChip','#gateChip','#gateOverall',
+      '.gate-chip','.overall-chip','[data-gate="overall"]'
+    ];
+    let el = null;
+    for(const sel of sels){ el = document.querySelector(sel); if(el) break; }
+    if(!el) return;
+
+    setText(el, v || "—");
+    try{ el.dataset.overall = v; }catch(_){}
+
+    el.classList.remove('is-pass','is-fail','is-warn','vsp-overall-red','vsp-overall-green','vsp-overall-amber');
+    if(v === "GREEN" || v === "PASS" || v === "OK") el.classList.add('is-pass','vsp-overall-green');
+    else if(v === "RED" || v === "FAIL" || v === "BLOCK") el.classList.add('is-fail','vsp-overall-red');
+    else if(v) el.classList.add('is-warn','vsp-overall-amber');
+  }
+
+  async function fetchJSON(url, timeoutMs=3500){
+    const ac = new AbortController();
+    const t = setTimeout(()=>ac.abort(), timeoutMs);
+    try{
+      const r = await fetch(url, { credentials:"same-origin", cache:"no-store", signal: ac.signal });
+      const ct = (r.headers.get("content-type") || "");
+      if(!ct.includes("application/json")) throw new Error("non-json content-type=" + ct);
+      /* VSP_P2_6E_LUXE_JGET_UNWRAP_RUN_FILE_ALLOW_V1 */
+      let j = null;
+      try { j = await r.json(); } catch(e) { j = null; }
+
+      try {
+        // unwrap wrapper payload for run_file_allow findings_unified.json
+        var u = (typeof url !== 'undefined') ? String(url || "") : "";
+        if (u.indexOf("/api/vsp/run_file_allow") >= 0 && u.indexOf("path=findings_unified.json") >= 0) {
+          if (j && j.ok === true && Array.isArray(j.findings)) {
+            return { meta: (j.meta || {}), findings: (j.findings || []) };
+          }
+          if (j && j.ok === false) {
+            return { meta: (j.meta || { rid: (j.rid || null) }), findings: [], _err: (j.err || "blocked"), _raw: j };
+          }
+        }
+      } catch(e) {}
+
+      return j;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function getRid(){
+    const qs = new URLSearchParams(location.search);
+    return (window.__VSP_RID || window.VSP_RID || qs.get("rid") || localStorage.getItem("vsp_rid") || "");
+  }
+
+  let lastRid = "";
+  async function refresh(){
+    let rid = getRid();
+    if(!rid){
+      try{
+        const j = await fetchJSON(api("/api/vsp/rid_latest"));
+        rid = (j && j.rid) ? String(j.rid) : "";
+      }catch(_){}
+    }
+    if(!rid) return;
+
+    if (rid === lastRid) return;
+    lastRid = rid;
+    try{ localStorage.setItem("vsp_rid", rid); }catch(_){}
+
+    try{
+      const j = await fetchJSON(api("/api/vsp/run_file_allow?rid=" + encodeURIComponent(rid) + "&path=run_gate_summary.json"));
+      setOverallChip(j.overall || "");
+      applyCounts(j.counts_total || null);
+    }catch(_){}
+  }
+
+  function boot(){
+    buildCache();
+    defer(()=>refresh());
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+
+  // refresh only when RID might change
+  window.addEventListener("vsp:ridchange", ()=>defer(()=>refresh()));
+  window.addEventListener("storage", (e)=>{ if(e && e.key==="vsp_rid") defer(()=>refresh()); });
+})();
+ /* /VSP_P1_DASHBOARD_KPI_OVERALL_SOT_V1C_NOFREEZE */
+
+
+
+
+/* ===================== VSP_P2_JS_ANCHOR_META_CLIENT_V1 ===================== */
+(function(){
+  const MARK = "VSP_P2_JS_ANCHOR_META_CLIENT_V1";
+
+  function ensureAnchor(){
+    try{
+      if(document.getElementById("vsp-dashboard-main")) return;
+      const root = document.getElementById("vsp5_root");
+      const div = document.createElement("div");
+      div.id = "vsp-dashboard-main";
+      if(root && root.parentNode){
+        root.parentNode.insertBefore(div, root);
+      }else if(document.body){
+        document.body.insertBefore(div, document.body.firstChild);
+      }
+    }catch(e){}
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ensureAnchor);
+  }else{
+    ensureAnchor();
+  }
+
+  const origFetch = window.fetch;
+  if(typeof origFetch === "function" && !window.__vspFetchPatched__){
+    window.__vspFetchPatched__ = true;
+    window.fetch = async function(input, init){
+      const url = (typeof input === "string") ? input : (input && input.url) || "";
+      const resp = await origFetch.call(this, input, init);
+      try{
+        if(url.includes("/api/vsp/run_file_allow") && url.includes("findings_unified.json")){
+          const ct = (resp.headers && resp.headers.get && resp.headers.get("content-type")) || "";
+          if(ct.includes("application/json")){
+            const j = await resp.clone().json();
+            if(j && typeof j === "object" && Array.isArray(j.findings)){
+              const hasMeta = j.meta && j.meta.counts_by_severity;
+              if(!hasMeta){
+                const counts = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+                for(const f of j.findings){
+                  const sev = (f && f.severity) ? String(f.severity).toUpperCase() : "INFO";
+                  if(Object.prototype.hasOwnProperty.call(counts, sev)) counts[sev]++; else counts.INFO++;
+                }
+                j.meta = j.meta || {};
+                j.meta.counts_by_severity = counts;
+                j.__patched__ = MARK;
+                const body = JSON.stringify(j);
+                const headers = new Headers(resp.headers || {});
+                headers.set("content-type", "application/json; charset=utf-8");
+                return new Response(body, {status: resp.status, statusText: resp.statusText, headers});
+              }
+            }
+          }
+        }
+      }catch(e){}
+      return resp;
+    };
+  }
+})();
+/* ===================== /VSP_P2_JS_ANCHOR_META_CLIENT_V1 ===================== */
+
+
+
+/* VSP_P2_DEGRADED_BANNER_V1 */
+(function(){
+  function _vspOnce(key){
+    try {
+      window.__VSP_ONCE__ = window.__VSP_ONCE__ || {};
+      if (window.__VSP_ONCE__[key]) return false;
+      window.__VSP_ONCE__[key] = 1;
+      return true;
+    } catch(e){ return true; }
+  }
+
+  function _vspStyle(el, css){
+    try{ for (const k in css) el.style[k]=css[k]; }catch(e){}
+  }
+
+  function _vspInsertBanner(msg, via){
+    if (document.getElementById("vsp-degraded-banner")) return;
+    const host = document.getElementById("vsp-dashboard-main") || document.body;
+    const b = document.createElement("div");
+    b.id = "vsp-degraded-banner";
+    b.setAttribute("role","status");
+    b.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="font-weight:700;letter-spacing:0.2px;">⚠ KPI/Charts Degraded</div>
+        <div style="opacity:.9">${msg}</div>
+        ${via ? `<div style="opacity:.7;font-size:12px;">via: ${via}</div>` : ``}
+      </div>
+      <div style="margin-top:6px;opacity:.75;font-size:12px;">
+        This is expected when KPI is disabled by policy. UI remains usable; Runs/Data Source/Exports still work.
+      </div>
+    `;
+    _vspStyle(b, {
+      background: "rgba(255, 196, 0, 0.10)",
+      border: "1px solid rgba(255, 196, 0, 0.35)",
+      padding: "12px 14px",
+      borderRadius: "12px",
+      margin: "12px auto",
+      maxWidth: "1200px",
+      color: "#e9edf6",
+      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial",
+    });
+    // Put it above dashboard anchor if possible
+    try {
+      if (host && host.parentNode) host.parentNode.insertBefore(b, host);
+      else document.body.insertBefore(b, document.body.firstChild);
+    } catch(e){ document.body.insertBefore(b, document.body.firstChild); }
+  }
+
+  async function _vspCheckDegraded(){
+    try {
+      if (!location.pathname || location.pathname !== "/vsp5") return;
+      const [k, c] = await Promise.all([
+        fetch("/api/vsp/dash_kpis", {credentials:"same-origin"}).then(r=>r.json()).catch(()=>null),
+        fetch("/api/vsp/dash_charts", {credentials:"same-origin"}).then(r=>r.json()).catch(()=>null),
+      ]);
+      const kEmpty = (!k || !k.kpis || Object.keys(k.kpis).length === 0);
+      const cEmpty = (!c || !c.charts || Object.keys(c.charts).length === 0);
+      if (kEmpty || cEmpty) {
+        const via = (k && k.__via__) || (c && c.__via__) || "";
+        const msg = (kEmpty && cEmpty) ? "KPI & charts data not available." : (kEmpty ? "KPI data not available." : "Charts data not available.");
+        _vspInsertBanner(msg, via);
+        if (_vspOnce("p2_degraded_console_once")) {
+          console.warn("[VSP][P2] Degraded banner shown:", {kEmpty, cEmpty, via});
+        }
+      }
+    } catch(e) {
+      if (_vspOnce("p2_degraded_err_once")) console.warn("[VSP][P2] degraded check error:", e);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _vspCheckDegraded);
+  } else {
+    _vspCheckDegraded();
+  }
+})();
+
+
+/* VSP_P0_KPI_CHARTS_PLACEHOLDER_IF_EMPTY_V1
+   If dash_kpis/dash_charts return empty objects, render enterprise placeholders
+   so the dashboard doesn't look "broken" under policy-degraded mode.
+*/
+(function(){
+  function el(tag, cls, html){
+    var d=document.createElement(tag);
+    if (cls) d.className=cls;
+    if (html!=null) d.innerHTML=html;
+    return d;
+  }
+
+  function findMain(){
+    return document.getElementById("vsp-dashboard-main") || document.querySelector("#vsp-dashboard-main");
+  }
+
+  function ensurePlaceholderStyles(){
+    if (document.getElementById("vsp-p0-empty-style")) return;
+    var st=el("style", null, `
+      .vsp-empty-wrap{margin:14px 0 8px 0;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.03)}
+      .vsp-empty-title{font-weight:700;font-size:14px;opacity:.9;margin-bottom:8px}
+      .vsp-empty-sub{font-size:12px;opacity:.75;line-height:1.35}
+      .vsp-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+      .vsp-kpi-card{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.15)}
+      .vsp-kpi-k{font-size:11px;opacity:.7}
+      .vsp-kpi-v{font-size:18px;font-weight:800;margin-top:4px;opacity:.85}
+      .vsp-chart-ph{height:160px;border-radius:14px;border:1px dashed rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;margin-top:12px;opacity:.8}
+      @media (max-width: 1100px){ .vsp-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+    `);
+    st.id="vsp-p0-empty-style";
+    document.head.appendChild(st);
+  }
+
+  async function fetchJson(url){
+    try{
+      var r=await fetch(url,{credentials:"same-origin"});
+      return await r.json();
+    }catch(e){ return null; }
+  }
+
+  function isEmptyObj(o){
+    return o && typeof o==="object" && !Array.isArray(o) && Object.keys(o).length===0;
+  }
+
+  function render(main, via){
+    ensurePlaceholderStyles();
+    if (document.getElementById("vsp-p0-empty-wrap")) return;
+
+    var wrap=el("div","vsp-empty-wrap","");
+    wrap.id="vsp-p0-empty-wrap";
+    wrap.appendChild(el("div","vsp-empty-title","KPI/Charts disabled by policy"));
+    wrap.appendChild(el("div","vsp-empty-sub",
+      "Dashboard is healthy, but KPI/Charts data is currently unavailable (degraded mode). " +
+      (via?("Source: <code>"+via+"</code>."):"")
+    ));
+
+    var grid=el("div","vsp-kpi-grid","");
+    var cards=[
+      ["Overall","—"],
+      ["Critical/High","—"],
+      ["Coverage","—"],
+      ["Last Run","—"]
+    ];
+    cards.forEach(function(x){
+      var c=el("div","vsp-kpi-card","");
+      c.appendChild(el("div","vsp-kpi-k",x[0]));
+      c.appendChild(el("div","vsp-kpi-v",x[1]));
+      grid.appendChild(c);
+    });
+    wrap.appendChild(grid);
+
+    wrap.appendChild(el("div","vsp-chart-ph","No charts (policy / degraded)"));
+    // put at top of main
+    main.prepend(wrap);
+  }
+
+  async function init(){
+    try{
+      if (location.pathname !== "/vsp5") return;
+      var main=findMain();
+      if (!main) return;
+
+      // retry a bit in case JS renders later
+      var tries=0;
+      while(!findMain() && tries<10){ await new Promise(r=>setTimeout(r,150)); tries++; }
+      main=findMain(); if (!main) return;
+
+      var k=await fetchJson("/api/vsp/dash_kpis");
+      var c=await fetchJson("/api/vsp/dash_charts");
+      var via=null;
+      if (k && k.__via__) via=k.__via__;
+      else if (c && c.__via__) via=c.__via__;
+
+      // only render placeholders if empty objects
+      if (k && isEmptyObj(k.kpis) && c && isEmptyObj(c.charts)){
+        render(main, via);
+      }
+    }catch(e){}
+  }
+
+  if (document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

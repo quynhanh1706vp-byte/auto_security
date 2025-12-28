@@ -1,0 +1,1161 @@
+[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER
+[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data
+[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER_RUNNERLOG_V1] runner_log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/runner.log
+[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251214_190749
+[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===
+[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh
+[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data
+[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+[VSP_CI_GATE] RUN_ID      = VSP_CI_20251214_190749
+[VSP_CI_GATE_AUTOPICK_RUNNER_V1] RUNNER=/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] RUNNER      = /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] === CHẠY RUNNER VSP (FULL SCAN) ===
+[VSP_CI_GATE] Cmd: /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh "/home/test/Data/SECURITY-10-10-v4" "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749"
+===== [BOOT] runner.log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/runner.log ts=2025-12-14T19:07:49+07:00 =====
+==============================================
+[VSP] RUN ALL TOOLS V2 – PROFILE=FULL_EXT LEVEL=FULL_EXT
+ROOT     = /home/test/Data/SECURITY_BUNDLE
+SRC      = /home/test/Data/SECURITY-10-10-v4
+OUT_DIR  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+NO_NET   = 0
+==============================================
+
+===== [3/8] KICS (EXT) =====
+===== [KICS_V4] 2025-12-14T19:07:49+07:00 =====
+[KICS_V4] ROOT=/home/test/Data/SECURITY_BUNDLE
+[KICS_V4] SRC=/home/test/Data/SECURITY-10-10-v4
+[KICS_V4] OUT_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+[KICS_V4] OUT_KICS=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/kics
+[KICS_V4] TIMEOUT=1800s KILL=30s HB=10s
+[KICS_V4] EXCL_MODE=list
+[KICS_V4] CMD: kics scan -p /home/test/Data/SECURITY-10-10-v4 -o /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/kics --report-formats json --no-color --exclude-paths /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749,/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/kics,/home/test/Data/SECURITY-10-10-v4/.git,/home/test/Data/SECURITY-10-10-v4/node_modules,/home/test/Data/SECURITY-10-10-v4/out_ci,/home/test/Data/SECURITY-10-10-v4/dist,/home/test/Data/SECURITY-10-10-v4/build,/home/test/Data/SECURITY-10-10-v4/target,/home/test/Data/SECURITY-10-10-v4/venv,/home/test/Data/SECURITY-10-10-v4/.venv,/home/test/Data/SECURITY-10-10-v4/__pycache__,/home/test/Data/SECURITY-10-10-v4/.cache,/home/test/Data/SECURITY-10-10-v4/.idea,/home/test/Data/SECURITY-10-10-v4/.vscode
+timeout: gặp lỗi khi chạy câu lệnh “kics”: Không có tập tin hoặc thư mục như vậy
+[KICS_V4] rc=127
+[KICS_V4][DEGRADED] rc=127
+[KICS] rc=0
+
+===== [1/8] Gitleaks (EXT) =====
+[OK] [1/8] Gitleaks (EXT) DONE (rc=0).
+[Gitleaks] ROOT    = /home/test/Data/SECURITY_BUNDLE
+[Gitleaks] OUT_DIR = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+[Gitleaks] SRC     = /home/test/Data/SECURITY-10-10-v4
+[Gitleaks] PROFILE = ext
+[Gitleaks] MODE    = BUILTIN_RULES
+[Gitleaks] JSON    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/gitleaks/gitleaks.json
+[Gitleaks] LOG     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/gitleaks/gitleaks.log
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+[90m7:07PM[0m [1m[31mERR[0m[0m [git] fatal: không thể chdir (chuyển thư mục) sang 'E:/': Không có tập tin hoặc thư mục như vậy
+[90m7:07PM[0m [1m[31mERR[0m[0m  [36merror=[0m[31m"stderr is not empty"[0m
+[90m7:07PM[0m [32mINF[0m scan completed in 15.5ms
+[90m7:07PM[0m [32mINF[0m no leaks found
+[Gitleaks][WARN] gitleaks detect kết thúc với rc=127, xem log: /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/gitleaks/gitleaks.log
+[Gitleaks] Findings (coi như hợp lệ để unify): 0 (tool_rc=127)
+[VSP][DEGRADED] 900:missing_tool
+
+===== [2/8] Semgrep SAST (EXT) =====
+[OK] [2/8] Semgrep SAST (EXT) DONE (rc=0).
+[Semgrep] LEVEL=ext
+[Semgrep] SRC  = /home/test/Data/SECURITY-10-10-v4
+[Semgrep] RUN  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+[Semgrep] CFG  = /home/test/Data/SECURITY_BUNDLE/rules/semgrep_local_ext.yml
+[Semgrep] OUT  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/semgrep/semgrep.json
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 8891 files tracked by git with 15 Code rules:
+                                                                                                                        
+  Language     Rules   Files          Origin   Rules                                                                    
+ ────────────────────────────        ────────────────                                                                   
+  csharp          10    1730          Custom      15                                                                    
+  json             2     665                                                                                            
+  ts              12     354                                                                                            
+  yaml             3      90                                                                                            
+  js              12       6                                                                                            
+  dockerfile       1       2                                                                                            
+  python          14       1                                                                                            
+                                                                                                                        
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 11710 (11710 blocking)
+ • Rules run: 15
+ • Targets scanned: 2848
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Files larger than  files 1.0 MB: 377
+ • Scan was limited to files tracked by git
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 15 rules on 2848 files: 11710 findings.
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+
+📢 Too many findings? Try Semgrep Pro for more powerful queries and less noise.
+   See https://sg.run/false-positives.
+[Semgrep] Hoàn tất, rc=0, JSON -> /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/semgrep/semgrep.json
+
+===== [3/8] KICS (EXT) =====
+[OK] [3/8] KICS (EXT) DONE (rc=0).
+[KICS][WARN] Không tìm thấy binary 'kics' trong PATH.
+[KICS][WARN] Ghi [] vào JSON để pipeline còn tiếp tục.
+[KICS] Findings: 0 (rc=127 – command not found)
+
+===== [4/8] CodeQL (EXT) =====
+[OK] [4/8] CodeQL (EXT) DONE (rc=0).
+[CodeQL] SRC           = /home/test/Data/SECURITY-10-10-v4
+[CodeQL] OUT_DIR       = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749
+[CodeQL] CODEQL_DB_ROOT= /home/test/Data/SECURITY-10-10-v4/_codeql_db
+[CodeQL] Analyze javascript -> /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/codeql/codeql_js.sarif
+Running queries.
+[1/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-916/InsufficientPasswordHash.qlx.
+[2/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-830/FunctionalityFromUntrustedDomain.qlx.
+[3/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-830/FunctionalityFromUntrustedSource.qlx.
+[4/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-327/BrokenCryptoAlgorithm.qlx.
+[5/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-327/BadRandomness.qlx.
+[6/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-089/SqlInjection.qlx.
+[7/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-116/BadTagFilter.qlx.
+[8/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-116/DoubleEscaping.qlx.
+[9/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-116/UnsafeHtmlExpansion.qlx.
+[10/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-116/IncompleteSanitization.qlx.
+[11/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-116/IncompleteHtmlAttributeSanitization.qlx.
+[12/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-116/IncompleteMultiCharacterSanitization.qlx.
+[13/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-347/MissingJWTKeyVerification.qlx.
+[14/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-312/CleartextStorage.qlx.
+[15/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-312/BuildArtifactLeak.qlx.
+[16/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-312/CleartextLogging.qlx.
+[17/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/IncompleteUrlSchemeCheck.qlx.
+[18/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/IncorrectSuffixCheck.qlx.
+[19/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/OverlyLargeRange.qlx.
+[20/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/IncompleteUrlSubstringSanitization.qlx.
+[21/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/UselessRegExpCharacterEscape.qlx.
+[22/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/IncompleteHostnameRegExp.qlx.
+[23/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-730/ServerCrash.qlx.
+[24/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-730/RegExpInjection.qlx.
+[25/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-352/MissingCsrfMiddleware.qlx.
+[26/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-601/ClientSideUrlRedirect.qlx.
+[27/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-601/ServerSideUrlRedirect.qlx.
+[28/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-326/InsufficientKeySize.qlx.
+[29/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-770/MissingRateLimiting.qlx.
+[30/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-770/ResourceExhaustion.qlx.
+[31/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-843/TypeConfusionThroughParameterTampering.qlx.
+[32/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-178/CaseSensitiveMiddlewarePath.qlx.
+[33/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-295/DisablingCertificateValidation.qlx.
+[34/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-776/XmlBomb.qlx.
+[35/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-611/Xxe.qlx.
+[36/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-078/ShellCommandInjectionFromEnvironment.qlx.
+[37/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-078/UnsafeShellCommandConstruction.qlx.
+[38/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-078/UselessUseOfCat.qlx.
+[39/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-078/CommandInjection.qlx.
+[40/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-078/SecondOrderCommandInjection.qlx.
+[41/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-502/UnsafeDeserialization.qlx.
+[42/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-1004/ClientExposedCookie.qlx.
+[43/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-094/CodeInjection.qlx.
+[44/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-094/ImproperCodeSanitization.qlx.
+[45/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-094/UnsafeDynamicMethodAccess.qlx.
+[46/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-073/TemplateObjectInjection.qlx.
+[47/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-209/StackTraceExposure.qlx.
+[48/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-693/InsecureHelmet.qlx.
+[49/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/Xss.qlx.
+[50/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/XssThroughDom.qlx.
+[51/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/UnsafeHtmlConstruction.qlx.
+[52/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/ReflectedXss.qlx.
+[53/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/StoredXss.qlx.
+[54/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/UnsafeJQueryPlugin.qlx.
+[55/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-079/ExceptionXss.qlx.
+[56/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-134/TaintedFormatString.qlx.
+[57/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-834/LoopBoundInjection.qlx.
+[58/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-300/InsecureDependencyResolution.qlx.
+[59/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-643/XpathInjection.qlx.
+[60/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-598/SensitiveGetQuery.qlx.
+[61/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-754/UnvalidatedDynamicMethodCall.qlx.
+[62/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-022/TaintedPath.qlx.
+[63/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-022/ZipSlip.qlx.
+[64/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-201/PostMessageStar.qlx.
+[65/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-918/RequestForgery.qlx.
+[66/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-942/CorsPermissiveConfiguration.qlx.
+[67/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-338/InsecureRandomness.qlx.
+[68/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-400/DeepObjectResourceExhaustion.qlx.
+[69/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-200/PrivateFileExposure.qlx.
+[70/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-346/CorsMisconfigurationForCredentials.qlx.
+[71/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-640/HostHeaderPoisoningInEmailGeneration.qlx.
+[72/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-829/InsecureDownload.qlx.
+[73/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-915/PrototypePollutingAssignment.qlx.
+[74/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-915/PrototypePollutingMergeCall.qlx.
+[75/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-915/PrototypePollutingFunction.qlx.
+[76/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-614/ClearTextCookie.qlx.
+[77/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Electron/DisablingWebSecurity.qlx.
+[78/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Electron/AllowRunningInsecureContent.qlx.
+[79/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Performance/ReDoS.qlx.
+[80/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Performance/PolynomialReDoS.qlx.
+[81/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/DisablingSce.qlx.
+[82/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/DoubleCompilation.qlx.
+[83/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/InsecureUrlWhitelist.qlx.
+[84/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/IdentityReplacement.qlx.
+[85/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-384/SessionFixation.qlx.
+[86/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-912/HttpToFileAccess.qlx.
+[87/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/MissingOriginCheck.qlx.
+[88/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-020/MissingRegExpAnchor.qlx.
+[89/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-078/IndirectCommandInjection.qlx.
+[90/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-117/LogInjection.qlx.
+[91/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-094/UnsafeCodeConstruction.qlx.
+[92/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-377/InsecureTemporaryFile.qlx.
+[93/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-506/HardcodedDataInterpretedAsCode.qlx.
+[94/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-807/ConditionalBypass.qlx.
+[95/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-367/FileSystemRace.qlx.
+[96/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-862/EmptyPasswordInConfigurationFile.qlx.
+[97/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-1275/SameSiteNoneCookie.qlx.
+[98/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-918/ClientSideRequestForgery.qlx.
+[99/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-400/RemotePropertyInjection.qlx.
+[100/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Security/CWE-200/FileAccessToHttp.qlx.
+[101/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Diagnostics/ExtractionErrors.qlx.
+[102/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Diagnostics/ExtractedFiles.qlx.
+[103/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Summary/LinesOfUserCode.qlx.
+[104/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Summary/LinesOfCode.qlx.
+[105/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/MissingAwait.qlx.
+[106/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/SelfAssignment.qlx.
+[107/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/UnboundEventHandlerReceiver.qlx.
+[108/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/WhitespaceContradictsPrecedence.qlx.
+[109/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/UnknownDirective.qlx.
+[110/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/ImplicitOperandConversion.qlx.
+[111/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/SuspiciousInvocation.qlx.
+[112/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/UnclearOperatorPrecedence.qlx.
+[113/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/SuspiciousPropAccess.qlx.
+[114/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/MisspelledVariableName.qlx.
+[115/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/StringInsteadOfRegex.qlx.
+[116/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/MissingSpaceInAppend.qlx.
+[117/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/RedundantExpression.qlx.
+[118/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/ShiftOutOfRange.qlx.
+[119/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/ExprHasNoEffect.qlx.
+[120/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/DuplicateSwitchCase.qlx.
+[121/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/DuplicateProperty.qlx.
+[122/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/MissingDotLengthInComparison.qlx.
+[123/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/ComparisonWithNaN.qlx.
+[124/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/HeterogeneousComparison.qlx.
+[125/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/UnneededDefensiveProgramming.qlx.
+[126/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Expressions/DuplicateCondition.qlx.
+[127/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/DanglingElse.qlx.
+[128/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/SuspiciousUnusedLoopIterationVariable.qlx.
+[129/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/IgnoreArrayResult.qlx.
+[130/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/LoopIterationSkippedDueToShifting.qlx.
+[131/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/UseOfReturnlessFunction.qlx.
+[132/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/MisleadingIndentationAfterControlStmt.qlx.
+[133/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/LabelInCase.qlx.
+[134/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/UselessConditional.qlx.
+[135/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/UselessComparisonTest.qlx.
+[136/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/InconsistentLoopOrientation.qlx.
+[137/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/ReturnAssignsLocal.qlx.
+[138/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Statements/UnreachableStatement.qlx.
+[139/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/TemporalDeadZone.qlx.
+[140/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/MissingVarDecl.qlx.
+[141/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/SuspiciousMethodNameDeclaration.qlx.
+[142/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/UnreachableMethodOverloads.qlx.
+[143/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/UniqueParameterNames.qlx.
+[144/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/DeadStoreOfLocal.qlx.
+[145/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/AssignmentToConst.qlx.
+[146/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/DuplicateVarDecl.qlx.
+[147/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/ConflictingFunctions.qlx.
+[148/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/UnusedVariable.qlx.
+[149/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/MixedStaticInstanceThisAccess.qlx.
+[150/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/IneffectiveParameterType.qlx.
+[151/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/MissingThisQualifier.qlx.
+[152/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/DeclBeforeUse.qlx.
+[153/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/DeadStoreOfProperty.qlx.
+[154/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/ArgumentsRedefined.qlx.
+[155/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/UniquePropertyNames.qlx.
+[156/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/DefaultArgumentReferencesNestedFunction.qlx.
+[157/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Declarations/ClobberingVarInit.qlx.
+[158/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/BadTypeof.qlx.
+[159/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/ConditionalComments.qlx.
+[160/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/SetterReturn.qlx.
+[161/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/WithStatement.qlx.
+[162/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/SemicolonInsertion.qlx.
+[163/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/SyntaxError.qlx.
+[164/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/YieldInNonGenerator.qlx.
+[165/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/IllegalInvocation.qlx.
+[166/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/DeleteVar.qlx.
+[167/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/ForInComprehensionBlocks.qlx.
+[168/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/SpuriousArguments.qlx.
+[169/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/ExpressionClosures.qlx.
+[170/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/UnusedIndexVariable.qlx.
+[171/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/NonLinearPattern.qlx.
+[172/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/TemplateSyntaxInStringLiteral.qlx.
+[173/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/InvalidPrototype.qlx.
+[174/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/StrictModeCallStackIntrospection.qlx.
+[175/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/PropertyWriteOnPrimitive.qlx.
+[176/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/InconsistentNew.qlx.
+[177/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/LengthComparisonOffByOne.qlx.
+[178/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/LanguageFeatures/ThisBeforeSuper.qlx.
+[179/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/Vue/ArrowMethodOnVueInstance.qlx.
+[180/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/NodeJS/InvalidExport.qlx.
+[181/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/NodeJS/MissingExports.qlx.
+[182/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/React/DirectStateMutation.qlx.
+[183/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/React/UnsupportedStateUpdateInLifecycleMethod.qlx.
+[184/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/React/UnusedOrUndefinedStateProperty.qlx.
+[185/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/React/InconsistentStateUpdate.qlx.
+[186/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/DOM/DuplicateAttributes.qlx.
+[187/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/DOM/MalformedIdAttribute.qlx.
+[188/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/DOM/PseudoEval.qlx.
+[189/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/UseNgSrc.qlx.
+[190/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/DuplicateDependency.qlx.
+[191/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/MissingExplicitInjection.qlx.
+[192/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/IncompatibleService.qlx.
+[193/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/DependencyMismatch.qlx.
+[194/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/AngularJS/RepeatedInjection.qlx.
+[195/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/RegExpAlwaysMatches.qlx.
+[196/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/UnmatchableCaret.qlx.
+[197/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/UnmatchableDollar.qlx.
+[198/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/EmptyCharacterClass.qlx.
+[199/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/DuplicateCharacterInCharacterClass.qlx.
+[200/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/UnboundBackref.qlx.
+[201/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/BackrefIntoNegativeLookahead.qlx.
+[202/202] Loaded /home/test/.codeql/packages/codeql/javascript-queries/2.2.0/RegExp/BackrefBeforeGroup.qlx.
+Starting evaluation of codeql/javascript-queries/AngularJS/DependencyMismatch.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/DisablingSce.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/MissingExplicitInjection.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/UseNgSrc.ql.
+Starting evaluation of codeql/javascript-queries/DOM/MalformedIdAttribute.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/DoubleCompilation.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/DuplicateDependency.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/IncompatibleService.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/InsecureUrlWhitelist.ql.
+Starting evaluation of codeql/javascript-queries/AngularJS/RepeatedInjection.ql.
+Starting evaluation of codeql/javascript-queries/DOM/DuplicateAttributes.ql.
+Starting evaluation of codeql/javascript-queries/DOM/PseudoEval.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/ArgumentsRedefined.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/ClobberingVarInit.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/DeadStoreOfLocal.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/DeclBeforeUse.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/DefaultArgumentReferencesNestedFunction.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/DuplicateVarDecl.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/AssignmentToConst.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/ConflictingFunctions.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/DeadStoreOfProperty.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/IneffectiveParameterType.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/MissingThisQualifier.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/MissingVarDecl.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/MixedStaticInstanceThisAccess.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/SuspiciousMethodNameDeclaration.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/TemporalDeadZone.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/UniqueParameterNames.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/UniquePropertyNames.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/UnreachableMethodOverloads.ql.
+Starting evaluation of codeql/javascript-queries/Declarations/UnusedVariable.ql.
+Starting evaluation of codeql/javascript-queries/Diagnostics/ExtractedFiles.ql.
+Starting evaluation of codeql/javascript-queries/Diagnostics/ExtractionErrors.ql.
+Starting evaluation of codeql/javascript-queries/Electron/AllowRunningInsecureContent.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/ComparisonWithNaN.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/DuplicateProperty.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/ExprHasNoEffect.ql.
+Starting evaluation of codeql/javascript-queries/Electron/DisablingWebSecurity.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/DuplicateCondition.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/DuplicateSwitchCase.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/HeterogeneousComparison.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/ImplicitOperandConversion.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/MissingDotLengthInComparison.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/MissingAwait.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/MissingSpaceInAppend.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/MisspelledVariableName.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/RedundantExpression.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/SelfAssignment.ql.
+[1/202 eval 2s] Evaluation done; writing results to codeql/javascript-queries/Diagnostics/ExtractionErrors.bqrs.
+[2/202 eval 2.1s] Evaluation done; writing results to codeql/javascript-queries/Diagnostics/ExtractedFiles.bqrs.
+[3/202 eval 2.4s] Evaluation done; writing results to codeql/javascript-queries/Declarations/MissingThisQualifier.bqrs.
+[4/202 eval 2.4s] Evaluation done; writing results to codeql/javascript-queries/Declarations/MixedStaticInstanceThisAccess.bqrs.
+[5/202 eval 2.4s] Evaluation done; writing results to codeql/javascript-queries/Expressions/ComparisonWithNaN.bqrs.
+[6/202 eval 2.6s] Evaluation done; writing results to codeql/javascript-queries/Declarations/DuplicateVarDecl.bqrs.
+[7/202 eval 3s] Evaluation done; writing results to codeql/javascript-queries/Declarations/UnreachableMethodOverloads.bqrs.
+[8/202 eval 3s] Evaluation done; writing results to codeql/javascript-queries/Expressions/DuplicateProperty.bqrs.
+[9/202 eval 3s] Evaluation done; writing results to codeql/javascript-queries/Declarations/UniquePropertyNames.bqrs.
+[10/202 eval 3.1s] Evaluation done; writing results to codeql/javascript-queries/Declarations/ArgumentsRedefined.bqrs.
+[11/202 eval 3.2s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/DisablingSce.bqrs.
+[12/202 eval 3.2s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/DependencyMismatch.bqrs.
+[13/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/IncompatibleService.bqrs.
+[14/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/MissingExplicitInjection.bqrs.
+[15/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/DuplicateDependency.bqrs.
+[16/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/RepeatedInjection.bqrs.
+[17/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/DoubleCompilation.bqrs.
+[18/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/InsecureUrlWhitelist.bqrs.
+[19/202 eval 3.6s] Evaluation done; writing results to codeql/javascript-queries/DOM/PseudoEval.bqrs.
+[20/202 eval 3.8s] Evaluation done; writing results to codeql/javascript-queries/Declarations/ClobberingVarInit.bqrs.
+[21/202 eval 3.8s] Evaluation done; writing results to codeql/javascript-queries/Declarations/ConflictingFunctions.bqrs.
+[22/202 eval 3.9s] Evaluation done; writing results to codeql/javascript-queries/Declarations/AssignmentToConst.bqrs.
+[23/202 eval 4.1s] Evaluation done; writing results to codeql/javascript-queries/Declarations/DefaultArgumentReferencesNestedFunction.bqrs.
+[24/202 eval 4.1s] Evaluation done; writing results to codeql/javascript-queries/Declarations/SuspiciousMethodNameDeclaration.bqrs.
+[25/202 eval 4.5s] Evaluation done; writing results to codeql/javascript-queries/Declarations/IneffectiveParameterType.bqrs.
+[26/202 eval 4.5s] Evaluation done; writing results to codeql/javascript-queries/Declarations/UniqueParameterNames.bqrs.
+[27/202 eval 4.8s] Evaluation done; writing results to codeql/javascript-queries/Declarations/DeadStoreOfLocal.bqrs.
+[28/202 eval 4.8s] Evaluation done; writing results to codeql/javascript-queries/Electron/AllowRunningInsecureContent.bqrs.
+[29/202 eval 4.8s] Evaluation done; writing results to codeql/javascript-queries/Electron/DisablingWebSecurity.bqrs.
+[30/202 eval 4.9s] Evaluation done; writing results to codeql/javascript-queries/Declarations/DeclBeforeUse.bqrs.
+[31/202 eval 5s] Evaluation done; writing results to codeql/javascript-queries/Declarations/TemporalDeadZone.bqrs.
+[32/202 eval 5s] Evaluation done; writing results to codeql/javascript-queries/DOM/DuplicateAttributes.bqrs.
+[33/202 eval 5s] Evaluation done; writing results to codeql/javascript-queries/DOM/MalformedIdAttribute.bqrs.
+[34/202 eval 5.1s] Evaluation done; writing results to codeql/javascript-queries/Expressions/MissingDotLengthInComparison.bqrs.
+[35/202 eval 5.2s] Evaluation done; writing results to codeql/javascript-queries/Expressions/MissingSpaceInAppend.bqrs.
+[36/202 eval 5.2s] Evaluation done; writing results to codeql/javascript-queries/Expressions/MisspelledVariableName.bqrs.
+[37/202 eval 5.2s] Evaluation done; writing results to codeql/javascript-queries/Expressions/SelfAssignment.bqrs.
+[38/202 eval 5.4s] Evaluation done; writing results to codeql/javascript-queries/AngularJS/UseNgSrc.bqrs.
+[39/202 eval 5.5s] Evaluation done; writing results to codeql/javascript-queries/Declarations/MissingVarDecl.bqrs.
+Starting evaluation of codeql/javascript-queries/Expressions/ShiftOutOfRange.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/SuspiciousInvocation.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/StringInsteadOfRegex.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/SuspiciousPropAccess.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/UnboundEventHandlerReceiver.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/UnclearOperatorPrecedence.ql.
+[40/202 eval 5.5s] Evaluation done; writing results to codeql/javascript-queries/Expressions/DuplicateCondition.bqrs.
+[41/202 eval 5.5s] Evaluation done; writing results to codeql/javascript-queries/Expressions/DuplicateSwitchCase.bqrs.
+[42/202 eval 5.5s] Evaluation done; writing results to codeql/javascript-queries/Expressions/RedundantExpression.bqrs.
+[43/202 eval 45ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/ShiftOutOfRange.bqrs.
+[44/202 eval 93ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/UnboundEventHandlerReceiver.bqrs.
+[45/202 eval 233ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/StringInsteadOfRegex.bqrs.
+Starting evaluation of codeql/javascript-queries/Expressions/UnknownDirective.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/UnneededDefensiveProgramming.ql.
+Starting evaluation of codeql/javascript-queries/Expressions/WhitespaceContradictsPrecedence.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/BadTypeof.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/ConditionalComments.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/DeleteVar.ql.
+[46/202 eval 5.9s] Evaluation done; writing results to codeql/javascript-queries/Expressions/MissingAwait.bqrs.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/ExpressionClosures.ql.
+[47/202 eval 33ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/DeleteVar.bqrs.
+[48/202 eval 45ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/ConditionalComments.bqrs.
+[49/202 eval 57ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/BadTypeof.bqrs.
+[50/202 eval 87ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/UnknownDirective.bqrs.
+[51/202 eval 78ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/ExpressionClosures.bqrs.
+[52/202 eval 6.1s] Evaluation done; writing results to codeql/javascript-queries/Declarations/UnusedVariable.bqrs.
+[53/202 eval 562ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/UnclearOperatorPrecedence.bqrs.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/ForInComprehensionBlocks.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/IllegalInvocation.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/InconsistentNew.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/InvalidPrototype.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/LengthComparisonOffByOne.ql.
+[54/202 eval 171ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/WhitespaceContradictsPrecedence.bqrs.
+[55/202 eval 9ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/ForInComprehensionBlocks.bqrs.
+[56/202 eval 6.1s] Evaluation done; writing results to codeql/javascript-queries/Expressions/ImplicitOperandConversion.bqrs.
+[57/202 eval 637ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/SuspiciousInvocation.bqrs.
+[58/202 eval 644ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/SuspiciousPropAccess.bqrs.
+[59/202 eval 6.2s] Evaluation done; writing results to codeql/javascript-queries/Declarations/DeadStoreOfProperty.bqrs.
+[60/202 eval 6.2s] Evaluation done; writing results to codeql/javascript-queries/Expressions/ExprHasNoEffect.bqrs.
+[61/202 eval 185ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/IllegalInvocation.bqrs.
+[62/202 eval 231ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/LengthComparisonOffByOne.bqrs.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/NonLinearPattern.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/PropertyWriteOnPrimitive.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/SemicolonInsertion.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/SetterReturn.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/SpuriousArguments.ql.
+[63/202 eval 3ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/SetterReturn.bqrs.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/StrictModeCallStackIntrospection.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/SyntaxError.ql.
+[64/202 eval 20ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/SyntaxError.bqrs.
+[65/202 eval 55ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/NonLinearPattern.bqrs.
+[66/202 eval 412ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/InvalidPrototype.bqrs.
+[67/202 eval 469ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/InconsistentNew.bqrs.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/TemplateSyntaxInStringLiteral.ql.
+[68/202 eval 665ms] Evaluation done; writing results to codeql/javascript-queries/Expressions/UnneededDefensiveProgramming.bqrs.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/WithStatement.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/UnusedIndexVariable.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/ThisBeforeSuper.ql.
+Starting evaluation of codeql/javascript-queries/LanguageFeatures/YieldInNonGenerator.ql.
+Starting evaluation of codeql/javascript-queries/NodeJS/InvalidExport.ql.
+Starting evaluation of codeql/javascript-queries/Performance/PolynomialReDoS.ql.
+Starting evaluation of codeql/javascript-queries/Performance/ReDoS.ql.
+Starting evaluation of codeql/javascript-queries/React/InconsistentStateUpdate.ql.
+Starting evaluation of codeql/javascript-queries/React/UnsupportedStateUpdateInLifecycleMethod.ql.
+Starting evaluation of codeql/javascript-queries/React/UnusedOrUndefinedStateProperty.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/BackrefBeforeGroup.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/BackrefIntoNegativeLookahead.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/DuplicateCharacterInCharacterClass.ql.
+Starting evaluation of codeql/javascript-queries/NodeJS/MissingExports.ql.
+Starting evaluation of codeql/javascript-queries/React/DirectStateMutation.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/EmptyCharacterClass.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/IdentityReplacement.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/RegExpAlwaysMatches.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/UnboundBackref.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/UnmatchableCaret.ql.
+Starting evaluation of codeql/javascript-queries/RegExp/UnmatchableDollar.ql.
+[69/202 eval 234ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/ThisBeforeSuper.bqrs.
+[70/202 eval 236ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/WithStatement.bqrs.
+[71/202 eval 237ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/YieldInNonGenerator.bqrs.
+[72/202 eval 265ms] Evaluation done; writing results to codeql/javascript-queries/NodeJS/InvalidExport.bqrs.
+[73/202 eval 461ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/StrictModeCallStackIntrospection.bqrs.
+[74/202 eval 298ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/UnusedIndexVariable.bqrs.
+[75/202 eval 354ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/TemplateSyntaxInStringLiteral.bqrs.
+[76/202 eval 635ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/SpuriousArguments.bqrs.
+[77/202 eval 7.1s] Evaluation done; writing results to codeql/javascript-queries/Expressions/HeterogeneousComparison.bqrs.
+[78/202 eval 509ms] Evaluation done; writing results to codeql/javascript-queries/NodeJS/MissingExports.bqrs.
+[79/202 eval 783ms] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/SemicolonInsertion.bqrs.
+[80/202 eval 668ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/UnboundBackref.bqrs.
+[81/202 eval 683ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/EmptyCharacterClass.bqrs.
+[82/202 eval 731ms] Evaluation done; writing results to codeql/javascript-queries/React/InconsistentStateUpdate.bqrs.
+[83/202 eval 757ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/BackrefIntoNegativeLookahead.bqrs.
+[84/202 eval 763ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/BackrefBeforeGroup.bqrs.
+[85/202 eval 793ms] Evaluation done; writing results to codeql/javascript-queries/React/DirectStateMutation.bqrs.
+[86/202 eval 797ms] Evaluation done; writing results to codeql/javascript-queries/React/UnusedOrUndefinedStateProperty.bqrs.
+[87/202 eval 829ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/DuplicateCharacterInCharacterClass.bqrs.
+[88/202 eval 904ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/IdentityReplacement.bqrs.
+[89/202 eval 919ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/UnmatchableDollar.bqrs.
+[90/202 eval 922ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/UnmatchableCaret.bqrs.
+[91/202 eval 1.1s] Evaluation done; writing results to codeql/javascript-queries/LanguageFeatures/PropertyWriteOnPrimitive.bqrs.
+[92/202 eval 989ms] Evaluation done; writing results to codeql/javascript-queries/RegExp/RegExpAlwaysMatches.bqrs.
+[93/202 eval 1s] Evaluation done; writing results to codeql/javascript-queries/React/UnsupportedStateUpdateInLifecycleMethod.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/IncompleteHostnameRegExp.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/IncompleteUrlSchemeCheck.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/IncompleteUrlSubstringSanitization.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/IncorrectSuffixCheck.ql.
+[94/202 eval 291ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/IncompleteUrlSubstringSanitization.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/MissingOriginCheck.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/MissingRegExpAnchor.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/OverlyLargeRange.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-020/UselessRegExpCharacterEscape.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-022/TaintedPath.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-022/ZipSlip.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-073/TemplateObjectInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-078/CommandInjection.ql.
+[95/202 eval 438ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/IncompleteUrlSchemeCheck.bqrs.
+[96/202 eval 460ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/IncompleteHostnameRegExp.bqrs.
+[97/202 eval 484ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/IncorrectSuffixCheck.bqrs.
+[98/202 eval 563ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/MissingOriginCheck.bqrs.
+[99/202 eval 1s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-073/TemplateObjectInjection.bqrs.
+[100/202 eval 1.1s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/OverlyLargeRange.bqrs.
+[101/202 eval 1.2s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-022/ZipSlip.bqrs.
+[102/202 eval 1.3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/MissingRegExpAnchor.bqrs.
+[103/202 eval 1.3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-078/CommandInjection.bqrs.
+[104/202 eval 1.4s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-020/UselessRegExpCharacterEscape.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-078/IndirectCommandInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-078/SecondOrderCommandInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-078/ShellCommandInjectionFromEnvironment.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-078/UnsafeShellCommandConstruction.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-078/UselessUseOfCat.ql.
+[105/202 eval 10ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-078/UnsafeShellCommandConstruction.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/ExceptionXss.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/ReflectedXss.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/StoredXss.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/UnsafeHtmlConstruction.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/UnsafeJQueryPlugin.ql.
+[106/202 eval 3.2s] Evaluation done; writing results to codeql/javascript-queries/Performance/ReDoS.bqrs.
+[107/202 eval 346ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-078/UselessUseOfCat.bqrs.
+[108/202 eval 513ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-078/IndirectCommandInjection.bqrs.
+[109/202 eval 592ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-078/ShellCommandInjectionFromEnvironment.bqrs.
+[110/202 eval 1s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-078/SecondOrderCommandInjection.bqrs.
+[111/202 eval 984ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/ReflectedXss.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/Xss.ql.
+[112/202 eval 1.5s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/StoredXss.bqrs.
+[113/202 eval 4.6s] Evaluation done; writing results to codeql/javascript-queries/Performance/PolynomialReDoS.bqrs.
+[114/202 eval 3.2s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-022/TaintedPath.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-079/XssThroughDom.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-089/SqlInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-094/CodeInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-094/ImproperCodeSanitization.ql.
+[115/202 eval 300ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-094/ImproperCodeSanitization.bqrs.
+[116/202 eval 2.4s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/UnsafeHtmlConstruction.bqrs.
+[117/202 eval 991ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-089/SqlInjection.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-094/UnsafeCodeConstruction.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-094/UnsafeDynamicMethodAccess.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-1004/ClientExposedCookie.ql.
+[118/202 eval 4ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-094/UnsafeCodeConstruction.bqrs.
+[119/202 eval 3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/ExceptionXss.bqrs.
+[120/202 eval 1.6s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-094/CodeInjection.bqrs.
+[121/202 eval 3.6s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/UnsafeJQueryPlugin.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-116/BadTagFilter.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-116/DoubleEscaping.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-116/IncompleteHtmlAttributeSanitization.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-116/IncompleteMultiCharacterSanitization.ql.
+[122/202 eval 1s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-1004/ClientExposedCookie.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-116/IncompleteSanitization.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-116/UnsafeHtmlExpansion.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-117/LogInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-1275/SameSiteNoneCookie.ql.
+[123/202 eval 346ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-116/DoubleEscaping.bqrs.
+[124/202 eval 1.3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-094/UnsafeDynamicMethodAccess.bqrs.
+[125/202 eval 254ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-1275/SameSiteNoneCookie.bqrs.
+[126/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/Xss.bqrs.
+[127/202 eval 783ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-116/IncompleteSanitization.bqrs.
+[128/202 eval 811ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-116/UnsafeHtmlExpansion.bqrs.
+[129/202 eval 997ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-117/LogInjection.bqrs.
+[130/202 eval 3.8s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-116/IncompleteMultiCharacterSanitization.bqrs.
+[131/202 eval 3.9s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-116/BadTagFilter.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-134/TaintedFormatString.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-178/CaseSensitiveMiddlewarePath.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-200/FileAccessToHttp.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-200/PrivateFileExposure.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-201/PostMessageStar.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-209/StackTraceExposure.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-295/DisablingCertificateValidation.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-300/InsecureDependencyResolution.ql.
+[132/202 eval 6s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-079/XssThroughDom.bqrs.
+[133/202 eval 101ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-300/InsecureDependencyResolution.bqrs.
+[134/202 eval 156ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-178/CaseSensitiveMiddlewarePath.bqrs.
+[135/202 eval 175ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-209/StackTraceExposure.bqrs.
+[136/202 eval 181ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-201/PostMessageStar.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-312/BuildArtifactLeak.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-312/CleartextLogging.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-312/CleartextStorage.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-326/InsufficientKeySize.ql.
+[137/202 eval 4.2s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-116/IncompleteHtmlAttributeSanitization.bqrs.
+[138/202 eval 133ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-312/BuildArtifactLeak.bqrs.
+[139/202 eval 392ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-295/DisablingCertificateValidation.bqrs.
+[140/202 eval 433ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-200/PrivateFileExposure.bqrs.
+[141/202 eval 271ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-326/InsufficientKeySize.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-327/BrokenCryptoAlgorithm.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-327/BadRandomness.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-338/InsecureRandomness.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-346/CorsMisconfigurationForCredentials.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-347/MissingJWTKeyVerification.ql.
+[142/202 eval 123ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-327/BadRandomness.bqrs.
+[143/202 eval 153ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-346/CorsMisconfigurationForCredentials.bqrs.
+[144/202 eval 164ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-347/MissingJWTKeyVerification.bqrs.
+[145/202 eval 691ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-134/TaintedFormatString.bqrs.
+[146/202 eval 326ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-327/BrokenCryptoAlgorithm.bqrs.
+[147/202 eval 935ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-200/FileAccessToHttp.bqrs.
+[148/202 eval 713ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-312/CleartextStorage.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-352/MissingCsrfMiddleware.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-400/DeepObjectResourceExhaustion.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-367/FileSystemRace.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-377/InsecureTemporaryFile.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-384/SessionFixation.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-400/RemotePropertyInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-506/HardcodedDataInterpretedAsCode.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-502/UnsafeDeserialization.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-598/SensitiveGetQuery.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-601/ClientSideUrlRedirect.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-601/ServerSideUrlRedirect.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-611/Xxe.ql.
+[149/202 eval 182ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-352/MissingCsrfMiddleware.bqrs.
+[150/202 eval 192ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-384/SessionFixation.bqrs.
+[151/202 eval 265ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-367/FileSystemRace.bqrs.
+[152/202 eval 274ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-377/InsecureTemporaryFile.bqrs.
+[153/202 eval 337ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-598/SensitiveGetQuery.bqrs.
+[154/202 eval 362ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-400/DeepObjectResourceExhaustion.bqrs.
+[155/202 eval 436ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-502/UnsafeDeserialization.bqrs.
+[156/202 eval 584ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-506/HardcodedDataInterpretedAsCode.bqrs.
+[157/202 eval 599ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-611/Xxe.bqrs.
+[158/202 eval 1.6s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-312/CleartextLogging.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-614/ClearTextCookie.ql.
+[159/202 eval 2ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-614/ClearTextCookie.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-640/HostHeaderPoisoningInEmailGeneration.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-643/XpathInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-693/InsecureHelmet.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-730/RegExpInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-730/ServerCrash.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-754/UnvalidatedDynamicMethodCall.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-770/MissingRateLimiting.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-770/ResourceExhaustion.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-776/XmlBomb.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-807/ConditionalBypass.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-829/InsecureDownload.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-830/FunctionalityFromUntrustedDomain.ql.
+[160/202 eval 817ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-601/ServerSideUrlRedirect.bqrs.
+[161/202 eval 196ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-640/HostHeaderPoisoningInEmailGeneration.bqrs.
+[162/202 eval 237ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-643/XpathInjection.bqrs.
+[163/202 eval 1.7s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-338/InsecureRandomness.bqrs.
+[164/202 eval 314ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-693/InsecureHelmet.bqrs.
+[165/202 eval 318ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-770/MissingRateLimiting.bqrs.
+[166/202 eval 328ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-730/ServerCrash.bqrs.
+[167/202 eval 336ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-776/XmlBomb.bqrs.
+[168/202 eval 371ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-830/FunctionalityFromUntrustedDomain.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-830/FunctionalityFromUntrustedSource.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-834/LoopBoundInjection.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-843/TypeConfusionThroughParameterTampering.ql.
+[169/202 eval 3ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-834/LoopBoundInjection.bqrs.
+[170/202 eval 4ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-843/TypeConfusionThroughParameterTampering.bqrs.
+[171/202 eval 9ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-830/FunctionalityFromUntrustedSource.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-862/EmptyPasswordInConfigurationFile.ql.
+[172/202 eval 646ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-730/RegExpInjection.bqrs.
+[173/202 eval 750ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-829/InsecureDownload.bqrs.
+[174/202 eval 846ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-770/ResourceExhaustion.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-912/HttpToFileAccess.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-915/PrototypePollutingAssignment.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-915/PrototypePollutingFunction.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-915/PrototypePollutingMergeCall.ql.
+[175/202 eval 108ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-912/HttpToFileAccess.bqrs.
+[176/202 eval 1s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-807/ConditionalBypass.bqrs.
+[177/202 eval 530ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-862/EmptyPasswordInConfigurationFile.bqrs.
+Starting evaluation of codeql/javascript-queries/Security/CWE-916/InsufficientPasswordHash.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-918/RequestForgery.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-918/ClientSideRequestForgery.ql.
+Starting evaluation of codeql/javascript-queries/Security/CWE-942/CorsPermissiveConfiguration.ql.
+[178/202 eval 57ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-942/CorsPermissiveConfiguration.bqrs.
+[179/202 eval 420ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-915/PrototypePollutingMergeCall.bqrs.
+Starting evaluation of codeql/javascript-queries/Statements/DanglingElse.ql.
+Starting evaluation of codeql/javascript-queries/Statements/IgnoreArrayResult.ql.
+[180/202 eval 316ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-916/InsufficientPasswordHash.bqrs.
+[181/202 eval 139ms] Evaluation done; writing results to codeql/javascript-queries/Statements/IgnoreArrayResult.bqrs.
+Starting evaluation of codeql/javascript-queries/Statements/InconsistentLoopOrientation.ql.
+Starting evaluation of codeql/javascript-queries/Statements/LabelInCase.ql.
+Starting evaluation of codeql/javascript-queries/Statements/LoopIterationSkippedDueToShifting.ql.
+Starting evaluation of codeql/javascript-queries/Statements/MisleadingIndentationAfterControlStmt.ql.
+[182/202 eval 4ms] Evaluation done; writing results to codeql/javascript-queries/Statements/LabelInCase.bqrs.
+Starting evaluation of codeql/javascript-queries/Statements/ReturnAssignsLocal.ql.
+Starting evaluation of codeql/javascript-queries/Statements/SuspiciousUnusedLoopIterationVariable.ql.
+[183/202 eval 72ms] Evaluation done; writing results to codeql/javascript-queries/Statements/InconsistentLoopOrientation.bqrs.
+[184/202 eval 390ms] Evaluation done; writing results to codeql/javascript-queries/Statements/DanglingElse.bqrs.
+[185/202 eval 128ms] Evaluation done; writing results to codeql/javascript-queries/Statements/ReturnAssignsLocal.bqrs.
+[186/202 eval 1.9s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-754/UnvalidatedDynamicMethodCall.bqrs.
+[187/202 eval 310ms] Evaluation done; writing results to codeql/javascript-queries/Statements/SuspiciousUnusedLoopIterationVariable.bqrs.
+Starting evaluation of codeql/javascript-queries/Statements/UnreachableStatement.ql.
+Starting evaluation of codeql/javascript-queries/Statements/UseOfReturnlessFunction.ql.
+Starting evaluation of codeql/javascript-queries/Statements/UselessComparisonTest.ql.
+Starting evaluation of codeql/javascript-queries/Statements/UselessConditional.ql.
+Starting evaluation of codeql/javascript-queries/Summary/LinesOfCode.ql.
+[188/202 eval 904ms] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-918/RequestForgery.bqrs.
+[189/202 eval 31ms] Evaluation done; writing results to codeql/javascript-queries/Summary/LinesOfCode.bqrs.
+[190/202 eval 386ms] Evaluation done; writing results to codeql/javascript-queries/Statements/MisleadingIndentationAfterControlStmt.bqrs.
+[191/202 eval 2.9s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-601/ClientSideUrlRedirect.bqrs.
+[192/202 eval 853ms] Evaluation done; writing results to codeql/javascript-queries/Statements/LoopIterationSkippedDueToShifting.bqrs.
+[193/202 eval 3.3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-400/RemotePropertyInjection.bqrs.
+Starting evaluation of codeql/javascript-queries/Summary/LinesOfUserCode.ql.
+Starting evaluation of codeql/javascript-queries/Vue/ArrowMethodOnVueInstance.ql.
+[194/202 eval 1.6s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-918/ClientSideRequestForgery.bqrs.
+[195/202 eval 170ms] Evaluation done; writing results to codeql/javascript-queries/Vue/ArrowMethodOnVueInstance.bqrs.
+[196/202 eval 810ms] Evaluation done; writing results to codeql/javascript-queries/Statements/UselessComparisonTest.bqrs.
+[197/202 eval 845ms] Evaluation done; writing results to codeql/javascript-queries/Statements/UseOfReturnlessFunction.bqrs.
+[198/202 eval 853ms] Evaluation done; writing results to codeql/javascript-queries/Statements/UnreachableStatement.bqrs.
+[199/202 eval 2.3s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-915/PrototypePollutingFunction.bqrs.
+[200/202 eval 1.4s] Evaluation done; writing results to codeql/javascript-queries/Statements/UselessConditional.bqrs.
+[201/202 eval 856ms] Evaluation done; writing results to codeql/javascript-queries/Summary/LinesOfUserCode.bqrs.
+[202/202 eval 3.2s] Evaluation done; writing results to codeql/javascript-queries/Security/CWE-915/PrototypePollutingAssignment.bqrs.
+Shutting down query evaluator.
+Interpreting results.
+CodeQL scanned 360 out of 360 JavaScript/TypeScript files and 18 out of 18 GitHub Actions files in this invocation. Typically CodeQL is configured to analyze a single CodeQL language per invocation, so check other invocations to determine overall coverage information.
+[CodeQL] Done javascript, SARIF = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/codeql/codeql_js.sarif
+[CodeQL] Analyze python -> /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_190749/codeql/codeql_py.sarif
+Running queries.
+[1/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/UseofInput.qlx.
+[2/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-327/BrokenCryptoAlgorithm.qlx.
+[3/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-327/InsecureProtocol.qlx.
+[4/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-327/InsecureDefaultProtocol.qlx.
+[5/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-327/WeakSensitiveDataHashing.qlx.
+[6/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-089/SqlInjection.qlx.
+[7/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-943/NoSqlInjection.qlx.
+[8/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-116/BadTagFilter.qlx.
+[9/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-312/CleartextStorage.qlx.
+[10/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-312/CleartextLogging.qlx.
+[11/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-020/CookieInjection.qlx.
+[12/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-020/OverlyLargeRange.qlx.
+[13/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-020/IncompleteUrlSubstringSanitization.qlx.
+[14/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-020/IncompleteHostnameRegExp.qlx.
+[15/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-730/RegexInjection.qlx.
+[16/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-730/ReDoS.qlx.
+[17/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-730/PolynomialReDoS.qlx.
+[18/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-352/CSRFProtectionDisabled.qlx.
+[19/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-601/UrlRedirect.qlx.
+[20/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-326/WeakCryptoKey.qlx.
+[21/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-295/MissingHostKeyValidation.qlx.
+[22/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-776/XmlBomb.qlx.
+[23/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-074/TemplateInjection.qlx.
+[24/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-611/Xxe.qlx.
+[25/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-078/CommandInjection.qlx.
+[26/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CVE-2018-1281/BindToAllInterfaces.qlx.
+[27/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-502/UnsafeDeserialization.qlx.
+[28/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-1004/NonHttpOnlyCookie.qlx.
+[29/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-094/CodeInjection.qlx.
+[30/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-209/StackTraceExposure.qlx.
+[31/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-377/InsecureTemporaryFile.qlx.
+[32/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-079/ReflectedXss.qlx.
+[33/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-643/XpathInjection.qlx.
+[34/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-090/LdapInjection.qlx.
+[35/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-1275/SameSiteNoneCookie.qlx.
+[36/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-022/PathInjection.qlx.
+[37/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-285/PamAuthorization.qlx.
+[38/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-918/FullServerSideRequestForgery.qlx.
+[39/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-215/FlaskDebug.qlx.
+[40/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-113/HeaderInjection.qlx.
+[41/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-614/InsecureCookie.qlx.
+[42/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-295/RequestWithoutValidation.qlx.
+[43/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-078/UnsafeShellCommandConstruction.qlx.
+[44/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-117/LogInjection.qlx.
+[45/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-732/WeakFilePermissions.qlx.
+[46/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-079/Jinja2WithoutEscaping.qlx.
+[47/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-022/TarSlip.qlx.
+[48/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Security/CWE-918/PartialServerSideRequestForgery.qlx.
+[49/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Diagnostics/ExtractionWarnings.qlx.
+[50/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Diagnostics/ExtractedFiles.qlx.
+[51/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Summary/LinesOfUserCode.qlx.
+[52/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Summary/LinesOfCode.qlx.
+[53/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/CompareIdenticalValuesMissingSelf.qlx.
+[54/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/ExplicitCallToDel.qlx.
+[55/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/CallToSuperWrongClass.qlx.
+[56/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/WrongNumberArgumentsForFormat.qlx.
+[57/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/NonCallableCalled.qlx.
+[58/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/HashedButNoHash.qlx.
+[59/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/ContainsNonContainer.qlx.
+[60/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Regex/UnmatchableCaret.qlx.
+[61/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Regex/UnmatchableDollar.qlx.
+[62/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Regex/DuplicateCharacterInSet.qlx.
+[63/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Regex/BackspaceEscape.qlx.
+[64/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Regex/MissingPartSpecialGroup.qlx.
+[65/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Formatting/WrongNumberArgumentsFor3101Format.qlx.
+[66/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Formatting/UnusedArgumentIn3101Format.qlx.
+[67/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Formatting/MixedExplicitImplicitIn3101Format.qlx.
+[68/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Formatting/UnusedNamedArgumentIn3101Format.qlx.
+[69/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Formatting/WrongNameInArgumentsFor3101Format.qlx.
+[70/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/CompareConstants.qlx.
+[71/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/CompareIdenticalValues.qlx.
+[72/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/ExpectedMappingForFormatString.qlx.
+[73/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/TruncatedDivision.qlx.
+[74/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/UseofApply.qlx.
+[75/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/WrongNameForArgumentInCall.qlx.
+[76/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/IncorrectComparisonUsingIs.qlx.
+[77/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/DuplicateKeyInDictionaryLiteral.qlx.
+[78/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/WrongNumberArgumentsInCall.qlx.
+[79/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/UnintentionalImplicitStringConcatenation.qlx.
+[80/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/Comparisons/UselessComparisonTest.qlx.
+[81/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/EqualsNone.qlx.
+[82/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/UnnecessaryLambda.qlx.
+[83/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Expressions/UnsupportedFormatCharacter.qlx.
+[84/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/UnusedExceptionObject.qlx.
+[85/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/ModificationOfLocals.qlx.
+[86/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/NestedLoopsSameVariableWithReuse.qlx.
+[87/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/IterableStringOrSequence.qlx.
+[88/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/UnnecessaryDelete.qlx.
+[89/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/ConstantInConditional.qlx.
+[90/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/AssertOnTuple.qlx.
+[91/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/ShouldUseWithStatement.qlx.
+[92/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/SideEffectInAssert.qlx.
+[93/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/UseOfExit.qlx.
+[94/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/ReturnOrYieldOutsideFunction.qlx.
+[95/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/MismatchInMultipleAssignment.qlx.
+[96/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/NonIteratorInForLoop.qlx.
+[97/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/StatementNoEffect.qlx.
+[98/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/RedundantAssignment.qlx.
+[99/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/TopLevelPrint.qlx.
+[100/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/UnnecessaryPass.qlx.
+[101/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/UnreachableCode.qlx.
+[102/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/BreakOrReturnInFinally.qlx.
+[103/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/NestedLoopsSameVariable.qlx.
+[104/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Statements/UnnecessaryElseClause.qlx.
+[105/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/IncorrectExceptOrder.qlx.
+[106/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/EmptyExcept.qlx.
+[107/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/RaisingTuple.qlx.
+[108/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/IllegalRaise.qlx.
+[109/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/IllegalExceptionHandlerType.qlx.
+[110/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/NotImplementedIsNotAnException.qlx.
+[111/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/UnguardedNextInGenerator.qlx.
+[112/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Exceptions/CatchingBaseException.qlx.
+[113/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Testing/ImpreciseAssert.qlx.
+[114/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Numerics/Pythagorean.qlx.
+[115/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/SuspiciousUnusedLoopIterationVariable.qlx.
+[116/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/UnusedModuleVariable.qlx.
+[117/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/LoopVariableCapture/LoopVariableCapture.qlx.
+[118/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/LeakingListComprehension.qlx.
+[119/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/UndefinedExport.qlx.
+[120/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/GlobalAtModuleLevel.qlx.
+[121/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/UndefinedPlaceHolder.qlx.
+[122/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/MultiplyDefined.qlx.
+[123/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/UnusedLocalVariable.qlx.
+[124/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Variables/UninitializedLocal.qlx.
+[125/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/ReturnConsistentTupleSizes.qlx.
+[126/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/SignatureOverriddenMethod.qlx.
+[127/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/IterReturnsNonSelf.qlx.
+[128/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/IterReturnsNonIterator.qlx.
+[129/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/OverlyComplexDelMethod.qlx.
+[130/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/IncorrectlyOverriddenMethod.qlx.
+[131/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/NonSelf.qlx.
+[132/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/DeprecatedSliceMethod.qlx.
+[133/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/SignatureSpecialMethods.qlx.
+[134/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/NonCls.qlx.
+[135/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/UseImplicitNoneReturnValue.qlx.
+[136/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/IncorrectlySpecifiedOverriddenMethod.qlx.
+[137/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/ModificationOfParameterWithDefault.qlx.
+[138/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/ExplicitReturnInInit.qlx.
+[139/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/IncorrectRaiseInSpecialMethod.qlx.
+[140/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/InitIsGenerator.qlx.
+[141/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Functions/ConsistentReturns.qlx.
+[142/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/FromImportOfMutableAttribute.qlx.
+[143/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/CyclicImport.qlx.
+[144/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/SyntaxError.qlx.
+[145/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/ImportandImportFrom.qlx.
+[146/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/EncodingError.qlx.
+[147/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/ModuleImportsItself.qlx.
+[148/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/MultipleImports.qlx.
+[149/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/UnintentionalImport.qlx.
+[150/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/DeprecatedModule.qlx.
+[151/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/UnusedImport.qlx.
+[152/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Imports/ModuleLevelCyclicImport.qlx.
+[153/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/SuperInOldStyleClass.qlx.
+[154/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/InitCallsSubclass/InitCallsSubclassMethod.qlx.
+[155/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/ConflictingAttributesInBaseClasses.qlx.
+[156/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/SubclassShadowing/SubclassShadowing.qlx.
+[157/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/MutatingDescriptor.qlx.
+[158/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/SlotsInOldStyleClass.qlx.
+[159/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/CallsToInitDel/MissingCallToInit.qlx.
+[160/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/CallsToInitDel/SuperclassInitCalledMultipleTimes.qlx.
+[161/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/CallsToInitDel/MissingCallToDel.qlx.
+[162/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/CallsToInitDel/SuperclassDelCalledMultipleTimes.qlx.
+[163/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/WrongNumberArgumentsInClassInstantiation.qlx.
+[164/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/OverwritingAttributeInSuperClass.qlx.
+[165/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/PropertyInOldStyleClass.qlx.
+[166/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/Comparisons/EqualsOrNotEquals.qlx.
+[167/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/Comparisons/EqualsOrHash.qlx.
+[168/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/Comparisons/IncompleteOrdering.qlx.
+[169/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/DefineEqualsWhenAddingAttributes.qlx.
+[170/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/WrongNameForArgumentInClassInstantiation.qlx.
+[171/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Classes/InconsistentMRO.qlx.
+[172/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Resources/FileNotAlwaysClosed.qlx.
+[173/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Lexical/OldOctalLiteral.qlx.
+[174/174] Loaded /home/test/.codeql/packages/codeql/python-queries/1.7.0/Lexical/CommentedOutCode.qlx.
+Starting evaluation of codeql/python-queries/Classes/CallsToInitDel/MissingCallToDel.ql.
+Starting evaluation of codeql/python-queries/Classes/CallsToInitDel/SuperclassDelCalledMultipleTimes.ql.
+Starting evaluation of codeql/python-queries/Classes/CallsToInitDel/MissingCallToInit.ql.
+Starting evaluation of codeql/python-queries/Classes/Comparisons/IncompleteOrdering.ql.
+Starting evaluation of codeql/python-queries/Classes/CallsToInitDel/SuperclassInitCalledMultipleTimes.ql.
+Starting evaluation of codeql/python-queries/Classes/DefineEqualsWhenAddingAttributes.ql.
+Starting evaluation of codeql/python-queries/Classes/InitCallsSubclass/InitCallsSubclassMethod.ql.
+Starting evaluation of codeql/python-queries/Classes/Comparisons/EqualsOrHash.ql.
+Starting evaluation of codeql/python-queries/Classes/Comparisons/EqualsOrNotEquals.ql.
+Starting evaluation of codeql/python-queries/Classes/ConflictingAttributesInBaseClasses.ql.
+Starting evaluation of codeql/python-queries/Classes/InconsistentMRO.ql.
+Starting evaluation of codeql/python-queries/Classes/MutatingDescriptor.ql.
+Starting evaluation of codeql/python-queries/Classes/OverwritingAttributeInSuperClass.ql.
+Starting evaluation of codeql/python-queries/Classes/SlotsInOldStyleClass.ql.
+Starting evaluation of codeql/python-queries/Classes/WrongNumberArgumentsInClassInstantiation.ql.
+Starting evaluation of codeql/python-queries/Diagnostics/ExtractedFiles.ql.
+Starting evaluation of codeql/python-queries/Diagnostics/ExtractionWarnings.ql.
+Starting evaluation of codeql/python-queries/Classes/PropertyInOldStyleClass.ql.
+Starting evaluation of codeql/python-queries/Classes/SuperInOldStyleClass.ql.
+Starting evaluation of codeql/python-queries/Classes/WrongNameForArgumentInClassInstantiation.ql.
+Starting evaluation of codeql/python-queries/Classes/SubclassShadowing/SubclassShadowing.ql.
+Starting evaluation of codeql/python-queries/Exceptions/CatchingBaseException.ql.
+Starting evaluation of codeql/python-queries/Exceptions/EmptyExcept.ql.
+Starting evaluation of codeql/python-queries/Exceptions/IllegalRaise.ql.
+Starting evaluation of codeql/python-queries/Exceptions/IncorrectExceptOrder.ql.
+Starting evaluation of codeql/python-queries/Exceptions/IllegalExceptionHandlerType.ql.
+Starting evaluation of codeql/python-queries/Exceptions/NotImplementedIsNotAnException.ql.
+Starting evaluation of codeql/python-queries/Exceptions/RaisingTuple.ql.
+Starting evaluation of codeql/python-queries/Exceptions/UnguardedNextInGenerator.ql.
+Starting evaluation of codeql/python-queries/Expressions/CallToSuperWrongClass.ql.
+Starting evaluation of codeql/python-queries/Expressions/CompareConstants.ql.
+Starting evaluation of codeql/python-queries/Expressions/CompareIdenticalValuesMissingSelf.ql.
+Starting evaluation of codeql/python-queries/Expressions/CompareIdenticalValues.ql.
+Starting evaluation of codeql/python-queries/Expressions/Comparisons/UselessComparisonTest.ql.
+Starting evaluation of codeql/python-queries/Expressions/ContainsNonContainer.ql.
+Starting evaluation of codeql/python-queries/Expressions/DuplicateKeyInDictionaryLiteral.ql.
+Starting evaluation of codeql/python-queries/Expressions/ExplicitCallToDel.ql.
+Starting evaluation of codeql/python-queries/Expressions/EqualsNone.ql.
+Starting evaluation of codeql/python-queries/Expressions/ExpectedMappingForFormatString.ql.
+Starting evaluation of codeql/python-queries/Expressions/Formatting/UnusedArgumentIn3101Format.ql.
+Starting evaluation of codeql/python-queries/Expressions/Formatting/MixedExplicitImplicitIn3101Format.ql.
+Starting evaluation of codeql/python-queries/Expressions/Formatting/UnusedNamedArgumentIn3101Format.ql.
+Starting evaluation of codeql/python-queries/Expressions/Formatting/WrongNameInArgumentsFor3101Format.ql.
+Starting evaluation of codeql/python-queries/Expressions/Formatting/WrongNumberArgumentsFor3101Format.ql.
+Starting evaluation of codeql/python-queries/Expressions/HashedButNoHash.ql.
+Starting evaluation of codeql/python-queries/Expressions/IncorrectComparisonUsingIs.ql.
+Starting evaluation of codeql/python-queries/Expressions/NonCallableCalled.ql.
+Starting evaluation of codeql/python-queries/Expressions/Regex/BackspaceEscape.ql.
+Starting evaluation of codeql/python-queries/Expressions/Regex/DuplicateCharacterInSet.ql.
+Starting evaluation of codeql/python-queries/Expressions/Regex/MissingPartSpecialGroup.ql.
+Starting evaluation of codeql/python-queries/Expressions/Regex/UnmatchableCaret.ql.
+Starting evaluation of codeql/python-queries/Expressions/Regex/UnmatchableDollar.ql.
+Starting evaluation of codeql/python-queries/Expressions/TruncatedDivision.ql.
+[1/174 eval 795ms] Evaluation done; writing results to codeql/python-queries/Diagnostics/ExtractionWarnings.bqrs.
+[2/174 eval 912ms] Evaluation done; writing results to codeql/python-queries/Exceptions/RaisingTuple.bqrs.
+[3/174 eval 1.2s] Evaluation done; writing results to codeql/python-queries/Diagnostics/ExtractedFiles.bqrs.
+[4/174 eval 4.4s] Evaluation done; writing results to codeql/python-queries/Classes/Comparisons/EqualsOrHash.bqrs.
+[5/174 eval 4.6s] Evaluation done; writing results to codeql/python-queries/Classes/SlotsInOldStyleClass.bqrs.
+[6/174 eval 5.2s] Evaluation done; writing results to codeql/python-queries/Classes/InconsistentMRO.bqrs.
+[7/174 eval 5.5s] Evaluation done; writing results to codeql/python-queries/Expressions/ExplicitCallToDel.bqrs.
+[8/174 eval 5.6s] Evaluation done; writing results to codeql/python-queries/Classes/SuperInOldStyleClass.bqrs.
+[9/174 eval 6.1s] Evaluation done; writing results to codeql/python-queries/Expressions/CompareConstants.bqrs.
+[10/174 eval 7.6s] Evaluation done; writing results to codeql/python-queries/Classes/WrongNameForArgumentInClassInstantiation.bqrs.
+[11/174 eval 11.4s] Evaluation done; writing results to codeql/python-queries/Exceptions/CatchingBaseException.bqrs.
+[12/174 eval 11.6s] Evaluation done; writing results to codeql/python-queries/Exceptions/NotImplementedIsNotAnException.bqrs.
+[13/174 eval 14.4s] Evaluation done; writing results to codeql/python-queries/Classes/DefineEqualsWhenAddingAttributes.bqrs.
+[14/174 eval 15.7s] Evaluation done; writing results to codeql/python-queries/Expressions/CallToSuperWrongClass.bqrs.
+[15/174 eval 15.8s] Evaluation done; writing results to codeql/python-queries/Classes/PropertyInOldStyleClass.bqrs.
+[16/174 eval 15.8s] Evaluation done; writing results to codeql/python-queries/Exceptions/IllegalExceptionHandlerType.bqrs.
+[17/174 eval 16.1s] Evaluation done; writing results to codeql/python-queries/Exceptions/IllegalRaise.bqrs.
+[18/174 eval 16.3s] Evaluation done; writing results to codeql/python-queries/Classes/WrongNumberArgumentsInClassInstantiation.bqrs.
+[19/174 eval 16.8s] Evaluation done; writing results to codeql/python-queries/Expressions/EqualsNone.bqrs.
+[20/174 eval 17.2s] Evaluation done; writing results to codeql/python-queries/Expressions/ContainsNonContainer.bqrs.
+[21/174 eval 17.9s] Evaluation done; writing results to codeql/python-queries/Classes/ConflictingAttributesInBaseClasses.bqrs.
+[22/174 eval 17.8s] Evaluation done; writing results to codeql/python-queries/Expressions/DuplicateKeyInDictionaryLiteral.bqrs.
+[23/174 eval 18.2s] Evaluation done; writing results to codeql/python-queries/Expressions/IncorrectComparisonUsingIs.bqrs.
+[24/174 eval 18.2s] Evaluation done; writing results to codeql/python-queries/Classes/OverwritingAttributeInSuperClass.bqrs.
+[25/174 eval 18.3s] Evaluation done; writing results to codeql/python-queries/Expressions/CompareIdenticalValuesMissingSelf.bqrs.
+[26/174 eval 18.4s] Evaluation done; writing results to codeql/python-queries/Expressions/CompareIdenticalValues.bqrs.
+[27/174 eval 19.2s] Evaluation done; writing results to codeql/python-queries/Expressions/Regex/MissingPartSpecialGroup.bqrs.
+[28/174 eval 19.9s] Evaluation done; writing results to codeql/python-queries/Expressions/Comparisons/UselessComparisonTest.bqrs.
+[29/174 eval 20.5s] Evaluation done; writing results to codeql/python-queries/Expressions/Regex/BackspaceEscape.bqrs.
+[30/174 eval 21.4s] Evaluation done; writing results to codeql/python-queries/Exceptions/EmptyExcept.bqrs.
+[31/174 eval 22.5s] Evaluation done; writing results to codeql/python-queries/Expressions/TruncatedDivision.bqrs.
+[32/174 eval 22.7s] Evaluation done; writing results to codeql/python-queries/Exceptions/UnguardedNextInGenerator.bqrs.
+[33/174 eval 23.2s] Evaluation done; writing results to codeql/python-queries/Classes/MutatingDescriptor.bqrs.
+[34/174 eval 25.4s] Evaluation done; writing results to codeql/python-queries/Expressions/Regex/UnmatchableCaret.bqrs.
+[35/174 eval 25.4s] Evaluation done; writing results to codeql/python-queries/Expressions/ExpectedMappingForFormatString.bqrs.
+[36/174 eval 25.4s] Evaluation done; writing results to codeql/python-queries/Expressions/Regex/UnmatchableDollar.bqrs.
+[37/174 eval 25.7s] Evaluation done; writing results to codeql/python-queries/Expressions/Formatting/UnusedArgumentIn3101Format.bqrs.
+[38/174 eval 25.8s] Evaluation done; writing results to codeql/python-queries/Expressions/Formatting/WrongNameInArgumentsFor3101Format.bqrs.
+[39/174 eval 25.8s] Evaluation done; writing results to codeql/python-queries/Expressions/Formatting/WrongNumberArgumentsFor3101Format.bqrs.
+[40/174 eval 25.9s] Evaluation done; writing results to codeql/python-queries/Expressions/Formatting/UnusedNamedArgumentIn3101Format.bqrs.
+[41/174 eval 25.9s] Evaluation done; writing results to codeql/python-queries/Expressions/Formatting/MixedExplicitImplicitIn3101Format.bqrs.
+[42/174 eval 25.9s] Evaluation done; writing results to codeql/python-queries/Expressions/Regex/DuplicateCharacterInSet.bqrs.
+[43/174 eval 27s] Evaluation done; writing results to codeql/python-queries/Expressions/NonCallableCalled.bqrs.
+Starting evaluation of codeql/python-queries/Expressions/UnintentionalImplicitStringConcatenation.ql.
+Starting evaluation of codeql/python-queries/Expressions/UnnecessaryLambda.ql.
+Starting evaluation of codeql/python-queries/Expressions/UnsupportedFormatCharacter.ql.
+Starting evaluation of codeql/python-queries/Expressions/UseofApply.ql.
+Starting evaluation of codeql/python-queries/Expressions/UseofInput.ql.
+Starting evaluation of codeql/python-queries/Expressions/WrongNameForArgumentInCall.ql.
+Starting evaluation of codeql/python-queries/Expressions/WrongNumberArgumentsForFormat.ql.
+Starting evaluation of codeql/python-queries/Expressions/WrongNumberArgumentsInCall.ql.
+Starting evaluation of codeql/python-queries/Functions/ConsistentReturns.ql.
+Starting evaluation of codeql/python-queries/Functions/DeprecatedSliceMethod.ql.
+Starting evaluation of codeql/python-queries/Functions/ExplicitReturnInInit.ql.
+Starting evaluation of codeql/python-queries/Functions/IncorrectRaiseInSpecialMethod.ql.
+Starting evaluation of codeql/python-queries/Functions/IncorrectlyOverriddenMethod.ql.
+Starting evaluation of codeql/python-queries/Functions/IncorrectlySpecifiedOverriddenMethod.ql.
+Starting evaluation of codeql/python-queries/Functions/InitIsGenerator.ql.
+Starting evaluation of codeql/python-queries/Functions/IterReturnsNonIterator.ql.
+[44/174 eval 26ms] Evaluation done; writing results to codeql/python-queries/Functions/InitIsGenerator.bqrs.
+[45/174 eval 73ms] Evaluation done; writing results to codeql/python-queries/Expressions/UnsupportedFormatCharacter.bqrs.
+[46/174 eval 294ms] Evaluation done; writing results to codeql/python-queries/Expressions/UnintentionalImplicitStringConcatenation.bqrs.
+[47/174 eval 518ms] Evaluation done; writing results to codeql/python-queries/Expressions/UnnecessaryLambda.bqrs.
+[48/174 eval 666ms] Evaluation done; writing results to codeql/python-queries/Functions/DeprecatedSliceMethod.bqrs.
+[49/174 eval 731ms] Evaluation done; writing results to codeql/python-queries/Functions/ExplicitReturnInInit.bqrs.
+[50/174 eval 819ms] Evaluation done; writing results to codeql/python-queries/Expressions/UseofApply.bqrs.
+[51/174 eval 2s] Evaluation done; writing results to codeql/python-queries/Expressions/UseofInput.bqrs.
+[52/174 eval 4.8s] Evaluation done; writing results to codeql/python-queries/Functions/IncorrectlyOverriddenMethod.bqrs.
+[53/174 eval 5s] Evaluation done; writing results to codeql/python-queries/Functions/IterReturnsNonIterator.bqrs.
+[54/174 eval 5.6s] Evaluation done; writing results to codeql/python-queries/Expressions/WrongNumberArgumentsForFormat.bqrs.
+[55/174 eval 7.6s] Evaluation done; writing results to codeql/python-queries/Functions/IncorrectlySpecifiedOverriddenMethod.bqrs.
+Starting evaluation of codeql/python-queries/Functions/IterReturnsNonSelf.ql.
+Starting evaluation of codeql/python-queries/Functions/ModificationOfParameterWithDefault.ql.
+Starting evaluation of codeql/python-queries/Functions/NonCls.ql.
+Starting evaluation of codeql/python-queries/Functions/NonSelf.ql.
+[56/174 eval 39.3s] Evaluation done; writing results to codeql/python-queries/Classes/Comparisons/EqualsOrNotEquals.bqrs.
+[57/174 eval 39.5s] Evaluation done; writing results to codeql/python-queries/Classes/Comparisons/IncompleteOrdering.bqrs.
+[58/174 eval 39.5s] Evaluation done; writing results to codeql/python-queries/Expressions/HashedButNoHash.bqrs.
+[59/174 eval 39.6s] Evaluation done; writing results to codeql/python-queries/Exceptions/IncorrectExceptOrder.bqrs.
+[60/174 eval 10.8s] Evaluation done; writing results to codeql/python-queries/Functions/IncorrectRaiseInSpecialMethod.bqrs.
+[61/174 eval 11.7s] Evaluation done; writing results to codeql/python-queries/Expressions/WrongNumberArgumentsInCall.bqrs.
+[62/174 eval 3.5s] Evaluation done; writing results to codeql/python-queries/Functions/NonCls.bqrs.
+[63/174 eval 41.1s] Evaluation done; writing results to codeql/python-queries/Classes/SubclassShadowing/SubclassShadowing.bqrs.
+[64/174 eval 4.8s] Evaluation done; writing results to codeql/python-queries/Functions/IterReturnsNonSelf.bqrs.
+[65/174 eval 42.1s] Evaluation done; writing results to codeql/python-queries/Classes/CallsToInitDel/SuperclassDelCalledMultipleTimes.bqrs.
+[66/174 eval 42.2s] Evaluation done; writing results to codeql/python-queries/Classes/CallsToInitDel/MissingCallToDel.bqrs.
+[67/174 eval 42.2s] Evaluation done; writing results to codeql/python-queries/Classes/CallsToInitDel/MissingCallToInit.bqrs.
+[68/174 eval 42.6s] Evaluation done; writing results to codeql/python-queries/Classes/CallsToInitDel/SuperclassInitCalledMultipleTimes.bqrs.
+[69/174 eval 42.6s] Evaluation done; writing results to codeql/python-queries/Classes/InitCallsSubclass/InitCallsSubclassMethod.bqrs.
+[70/174 eval 13.8s] Evaluation done; writing results to codeql/python-queries/Expressions/WrongNameForArgumentInCall.bqrs.
+[71/174 eval 14.8s] Evaluation done; writing results to codeql/python-queries/Functions/ConsistentReturns.bqrs.
+Starting evaluation of codeql/python-queries/Functions/OverlyComplexDelMethod.ql.
+Starting evaluation of codeql/python-queries/Functions/ReturnConsistentTupleSizes.ql.
+Starting evaluation of codeql/python-queries/Functions/SignatureOverriddenMethod.ql.
+Starting evaluation of codeql/python-queries/Functions/SignatureSpecialMethods.ql.
+Starting evaluation of codeql/python-queries/Functions/UseImplicitNoneReturnValue.ql.
+[72/174 eval 644ms] Evaluation done; writing results to codeql/python-queries/Functions/ReturnConsistentTupleSizes.bqrs.
+[73/174 eval 3.1s] Evaluation done; writing results to codeql/python-queries/Functions/SignatureSpecialMethods.bqrs.
+Starting evaluation of codeql/python-queries/Imports/CyclicImport.ql.
+Starting evaluation of codeql/python-queries/Imports/DeprecatedModule.ql.
+Starting evaluation of codeql/python-queries/Imports/FromImportOfMutableAttribute.ql.
+Starting evaluation of codeql/python-queries/Imports/ImportandImportFrom.ql.
+Starting evaluation of codeql/python-queries/Imports/ModuleImportsItself.ql.
+Starting evaluation of codeql/python-queries/Imports/ModuleLevelCyclicImport.ql.
+Starting evaluation of codeql/python-queries/Imports/EncodingError.ql.
+Starting evaluation of codeql/python-queries/Imports/MultipleImports.ql.
+[74/174 eval 2ms] Evaluation done; writing results to codeql/python-queries/Imports/EncodingError.bqrs.
+[75/174 eval 17.2s] Evaluation done; writing results to codeql/python-queries/Functions/NonSelf.bqrs.
+[76/174 eval 205ms] Evaluation done; writing results to codeql/python-queries/Imports/ImportandImportFrom.bqrs.
+[77/174 eval 9.7s] Evaluation done; writing results to codeql/python-queries/Functions/UseImplicitNoneReturnValue.bqrs.
+[78/174 eval 982ms] Evaluation done; writing results to codeql/python-queries/Imports/ModuleImportsItself.bqrs.
+[79/174 eval 11.1s] Evaluation done; writing results to codeql/python-queries/Functions/OverlyComplexDelMethod.bqrs.
+Starting evaluation of codeql/python-queries/Imports/SyntaxError.ql.
+[80/174 eval 2ms] Evaluation done; writing results to codeql/python-queries/Imports/SyntaxError.bqrs.
+[81/174 eval 5s] Evaluation done; writing results to codeql/python-queries/Imports/DeprecatedModule.bqrs.
+[82/174 eval 5.2s] Evaluation done; writing results to codeql/python-queries/Imports/FromImportOfMutableAttribute.bqrs.
+Starting evaluation of codeql/python-queries/Imports/UnintentionalImport.ql.
+Starting evaluation of codeql/python-queries/Imports/UnusedImport.ql.
+Starting evaluation of codeql/python-queries/Numerics/Pythagorean.ql.
+Starting evaluation of codeql/python-queries/Lexical/CommentedOutCode.ql.
+Starting evaluation of codeql/python-queries/Lexical/OldOctalLiteral.ql.
+Starting evaluation of codeql/python-queries/Resources/FileNotAlwaysClosed.ql.
+Starting evaluation of codeql/python-queries/Security/CVE-2018-1281/BindToAllInterfaces.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-020/CookieInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-020/IncompleteHostnameRegExp.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-020/IncompleteUrlSubstringSanitization.ql.
+[83/174 eval 219ms] Evaluation done; writing results to codeql/python-queries/Lexical/OldOctalLiteral.bqrs.
+[84/174 eval 1.1s] Evaluation done; writing results to codeql/python-queries/Imports/UnintentionalImport.bqrs.
+[85/174 eval 2s] Evaluation done; writing results to codeql/python-queries/Numerics/Pythagorean.bqrs.
+[86/174 eval 2.2s] Evaluation done; writing results to codeql/python-queries/Security/CVE-2018-1281/BindToAllInterfaces.bqrs.
+[87/174 eval 2.5s] Evaluation done; writing results to codeql/python-queries/Security/CWE-020/IncompleteUrlSubstringSanitization.bqrs.
+[88/174 eval 18.6s] Evaluation done; writing results to codeql/python-queries/Functions/SignatureOverriddenMethod.bqrs.
+[89/174 eval 26.8s] Evaluation done; writing results to codeql/python-queries/Functions/ModificationOfParameterWithDefault.bqrs.
+[90/174 eval 4.7s] Evaluation done; writing results to codeql/python-queries/Security/CWE-020/IncompleteHostnameRegExp.bqrs.
+[91/174 eval 10.7s] Evaluation done; writing results to codeql/python-queries/Imports/ModuleLevelCyclicImport.bqrs.
+[92/174 eval 6.3s] Evaluation done; writing results to codeql/python-queries/Security/CWE-020/CookieInjection.bqrs.
+[93/174 eval 12.1s] Evaluation done; writing results to codeql/python-queries/Imports/MultipleImports.bqrs.
+[94/174 eval 10.6s] Evaluation done; writing results to codeql/python-queries/Imports/UnusedImport.bqrs.
+Starting evaluation of codeql/python-queries/Security/CWE-020/OverlyLargeRange.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-022/PathInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-022/TarSlip.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-074/TemplateInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-078/CommandInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-078/UnsafeShellCommandConstruction.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-079/Jinja2WithoutEscaping.ql.
+[95/174 eval 18.4s] Evaluation done; writing results to codeql/python-queries/Lexical/CommentedOutCode.bqrs.
+[96/174 eval 23.9s] Evaluation done; writing results to codeql/python-queries/Imports/CyclicImport.bqrs.
+[97/174 eval 1.1s] Evaluation done; writing results to codeql/python-queries/Security/CWE-020/OverlyLargeRange.bqrs.
+[98/174 eval 1.1s] Evaluation done; writing results to codeql/python-queries/Security/CWE-079/Jinja2WithoutEscaping.bqrs.
+[99/174 eval 1.6s] Evaluation done; writing results to codeql/python-queries/Security/CWE-078/UnsafeShellCommandConstruction.bqrs.
+Starting evaluation of codeql/python-queries/Security/CWE-079/ReflectedXss.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-089/SqlInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-090/LdapInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-094/CodeInjection.ql.
+[100/174 eval 1.9s] Evaluation done; writing results to codeql/python-queries/Security/CWE-079/ReflectedXss.bqrs.
+[101/174 eval 2.8s] Evaluation done; writing results to codeql/python-queries/Security/CWE-089/SqlInjection.bqrs.
+Starting evaluation of codeql/python-queries/Security/CWE-1004/NonHttpOnlyCookie.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-113/HeaderInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-215/FlaskDebug.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-116/BadTagFilter.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-117/LogInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-1275/SameSiteNoneCookie.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-209/StackTraceExposure.ql.
+[102/174 eval 11.9s] Evaluation done; writing results to codeql/python-queries/Security/CWE-074/TemplateInjection.bqrs.
+[103/174 eval 10.5s] Evaluation done; writing results to codeql/python-queries/Security/CWE-094/CodeInjection.bqrs.
+[104/174 eval 7.7s] Evaluation done; writing results to codeql/python-queries/Security/CWE-113/HeaderInjection.bqrs.
+[105/174 eval 8.3s] Evaluation done; writing results to codeql/python-queries/Security/CWE-209/StackTraceExposure.bqrs.
+[106/174 eval 16.8s] Evaluation done; writing results to codeql/python-queries/Security/CWE-022/PathInjection.bqrs.
+[107/174 eval 12.3s] Evaluation done; writing results to codeql/python-queries/Security/CWE-215/FlaskDebug.bqrs.
+[108/174 eval 12.3s] Evaluation done; writing results to codeql/python-queries/Security/CWE-1275/SameSiteNoneCookie.bqrs.
+[109/174 eval 12.4s] Evaluation done; writing results to codeql/python-queries/Security/CWE-1004/NonHttpOnlyCookie.bqrs.
+[110/174 eval 17.3s] Evaluation done; writing results to codeql/python-queries/Security/CWE-078/CommandInjection.bqrs.
+[111/174 eval 35.8s] Evaluation done; writing results to codeql/python-queries/Resources/FileNotAlwaysClosed.bqrs.
+[112/174 eval 14.9s] Evaluation done; writing results to codeql/python-queries/Security/CWE-116/BadTagFilter.bqrs.
+Starting evaluation of codeql/python-queries/Security/CWE-295/MissingHostKeyValidation.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-285/PamAuthorization.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-295/RequestWithoutValidation.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-312/CleartextLogging.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-312/CleartextStorage.ql.
+[113/174 eval 82ms] Evaluation done; writing results to codeql/python-queries/Security/CWE-295/MissingHostKeyValidation.bqrs.
+[114/174 eval 278ms] Evaluation done; writing results to codeql/python-queries/Security/CWE-285/PamAuthorization.bqrs.
+Starting evaluation of codeql/python-queries/Security/CWE-326/WeakCryptoKey.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-327/BrokenCryptoAlgorithm.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-327/InsecureDefaultProtocol.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-327/InsecureProtocol.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-327/WeakSensitiveDataHashing.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-352/CSRFProtectionDisabled.ql.
+[115/174 eval 1.1s] Evaluation done; writing results to codeql/python-queries/Security/CWE-295/RequestWithoutValidation.bqrs.
+[116/174 eval 100ms] Evaluation done; writing results to codeql/python-queries/Security/CWE-327/InsecureDefaultProtocol.bqrs.
+[117/174 eval 302ms] Evaluation done; writing results to codeql/python-queries/Security/CWE-352/CSRFProtectionDisabled.bqrs.
+[118/174 eval 1.4s] Evaluation done; writing results to codeql/python-queries/Security/CWE-327/BrokenCryptoAlgorithm.bqrs.
+[119/174 eval 1.6s] Evaluation done; writing results to codeql/python-queries/Security/CWE-326/WeakCryptoKey.bqrs.
+Starting evaluation of codeql/python-queries/Security/CWE-377/InsecureTemporaryFile.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-502/UnsafeDeserialization.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-611/Xxe.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-614/InsecureCookie.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-643/XpathInjection.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-730/PolynomialReDoS.ql.
+Starting evaluation of codeql/python-queries/Security/CWE-601/UrlRedirect.ql.

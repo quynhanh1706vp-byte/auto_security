@@ -1,0 +1,49 @@
+(function () {
+  var API_URL = "/api/vsp/rule_overrides_ui_v1";
+  var hydrated = false;
+
+  function hydratePane() {
+    if (hydrated) return;
+    var pane = document.getElementById("vsp-tab-rules");
+    if (!pane) return;
+
+    hydrated = true;
+
+    pane.innerHTML =
+      '<div class="vsp-section-header">' +
+        '<div>' +
+          '<h2 class="vsp-section-title">Rule Overrides</h2>' +
+          '<p class="vsp-section-subtitle">Mapping / override rule (rule_overrides_ui_v1)</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="vsp-card">' +
+        '<pre id="vsp-rules-pre">{\n  "ok": false,\n  "items": []\n}</pre>' +
+      '</div>';
+
+    var pre = document.getElementById("vsp-rules-pre");
+    if (!pre) return;
+
+    fetch(API_URL, { cache: "no-store" })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        console.log("[VSP_RULES_TAB_V2] rule_overrides_ui_v1 loaded.", data);
+        try {
+          pre.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+          pre.textContent = "Lỗi format JSON rule_overrides_ui_v1.";
+        }
+      })
+      .catch(function (err) {
+        console.error("[VSP_RULES_TAB_V2] Failed to load rule_overrides_ui_v1:", err);
+        pre.textContent = "Lỗi gọi API rule_overrides_ui_v1.";
+      });
+  }
+
+  window.vspInitRulesTab = hydratePane;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", hydratePane);
+  } else {
+    hydratePane();
+  }
+})();

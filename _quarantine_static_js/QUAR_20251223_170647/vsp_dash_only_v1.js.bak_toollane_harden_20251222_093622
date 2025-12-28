@@ -1,0 +1,506 @@
+/* VSP_DASH_ONLY_V1 */
+(()=> {
+  if (window.__vsp_dash_only_v1) return;
+  window.__vsp_dash_only_v1 = true;
+
+  const $ = (q,el=document)=>el.querySelector(q);
+  const esc = (s)=> String(s??"").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+  const sevRank = (s)=> ({CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3,INFO:4,TRACE:5}[String(s||"").toUpperCase()] ?? 99);
+
+  const state = {
+    rid: null,
+    gate: null,
+    counts: null,
+    tools: null,
+    findings: null,
+  };
+
+  function log(...a){ console.log("[DASH_ONLY]", ...a); }
+
+  async function jget(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.json();
+  }
+
+  function getRidFromQS(){
+    const u = new URL(location.href);
+    return u.searchParams.get("rid");
+  }
+
+  async function resolveRid(){
+    const qs = getRidFromQS();
+    if (qs) return qs;
+
+    const pin = localStorage.getItem("vsp.rid.pin");
+    if (pin) return pin;
+
+    try{
+      const j = await jget("/api/vsp/rid_latest_gate_root");
+      if (j && j.ok && j.rid) return j.rid;
+    }catch(e){
+      log("rid_latest_gate_root failed", e?.message || e);
+    }
+    return null;
+  }
+
+  function setStatusBadge(overall){
+    const el = $("#overall_badge");
+    if(!el) return;
+    const o = String(overall||"UNKNOWN").toUpperCase();
+    el.textContent = o;
+    el.style.borderColor = "rgba(255,255,255,.14)";
+    if (o === "PASS" || o === "GREEN") el.style.color = "rgba(34,197,94,.95)";
+    else if (o === "STALE" || o === "AMBER" || o === "WARN") el.style.color = "rgba(245,158,11,.98)";
+    else if (o === "FAIL" || o === "RED") el.style.color = "rgba(239,68,68,.95)";
+    else el.style.color = "rgba(226,232,240,.92)";
+  }
+
+  function render(){
+    $("#rid_txt").textContent = state.rid || "(no rid)";
+    setStatusBadge(state.gate?.overall_status || state.gate?.overall || state.gate?.overall_v2);
+
+    const c = state.counts || {};
+    const setK = (id,val)=> { const el=$(id); if(el) el.textContent = (val==null? "—": String(val)); };
+
+    setK("#k_total", c.TOTAL ?? c.total ?? state.gate?.counts_total?.TOTAL);
+    setK("#k_crit",  c.CRITICAL ?? c.critical);
+    setK("#k_high",  c.HIGH ?? c.high);
+    setK("#k_med",   c.MEDIUM ?? c.medium);
+    setK("#k_low",   c.LOW ?? c.low);
+    setK("#k_info",  c.INFO ?? c.info);
+    setK("#k_trace", c.TRACE ?? c.trace);
+
+        const ensureToolsBox = ()=>{
+      let el = $("#tools_box")
+        || document.querySelector("[data-vsp='tools_box']")
+        || document.querySelector(".tools_box")
+        || document.querySelector(".tool-lane")
+        || null;
+
+      if (!el){
+        // find an anchor containing "Tool lane"
+        const nodes = Array.from(document.querySelectorAll("div,section,header,h1,h2,h3,h4,span"));
+        const anchor = nodes.find(n => (n.textContent||"").toLowerCase().includes("tool lane"));
+        if (anchor){
+          el = document.createElement("div");
+          el.id = "tools_box";
+          el.style.marginTop = "8px";
+          // try append near anchor
+          (anchor.parentElement || document.body).appendChild(el);
+        }
+      } else {
+        if (!el.id) el.id = "tools_box";
+      }
+      return el;
+    };
+    const toolsBox = ensureToolsBox();
+
+    if (toolsBox){
+      const tools = state.tools || {};
+      const order = ["Semgrep","Gitleaks","KICS","Trivy","Syft","Grype","Bandit","CodeQL"];
+      toolsBox.innerHTML = order.map(t=>{
+        const st = String(tools[t]?.status || tools[t] || "UNKNOWN").toUpperCase();
+        const cls = (st==="OK") ? "s-ok" : (st==="MISSING" || st==="DEGRADED") ? "s-miss" : (st==="FAIL" || st==="ERROR") ? "s-bad" : "";
+        return `<div class="tool"><div class="t">${esc(t)}</div><div class="s ${cls}">${esc(st)}</div></div>`;
+      }).join("");
+    }
+
+    const note = $("#note_box");
+    if(note){
+      const arr = [];
+      arr.push(`Source: run_gate_summary.json (tool truth)`);
+      arr.push(`No legacy /api/vsp/runs auto-refresh (dash-only).`);
+      note.textContent = arr.join("\n");
+    }
+  }
+
+  async function loadGate(){
+    const rid = state.rid;
+    if(!rid) throw new Error("No RID resolved");
+    const gate = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`);
+    // allow both shapes: {ok:true,...} or raw json
+    state.gate = gate?.ok === false ? null : (gate?.ok === true && gate.data ? gate.data : gate);
+    // heuristics for counts/tools
+    const meta = state.gate?.meta || state.gate || {};
+    state.counts = meta.counts_by_severity || meta.counts_total || meta.counts || meta.meta?.counts_by_severity || meta.meta?.counts_total || null;
+    state.tools = meta.by_tool || meta.tools || meta.byTool || null;
+    render();
+  }
+
+  async function loadTopFindings(){
+    const rid = state.rid;
+    if(!rid) return;
+    const out = $("#findings_tbl");
+    const btn = $("#btn_load_findings");
+    if(btn) btn.disabled = true;
+
+    try{
+      const fu = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json`);
+      const payload = fu?.ok === true && fu.findings ? fu : (fu?.ok === true && fu.data ? fu.data : fu);
+      const findings = payload.findings || payload?.data?.findings || [];
+      const rows = findings
+        .map(f=>({
+          sev: String(f.severity||"").toUpperCase(),
+          tool: f.tool || f.source || "",
+          title: f.title || f.rule_id || f.message || "",
+          loc: f.location || f.path || (f.file? `${f.file}:${f.line||""}`:""),
+        }))
+        .sort((a,b)=> sevRank(a.sev)-sevRank(b.sev))
+        .slice(0, 25);
+
+      out.innerHTML = rows.map(r=>(
+        `<tr><td>${esc(r.sev)}</td><td>${esc(r.tool)}</td><td>${esc(r.title)}</td><td>${esc(r.loc)}</td></tr>`
+      )).join("");
+      log("loaded top findings", rows.length);
+    }catch(e){
+      log("load findings failed", e?.message||e);
+      out.innerHTML = `<tr><td colspan="4">Failed to load findings_unified.json</td></tr>`;
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  }
+
+  async function boot(){
+    log("boot");
+    state.rid = await resolveRid();
+    if(!state.rid){
+      $("#rid_txt").textContent = "(no rid)";
+      $("#note_box").textContent = "Cannot resolve RID. (Hint: set VSP_RUNS_ROOT in service env, or open /vsp5?rid=RUN_...)";
+      return;
+    }
+    await loadGate();
+  }
+
+  window.__vspDashOnly = {
+    pinRid(){
+      if(state.rid) localStorage.setItem("vsp.rid.pin", state.rid);
+      alert("Pinned RID: " + (state.rid||""));
+    },
+    clearPin(){
+      localStorage.removeItem("vsp.rid.pin");
+      alert("Cleared pinned RID");
+    },
+    refresh(){ return boot(); },
+    loadTopFindings(){ return loadTopFindings(); },
+  };
+
+  document.addEventListener("click", (e)=>{
+    const t = e.target;
+    if(!(t instanceof HTMLElement)) return;
+    const id = t.id;
+    if(id==="btn_refresh") boot();
+    if(id==="btn_pin") window.__vspDashOnly.pinRid();
+    if(id==="btn_unpin") window.__vspDashOnly.clearPin();
+    if(id==="btn_load_findings") loadTopFindings();
+  });
+
+  boot();
+})();
+
+
+/* ===================== VSP_P0_DASHONLY_FORCE_RENDER_GATE_SUMMARY_V1 ===================== */
+(()=> {
+  if (window.__vsp_p0_dashonly_force_render_v1) return;
+  window.__vsp_p0_dashonly_force_render_v1 = true;
+
+  const $ = (sel)=> document.querySelector(sel);
+  const esc = (x)=> String(x ?? "").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+  const setTextAny = (ids, val)=>{
+    for (const id of ids){
+      const el = document.querySelector(id);
+      if (el){ el.textContent = (val==null? "—" : String(val)); return true; }
+    }
+    return false;
+  };
+
+  const normKey = (k)=> String(k||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+  const statusOf = (v)=>{
+    if (v == null) return "UNKNOWN";
+    if (typeof v === "string") return v.toUpperCase();
+    if (typeof v === "boolean") return v ? "OK" : "FAIL";
+    if (typeof v === "object"){
+      const cand = v.status ?? v.state ?? v.result ?? v.verdict ?? v.outcome;
+      if (typeof cand === "string") return cand.toUpperCase();
+      if (typeof cand === "boolean") return cand ? "OK" : "FAIL";
+      if (v.ok === true) return "OK";
+      if (v.missing === true) return "MISSING";
+      if (v.degraded === true) return "DEGRADED";
+    }
+    return "UNKNOWN";
+  };
+
+  const applySummary = (sum)=>{
+    if (!sum || typeof sum !== "object") return;
+
+    const c = sum.counts_total || sum.counts_by_severity || sum.counts || {};
+    const CRIT  = c.CRITICAL ?? c.critical;
+    const HIGH  = c.HIGH ?? c.high;
+    const MED   = c.MEDIUM ?? c.medium;
+    const LOW   = c.LOW ?? c.low;
+    const INFO  = c.INFO ?? c.info;
+    const TRACE = c.TRACE ?? c.trace;
+
+    let TOTAL = c.TOTAL ?? c.total;
+    if (TOTAL == null){
+      const nums = [CRIT,HIGH,MED,LOW,INFO,TRACE].map(x=> (x==null? 0 : Number(x)||0));
+      TOTAL = nums.reduce((a,b)=>a+b,0);
+    }
+
+    // KPI ids: try multiple common ids (không đúng thì bỏ qua)
+    setTextAny(["#k_total","#kpi_total","#total_val","[data-kpi='TOTAL']"], TOTAL);
+    setTextAny(["#k_crit","#kpi_crit","[data-kpi='CRITICAL']"], CRIT);
+    setTextAny(["#k_high","#kpi_high","[data-kpi='HIGH']"], HIGH);
+    setTextAny(["#k_med","#kpi_med","[data-kpi='MEDIUM']"], MED);
+    setTextAny(["#k_low","#kpi_low","[data-kpi='LOW']"], LOW);
+    setTextAny(["#k_info","#kpi_info","[data-kpi='INFO']"], INFO);
+    setTextAny(["#k_trace","#kpi_trace","[data-kpi='TRACE']"], TRACE);
+
+    // Tool lane
+        const ensureToolsBox = ()=>{
+      let el = $("#tools_box")
+        || document.querySelector("[data-vsp='tools_box']")
+        || document.querySelector(".tools_box")
+        || document.querySelector(".tool-lane")
+        || null;
+
+      if (!el){
+        // find an anchor containing "Tool lane"
+        const nodes = Array.from(document.querySelectorAll("div,section,header,h1,h2,h3,h4,span"));
+        const anchor = nodes.find(n => (n.textContent||"").toLowerCase().includes("tool lane"));
+        if (anchor){
+          el = document.createElement("div");
+          el.id = "tools_box";
+          el.style.marginTop = "8px";
+          // try append near anchor
+          (anchor.parentElement || document.body).appendChild(el);
+        }
+      } else {
+        if (!el.id) el.id = "tools_box";
+      }
+      return el;
+    };
+    const toolsBox = ensureToolsBox();
+
+    if (toolsBox){
+      const raw = sum.by_tool || sum.byTool || {};
+      const normMap = {};
+      try{ for (const [k,v] of Object.entries(raw||{})) normMap[normKey(k)] = v; }catch(_e){}
+
+      const pick = (toolName)=>{
+        const variants = [
+          normKey(toolName),
+          normKey(toolName.replace("CodeQL","codeql")),
+          normKey(toolName+"_summary"),
+          normKey(toolName+"Summary"),
+        ];
+        for (const k of variants){
+          if (k && (k in normMap)) return normMap[k];
+        }
+        // fallback: try contains
+        for (const [k,v] of Object.entries(normMap)){
+          if (k.includes(normKey(toolName))) return v;
+        }
+        return null;
+      };
+
+      const order = ["Semgrep","Gitleaks","KICS","Trivy","Syft","Grype","Bandit","CodeQL"];
+      toolsBox.innerHTML = order.map(t=>{
+        const v = pick(t);
+        const st = statusOf(v);
+        const cls = (st==="OK" || st==="GREEN") ? "s-ok"
+                  : (st==="MISSING" || st==="DEGRADED" || st==="AMBER") ? "s-miss"
+                  : (st==="FAIL" || st==="ERROR" || st==="RED") ? "s-bad"
+                  : "";
+        // normalize display: GREEN->OK, RED->FAIL (optional)
+        const disp = (st==="GREEN") ? "OK" : (st==="RED") ? "FAIL" : st;
+        return `<div class="tool"><div class="t">${esc(t)}</div><div class="s ${cls}">${esc(disp)}</div></div>`;
+      }).join("");
+    }
+
+    // Notes (optional)
+        const ensureNotesBox = ()=>{
+      let el = $("#notes_box") || document.querySelector("[data-vsp='notes_box']") || null;
+      if (!el){
+        const nodes = Array.from(document.querySelectorAll("div,section,header,h1,h2,h3,h4,span"));
+        const anchor = nodes.find(n => (n.textContent||"").toLowerCase().trim().startsWith("notes"));
+        if (anchor){
+          el = document.createElement("div");
+          el.id = "notes_box";
+          el.style.marginTop = "6px";
+          (anchor.parentElement || document.body).appendChild(el);
+        }
+      } else {
+        if (!el.id) el.id = "notes_box";
+      }
+      return el;
+    };
+    const notes = ensureNotesBox();
+
+    if (notes){
+      // keep existing content, but ensure source line present
+      if (!notes.textContent.includes("run_gate_summary")){
+        notes.textContent = "Source: run_gate_summary.json (tool truth). No legacy auto-fetch /api/vsp/runs (dash-only).";
+      }
+    }
+  };
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  }
+
+  async function loadOnce(){
+    try{
+      const meta = await fetchJSON("/api/vsp/rid_latest_gate_root");
+      const rid = meta && meta.rid;
+      if (!rid) return;
+      // show RID if input exists
+      setTextAny(["#rid_val","#rid_text","#rid_label"], rid);
+
+      const sum = await fetchJSON(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`);
+      applySummary(sum);
+    }catch(e){
+      // silent (dash-only should not spam)
+      console.warn("[VSP][DASH_ONLY] gate_summary fetch failed:", e && e.message ? e.message : e);
+    }
+  }
+
+  // run now + periodic (30s)
+  loadOnce();
+  setInterval(loadOnce, 30000);
+
+  console.log("[VSP][DASH_ONLY] force-render gate_summary enabled");
+})();
+/* ===================== /VSP_P0_DASHONLY_FORCE_RENDER_GATE_SUMMARY_V1 ===================== */
+
+
+
+/* VSP_P0_DASH_ONLY_FIX_TRIM_AND_MISSING_TOOLS_V2 */
+(()=> {
+  if (window.__vsp_dash_fix_trim_missing_v2) return;
+  window.__vsp_dash_fix_trim_missing_v2 = true;
+
+  const CANON = [
+    {key:"SEMGREP",  label:"Semgrep"},
+    {key:"GITLEAKS", label:"Gitleaks"},
+    {key:"KICS",     label:"KICS"},
+    {key:"TRIVY",    label:"Trivy"},
+    {key:"SYFT",     label:"Syft"},
+    {key:"GRYPE",    label:"Grype"},
+    {key:"BANDIT",   label:"Bandit"},
+    {key:"CODEQL",   label:"CodeQL"},
+  ];
+
+  function normVerdict(v){
+    let x = "";
+    try {
+      if (v && typeof v === "object") x = (v.verdict || v.status || v.state || v.result || "");
+      else x = (v || "");
+    } catch(e){ x = ""; }
+    x = (x == null ? "" : (""+x)).toUpperCase().trim();
+    if (!x) return "UNKNOWN";
+    if (x === "OK") return "GREEN";
+    if (x === "FAIL") return "RED";
+    if (x === "WARN" || x === "WARNING") return "AMBER";
+    return x;
+  }
+
+  function pillLabel(v){
+    const x = normVerdict(v);
+    if (x === "GREEN") return "OK";
+    if (x === "RED") return "FAIL";
+    if (x === "AMBER") return "AMBER";
+    if (x === "MISSING") return "MISSING";
+    return "UNKNOWN";
+  }
+
+  function findToolCard(label){
+    // Try multiple heuristics: card contains tool label text
+    const nodes = Array.from(document.querySelectorAll("div,section,article,li"));
+    label = (label || "").toLowerCase();
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (!t) continue;
+      // Must contain tool name and be "card-like" (has border/padding or inside tool lane)
+      if (t.includes(label)) {
+        // avoid huge containers: prefer smaller nodes
+        if (t.length < 220) return n;
+      }
+    }
+    return null;
+  }
+
+  function setCardStatus(card, statusText){
+    if (!card) return;
+    // If card already has a clear status line, update it; else append a status line.
+    const st = (statusText || "UNKNOWN").toUpperCase().trim();
+    // try find a child that looks like status
+    const kids = Array.from(card.querySelectorAll("div,span,p,small"));
+    let target = null;
+    for (const k of kids){
+      const tx = (k.textContent || "").toUpperCase().trim();
+      if (tx === "OK" || tx === "FAIL" || tx === "AMBER" || tx === "MISSING" || tx === "UNKNOWN" || tx === "[OBJECT OBJECT]"){
+        target = k; break;
+      }
+    }
+    if (!target){
+      // pick last child text node-ish
+      target = kids.length ? kids[kids.length - 1] : null;
+    }
+    if (target){
+      target.textContent = st;
+    } else {
+      const d = document.createElement("div");
+      d.textContent = st;
+      d.style.opacity = "0.85";
+      d.style.marginTop = "6px";
+      card.appendChild(d);
+    }
+    // add a css-ish class for visual
+    card.classList.remove("ok","fail","amber","missing","unknown");
+    if (st==="OK") card.classList.add("ok");
+    else if (st==="FAIL") card.classList.add("fail");
+    else if (st==="AMBER") card.classList.add("amber");
+    else if (st==="MISSING") card.classList.add("missing");
+    else card.classList.add("unknown");
+  }
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  }
+
+  async function refreshFromGateSummary(){
+    try {
+      const latest = await fetchJSON("/api/vsp/rid_latest_gate_root");
+      if (!latest || !latest.ok || !latest.rid) return;
+      const rid = latest.rid;
+
+      const gs = await fetchJSON("/api/vsp/run_file_allow?rid=" + encodeURIComponent(rid) + "&path=run_gate_summary.json");
+      const byTool = (gs && gs.by_tool && typeof gs.by_tool === "object") ? gs.by_tool : {};
+
+      // update 8 tools; missing -> MISSING
+      for (const t of CANON){
+        const v = byTool[t.key];
+        const verdict = v ? normVerdict(v) : "MISSING";
+        const pill = pillLabel(verdict === "MISSING" ? "MISSING" : verdict);
+        const card = findToolCard(t.label) || findToolCard(t.key) || null;
+        setCardStatus(card, pill);
+      }
+
+      // store for other code
+      window.__vsp_gate_summary = gs;
+    } catch(e){
+      console.warn("[VSP][DASH_ONLY] gate_summary refresh failed:", e && e.message ? e.message : e);
+    }
+  }
+
+  // run once + interval
+  setTimeout(refreshFromGateSummary, 250);
+  setInterval(refreshFromGateSummary, 4000);
+  console.log("[VSP][DASH_ONLY] trim+missing-tools fixer v2 active");
+})();

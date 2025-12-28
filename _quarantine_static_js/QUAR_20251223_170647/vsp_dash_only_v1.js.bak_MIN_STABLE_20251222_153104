@@ -1,0 +1,4385 @@
+/* ===================== VSP_P0_KILL_RELOAD_LOOP_V1 =====================
+   Hard stop any reload/redirect loops that make /vsp5 look "đơ".
+   (run at TOP of bundle)
+======================================================================= */
+(()=>{ try{
+  if (window.__vsp_p0_kill_reload_loop_v1) return;
+  window.__vsp_p0_kill_reload_loop_v1 = true;
+
+  const href = (location && location.href) ? String(location.href) : "";
+  const isVsp5 = href.includes("/vsp5");
+  if (!isVsp5) return;
+
+  console.warn("[VSP][KILL_RELOAD_V1] active on", href);
+
+  // 1) Disable location.reload
+  try{
+    const orig = window.location.reload.bind(window.location);
+    window.__vsp_orig_reload = orig;
+    window.location.reload = function(){
+      console.warn("[VSP][KILL_RELOAD_V1] location.reload() blocked");
+    };
+  }catch(e){ console.error("[VSP][KILL_RELOAD_V1] patch reload err", e); }
+
+  // 2) Block direct assignment redirects (best-effort)
+  try{
+    const _assign = window.location.assign.bind(window.location);
+    const _replace = window.location.replace.bind(window.location);
+    window.location.assign = function(u){
+      console.warn("[VSP][KILL_RELOAD_V1] location.assign blocked:", u);
+    };
+    window.location.replace = function(u){
+      console.warn("[VSP][KILL_RELOAD_V1] location.replace blocked:", u);
+    };
+    window.__vsp_orig_assign = _assign;
+    window.__vsp_orig_replace = _replace;
+  }catch(e){}
+
+  // 3) Stop meta refresh if any (rare)
+  try{
+    document.querySelectorAll('meta[http-equiv="refresh"]').forEach(m=>{
+      console.warn("[VSP][KILL_RELOAD_V1] removing meta refresh");
+      m.remove();
+    });
+  }catch(e){}
+
+} catch(e){ console.error("[VSP][KILL_RELOAD_V1] fatal", e); } })();
+/* ===================== /VSP_P0_KILL_RELOAD_LOOP_V1 ===================== */
+
+
+/* VSP_DASH_ONLY_V1 */
+(()=> {
+  
+
+/* VSP_VSP5_RID_CHANGED_RELOAD_V1 */
+(()=> {
+  try{
+    if (window.__vsp_vsp5_rid_reload_v1) return;
+    window.__vsp_vsp5_rid_reload_v1 = true;
+
+/* ===================== VSP_P1_VSP5_SOFT_REFRESH_APPLY_V1E ===================== */
+(()=> {
+  if (window.__vsp_p1_vsp5_soft_refresh_apply_v1e) return;
+  window.__vsp_p1_vsp5_soft_refresh_apply_v1e = true;
+
+  const __cap = true;
+
+  async function __do_refresh(){
+    try { await refreshFromGateSummary(); } catch(e) {}
+  }
+
+  // Soft refresh API for core patch (return true => handled, no reload)
+  window.__vsp_soft_refresh_apply = function(newRid, prevRid){
+    try {
+      if (!__cap) return false;
+      if (!newRid) return false;
+      if (newRid === prevRid) return true;
+
+      window.__vsp_rid_prev = prevRid || window.__vsp_rid_prev || null;
+      window.__vsp_rid_latest = newRid;
+
+      try { if (typeof state === "object" && state) state.rid = newRid; } catch(e) {}
+
+      try {
+        const ids = ["rid_txt","rid_val","rid_text","rid_label"];
+        for (const id of ids) {
+          const el = document.getElementById(id);
+          if (el) el.textContent = newRid;
+        }
+      } catch(e) {}
+
+      Promise.resolve(__do_refresh()).catch(()=>{});
+      return true;
+    } catch(e) {
+      return false;
+    }
+  };
+
+  // Also react to rid_changed without recursion (never dispatch again here)
+  window.addEventListener("vsp:rid_changed", (ev)=> {
+    try {
+      const d = ev && ev.detail ? ev.detail : null;
+      const rid = d && d.rid ? d.rid : (window.__vsp_rid_latest||null);
+      const prev = d && d.prev ? d.prev : (window.__vsp_rid_prev||null);
+      window.__vsp_soft_refresh_apply && window.__vsp_soft_refresh_apply(rid, prev);
+    } catch(e) {}
+  }, {passive:true});
+})();
+/* ===================== /VSP_P1_VSP5_SOFT_REFRESH_APPLY_V1E ===================== */
+
+    let t = null;
+    function isTyping(){
+      const a = document.activeElement;
+      if(!a) return false;
+      const tag = (a.tagName||"").toLowerCase();
+      return tag==="input" || tag==="textarea" || a.isContentEditable;
+    }
+
+    window.addEventListener("vsp:rid_changed", ()=>{
+      try{
+        if (isTyping()) return;
+        if (t) clearTimeout(t);
+        t = setTimeout(()=>{ 
+/* ===================== VSP_P1_SOFT_REFRESH_CORE_V1 ===================== */
+try {
+  var __follow = (localStorage.getItem("vsp_follow_latest") ?? "on");
+  // NOTE: DO NOT dispatch vsp:rid_changed here (this code may run inside rid_changed handler).
+  if (__follow !== "off" && typeof window.__vsp_soft_refresh_apply === "function") {
+    var __handled = false;
+    try { __handled = !!window.__vsp_soft_refresh_apply((window.__vsp_rid_latest||null), (window.__vsp_rid_prev||null)); } catch(e) { __handled = false; }
+    if (__handled) { /* handled => no reload */ }
+    else { location.reload(); }
+  } else {
+    location.reload();
+  }
+} catch(e) { location.reload(); }
+/* ===================== /VSP_P1_SOFT_REFRESH_CORE_V1 ===================== */
+ }, 250);
+      }catch(e){}
+    });
+  }catch(e){}
+})();
+
+if (window.__vsp_dash_only_v1) return;
+  window.__vsp_dash_only_v1 = true;
+
+  const $ = (q,el=document)=>el.querySelector(q);
+  const esc = (s)=> String(s??"").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+  const sevRank = (s)=> ({CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3,INFO:4,TRACE:5}[String(s||"").toUpperCase()] ?? 99);
+
+  const state = {
+    rid: null,
+    gate: null,
+    counts: null,
+    tools: null,
+    findings: null,
+  };
+
+  function log(...a){ console.log("[DASH_ONLY]", ...a); }
+
+  async function jget(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.json();
+  }
+
+  function getRidFromQS(){
+    const u = new URL(location.href);
+    return u.searchParams.get("rid");
+  }
+
+  async function resolveRid(){
+    const qs = getRidFromQS();
+    if (qs) return qs;
+
+    const pin = localStorage.getItem("vsp.rid.pin");
+    if (pin) return pin;
+
+    try{
+      const j = await jget("/api/vsp/rid_latest_gate_root");
+      if (j && j.ok && j.rid) return j.rid;
+    }catch(e){
+      log("rid_latest_gate_root failed", e?.message || e);
+    }
+    return null;
+  }
+
+  function setStatusBadge(overall){
+    const el = $("#overall_badge");
+    if(!el) return;
+    const o = String(overall||"UNKNOWN").toUpperCase();
+    el.textContent = o;
+    el.style.borderColor = "rgba(255,255,255,.14)";
+    if (o === "PASS" || o === "GREEN") el.style.color = "rgba(34,197,94,.95)";
+    else if (o === "STALE" || o === "AMBER" || o === "WARN") el.style.color = "rgba(245,158,11,.98)";
+    else if (o === "FAIL" || o === "RED") el.style.color = "rgba(239,68,68,.95)";
+    else el.style.color = "rgba(226,232,240,.92)";
+  }
+
+  function render(){
+    $("#rid_txt").textContent = state.rid || "(no rid)";
+    setStatusBadge(state.gate?.overall_status || state.gate?.overall || state.gate?.overall_v2);
+
+    const c = state.counts || {};
+    const setK = (id,val)=> { const el=$(id); if(el) el.textContent = (val==null? "—": String(val)); };
+
+    setK("#k_total", c.TOTAL ?? c.total ?? state.gate?.counts_total?.TOTAL);
+    setK("#k_crit",  c.CRITICAL ?? c.critical);
+    setK("#k_high",  c.HIGH ?? c.high);
+    setK("#k_med",   c.MEDIUM ?? c.medium);
+    setK("#k_low",   c.LOW ?? c.low);
+    setK("#k_info",  c.INFO ?? c.info);
+    setK("#k_trace", c.TRACE ?? c.trace);
+
+        const ensureToolsBox = ()=>{
+      let el = $("#tools_box")
+        || document.querySelector("[data-vsp='tools_box']")
+        || document.querySelector(".tools_box")
+        || document.querySelector(".tool-lane")
+        || null;
+
+      if (!el){
+        // find an anchor containing "Tool lane"
+        const nodes = Array.from(document.querySelectorAll("div,section,header,h1,h2,h3,h4,span"));
+        const anchor = nodes.find(n => (n.textContent||"").toLowerCase().includes("tool lane"));
+        if (anchor){
+          el = document.createElement("div");
+          el.id = "tools_box";
+          el.style.marginTop = "8px";
+          // try append near anchor
+          (anchor.parentElement || document.body).appendChild(el);
+        }
+      } else {
+        if (!el.id) el.id = "tools_box";
+      }
+      return el;
+    };
+    const toolsBox = ensureToolsBox();
+
+    if (toolsBox){
+      const tools = state.tools || {};
+      const order = ["Semgrep","Gitleaks","KICS","Trivy","Syft","Grype","Bandit","CodeQL"];
+      toolsBox.innerHTML = order.map(t=>{
+        const st = String(tools[t]?.status || tools[t] || "UNKNOWN").toUpperCase();
+        const cls = (st==="OK") ? "s-ok" : (st==="MISSING" || st==="DEGRADED") ? "s-miss" : (st==="FAIL" || st==="ERROR") ? "s-bad" : "";
+        return `<div class="tool"><div class="t">${esc(t)}</div><div class="s ${cls}">${esc(st)}</div></div>`;
+      }).join("");
+    }
+
+    const note = $("#note_box");
+    if(note){
+      const arr = [];
+      arr.push(`Source: run_gate_summary.json (tool truth)`);
+      arr.push(`No legacy /api/vsp/runs auto-refresh (dash-only).`);
+      note.textContent = arr.join("\n");
+    }
+  }
+
+  async function loadGate(){
+    const rid = state.rid;
+    if(!rid) throw new Error("No RID resolved");
+    const gate = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`);
+    // allow both shapes: {ok:true,...} or raw json
+    state.gate = gate?.ok === false ? null : (gate?.ok === true && gate.data ? gate.data : gate);
+    // heuristics for counts/tools
+    const meta = state.gate?.meta || state.gate || {};
+    state.counts = meta.counts_by_severity || meta.counts_total || meta.counts || meta.meta?.counts_by_severity || meta.meta?.counts_total || null;
+    state.tools = meta.by_tool || meta.tools || meta.byTool || null;
+    render();
+  }
+
+  async function loadTopFindings(){
+    const rid = state.rid;
+    if(!rid) return;
+    const out = $("#findings_tbl");
+    const btn = $("#btn_load_findings");
+    if(btn) btn.disabled = true;
+
+    try{
+      const fu = await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json`);
+      const payload = fu?.ok === true && fu.findings ? fu : (fu?.ok === true && fu.data ? fu.data : fu);
+      const findings = payload.findings || payload?.data?.findings || [];
+      const rows = findings
+        .map(f=>({
+          sev: String(f.severity||"").toUpperCase(),
+          tool: f.tool || f.source || "",
+          title: f.title || f.rule_id || f.message || "",
+          loc: f.location || f.path || (f.file? `${f.file}:${f.line||""}`:""),
+        }))
+        .sort((a,b)=> sevRank(a.sev)-sevRank(b.sev))
+        .slice(0, 25);
+
+      out.innerHTML = rows.map(r=>(
+        `<tr><td>${esc(r.sev)}</td><td>${esc(r.tool)}</td><td>${esc(r.title)}</td><td>${esc(r.loc)}</td></tr>`
+      )).join("");
+      log("loaded top findings", rows.length);
+    }catch(e){
+      log("load findings failed", e?.message||e);
+      out.innerHTML = `<tr><td colspan="4">Failed to load findings_unified.json</td></tr>`;
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  }
+
+  async function boot(){
+    log("boot");
+    state.rid = await resolveRid();
+    if(!state.rid){
+      $("#rid_txt").textContent = "(no rid)";
+      $("#note_box").textContent = "Cannot resolve RID. (Hint: set VSP_RUNS_ROOT in service env, or open /vsp5?rid=RUN_...)";
+      return;
+    }
+    await loadGate();
+  }
+
+  window.__vspDashOnly = {
+    pinRid(){
+      if(state.rid) localStorage.setItem("vsp.rid.pin", state.rid);
+      alert("Pinned RID: " + (state.rid||""));
+    },
+    clearPin(){
+      localStorage.removeItem("vsp.rid.pin");
+      alert("Cleared pinned RID");
+    },
+    refresh(){ return boot(); },
+    loadTopFindings(){ return loadTopFindings(); },
+  };
+
+  document.addEventListener("click", (e)=>{
+    const t = e.target;
+    if(!(t instanceof HTMLElement)) return;
+    const id = t.id;
+    if(id==="btn_refresh") boot();
+    if(id==="btn_pin") window.__vspDashOnly.pinRid();
+    if(id==="btn_unpin") window.__vspDashOnly.clearPin();
+    if(id==="btn_load_findings") loadTopFindings();
+  });
+
+  boot();
+})();
+
+
+/* ===================== VSP_P0_DASHONLY_FORCE_RENDER_GATE_SUMMARY_V1 ===================== */
+(()=> {
+  if (window.__vsp_p0_dashonly_force_render_v1) return;
+  window.__vsp_p0_dashonly_force_render_v1 = true;
+
+  const $ = (sel)=> document.querySelector(sel);
+  const esc = (x)=> String(x ?? "").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+  const setTextAny = (ids, val)=>{
+    for (const id of ids){
+      const el = document.querySelector(id);
+      if (el){ el.textContent = (val==null? "—" : String(val)); return true; }
+    }
+    return false;
+  };
+
+  const normKey = (k)=> String(k||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+  const statusOf = (v)=>{
+    if (v == null) return "UNKNOWN";
+    if (typeof v === "string") return v.toUpperCase();
+    if (typeof v === "boolean") return v ? "OK" : "FAIL";
+    if (typeof v === "object"){
+      const cand = v.status ?? v.state ?? v.result ?? v.verdict ?? v.outcome;
+      if (typeof cand === "string") return cand.toUpperCase();
+      if (typeof cand === "boolean") return cand ? "OK" : "FAIL";
+      if (v.ok === true) return "OK";
+      if (v.missing === true) return "MISSING";
+      if (v.degraded === true) return "DEGRADED";
+    }
+    return "UNKNOWN";
+  };
+
+  const applySummary = (sum)=>{
+    if (!sum || typeof sum !== "object") return;
+
+    const c = sum.counts_total || sum.counts_by_severity || sum.counts || {};
+    const CRIT  = c.CRITICAL ?? c.critical;
+    const HIGH  = c.HIGH ?? c.high;
+    const MED   = c.MEDIUM ?? c.medium;
+    const LOW   = c.LOW ?? c.low;
+    const INFO  = c.INFO ?? c.info;
+    const TRACE = c.TRACE ?? c.trace;
+
+    let TOTAL = c.TOTAL ?? c.total;
+    if (TOTAL == null){
+      const nums = [CRIT,HIGH,MED,LOW,INFO,TRACE].map(x=> (x==null? 0 : Number(x)||0));
+      TOTAL = nums.reduce((a,b)=>a+b,0);
+    }
+
+    // KPI ids: try multiple common ids (không đúng thì bỏ qua)
+    setTextAny(["#k_total","#kpi_total","#total_val","[data-kpi='TOTAL']"], TOTAL);
+    setTextAny(["#k_crit","#kpi_crit","[data-kpi='CRITICAL']"], CRIT);
+    setTextAny(["#k_high","#kpi_high","[data-kpi='HIGH']"], HIGH);
+    setTextAny(["#k_med","#kpi_med","[data-kpi='MEDIUM']"], MED);
+    setTextAny(["#k_low","#kpi_low","[data-kpi='LOW']"], LOW);
+    setTextAny(["#k_info","#kpi_info","[data-kpi='INFO']"], INFO);
+    setTextAny(["#k_trace","#kpi_trace","[data-kpi='TRACE']"], TRACE);
+
+    // Tool lane
+        const ensureToolsBox = ()=>{
+      let el = $("#tools_box")
+        || document.querySelector("[data-vsp='tools_box']")
+        || document.querySelector(".tools_box")
+        || document.querySelector(".tool-lane")
+        || null;
+
+      if (!el){
+        // find an anchor containing "Tool lane"
+        const nodes = Array.from(document.querySelectorAll("div,section,header,h1,h2,h3,h4,span"));
+        const anchor = nodes.find(n => (n.textContent||"").toLowerCase().includes("tool lane"));
+        if (anchor){
+          el = document.createElement("div");
+          el.id = "tools_box";
+          el.style.marginTop = "8px";
+          // try append near anchor
+          (anchor.parentElement || document.body).appendChild(el);
+        }
+      } else {
+        if (!el.id) el.id = "tools_box";
+      }
+      return el;
+    };
+    const toolsBox = ensureToolsBox();
+
+    if (toolsBox){
+      const raw = sum.by_tool || sum.byTool || {};
+      const normMap = {};
+      try{ for (const [k,v] of Object.entries(raw||{})) normMap[normKey(k)] = v; }catch(_e){}
+
+      const pick = (toolName)=>{
+        const variants = [
+          normKey(toolName),
+          normKey(toolName.replace("CodeQL","codeql")),
+          normKey(toolName+"_summary"),
+          normKey(toolName+"Summary"),
+        ];
+        for (const k of variants){
+          if (k && (k in normMap)) return normMap[k];
+        }
+        // fallback: try contains
+        for (const [k,v] of Object.entries(normMap)){
+          if (k.includes(normKey(toolName))) return v;
+        }
+        return null;
+      };
+
+      const order = ["Semgrep","Gitleaks","KICS","Trivy","Syft","Grype","Bandit","CodeQL"];
+      toolsBox.innerHTML = order.map(t=>{
+        const v = pick(t);
+        const st = statusOf(v);
+        const cls = (st==="OK" || st==="GREEN") ? "s-ok"
+                  : (st==="MISSING" || st==="DEGRADED" || st==="AMBER") ? "s-miss"
+                  : (st==="FAIL" || st==="ERROR" || st==="RED") ? "s-bad"
+                  : "";
+        // normalize display: GREEN->OK, RED->FAIL (optional)
+        const disp = (st==="GREEN") ? "OK" : (st==="RED") ? "FAIL" : st;
+        return `<div class="tool"><div class="t">${esc(t)}</div><div class="s ${cls}">${esc(disp)}</div></div>`;
+      }).join("");
+    }
+
+    // Notes (optional)
+        const ensureNotesBox = ()=>{
+      let el = $("#notes_box") || document.querySelector("[data-vsp='notes_box']") || null;
+      if (!el){
+        const nodes = Array.from(document.querySelectorAll("div,section,header,h1,h2,h3,h4,span"));
+        const anchor = nodes.find(n => (n.textContent||"").toLowerCase().trim().startsWith("notes"));
+        if (anchor){
+          el = document.createElement("div");
+          el.id = "notes_box";
+          el.style.marginTop = "6px";
+          (anchor.parentElement || document.body).appendChild(el);
+        }
+      } else {
+        if (!el.id) el.id = "notes_box";
+      }
+      return el;
+    };
+    const notes = ensureNotesBox();
+
+    if (notes){
+      // keep existing content, but ensure source line present
+      if (!notes.textContent.includes("run_gate_summary")){
+        notes.textContent = "Source: run_gate_summary.json (tool truth). No legacy auto-fetch /api/vsp/runs (dash-only).";
+      }
+    }
+  };
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  }
+
+  async function loadOnce(){
+    try{
+      const meta = await fetchJSON("/api/vsp/rid_latest_gate_root");
+      const rid = meta && meta.rid;
+      if (!rid) return;
+      // show RID if input exists
+      setTextAny(["#rid_val","#rid_text","#rid_label"], rid);
+
+      const sum = await fetchJSON(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`);
+      applySummary(sum);
+    }catch(e){
+      // silent (dash-only should not spam)
+      console.warn("[VSP][DASH_ONLY] gate_summary fetch failed:", e && e.message ? e.message : e);
+    }
+  }
+
+  // run now + periodic (30s)
+  loadOnce();
+  setInterval(loadOnce, 30000);
+
+  console.log("[VSP][DASH_ONLY] force-render gate_summary enabled");
+})();
+/* ===================== /VSP_P0_DASHONLY_FORCE_RENDER_GATE_SUMMARY_V1 ===================== */
+
+
+
+/* VSP_P0_DASH_ONLY_FIX_TRIM_AND_MISSING_TOOLS_V2 */
+(()=> {
+  if (window.__vsp_dash_fix_trim_missing_v2) return;
+  window.__vsp_dash_fix_trim_missing_v2 = true;
+
+  const CANON = [
+    {key:"SEMGREP",  label:"Semgrep"},
+    {key:"GITLEAKS", label:"Gitleaks"},
+    {key:"KICS",     label:"KICS"},
+    {key:"TRIVY",    label:"Trivy"},
+    {key:"SYFT",     label:"Syft"},
+    {key:"GRYPE",    label:"Grype"},
+    {key:"BANDIT",   label:"Bandit"},
+    {key:"CODEQL",   label:"CodeQL"},
+  ];
+
+  function normVerdict(v){
+    let x = "";
+    try {
+      if (v && typeof v === "object") x = (v.verdict || v.status || v.state || v.result || "");
+      else x = (v || "");
+    } catch(e){ x = ""; }
+    x = (x == null ? "" : (""+x)).toUpperCase().trim();
+    if (!x) return "UNKNOWN";
+    if (x === "OK") return "GREEN";
+    if (x === "FAIL") return "RED";
+    if (x === "WARN" || x === "WARNING") return "AMBER";
+    return x;
+  }
+
+  function pillLabel(v){
+    const x = normVerdict(v);
+    if (x === "GREEN") return "OK";
+    if (x === "RED") return "FAIL";
+    if (x === "AMBER") return "AMBER";
+    if (x === "MISSING") return "MISSING";
+    return "UNKNOWN";
+  }
+
+  function findToolCard(label){
+    // Try multiple heuristics: card contains tool label text
+    const nodes = Array.from(document.querySelectorAll("div,section,article,li"));
+    label = (label || "").toLowerCase();
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (!t) continue;
+      // Must contain tool name and be "card-like" (has border/padding or inside tool lane)
+      if (t.includes(label)) {
+        // avoid huge containers: prefer smaller nodes
+        if (t.length < 220) return n;
+      }
+    }
+    return null;
+  }
+
+  function setCardStatus(card, statusText){
+    if (!card) return;
+    // If card already has a clear status line, update it; else append a status line.
+    const st = (statusText || "UNKNOWN").toUpperCase().trim();
+    // try find a child that looks like status
+    const kids = Array.from(card.querySelectorAll("div,span,p,small"));
+    let target = null;
+    for (const k of kids){
+      const tx = (k.textContent || "").toUpperCase().trim();
+      if (tx === "OK" || tx === "FAIL" || tx === "AMBER" || tx === "MISSING" || tx === "UNKNOWN" || tx === "[OBJECT OBJECT]"){
+        target = k; break;
+      }
+    }
+    if (!target){
+      // pick last child text node-ish
+      target = kids.length ? kids[kids.length - 1] : null;
+    }
+    if (target){
+      target.textContent = st;
+    } else {
+      const d = document.createElement("div");
+      d.textContent = st;
+      d.style.opacity = "0.85";
+      d.style.marginTop = "6px";
+      card.appendChild(d);
+    }
+    // add a css-ish class for visual
+    card.classList.remove("ok","fail","amber","missing","unknown");
+    if (st==="OK") card.classList.add("ok");
+    else if (st==="FAIL") card.classList.add("fail");
+    else if (st==="AMBER") card.classList.add("amber");
+    else if (st==="MISSING") card.classList.add("missing");
+    else card.classList.add("unknown");
+  }
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  }
+
+  async function refreshFromGateSummary(){
+    try {
+      const latest = await fetchJSON("/api/vsp/rid_latest_gate_root");
+      if (!latest || !latest.ok || !latest.rid) return;
+      const rid = latest.rid;
+
+      const gs = await fetchJSON("/api/vsp/run_file_allow?rid=" + encodeURIComponent(rid) + "&path=run_gate_summary.json");
+      const byTool = (gs && gs.by_tool && typeof gs.by_tool === "object") ? gs.by_tool : {};
+
+      // update 8 tools; missing -> MISSING
+      for (const t of CANON){
+        const v = byTool[t.key];
+        const verdict = v ? normVerdict(v) : "MISSING";
+        const pill = pillLabel(verdict === "MISSING" ? "MISSING" : verdict);
+        const card = findToolCard(t.label) || findToolCard(t.key) || null;
+        setCardStatus(card, pill);
+      }
+
+      // store for other code
+      window.__vsp_gate_summary = gs;
+    } catch(e){
+      console.warn("[VSP][DASH_ONLY] gate_summary refresh failed:", e && e.message ? e.message : e);
+    }
+  }
+
+  // run once + interval
+  setTimeout(refreshFromGateSummary, 250);
+  setInterval(refreshFromGateSummary, 4000);
+  console.log("[VSP][DASH_ONLY] trim+missing-tools fixer v2 active");
+})();
+
+
+/* VSP_P0_DASH_ONLY_TOOLLANE_HARDEN_V1
+   // - Capture run_gate_summary.json via fetch wrapper
+   // - Re-render Tool Lane (8 tools) deterministically
+   // - Missing tools => MISSING (never UNKNOWN/[object Object])
+// */  /* auto-fix: stray block-comment end */
+(()=> {
+  if (window.__vsp_p0_dash_only_toollane_harden_v1) return;
+  window.__vsp_p0_dash_only_toollane_harden_v1 = true;
+
+  const TOOLS = ["SEMGREP","GITLEAKS","KICS","TRIVY","SYFT","GRYPE","BANDIT","CODEQL"];
+  const LABEL = { SEMGREP:"Semgrep", GITLEAKS:"Gitleaks", KICS:"KICS", TRIVY:"Trivy", SYFT:"Syft", GRYPE:"Grype", BANDIT:"Bandit", CODEQL:"CodeQL" };
+
+  function upper(x){ return (typeof x === "string") ? x.toUpperCase() : ""; }
+
+  function normVerdict(v){
+    if (!v) return "MISSING";
+    if (typeof v === "string") return upper(v) || "UNKNOWN";
+    if (typeof v === "object") {
+      if (typeof v.verdict === "string") return upper(v.verdict) || "UNKNOWN";
+      if (typeof v.status  === "string") return upper(v.status)  || "UNKNOWN";
+      if (typeof v.state   === "string") return upper(v.state)   || "UNKNOWN";
+      if (typeof v.result  === "string") return upper(v.result)  || "UNKNOWN";
+      // object but no known keys => treat as UNKNOWN, but never print object
+      return "UNKNOWN";
+    }
+    return "UNKNOWN";
+  }
+
+  function byToolFrom(gs){
+    if (!gs || typeof gs !== "object") return {};
+    return gs.by_tool || gs.byTool || gs.by_tools || {};
+  }
+
+  function findHeaderNode(){
+    // find leaf node whose text matches "Tool lane (8 tools)"
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
+      acceptNode(node){
+        try{
+          if (!node || node.children?.length) return NodeFilter.FILTER_SKIP;
+          const t = (node.textContent||"").trim();
+          if (/^Tool\s*lane\s*\(\s*8\s*tools\s*\)/i.test(t)) return NodeFilter.FILTER_ACCEPT;
+        }catch(e){}
+        return NodeFilter.FILTER_SKIP;
+      }
+    });
+    return walker.nextNode();
+  }
+
+  function badgeStyle(verdict){
+    const v = upper(verdict);
+    // minimal styling (dark theme friendly)
+    const base = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);";
+    let pill = "padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.10);opacity:0.95;";
+    if (v === "GREEN" || v === "OK") pill += "background:rgba(16,185,129,0.12);";
+    else if (v === "AMBER" || v === "WARN") pill += "background:rgba(245,158,11,0.12);";
+    else if (v === "RED" || v === "FAIL") pill += "background:rgba(239,68,68,0.12);";
+    else if (v === "MISSING") pill += "background:rgba(148,163,184,0.10);";
+    else pill += "background:rgba(99,102,241,0.10);";
+    return { base, pill };
+  }
+
+  function renderLane(gs){
+    const by = byToolFrom(gs);
+    const items = TOOLS.map(t=>{
+      const raw = by[t] ?? by[t.toLowerCase()] ?? null;
+      const verdict = normVerdict(raw);
+      return { tool: t, label: LABEL[t] || t, verdict };
+    });
+
+    const html = items.map(it=>{
+      const st = badgeStyle(it.verdict);
+      return `
+        <div style="${st.base}">
+          <div style="font-weight:600;letter-spacing:0.2px;">${it.label}</div>
+          <div style="${st.pill}">${it.verdict}</div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div id="vsp_dash_only_toollane_grid_v1"
+           style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px;">
+        ${html}
+      </div>
+    `;
+  }
+
+  function applyToolLane(gs){
+    const header = findHeaderNode();
+    if (!header) return false;
+    const hostId = "vsp_dash_only_toollane_host_v1";
+    let host = document.getElementById(hostId);
+    if (!host){
+      host = document.createElement("div");
+      host.id = hostId;
+      // insert right after the header node
+      header.insertAdjacentElement("afterend", host);
+    }
+    host.innerHTML = renderLane(gs);
+    return true;
+  }
+
+  async function forceFetchGateSummary(){
+    try{
+      const r1 = await window.fetch("/api/vsp/rid_latest_gate_root");
+      const j1 = await r1.json();
+      const rid = j1 && j1.rid;
+      if (!rid) return;
+      const url = "/api/vsp/run_file_allow?rid=" + encodeURIComponent(rid) + "&path=run_gate_summary.json";
+      const r2 = await window.fetch(url);
+      const gs = await r2.json();
+      window.__vsp_dash_only_last_gate_summary = gs;
+      applyToolLane(gs);
+    }catch(e){
+      console.warn("[VSP][DASH_ONLY] toollane harden forceFetch failed", e);
+    }
+  }
+
+  function captureFromFetch(url, resp){
+    try{
+      if (!url || typeof url !== "string") return;
+      if (url.indexOf("run_gate_summary.json") === -1) return;
+      resp.clone().json().then(gs=>{
+        window.__vsp_dash_only_last_gate_summary = gs;
+        applyToolLane(gs);
+      }).catch(()=>{});
+    }catch(e){}
+  }
+
+  // Wrap fetch once
+  try{
+    const orig = window.fetch;
+    if (typeof orig === "function" && !orig.__vsp_toollane_harden_wrapped){
+      const wrapped = function(input, init){
+        const url = (typeof input === "string") ? input : (input && input.url) || "";
+        return orig(input, init).then(resp=>{
+          captureFromFetch(url, resp);
+          return resp;
+        });
+      };
+      wrapped.__vsp_toollane_harden_wrapped = true;
+      window.fetch = wrapped;
+    }
+  }catch(e){}
+
+  // Kick once after load
+  setTimeout(()=> {
+    if (window.__vsp_dash_only_last_gate_summary) {
+      applyToolLane(window.__vsp_dash_only_last_gate_summary);
+    } else {
+      forceFetchGateSummary();
+    }
+  }, 900);
+
+  console.log("[VSP][DASH_ONLY] toollane harden v1 active");
+})();
+
+
+/* VSP_P0_DASH_ONLY_TOOLLANE_DEDUPE_V1
+   Hide legacy/duplicate tool lane blocks (UNKNOWN-heavy / "Derived from run_gate_summary.json")
+   so only the hardened 8-tool lane remains visible.
+// */  /* auto-fix: stray block-comment end */
+(()=> {
+  if (window.__vsp_p0_dash_only_toollane_dedupe_v1) return;
+  window.__vsp_p0_dash_only_toollane_dedupe_v1 = true;
+
+  const toolsRe = /(Semgrep|Gitleaks|KICS|Trivy|Syft|Grype|Bandit|CodeQL)/i;
+
+  function isInsideNewLane(el){
+    try{
+      return !!(el && (el.id === "vsp_dash_only_toollane_host_v1"
+                || el.closest?.("#vsp_dash_only_toollane_host_v1")
+                || el.querySelector?.("#vsp_dash_only_toollane_grid_v1")));
+    }catch(e){ return false; }
+  }
+
+  function hideNode(node, why){
+    try{
+      if (!node || isInsideNewLane(node)) return false;
+      node.style.display = "none";
+      node.setAttribute("data-vsp-hide", why || "legacy");
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function hideLegacyOnce(){
+    let hid = 0;
+
+    // 1) Blocks around "Derived from run_gate_summary.json"
+    const leaves = Array.from(document.querySelectorAll("*")).filter(el => el && el.children && el.children.length === 0);
+    for (const el of leaves){
+      const tx = (el.textContent || "").trim();
+      if (!/Derived from run_gate_summary\.json/i.test(tx)) continue;
+
+      // walk up until a container that looks like the legacy tool lane (has tools + UNKNOWN)
+      let cur = el.parentElement;
+      for (let i=0; i<10 && cur; i++){
+        const t = cur.textContent || "";
+        const unknownCnt = (t.match(/UNKNOWN/g) || []).length;
+        if (toolsRe.test(t) && unknownCnt >= 1 && !isInsideNewLane(cur)){
+          if (hideNode(cur, "legacy-toollane-derived")) hid++;
+          break;
+        }
+        cur = cur.parentElement;
+      }
+    }
+
+    // 2) UNKNOWN-heavy blocks that contain tool names (but NOT our new lane)
+    const divs = Array.from(document.querySelectorAll("div"));
+    for (const d of divs){
+      if (!d || isInsideNewLane(d)) continue;
+      const t = d.textContent || "";
+      const unknownCnt = (t.match(/UNKNOWN/g) || []).length;
+      if (unknownCnt >= 2 && toolsRe.test(t)){
+        // extra safety: avoid hiding big page containers
+        const len = t.length;
+        if (len < 2200){
+          if (hideNode(d, "unknown-heavy")) hid++;
+        }
+      }
+    }
+
+    return hid;
+  }
+
+  // run a few times to catch late renders
+  let tries = 0;
+  const timer = setInterval(()=> {
+    tries++;
+    const hid = hideLegacyOnce();
+    if (hid > 0) console.log("[VSP][DASH_ONLY] dedupe hid blocks:", hid);
+    if (tries >= 8) clearInterval(timer);
+  }, 700);
+
+  // also run once after a short delay
+  setTimeout(()=> hideLegacyOnce(), 1200);
+
+  console.log("[VSP][DASH_ONLY] toollane dedupe v1 active");
+})();
+
+
+
+   // Hook button "Load top findings (25)" to fetch findings_unified.json on-demand and render table.
+   // - NO auto-fetch heavy data
+   // - Cache per RID
+   // - Robust DOM selectors (text-based)
+// */  /* auto-fix: stray block-comment end */
+(()=> {
+  if (window.__vsp_p0_dash_only_load_top_findings_v1) return;
+  window.__vsp_p0_dash_only_load_top_findings_v1 = true;
+
+  const SEV_ORDER = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+  const SEV_W = {CRITICAL: 600, HIGH: 500, MEDIUM: 400, LOW: 300, INFO: 200, TRACE: 100};
+
+  const cache = window.__vsp_dash_only_cache_findings || (window.__vsp_dash_only_cache_findings = {});
+
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const normSev = (v)=>{
+    const x = norm(v).toUpperCase();
+    if (!x) return "";
+    // common aliases
+    if (x === "CRIT") return "CRITICAL";
+    if (x === "WARN") return "MEDIUM";
+    if (x === "WARNING") return "MEDIUM";
+    return SEV_ORDER.includes(x) ? x : x;
+  };
+
+  const pick = (obj, keys)=>{
+    if (!obj || typeof obj !== "object") return "";
+    for (const k of keys){
+      if (obj[k] != null) return obj[k];
+    }
+    return "";
+  };
+
+  const pickTool = (f)=>{
+    return norm(
+      pick(f, ["tool","engine","scanner","source","detector","product","provider"]) ||
+      pick(f?.meta, ["tool","engine","scanner","source"]) ||
+      pick(f?.extra, ["tool","engine","scanner","source"])
+    ) || "UNKNOWN";
+  };
+
+  const pickSeverity = (f)=>{
+    return normSev(
+      pick(f, ["severity","sev","level","priority"]) ||
+      pick(f?.meta, ["severity","sev","level","priority"]) ||
+      pick(f?.extra, ["severity","sev","level","priority"])
+    ) || "INFO";
+  };
+
+  const pickTitle = (f)=>{
+    return norm(
+      pick(f, ["title","message","name","summary","rule_name","rule","check_name","id","rule_id","query_name"]) ||
+      pick(f?.meta, ["title","message","name","summary","rule_name","rule","check_name","id","rule_id"]) ||
+      pick(f?.extra, ["title","message","name","summary","rule_name","rule","check_name","id","rule_id"])
+    ) || "(no title)";
+  };
+
+  const pickLocation = (f)=>{
+    // try common file fields
+    const file = norm(
+      pick(f, ["path","file","filename","file_path","filepath","uri"]) ||
+      pick(f?.location, ["path","file","filename","file_path","filepath","uri"]) ||
+      pick(f?.meta, ["path","file","filename","file_path","filepath","uri"]) ||
+      pick(f?.extra, ["path","file","filename","file_path","filepath","uri"])
+    );
+
+    const line = pick(f, ["line","start_line","begin_line"]) || pick(f?.location, ["line","start_line","begin_line"]) || "";
+    const col  = pick(f, ["col","column","start_col"]) || pick(f?.location, ["col","column","start_col"]) || "";
+
+    const lc = (line || col) ? `:${line||""}${col?":"+col:""}` : "";
+    return (file ? (file + lc) : (lc ? lc.slice(1) : "(no path)"));
+  };
+
+  async function getLatestRid(){
+    const url = `/api/vsp/rid_latest_gate_root?_=${Date.now()}`;
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error(`rid_latest_gate_root http ${r.status}`);
+    const j = await r.json();
+    if (!j || !j.ok || !j.rid) throw new Error("rid_latest_gate_root invalid json");
+    return j.rid;
+  }
+
+  async function fetchFindings(rid){
+    const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json&_=${Date.now()}`;
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error(`findings_unified http ${r.status}`);
+    const j = await r.json();
+    const arr = Array.isArray(j) ? j : (Array.isArray(j?.findings) ? j.findings : []);
+    return arr;
+  }
+
+  function scoreFinding(f){
+    const sev = pickSeverity(f);
+    const w = SEV_W[sev] || 150;
+    // prefer items with a path/title
+    const hasPath = pickLocation(f) && pickLocation(f) !== "(no path)" ? 20 : 0;
+    const hasTitle = pickTitle(f) && pickTitle(f) !== "(no title)" ? 10 : 0;
+    return w + hasPath + hasTitle;
+  }
+
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button, a"));
+    for (const b of btns){
+      const t = (b.textContent || "").trim();
+      if (/^Load top findings\s*\(\s*25\s*\)\s*$/i.test(t)) return b;
+    }
+    return null;
+  }
+
+  function findTopFindingsTable(){
+    // Find a heading-like leaf containing "Top findings"
+    const leaves = Array.from(document.querySelectorAll("*"))
+      .filter(el => el && el.children && el.children.length === 0);
+
+    let anchor = null;
+    for (const el of leaves){
+      const tx = (el.textContent || "").trim();
+      if (/^Top findings/i.test(tx)) { anchor = el; break; }
+    }
+    // fallback: any element with that substring
+    if (!anchor){
+      for (const el of leaves){
+        const tx = (el.textContent || "").trim();
+        if (/Top findings/i.test(tx)) { anchor = el; break; }
+      }
+    }
+    if (!anchor) return null;
+
+    // climb up to find a table inside
+    let cur = anchor.parentElement;
+    for (let i=0; i<12 && cur; i++){
+      const t = cur.querySelector("table");
+      if (t) return t;
+      cur = cur.parentElement;
+    }
+    return null;
+  }
+
+  function renderRows(rows){
+    const table = findTopFindingsTable();
+    if (!table){
+      console.warn("[VSP][DASH_ONLY] top findings table not found");
+      return false;
+    }
+    let tbody = table.querySelector("tbody");
+    if (!tbody){
+      tbody = document.createElement("tbody");
+      table.appendChild(tbody);
+    }
+    tbody.innerHTML = "";
+
+    for (const r of rows){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.sev}</td>
+        <td>${r.tool}</td>
+        <td title="${r.title.replaceAll('"','&quot;')}">${r.title}</td>
+        <td title="${r.loc.replaceAll('"','&quot;')}">${r.loc}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+    return true;
+  }
+
+  function renderMessage(msg){
+    const table = findTopFindingsTable();
+    if (!table) return;
+    let tbody = table.querySelector("tbody");
+    if (!tbody){
+      tbody = document.createElement("tbody");
+      table.appendChild(tbody);
+    }
+    tbody.innerHTML = `<tr><td colspan="4">${msg}</td></tr>`;
+  }
+
+  async function onClick(){
+    const btn = findButton();
+    if (!btn) return;
+
+    btn.setAttribute("disabled","disabled");
+    const old = btn.textContent;
+    btn.textContent = "Loading…";
+
+    try{
+      const rid = await getLatestRid();
+      if (cache[rid]){
+        renderRows(cache[rid]);
+        console.log("[VSP][DASH_ONLY] top findings from cache rid=", rid);
+        return;
+      }
+
+      const arr = await fetchFindings(rid);
+      if (!arr || arr.length === 0){
+        renderMessage("No findings_unified.json (or empty).");
+        console.warn("[VSP][DASH_ONLY] findings_unified empty rid=", rid);
+        return;
+      }
+
+      const picked = arr
+        .filter(x => x && typeof x === "object")
+        .map(f => ({
+          sev: pickSeverity(f),
+          tool: pickTool(f),
+          title: pickTitle(f),
+          loc: pickLocation(f),
+          _score: scoreFinding(f),
+        }))
+        .sort((a,b)=> (b._score - a._score) || (a.tool.localeCompare(b.tool)) || (a.title.localeCompare(b.title)))
+        .slice(0, 25)
+        .map(x => ({sev:x.sev, tool:x.tool, title:x.title, loc:x.loc}));
+
+      cache[rid] = picked;
+      renderRows(picked);
+      console.log("[VSP][DASH_ONLY] loaded top findings rid=", rid, "n=", picked.length);
+    }catch(e){
+      console.warn("[VSP][DASH_ONLY] load top findings failed:", e);
+      renderMessage("Load failed (see console).");
+    }finally{
+      // restore button
+      btn.textContent = old || "Load top findings (25)";
+      btn.removeAttribute("disabled");
+    }
+  }
+
+  function bind(){
+    const btn = findButton(); // may be null until UI renders
+    if (!btn) return false;
+    if (btn.__vsp_bound_topfind) return true;
+    btn.__vsp_bound_topfind = true;
+    btn.addEventListener("click", (ev)=> { ev.preventDefault(); onClick(); }, {passive:false});
+    console.log("[VSP][DASH_ONLY] top-findings hook bound");
+    return true;
+  }
+
+  // bind now + retry a few times (in case of late render)
+  let tries = 0;
+  const timer = setInterval(()=> {
+    tries++;
+    if (bind() || tries >= 12) clearInterval(timer);
+  }, 500);
+
+  setTimeout(bind, 1200);
+  console.log("[VSP][DASH_ONLY] top-findings v1 active");
+})();
+
+/* VSP_P0_DASH_ONLY_LOAD_TOP_FINDINGS_V2
+   Replace v1 with robust render into the "Not loaded" area (no fragile table selector).
+   Debug logs: click -> rid -> fetch -> render.
+// */  /* auto-fix: stray block-comment end */
+(()=> {
+  if (window.__vsp_p0_dash_only_load_top_findings_v2) return;
+  window.__vsp_p0_dash_only_load_top_findings_v2 = true;
+
+  const cache = window.__vsp_dash_only_cache_findings || (window.__vsp_dash_only_cache_findings = {});
+  const SEV_W = {CRITICAL:600,HIGH:500,MEDIUM:400,LOW:300,INFO:200,TRACE:100};
+
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const normSev = (v)=>{
+    const x = norm(v).toUpperCase();
+    if (!x) return "INFO";
+    if (x === "CRIT") return "CRITICAL";
+    if (x === "WARN" || x === "WARNING") return "MEDIUM";
+    return x;
+  };
+
+  const pick = (obj, keys)=>{
+    if (!obj || typeof obj !== "object") return "";
+    for (const k of keys) if (obj[k] != null) return obj[k];
+    return "";
+  };
+
+  const pickTool = (f)=> norm(
+    pick(f, ["tool","engine","scanner","source","detector","product","provider"]) ||
+    pick(f?.meta, ["tool","engine","scanner","source"]) ||
+    pick(f?.extra, ["tool","engine","scanner","source"])
+  ) || "UNKNOWN";
+
+  const pickSeverity = (f)=> normSev(
+    pick(f, ["severity","sev","level","priority"]) ||
+    pick(f?.meta, ["severity","sev","level","priority"]) ||
+    pick(f?.extra, ["severity","sev","level","priority"])
+  );
+
+  const pickTitle = (f)=> norm(
+    pick(f, ["title","message","name","summary","rule_name","rule","check_name","id","rule_id","query_name"]) ||
+    pick(f?.meta, ["title","message","name","summary","rule_name","rule","check_name","id","rule_id"]) ||
+    pick(f?.extra, ["title","message","name","summary","rule_name","rule","check_name","id","rule_id"])
+  ) || "(no title)";
+
+  const pickLocation = (f)=>{
+    const file = norm(
+      pick(f, ["path","file","filename","file_path","filepath","uri"]) ||
+      pick(f?.location, ["path","file","filename","file_path","filepath","uri"]) ||
+      pick(f?.meta, ["path","file","filename","file_path","filepath","uri"]) ||
+      pick(f?.extra, ["path","file","filename","file_path","filepath","uri"])
+    );
+    const line = pick(f, ["line","start_line","begin_line"]) || pick(f?.location, ["line","start_line","begin_line"]) || "";
+    const col  = pick(f, ["col","column","start_col"]) || pick(f?.location, ["col","column","start_col"]) || "";
+    const lc = (line || col) ? `:${line||""}${col?":"+col:""}` : "";
+    return (file ? (file + lc) : "(no path)");
+  };
+
+  function scoreFinding(f){
+    const sev = pickSeverity(f);
+    const w = SEV_W[sev] || 150;
+    const hasPath = pickLocation(f) !== "(no path)" ? 20 : 0;
+    const hasTitle = pickTitle(f) !== "(no title)" ? 10 : 0;
+    return w + hasPath + hasTitle;
+  }
+
+  async function getLatestRid(){
+    const url = `/api/vsp/rid_latest_gate_root?_=${Date.now()}`;
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error(`rid_latest http ${r.status}`);
+    const j = await r.json();
+    if (!j?.ok || !j?.rid) throw new Error("rid_latest invalid json");
+    return j.rid;
+  }
+
+  async function fetchFindings(rid){
+    const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json&_=${Date.now()}`;
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error(`findings http ${r.status}`);
+    const j = await r.json();
+    const arr = Array.isArray(j) ? j : (Array.isArray(j?.findings) ? j.findings : []);
+    return arr;
+  }
+
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button, a"));
+    for (const b of btns){
+      const t = (b.textContent || "").trim();
+      if (/^Load top findings\s*\(\s*25\s*\)\s*$/i.test(t)) return b;
+    }
+    return null;
+  }
+
+  function findTopFindingsSectionRoot(){
+    // Find "Top findings" label, then climb to a container that contains the column headers
+    const all = Array.from(document.querySelectorAll("*"));
+    const leaf = all.find(el => (el.textContent||"").trim().toLowerCase().startsWith("top findings"));
+    if (!leaf) return null;
+
+    let cur = leaf;
+    for (let i=0; i<14 && cur; i++){
+      const txt = (cur.textContent||"").toLowerCase();
+      if (txt.includes("severity") && txt.includes("tool") && txt.includes("title") && txt.includes("location")){
+        return cur;
+      }
+      cur = cur.parentElement;
+    }
+    return leaf.parentElement;
+  }
+
+  function renderMessage(msg){
+    const root = findTopFindingsSectionRoot();
+    if (!root) { console.warn("[VSP][DASH_ONLY] topfind root not found"); return; }
+
+    // Prefer replacing the "Not loaded" cell if present
+    const nl = Array.from(root.querySelectorAll("*")).find(el => (el.textContent||"").trim().toLowerCase() === "not loaded");
+    if (nl){
+      nl.textContent = msg;
+      return;
+    }
+
+    // fallback: append a small message block
+    let box = root.querySelector("[data-vsp-topfind-msg]");
+    if (!box){
+      box = document.createElement("div");
+      box.setAttribute("data-vsp-topfind-msg","1");
+      box.style.marginTop = "8px";
+      root.appendChild(box);
+    }
+    box.textContent = msg;
+  }
+
+  function renderRows(rows){
+    const root = findTopFindingsSectionRoot();
+    if (!root) { console.warn("[VSP][DASH_ONLY] topfind root not found"); return false; }
+
+    // If there's a table, use it; otherwise replace "Not loaded" area with a mini table.
+    const table = root.querySelector("table");
+    if (table){
+      let tbody = table.querySelector("tbody");
+      if (!tbody){
+        tbody = document.createElement("tbody");
+        table.appendChild(tbody);
+      }
+      tbody.innerHTML = "";
+      for (const r of rows){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${r.sev}</td><td>${r.tool}</td><td>${r.title}</td><td>${r.loc}</td>`;
+        tbody.appendChild(tr);
+      }
+      return true;
+    }
+
+    // No table: replace "Not loaded" node's parent with table markup
+    const nl = Array.from(root.querySelectorAll("*")).find(el => (el.textContent||"").trim().toLowerCase() === "not loaded");
+    const host = nl ? (nl.closest("div") || nl.parentElement || root) : root;
+
+    const html = [
+      `<table style="width:100%;border-collapse:collapse;margin-top:6px">`,
+      `<tbody>`,
+      ...rows.map(r => `<tr><td>${r.sev}</td><td>${r.tool}</td><td>${r.title}</td><td>${r.loc}</td></tr>`),
+      `</tbody></table>`
+    ].join("");
+
+    host.innerHTML = html;
+    return true;
+  }
+
+  async function onClick(){
+    console.log("[VSP][DASH_ONLY] topfind click");
+    const btn = findButton();
+    if (!btn) { console.warn("[VSP][DASH_ONLY] topfind button missing"); return; }
+
+    btn.setAttribute("disabled","disabled");
+    const old = btn.textContent;
+    btn.textContent = "Loading…";
+
+    try{
+      const rid = await getLatestRid();
+      console.log("[VSP][DASH_ONLY] topfind rid=", rid);
+
+      if (cache[rid]){
+        renderRows(cache[rid]);
+        console.log("[VSP][DASH_ONLY] topfind from cache n=", cache[rid].length);
+        return;
+      }
+
+      const arr = await fetchFindings(rid);
+      console.log("[VSP][DASH_ONLY] topfind raw findings n=", arr?.length || 0);
+
+      if (!arr || arr.length === 0){
+        renderMessage("No findings_unified.json (or empty).");
+        return;
+      }
+
+      const picked = arr
+        .filter(x => x && typeof x === "object")
+        .map(f => ({
+          sev: pickSeverity(f),
+          tool: pickTool(f),
+          title: pickTitle(f),
+          loc: pickLocation(f),
+          _score: scoreFinding(f),
+        }))
+        .sort((a,b)=> (b._score - a._score))
+        .slice(0, 25)
+        .map(x => ({sev:x.sev, tool:x.tool, title:x.title, loc:x.loc}));
+
+      cache[rid] = picked;
+      const ok = renderRows(picked);
+      console.log("[VSP][DASH_ONLY] topfind render ok=", ok, "n=", picked.length);
+      if (!ok) renderMessage("Render target not found (see console).");
+    }catch(e){
+      console.warn("[VSP][DASH_ONLY] topfind failed:", e);
+      renderMessage("Load failed (see console).");
+    }finally{
+      btn.textContent = old || "Load top findings (25)";
+      btn.removeAttribute("disabled");
+    }
+  }
+
+  function bind(){
+    const btn = findButton();
+    if (!btn) return false;
+    if (btn.__vsp_bound_topfind_v2) return true;
+    btn.__vsp_bound_topfind_v2 = true;
+    btn.addEventListener("click", (ev)=>{ ev.preventDefault(); onClick(); }, {passive:false});
+    console.log("[VSP][DASH_ONLY] topfind v2 hook bound");
+    return true;
+  }
+
+  let tries = 0;
+  const t = setInterval(()=>{ tries++; if (bind() || tries>=14) clearInterval(t); }, 500);
+  setTimeout(bind, 1200);
+
+  console.log("[VSP][DASH_ONLY] topfind v2 active");
+})();
+
+
+/* VSP_P0_DASH_ONLY_FETCH_FALLBACK_FINDINGS_V1 */
+(()=> {
+  if (window.__vsp_p0_dash_only_fetch_fallback_findings_v1) return;
+  window.__vsp_p0_dash_only_fetch_fallback_findings_v1 = true;
+
+  const orig = window.fetch ? window.fetch.bind(window) : null;
+  if (!orig) return;
+
+  const shouldHandle = (url)=> (
+    typeof url === "string" &&
+    url.includes("/api/vsp/run_file_allow") &&
+    url.includes("path=findings_unified.json")
+  );
+
+  const toReports = (url)=> url.replace("path=findings_unified.json", "path=reports/findings_unified.json");
+
+  window.fetch = async (input, init)=>{
+    try{
+      const url = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+      if (!shouldHandle(url)) return orig(input, init);
+
+      // 1st try
+      let res = await orig(input, init);
+      if (res && res.status === 404) {
+        const url2 = toReports(url);
+        console.warn("[VSP][DASH_ONLY] findings_unified.json 404 => retry:", url2);
+        res = await orig(url2, init);
+      }
+      return res;
+    } catch(e){
+      return orig(input, init);
+    }
+  };
+
+  console.log("[VSP][DASH_ONLY] fetch fallback findings v1 active");
+})();
+
+
+/* VSP_P0_DASH_ONLY_TOPFIND_USE_CSV_V1 */
+(()=> {
+  if (window.__vsp_p0_dash_only_topfind_use_csv_v1) return;
+  window.__vsp_p0_dash_only_topfind_use_csv_v1 = true;
+
+  const SEV_W = {CRITICAL: 600, HIGH: 500, MEDIUM: 400, LOW: 300, INFO: 200, TRACE: 100};
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const up = (v)=> norm(v).toUpperCase();
+
+  // minimal CSV parser (handles quotes + commas)
+  const parseCSV = (txt)=>{
+    const rows = [];
+    let i=0, cur="", row=[], inQ=false;
+    const pushCell=()=>{ row.push(cur); cur=""; };
+    const pushRow=()=>{ rows.push(row); row=[]; };
+    while (i < txt.length) {
+      const ch = txt[i++];
+      if (inQ) {
+        if (ch === '"') {
+          if (txt[i] === '"') { cur += '"'; i++; } else { inQ = false; }
+        } else cur += ch;
+      } else {
+        if (ch === '"') inQ = true;
+        else if (ch === ',') pushCell();
+        else if (ch === '\n') { pushCell(); pushRow(); }
+        else if (ch === '\r') { /* ignore */ }
+        else cur += ch;
+      }
+    }
+    // last
+    if (cur.length || row.length) { pushCell(); pushRow(); }
+    // drop empty tail rows
+    return rows.filter(r=> r.some(c=> String(c||"").trim() !== ""));
+  };
+
+  const normKey = (k)=> norm(k).toLowerCase().replace(/[^a-z0-9]+/g,"");
+  const pickKey = (keys, wants)=>{
+    const kmap = new Map(keys.map(k=> [normKey(k), k]));
+    for (const w of wants) {
+      for (const [nk, orig] of kmap.entries()){
+        if (nk === w) return orig;
+      }
+    }
+    // contains fallback
+    for (const w of wants) {
+      for (const [nk, orig] of kmap.entries()){
+        if (nk.includes(w)) return orig;
+      }
+    }
+    return "";
+  };
+
+  const getRID = async ()=>{
+    try{
+      const r = await fetch("/api/vsp/rid_latest_gate_root");
+      const j = await r.json();
+      return j && j.rid ? j.rid : "";
+    }catch(e){ return ""; }
+  };
+
+  const findTopBlock = ()=>{
+    // find by heading text if possible
+    const nodes = Array.from(document.querySelectorAll("div,section"));
+    for (const n of nodes){
+      const t = (n.textContent || "");
+      if (t.includes("Top findings")) return n;
+    }
+    // fallback: first table container
+    return document.querySelector("table")?.parentElement || document.body;
+  };
+
+  const renderTable = (items)=>{
+    const host = findTopBlock();
+    let table = host.querySelector("table");
+    if (!table) {
+      table = document.createElement("table");
+      table.style.width="100%";
+      table.style.borderCollapse="collapse";
+      table.innerHTML = "<thead><tr><th>Severity</th><th>Tool</th><th>Title</th><th>Location</th></tr></thead><tbody></tbody>";
+      host.appendChild(table);
+    }
+    const tbody = table.querySelector("tbody") || table.appendChild(document.createElement("tbody"));
+    tbody.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const cells = [it.severity, it.tool, it.title, it.location];
+      for (const c of cells){
+        const td = document.createElement("td");
+        td.textContent = c || "";
+        td.style.padding="8px 10px";
+        td.style.borderTop="1px solid rgba(255,255,255,0.06)";
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  };
+
+  const loadTop = async (limit=25)=>{
+    const rid = await getRID();
+    if (!rid) throw new Error("no rid");
+    const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent("reports/findings_unified.csv")}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("csv fetch failed: "+resp.status);
+    const txt = await resp.text();
+    const rows = parseCSV(txt);
+    if (!rows.length) throw new Error("empty csv");
+    const header = rows[0];
+    const keys = header;
+
+    const kSev = pickKey(keys, ["severity","sev","level","risk","prio","priority"]);
+    const kTool = pickKey(keys, ["tool","scanner","source","engine"]);
+    const kTitle = pickKey(keys, ["title","rule","message","name","check","id"]);
+    const kLoc  = pickKey(keys, ["location","path","file","filename","resource","uri"]);
+
+    const idx = (k)=> k ? keys.indexOf(k) : -1;
+
+    const iSev = idx(kSev);
+    const iTool= idx(kTool);
+    const iTit = idx(kTitle);
+    const iLoc = idx(kLoc);
+
+    const items = [];
+    for (let r=1;r<rows.length;r++){
+      const row = rows[r];
+      const sevRaw = (iSev>=0? row[iSev] : "");
+      const sev = up(sevRaw);
+      const sevN = (sev==="CRIT"?"CRITICAL":sev);
+      items.push({
+        severity: sevN || "",
+        tool: norm(iTool>=0? row[iTool] : ""),
+        title: norm(iTit>=0? row[iTit] : ""),
+        location: norm(iLoc>=0? row[iLoc] : "")
+      });
+    }
+
+    // sort by severity weight desc then keep first N
+    items.sort((a,b)=> (SEV_W[b.severity]||0)-(SEV_W[a.severity]||0));
+    renderTable(items.slice(0, limit));
+    return true;
+  };
+
+  const hookBtn = ()=>{
+    const btns = Array.from(document.querySelectorAll("button,a"));
+    const target = btns.find(b=> (b.textContent||"").toLowerCase().includes("load top findings"));
+    if (!target) return false;
+
+    // override click (avoid previous handlers)
+    target.addEventListener("click", async (ev)=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      try{
+        const old = target.textContent;
+        target.textContent = "Loading…";
+        target.disabled = true;
+        await loadTop(25);
+        target.textContent = old || "Load top findings (25)";
+      }catch(e){
+        console.warn("[VSP][DASH_ONLY] topfind csv load failed:", e);
+        target.textContent = "Load top findings (25)";
+      }finally{
+        target.disabled = false;
+      }
+    }, true);
+
+    console.log("[VSP][DASH_ONLY] topfind csv hook bound");
+    return true;
+  };
+
+  // bind now + retry a few times
+  let tries=0;
+  const t = setInterval(()=>{
+    tries++;
+    if (hookBtn() || tries>=10) clearInterval(t);
+  }, 500);
+})();
+
+
+/* VSP_P0_DASH_ONLY_TOPFIND_CSV_MAPPING_V2
+   - Use reports/findings_unified.csv (allowed=200)
+   - Exact mapping: severity,tool,rule_id,title,file,line,message
+   - Location = file:line
+   - Title = title (fallback: rule_id) + (message short)
+   - Capture-phase click override to avoid older hooks fighting
+*/
+(()=> {
+  if (window.__vsp_p0_dash_only_topfind_csv_mapping_v2) return;
+  window.__vsp_p0_dash_only_topfind_csv_mapping_v2 = true;
+
+  const SEV_W = {CRITICAL:600, HIGH:500, MEDIUM:400, LOW:300, INFO:200, TRACE:100};
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const up   = (v)=> norm(v).toUpperCase();
+  const clip = (t, n)=> { t=norm(t); return (t.length>n) ? (t.slice(0,n-1)+"…") : t; };
+
+  const parseCSV = (txt)=>{
+    const rows=[]; let i=0, cur="", row=[], inQ=false;
+    const pushCell=()=>{ row.push(cur); cur=""; };
+    const pushRow=()=>{ rows.push(row); row=[]; };
+    while(i<txt.length){
+      const ch=txt[i++];
+      if(inQ){
+        if(ch==='"'){
+          if(txt[i]==='"'){ cur+='"'; i++; } else inQ=false;
+        } else cur+=ch;
+      } else {
+        if(ch==='"') inQ=true;
+        else if(ch===',') pushCell();
+        else if(ch==='\n'){ pushCell(); pushRow(); }
+        else if(ch==='\r'){ /* ignore */ }
+        else cur+=ch;
+      }
+    }
+    if(cur.length || row.length){ pushCell(); pushRow(); }
+    return rows.filter(r=> r.some(c=> String(c||"").trim()!==""));
+  };
+
+  const getRID = async ()=>{
+    const r = await fetch("/api/vsp/rid_latest_gate_root");
+    const j = await r.json();
+    return j && j.rid ? j.rid : "";
+  };
+
+  const findTopHost = ()=>{
+    // Try to find the "Top findings" card
+    const cards = Array.from(document.querySelectorAll("div,section"));
+    for(const c of cards){
+      const t = (c.textContent||"");
+      if(t.includes("Top findings")) return c;
+    }
+    return document.body;
+  };
+
+  const ensureTable = ()=>{
+    const host = findTopHost();
+    let table = host.querySelector("table");
+    if(!table){
+      table = document.createElement("table");
+      table.style.width="100%";
+      table.style.borderCollapse="collapse";
+      table.innerHTML = "<thead><tr><th>Severity</th><th>Tool</th><th>Title</th><th>Location</th></tr></thead><tbody></tbody>";
+      host.appendChild(table);
+    }
+    return table;
+  };
+
+  const render = (items)=>{
+    const table = ensureTable();
+    const tbody = table.querySelector("tbody") || table.appendChild(document.createElement("tbody"));
+    tbody.innerHTML = "";
+    for(const it of items){
+      const tr=document.createElement("tr");
+      const cells=[it.severity,it.tool,it.title,it.location];
+      for(const c of cells){
+        const td=document.createElement("td");
+        td.textContent = c || "";
+        td.style.padding="8px 10px";
+        td.style.borderTop="1px solid rgba(255,255,255,0.06)";
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  };
+
+  const loadTopCsv = async (limit=25)=>{
+    const rid = await getRID();
+    if(!rid) throw new Error("no rid");
+    const path = "reports/findings_unified.csv";
+    const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}`;
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error("csv fetch failed: "+resp.status);
+    const txt = await resp.text();
+    const rows = parseCSV(txt);
+    if(rows.length < 2) throw new Error("csv empty");
+
+    const h = rows[0].map(x=> norm(x));
+    const idx = (k)=> h.indexOf(k);
+
+    // exact expected headers
+    const iSev = idx("severity");
+    const iTool= idx("tool");
+    const iRid = idx("rule_id");
+    const iTit = idx("title");
+    const iFile= idx("file");
+    const iLine= idx("line");
+    const iMsg = idx("message");
+
+    const items=[];
+    for(let r=1;r<rows.length;r++){
+      const row = rows[r];
+      const sevRaw = (iSev>=0? row[iSev] : "");
+      let sev = up(sevRaw);
+      if(sev==="CRIT") sev="CRITICAL";
+      if(!sev) sev="";
+
+      const tool = norm(iTool>=0? row[iTool] : "");
+      const rid2 = norm(iRid>=0? row[iRid] : "");
+      const tit  = norm(iTit>=0? row[iTit] : "");
+      const file = norm(iFile>=0? row[iFile] : "");
+      const line = norm(iLine>=0? row[iLine] : "");
+      const msg  = norm(iMsg>=0? row[iMsg] : "");
+
+      const titleBase = tit || rid2 || "(no title)";
+      const title = msg ? (titleBase + " — " + clip(msg, 140)) : titleBase;
+      const loc = (file && line) ? `${file}:${line}` : (file || "");
+
+      items.push({severity:sev, tool, title, location:loc});
+    }
+
+    items.sort((a,b)=> (SEV_W[b.severity]||0)-(SEV_W[a.severity]||0));
+    render(items.slice(0, limit));
+    return true;
+  };
+
+  const hook = ()=>{
+    const btns = Array.from(document.querySelectorAll("button,a"));
+    const b = btns.find(x=> (x.textContent||"").toLowerCase().includes("load top findings"));
+    if(!b) return false;
+
+    // CAPTURE override: stop old hooks fighting
+    b.addEventListener("click", async (ev)=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+
+      const old = b.textContent || "Load top findings (25)";
+      try{
+        b.textContent = "Loading…";
+        b.disabled = true;
+        await loadTopCsv(25);
+        b.textContent = old;
+        console.log("[VSP][DASH_ONLY] topfind csv v2 loaded");
+      }catch(e){
+        console.warn("[VSP][DASH_ONLY] topfind csv v2 failed:", e);
+        b.textContent = old;
+      }finally{
+        b.disabled = false;
+      }
+    }, true);
+
+    console.log("[VSP][DASH_ONLY] topfind csv v2 hook bound");
+    return true;
+  };
+
+  let tries=0;
+  const t=setInterval(()=>{ tries++; if(hook() || tries>=12) clearInterval(t); }, 500);
+})();
+
+
+/* VSP_P0_DASH_ONLY_TOPFIND_REBIND_V3
+   - Hard rebind "Load top findings" button (clone node => drop all old listeners)
+   - Fetch only CSV: reports/findings_unified.csv (allowlisted 200)
+   - Render into existing "Top findings" table (or create if missing)
+*/
+(()=> {
+  if (window.__vsp_p0_dash_only_topfind_rebind_v3) return;
+  window.__vsp_p0_dash_only_topfind_rebind_v3 = true;
+
+  const BASE = window.location.origin;
+  const API_RID = `${BASE}/api/vsp/rid_latest_gate_root`;
+  const API_RUNFILE = (rid, path)=> `${BASE}/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}`;
+  const CSV_PATH = "reports/findings_unified.csv";
+
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const SEV_W = {CRITICAL: 600, HIGH: 500, MEDIUM: 400, LOW: 300, INFO: 200, TRACE: 100};
+  const sevNorm = (v)=>{
+    const x = norm(v).toUpperCase();
+    if (!x) return "";
+    if (x === "CRIT") return "CRITICAL";
+    return x;
+  };
+
+  const log = (...a)=> console.log("[VSP][DASH_ONLY][TOPFIND_V3]", ...a);
+
+  async function fetchJson(url){
+    const r = await fetch(url, {credentials:"same-origin"});
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.json();
+  }
+  async function fetchText(url){
+    const r = await fetch(url, {credentials:"same-origin"});
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.text();
+  }
+
+  // small CSV parser w/ quotes
+  function parseCsv(text){
+    const rows = [];
+    let row = [], field = "", i = 0, inQ = false;
+    while (i < text.length){
+      const c = text[i];
+      if (inQ){
+        if (c === '"'){
+          if (text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += c; i++; continue;
+      } else {
+        if (c === '"'){ inQ = true; i++; continue; }
+        if (c === ','){ row.push(field); field = ""; i++; continue; }
+        if (c === '\r'){ i++; continue; }
+        if (c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
+        field += c; i++; continue;
+      }
+    }
+    if (field.length || row.length){ row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function findLoadButton(){
+    const cands = Array.from(document.querySelectorAll("button, a, [role='button'], input[type='button'], input[type='submit']"));
+    const hit = cands.find(el => /load\s+top\s+findings/i.test(norm(el.textContent || el.value || "")));
+    return hit || null;
+  }
+
+  function findTopFindingsTable(){
+    // Prefer: a table inside a container that mentions "Top findings"
+    const tables = Array.from(document.querySelectorAll("table"));
+    for (const t of tables){
+      const box = t.closest("div, section, article") || t.parentElement;
+      if (box && /top\s+findings/i.test(norm(box.textContent))) return t;
+      // also accept if header looks like our table
+      const ths = Array.from(t.querySelectorAll("th")).map(x=>norm(x.textContent).toLowerCase());
+      if (ths.includes("severity") && ths.includes("tool")) return t;
+    }
+    // Else create inside the "Top findings" card/container
+    const blocks = Array.from(document.querySelectorAll("div, section, article"));
+    const host = blocks.find(el => /top\s+findings/i.test(norm(el.textContent)));
+    if (!host) return null;
+
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "collapse";
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:8px;">Severity</th>
+          <th style="text-align:left;padding:8px;">Tool</th>
+          <th style="text-align:left;padding:8px;">Title</th>
+          <th style="text-align:left;padding:8px;">Location</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="padding:8px;opacity:.75;">Not loaded</td></tr>
+      </tbody>`;
+    host.appendChild(table);
+    return table;
+  }
+
+  function renderRows(table, rows){
+    const tbody = table.querySelector("tbody") || table.appendChild(document.createElement("tbody"));
+    tbody.innerHTML = "";
+    for (const r of rows){
+      const tr = document.createElement("tr");
+      const loc = r.file ? (r.line ? `${r.file}:${r.line}` : r.file) : "";
+      const title = r.title || r.rule_id || "";
+      const sev = r.severity || "";
+      tr.innerHTML = `
+        <td style="padding:8px;white-space:nowrap;">${escapeHtml(sev)}</td>
+        <td style="padding:8px;white-space:nowrap;">${escapeHtml(r.tool||"")}</td>
+        <td style="padding:8px;">${escapeHtml(title)}</td>
+        <td style="padding:8px;white-space:nowrap;">${escapeHtml(loc)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+    if (!rows.length){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="4" style="padding:8px;opacity:.75;">No findings</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function escapeHtml(s){
+    return norm(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  async function loadTopFindingsCsv(limit){
+    const ridj = await fetchJson(API_RID);
+    const rid = ridj && ridj.rid;
+    if (!rid) throw new Error("rid_latest_gate_root returned no rid");
+    const csv = await fetchText(API_RUNFILE(rid, CSV_PATH));
+
+    const rows = parseCsv(csv);
+    if (!rows.length) return [];
+    const hdr = rows[0].map(x=>norm(x).toLowerCase());
+    const idx = (k)=> hdr.indexOf(k);
+
+    const out = [];
+    for (let i=1;i<rows.length;i++){
+      const a = rows[i];
+      if (!a || !a.length) continue;
+      const sev = sevNorm(a[idx("severity")] ?? "");
+      const tool = norm(a[idx("tool")] ?? "");
+      const rule_id = norm(a[idx("rule_id")] ?? "");
+      const title = norm(a[idx("title")] ?? "");
+      const file = norm(a[idx("file")] ?? "");
+      const line = norm(a[idx("line")] ?? "");
+      const msg = norm(a[idx("message")] ?? "");
+      out.push({severity:sev, tool, rule_id, title: title || msg || rule_id, file, line});
+    }
+
+    out.sort((x,y)=>{
+      const wx = SEV_W[x.severity] || 0;
+      const wy = SEV_W[y.severity] || 0;
+      if (wy !== wx) return wy - wx;
+      if (x.tool !== y.tool) return (x.tool < y.tool ? -1 : 1);
+      return (x.title < y.title ? -1 : (x.title > y.title ? 1 : 0));
+    });
+
+    return out.slice(0, limit);
+  }
+
+  function rebind(){
+    const btn = findLoadButton();
+    if (!btn) return false;
+
+    // CLONE NODE => wipe all old listeners from previous patches
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+
+    clone.addEventListener("click", async (e)=>{
+      try{
+        e.preventDefault();
+        e.stopPropagation();
+
+        const table = findTopFindingsTable();
+        if (!table) { alert("Top findings table not found."); return; }
+
+        clone.disabled = true;
+        clone.style.opacity = "0.8";
+        clone.textContent = "Loading…";
+
+        const rows = await loadTopFindingsCsv(25);
+        renderRows(table, rows);
+
+        clone.textContent = "Load top findings (25)";
+        log("rendered rows=", rows.length);
+      } catch(err){
+        console.warn("[VSP][DASH_ONLY][TOPFIND_V3] load failed:", err);
+        try{ alert("Load top findings failed: " + (err && err.message ? err.message : String(err))); } catch(_){}
+        clone.textContent = "Load top findings (25)";
+      } finally{
+        clone.disabled = false;
+        clone.style.opacity = "";
+      }
+    }, {capture:true});
+
+    log("rebind OK (clone+listener attached)");
+    return true;
+  }
+
+  // try a few times because DOM renders async
+  let tries = 0;
+  const t = setInterval(()=>{
+    tries++;
+    if (rebind() || tries >= 10) clearInterval(t);
+  }, 600);
+
+})();
+
+
+
+/* VSP_P0_DASH_ONLY_TOPFIND_FINAL_V4_CSV
+   FINAL override: always runs last, re-clone button to remove ALL previous listeners,
+   fetch CSV (allowed) and render Top findings table.
+*/
+(()=> {
+  if (window.__vsp_p0_dash_only_topfind_final_v4_csv) return;
+  window.__vsp_p0_dash_only_topfind_final_v4_csv = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const CSV_PATH = "reports/findings_unified.csv";
+
+  const SEV_ORDER = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+  const SEV_W = {CRITICAL: 600, HIGH: 500, MEDIUM: 400, LOW: 300, INFO: 200, TRACE: 100};
+
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const upper = (v)=> norm(v).toUpperCase();
+
+  async function getRidLatest(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    if (!r.ok) throw new Error("rid_latest_gate_root http " + r.status);
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+
+  function csvUrl(rid){
+    return `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(CSV_PATH)}`;
+  }
+
+  // Minimal CSV parser w/ quotes
+  function parseCSV(text, maxRows=4000){
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let i = 0;
+    let inQ = false;
+
+    // normalize newlines
+    text = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+    while (i < text.length){
+      const ch = text[i];
+
+      if (inQ){
+        if (ch === '"'){
+          // escaped quote?
+          if (text[i+1] === '"'){ cur += '"'; i += 2; continue; }
+          inQ = false; i += 1; continue;
+        }
+        cur += ch; i += 1; continue;
+      }
+
+      if (ch === '"'){ inQ = true; i += 1; continue; }
+
+      if (ch === ','){
+        row.push(cur); cur = ""; i += 1; continue;
+      }
+
+      if (ch === '\n'){
+        row.push(cur); cur = ""; i += 1;
+        // ignore empty last line
+        if (!(row.length === 1 && row[0] === "")) rows.push(row);
+        row = [];
+        if (rows.length >= maxRows) break;
+        continue;
+      }
+
+      cur += ch; i += 1;
+    }
+
+    if (cur.length || row.length){
+      row.push(cur);
+      if (!(row.length === 1 && row[0] === "")) rows.push(row);
+    }
+    return rows;
+  }
+
+  function findTopFindingsCard(){
+    // locate by heading text "Top findings"
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+
+  function findButton(){
+    // robust: any button containing "Load top findings"
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+
+  function findTableTbody(){
+    // prefer tbody inside the "Top findings" area
+    const card = findTopFindingsCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    // fallback: first tbody on page
+    return document.querySelector("tbody");
+  }
+
+  function setStatus(msg){
+    // try to place status inside top findings card
+    const card = findTopFindingsCard();
+    if (!card) return;
+    // find a "Not loaded" cell and replace its text
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…"){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+
+  function renderRows(items){
+    const tb = findTableTbody();
+    if (!tb) throw new Error("cannot find <tbody> for top findings");
+    tb.innerHTML = "";
+
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+
+      const loc = [];
+      if (it.file) loc.push(it.file);
+      if (it.line) loc.push(":" + it.line);
+      tdLoc.textContent = loc.join("");
+
+      tr.appendChild(tdSev);
+      tr.appendChild(tdTool);
+      tr.appendChild(tdTitle);
+      tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+
+  async function loadTopFindings(limit=25){
+    const rid = await getRidLatest();
+    if (!rid) throw new Error("RID empty");
+    const url = csvUrl(rid);
+
+    setStatus("Loading…");
+
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("fetch CSV http " + r.status);
+
+    const text = await r.text();
+    const rows = parseCSV(text, 8000);
+    if (!rows.length) throw new Error("CSV empty");
+
+    const header = rows[0].map(x => norm(x));
+    const idx = {}
+    for (let i=0;i<header.length;i++){
+      const k = header[i].toLowerCase();
+      idx[k] = i
+    }
+
+    function getcol(row, name){
+      const i = idx[name];
+      if (i==null) return "";
+      return row[i] == null ? "" : String(row[i]);
+    }
+
+    // keep best N by severity weight
+    const best = [];
+    function pushBest(it){
+      best.push(it);
+      best.sort((a,b)=> (SEV_W[upper(b.severity)]||0) - (SEV_W[upper(a.severity)]||0));
+      if (best.length > limit) best.length = limit;
+    }
+
+    for (let i=1;i<rows.length;i++){
+      const row = rows[i];
+      if (!row || row.length < 2) continue;
+
+      const sev = upper(getcol(row, "severity"));
+      if (!sev) continue;
+
+      const it = {
+        severity: sev,
+        tool: norm(getcol(row, "tool")),
+        title: norm(getcol(row, "title")) || norm(getcol(row, "message")) || norm(getcol(row, "rule_id")),
+        file: norm(getcol(row, "file")),
+        line: norm(getcol(row, "line")),
+      };
+      pushBest(it);
+    }
+
+    renderRows(best);
+    setStatus("Loaded: " + best.length + " items");
+    console.log("[VSP][DASH_ONLY] topfind FINAL v4 loaded:", best.length);
+  }
+
+  function bindFinal(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+
+    // Clone LAST to remove all old listeners
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation?.();
+
+      const old = b2.textContent;
+      b2.disabled = true;
+      b2.textContent = "Loading…";
+      try{
+        await loadTopFindings(25);
+      }catch(e){
+        console.warn("[VSP][DASH_ONLY] topfind FINAL v4 failed:", e);
+        setStatus("Load failed: " + (e && e.message ? e.message : String(e)));
+      }finally{
+        b2.disabled = false;
+        b2.textContent = old || "Load top findings (25)";
+      }
+    }, {capture:true});
+
+    console.log("[VSP][DASH_ONLY] topfind FINAL v4 bound (button cloned last)");
+    return true;
+  }
+
+  function start(){
+    // bind now
+    if (bindFinal()) return;
+
+    // retry a few times for slow DOM
+    let tries = 0;
+    const t = setInterval(()=> {
+      tries++;
+      if (bindFinal() || tries >= 10) clearInterval(t);
+    }, 600);
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    setTimeout(start, 0);
+  }
+})();
+
+
+
+
+/* VSP_P0_DASH_ONLY_TOPFIND_FINAL_V5_AUTO_FALLBACK
+   FINAL: rebinding guard + fallback data sources.
+   Source order:
+     1) reports/findings_unified.csv (if has >1 logical line)
+     2) reports/findings_unified.sarif
+*/
+(()=> {
+  if (window.__vsp_p0_dash_only_topfind_final_v5) return;
+  window.__vsp_p0_dash_only_topfind_final_v5 = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const PATH_CSV  = "reports/findings_unified.csv";
+  const PATH_SARIF = "reports/findings_unified.sarif";
+
+  const SEV_ORDER = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+  const SEV_W = {CRITICAL: 600, HIGH: 500, MEDIUM: 400, LOW: 300, INFO: 200, TRACE: 100};
+
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const upper = (v)=> norm(v).toUpperCase();
+
+  async function getRidLatest(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    if (!r.ok) throw new Error("rid_latest_gate_root http " + r.status);
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  function rfUrl(rid, path){
+    return `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}`;
+  }
+
+  // ===== DOM helpers =====
+  function findTopFindingsCard(){
+    // locate by heading text "Top findings"
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTableTbody(){
+    const card = findTopFindingsCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopFindingsCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function renderRows(items){
+    const tb = findTableTbody();
+    if (!tb) throw new Error("cannot find <tbody> for top findings");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+
+  // ===== CSV parsing (quotes supported) =====
+  function parseCSV(text, maxRows=8000){
+    text = String(text || "").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    const rows = [];
+    let row = [], cur = "", inQ=false;
+    for (let i=0;i<text.length;i++){
+      const ch = text[i];
+      if (inQ){
+        if (ch === '"'){
+          if (text[i+1] === '"'){ cur += '"'; i++; continue; }
+          inQ = false; continue;
+        }
+        cur += ch; continue;
+      }
+      if (ch === '"'){ inQ=true; continue; }
+      if (ch === ','){ row.push(cur); cur=""; continue; }
+      if (ch === '\n'){
+        row.push(cur); cur="";
+        if (!(row.length===1 && row[0]==="")) rows.push(row);
+        row=[];
+        if (rows.length>=maxRows) break;
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.length || row.length){
+      row.push(cur);
+      if (!(row.length===1 && row[0]==="")) rows.push(row);
+    }
+    return rows;
+  }
+
+  function takeTopN(items, n){
+    items.sort((a,b)=> (SEV_W[upper(b.severity)]||0) - (SEV_W[upper(a.severity)]||0));
+    if (items.length>n) items.length=n;
+    return items;
+  }
+
+  async function loadFromCSV(rid, limit){
+    const url = rfUrl(rid, PATH_CSV);
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("CSV http " + r.status);
+    const text = await r.text();
+
+    // robust “has data?” check by logical lines
+    const logicalLines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(x=>x.trim()!=="");
+    if (logicalLines.length <= 1){
+      throw new Error("CSV has header only (no data rows)");
+    }
+
+    const rows = parseCSV(text);
+    if (rows.length <= 1) throw new Error("CSV parse empty rows");
+    const header = rows[0].map(x=>norm(x));
+    const idx = {};
+    for (let i=0;i<header.length;i++) idx[header[i].toLowerCase()] = i;
+
+    const get = (row, name)=> {
+      const i = idx[name];
+      if (i==null) return "";
+      return row[i]==null ? "" : String(row[i]);
+    };
+
+    const items=[];
+    for (let i=1;i<rows.length;i++){
+      const row=rows[i];
+      if (!row || row.length<2) continue;
+      const sev = upper(get(row,"severity"));
+      if (!sev) continue;
+      items.push({
+        severity: sev,
+        tool: norm(get(row,"tool")),
+        title: norm(get(row,"title")) || norm(get(row,"message")) || norm(get(row,"rule_id")),
+        file: norm(get(row,"file")),
+        line: norm(get(row,"line")),
+      });
+    }
+    return takeTopN(items, limit);
+  }
+
+  // ===== SARIF fallback =====
+  function mapSarifLevelToSev(level){
+    const lv = (level||"").toLowerCase();
+    if (lv === "error") return "HIGH";
+    if (lv === "warning") return "MEDIUM";
+    if (lv === "note") return "LOW";
+    return "INFO";
+  }
+
+  async function loadFromSarif(rid, limit){
+    const url = rfUrl(rid, PATH_SARIF);
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("SARIF http " + r.status);
+    const j = await r.json();
+
+    const items=[];
+    const runs = (j && j.runs) ? j.runs : [];
+    for (const run of runs){
+      const toolName = norm(run?.tool?.driver?.name) || "";
+      const results = run?.results || [];
+      for (const res of results){
+        const sev = upper(res?.properties?.severity) || mapSarifLevelToSev(res?.level);
+        const msg = norm(res?.message?.text) || norm(res?.message?.markdown) || norm(res?.ruleId) || "Finding";
+        const loc0 = res?.locations?.[0]?.physicalLocation;
+        const file = norm(loc0?.artifactLocation?.uri) || "";
+        const line = String(loc0?.region?.startLine || "").trim();
+        items.push({
+          severity: sev,
+          tool: norm(res?.properties?.tool) || toolName || norm(res?.ruleId) || "",
+          title: msg,
+          file,
+          line,
+        });
+      }
+    }
+    return takeTopN(items, limit);
+  }
+
+  async function loadTopFindings(limit=25){
+    const rid = await getRidLatest();
+    if (!rid) throw new Error("RID empty");
+
+    setStatus("Loading…");
+    console.log("[VSP][DASH_ONLY] topfind FINAL v5 start rid=", rid);
+
+    // try CSV first, then SARIF
+    try{
+      const items = await loadFromCSV(rid, limit);
+      renderRows(items);
+      setStatus("Loaded: " + items.length + " (CSV)");
+      console.log("[VSP][DASH_ONLY] topfind FINAL v5 ok via CSV", items.length);
+      return;
+    }catch(e1){
+      console.warn("[VSP][DASH_ONLY] CSV path failed:", e1?.message || e1);
+    }
+
+    const items2 = await loadFromSarif(rid, limit);
+    renderRows(items2);
+    setStatus("Loaded: " + items2.length + " (SARIF)");
+    console.log("[VSP][DASH_ONLY] topfind FINAL v5 ok via SARIF", items2.length);
+  }
+
+  // ===== FINAL rebind (always win) =====
+  function bindFinal(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+
+    // clone removes ALL old listeners
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation?.();
+
+      const old = b2.textContent;
+      b2.disabled = true;
+      b2.textContent = "Loading…";
+      try{
+        await loadTopFindings(25);
+      }catch(e){
+        console.warn("[VSP][DASH_ONLY] topfind FINAL v5 failed:", e);
+        setStatus("Load failed: " + (e?.message || String(e)));
+      }finally{
+        b2.disabled = false;
+        b2.textContent = old || "Load top findings (25)";
+      }
+    }, {capture:true});
+
+    console.log("[VSP][DASH_ONLY] topfind FINAL v5 bound (button cloned last)");
+    return true;
+  }
+
+  function start(){
+    // bind now + retry
+    bindFinal();
+    let tries=0;
+    const t=setInterval(()=> {
+      tries++;
+      bindFinal();
+      if (tries>=10) clearInterval(t);
+    }, 800);
+
+    // watch DOM: if another script swaps button later, we rebind again
+    const obs = new MutationObserver(()=> bindFinal());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    setTimeout(start, 0);
+  }
+})();
+
+
+
+
+/* VSP_P0_DASH_ONLY_TOPFIND_FINAL_V6_JSON_FALLBACK
+   FINAL: rebinding guard + 3-level fallback:
+     1) reports/findings_unified.csv (must have >1 logical line)
+     2) reports/findings_unified.sarif (must yield >0 results)
+     3) findings_unified.json (meta+findings)  <-- NEW
+*/
+(()=> {
+  if (window.__vsp_p0_dash_only_topfind_final_v6) return;
+  window.__vsp_p0_dash_only_topfind_final_v6 = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const PATH_CSV   = "reports/findings_unified.csv";
+  const PATH_SARIF = "reports/findings_unified.sarif";
+  const PATH_JSON  = "findings_unified.json";
+
+  const SEV_W = {CRITICAL:600,HIGH:500,MEDIUM:400,LOW:300,INFO:200,TRACE:100};
+  const norm = (v)=> (v==null ? "" : String(v)).trim();
+  const upper = (v)=> norm(v).toUpperCase();
+
+  function normSev(v){
+    const x = upper(v);
+    if (SEV_W[x]) return x;
+    // common variants
+    if (x==="ERROR") return "HIGH";
+    if (x==="WARNING"||x==="WARN") return "MEDIUM";
+    if (x==="NOTE") return "LOW";
+    if (x==="DEBUG") return "TRACE";
+    return x || "INFO";
+  }
+
+  async function getRidLatest(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    if (!r.ok) throw new Error("rid_latest_gate_root http " + r.status);
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  function rfUrl(rid, path){
+    return `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}`;
+  }
+
+  // ===== DOM helpers =====
+  function findTopFindingsCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTableTbody(){
+    const card = findTopFindingsCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopFindingsCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function renderRows(items){
+    const tb = findTableTbody();
+    if (!tb) throw new Error("cannot find <tbody> for top findings");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+
+  function takeTopN(items, n){
+    items.sort((a,b)=> (SEV_W[upper(b.severity)]||0) - (SEV_W[upper(a.severity)]||0));
+    if (items.length>n) items.length=n;
+    return items;
+  }
+
+  // ===== CSV parsing (quotes supported) =====
+  function parseCSV(text, maxRows=8000){
+    text = String(text || "").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    const rows = [];
+    let row = [], cur = "", inQ=false;
+    for (let i=0;i<text.length;i++){
+      const ch = text[i];
+      if (inQ){
+        if (ch === '"'){
+          if (text[i+1] === '"'){ cur += '"'; i++; continue; }
+          inQ = false; continue;
+        }
+        cur += ch; continue;
+      }
+      if (ch === '"'){ inQ=true; continue; }
+      if (ch === ','){ row.push(cur); cur=""; continue; }
+      if (ch === '\n'){
+        row.push(cur); cur="";
+        if (!(row.length===1 && row[0]==="")) rows.push(row);
+        row=[];
+        if (rows.length>=maxRows) break;
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.length || row.length){
+      row.push(cur);
+      if (!(row.length===1 && row[0]==="")) rows.push(row);
+    }
+    return rows;
+  }
+
+  async function loadFromCSV(rid, limit){
+    const url = rfUrl(rid, PATH_CSV);
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("CSV http " + r.status);
+    const text = await r.text();
+    const logicalLines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(x=>x.trim()!=="");
+    if (logicalLines.length <= 1) throw new Error("CSV has header only");
+
+    const rows = parseCSV(text);
+    if (rows.length <= 1) throw new Error("CSV parse empty rows");
+    const header = rows[0].map(x=>norm(x));
+    const idx = {};
+    for (let i=0;i<header.length;i++) idx[header[i].toLowerCase()] = i;
+    const get = (row, name)=> {
+      const i = idx[name];
+      if (i==null) return "";
+      return row[i]==null ? "" : String(row[i]);
+    };
+
+    const items=[];
+    for (let i=1;i<rows.length;i++){
+      const row=rows[i];
+      if (!row || row.length<2) continue;
+      const sev = normSev(get(row,"severity"));
+      if (!sev) continue;
+      items.push({
+        severity: sev,
+        tool: norm(get(row,"tool")),
+        title: norm(get(row,"title")) || norm(get(row,"message")) || norm(get(row,"rule_id")),
+        file: norm(get(row,"file")),
+        line: norm(get(row,"line")),
+      });
+    }
+    if (!items.length) throw new Error("CSV yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  // ===== SARIF fallback =====
+  function mapSarifLevelToSev(level){
+    const lv = (level||"").toLowerCase();
+    if (lv === "error") return "HIGH";
+    if (lv === "warning") return "MEDIUM";
+    if (lv === "note") return "LOW";
+    return "INFO";
+  }
+
+  async function loadFromSarif(rid, limit){
+    const url = rfUrl(rid, PATH_SARIF);
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("SARIF http " + r.status);
+    const j = await r.json();
+
+    const items=[];
+    const runs = (j && j.runs) ? j.runs : [];
+    for (const run of runs){
+      const toolName = norm(run?.tool?.driver?.name) || "";
+      const results = run?.results || [];
+      for (const res of results){
+        const sev = normSev(res?.properties?.severity) || mapSarifLevelToSev(res?.level);
+        const msg = norm(res?.message?.text) || norm(res?.message?.markdown) || norm(res?.ruleId) || "Finding";
+        const loc0 = res?.locations?.[0]?.physicalLocation;
+        const file = norm(loc0?.artifactLocation?.uri) || "";
+        const line = String(loc0?.region?.startLine || "").trim();
+        items.push({
+          severity: sev,
+          tool: norm(res?.properties?.tool) || toolName || norm(res?.ruleId) || "",
+          title: msg,
+          file,
+          line,
+        });
+      }
+    }
+    if (!items.length) throw new Error("SARIF yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  // ===== JSON fallback (findings_unified.json) =====
+  function pick(obj, keys){
+    for (const k of keys){
+      const v = obj?.[k];
+      if (v!=null && String(v).trim()!=="") return v;
+    }
+    return "";
+  }
+
+  async function loadFromUnifiedJson(rid, limit){
+    const url = rfUrl(rid, PATH_JSON);
+    const r = await fetch(url, {cache:"no-store"});
+    if (!r.ok) throw new Error("JSON http " + r.status);
+    const j = await r.json();
+
+    const arr = Array.isArray(j) ? j : (Array.isArray(j?.findings) ? j.findings : []);
+    if (!arr.length) throw new Error("JSON findings empty");
+
+    const items=[];
+    for (const f of arr){
+      const sev = normSev(pick(f, ["severity","normalized_severity"]) || pick(f?.meta, ["severity"]) || pick(f?.properties, ["severity"]));
+      const tool = norm(pick(f, ["tool","source","engine"]) || pick(f?.meta, ["tool"]) || pick(f?.properties, ["tool"]));
+      const title = norm(pick(f, ["title","message","rule_id","ruleId","id"]) || pick(f?.meta, ["title","message"]));
+      const file = norm(pick(f, ["file","path"]) || pick(f?.location, ["file","path"]) || pick(f?.meta, ["file","path"]));
+      const line = norm(pick(f, ["line"]) || pick(f?.location, ["line","startLine"]) || pick(f?.meta, ["line","startLine"]));
+      if (!title && !file) continue;
+      items.push({severity: sev || "INFO", tool, title: title || "Finding", file, line});
+    }
+    if (!items.length) throw new Error("JSON yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  async function loadTopFindings(limit=25){
+    const rid = await getRidLatest();
+    if (!rid) throw new Error("RID empty");
+
+    setStatus("Loading…");
+    console.log("[VSP][DASH_ONLY] topfind FINAL v6 start rid=", rid);
+
+    try{
+      const items = await loadFromCSV(rid, limit);
+      renderRows(items);
+      setStatus("Loaded: " + items.length + " (CSV)");
+      console.log("[VSP][DASH_ONLY] topfind FINAL v6 ok via CSV", items.length);
+      return;
+    }catch(e1){
+      console.warn("[VSP][DASH_ONLY] CSV failed:", e1?.message || e1);
+    }
+
+    try{
+      const items2 = await loadFromSarif(rid, limit);
+      renderRows(items2);
+      setStatus("Loaded: " + items2.length + " (SARIF)");
+      console.log("[VSP][DASH_ONLY] topfind FINAL v6 ok via SARIF", items2.length);
+      return;
+    }catch(e2){
+      console.warn("[VSP][DASH_ONLY] SARIF failed:", e2?.message || e2);
+    }
+
+    const items3 = await loadFromUnifiedJson(rid, limit);
+    renderRows(items3);
+    setStatus("Loaded: " + items3.length + " (JSON)");
+    console.log("[VSP][DASH_ONLY] topfind FINAL v6 ok via JSON", items3.length);
+  }
+
+  // ===== FINAL rebind (always win) =====
+  function bindFinal(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation?.();
+
+      const old = b2.textContent;
+      b2.disabled = true;
+      b2.textContent = "Loading…";
+      try{
+        await loadTopFindings(25);
+      }catch(e){
+        console.warn("[VSP][DASH_ONLY] topfind FINAL v6 failed:", e);
+        setStatus("Load failed: " + (e?.message || String(e)));
+      }finally{
+        b2.disabled = false;
+        b2.textContent = old || "Load top findings (25)";
+      }
+    }, {capture:true});
+
+    console.log("[VSP][DASH_ONLY] topfind FINAL v6 bound (button cloned last)");
+    return true;
+  }
+
+  function start(){
+    bindFinal();
+    let tries=0;
+    const t=setInterval(()=> {
+      tries++; bindFinal();
+      if (tries>=10) clearInterval(t);
+    }, 800);
+
+    const obs = new MutationObserver(()=> bindFinal());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    setTimeout(start, 0);
+  }
+})();
+
+
+
+
+/* VSP_P0_TOPFIND_FINAL_V6_AUTO_JS_PATCH
+   FINAL v6: CSV -> SARIF -> findings_unified.json fallback (on button click only)
+*/
+(()=> {
+  if (window.__vsp_p0_topfind_final_v6_auto) return;
+  window.__vsp_p0_topfind_final_v6_auto = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const PATH_CSV   = "reports/findings_unified.csv";
+  const PATH_SARIF = "reports/findings_unified.sarif";
+  const PATH_JSON  = "findings_unified.json";
+
+  const SEV_W = {CRITICAL:600,HIGH:500,MEDIUM:400,LOW:300,INFO:200,TRACE:100};
+  const norm  = (v)=> (v==null ? "" : String(v)).trim();
+  const upper = (v)=> norm(v).toUpperCase();
+
+  function normSev(v){
+    const x = upper(v);
+    if (SEV_W[x]) return x;
+    if (x==="ERROR") return "HIGH";
+    if (x==="WARNING"||x==="WARN") return "MEDIUM";
+    if (x==="NOTE") return "LOW";
+    if (x==="DEBUG") return "TRACE";
+    return x || "INFO";
+  }
+
+  async function getRidLatest(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    if (!r.ok) throw new Error("rid_latest_gate_root http " + r.status);
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  function rfUrl(rid, path){
+    return `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}`;
+  }
+
+  function findTopCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTbody(){
+    const card = findTopCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function renderRows(items){
+    const tb = findTbody();
+    if (!tb) throw new Error("cannot find <tbody>");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+  function takeTopN(items, n){
+    items.sort((a,b)=> (SEV_W[upper(b.severity)]||0) - (SEV_W[upper(a.severity)]||0));
+    if (items.length>n) items.length=n;
+    return items;
+  }
+
+  function parseCSV(text, maxRows=8000){
+    text = String(text || "").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    const rows = [];
+    let row = [], cur = "", inQ=false;
+    for (let i=0;i<text.length;i++){
+      const ch = text[i];
+      if (inQ){
+        if (ch === '"'){
+          if (text[i+1] === '"'){ cur += '"'; i++; continue; }
+          inQ = false; continue;
+        }
+        cur += ch; continue;
+      }
+      if (ch === '"'){ inQ=true; continue; }
+      if (ch === ','){ row.push(cur); cur=""; continue; }
+      if (ch === '\n'){
+        row.push(cur); cur="";
+        if (!(row.length===1 && row[0]==="")) rows.push(row);
+        row=[];
+        if (rows.length>=maxRows) break;
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.length || row.length){
+      row.push(cur);
+      if (!(row.length===1 && row[0]==="")) rows.push(row);
+    }
+    return rows;
+  }
+
+  async function loadFromCSV(rid, limit){
+    const r = await fetch(rfUrl(rid, PATH_CSV), {cache:"no-store"});
+    if (!r.ok) throw new Error("CSV http " + r.status);
+    const text = await r.text();
+    const logical = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(x=>x.trim()!=="");
+    if (logical.length <= 1) throw new Error("CSV header only");
+    const rows = parseCSV(text);
+    if (rows.length <= 1) throw new Error("CSV rows empty");
+
+    const header = rows[0].map(x=>norm(x));
+    const idx = {};
+    for (let i=0;i<header.length;i++) idx[header[i].toLowerCase()] = i;
+    const get = (row, name)=> {
+      const i = idx[name];
+      if (i==null) return "";
+      return row[i]==null ? "" : String(row[i]);
+    };
+
+    const items=[];
+    for (let i=1;i<rows.length;i++){
+      const row=rows[i];
+      if (!row || row.length<2) continue;
+      items.push({
+        severity: normSev(get(row,"severity")),
+        tool: norm(get(row,"tool")),
+        title: norm(get(row,"title")) || norm(get(row,"message")) || norm(get(row,"rule_id")) || "Finding",
+        file: norm(get(row,"file")),
+        line: norm(get(row,"line")),
+      });
+    }
+    if (!items.length) throw new Error("CSV yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  function mapSarifLevelToSev(level){
+    const lv = (level||"").toLowerCase();
+    if (lv === "error") return "HIGH";
+    if (lv === "warning") return "MEDIUM";
+    if (lv === "note") return "LOW";
+    return "INFO";
+  }
+
+  async function loadFromSarif(rid, limit){
+    const r = await fetch(rfUrl(rid, PATH_SARIF), {cache:"no-store"});
+    if (!r.ok) throw new Error("SARIF http " + r.status);
+    const j = await r.json();
+    const items=[];
+    const runs = (j && j.runs) ? j.runs : [];
+    for (const run of runs){
+      const toolName = norm(run?.tool?.driver?.name) || "";
+      const results = run?.results || [];
+      for (const res of results){
+        const sev = normSev(res?.properties?.severity) || mapSarifLevelToSev(res?.level);
+        const msg = norm(res?.message?.text) || norm(res?.ruleId) || "Finding";
+        const loc0 = res?.locations?.[0]?.physicalLocation;
+        const file = norm(loc0?.artifactLocation?.uri) || "";
+        const line = String(loc0?.region?.startLine || "").trim();
+        items.push({severity: sev, tool: toolName || "", title: msg, file, line});
+      }
+    }
+    if (!items.length) throw new Error("SARIF yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  function pick(obj, keys){
+    for (const k of keys){
+      const v = obj?.[k];
+      if (v!=null && String(v).trim()!=="") return v;
+    }
+    return "";
+  }
+
+  async function loadFromUnifiedJson(rid, limit){
+    const r = await fetch(rfUrl(rid, PATH_JSON), {cache:"no-store"});
+    if (!r.ok) throw new Error("JSON http " + r.status);
+    const j = await r.json();
+    const arr = Array.isArray(j) ? j : (Array.isArray(j?.findings) ? j.findings : []);
+    if (!arr.length) throw new Error("JSON findings empty");
+
+    const items=[];
+    for (const f of arr){
+      const sev = normSev(pick(f, ["severity","normalized_severity"]) || pick(f?.meta, ["severity"]));
+      const tool = norm(pick(f, ["tool","source","engine"]) || pick(f?.meta, ["tool"]));
+      const title = norm(pick(f, ["title","message","rule_id","ruleId","id"]) || pick(f?.meta, ["title","message"])) || "Finding";
+      const file = norm(pick(f, ["file","path"]) || pick(f?.location, ["file","path"]) || pick(f?.meta, ["file","path"]));
+      const line = norm(pick(f, ["line"]) || pick(f?.location, ["line","startLine"]) || pick(f?.meta, ["line","startLine"]));
+      if (!title && !file) continue;
+      items.push({severity: sev || "INFO", tool, title, file, line});
+    }
+    if (!items.length) throw new Error("JSON yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  async function loadTop(limit=25){
+    const rid = await getRidLatest();
+    if (!rid) throw new Error("RID empty");
+    setStatus("Loading…");
+    console.log("[VSP][TOPFIND_V6] start rid=", rid);
+
+    try{
+      const a = await loadFromCSV(rid, limit);
+      renderRows(a); setStatus("Loaded: "+a.length+" (CSV)");
+      console.log("[VSP][TOPFIND_V6] ok via CSV", a.length);
+      return;
+    }catch(e1){ console.warn("[VSP][TOPFIND_V6] CSV failed:", e1?.message||e1); }
+
+    try{
+      const b = await loadFromSarif(rid, limit);
+      renderRows(b); setStatus("Loaded: "+b.length+" (SARIF)");
+      console.log("[VSP][TOPFIND_V6] ok via SARIF", b.length);
+      return;
+    }catch(e2){ console.warn("[VSP][TOPFIND_V6] SARIF failed:", e2?.message||e2); }
+
+    const c = await loadFromUnifiedJson(rid, limit);
+    renderRows(c); setStatus("Loaded: "+c.length+" (JSON)");
+    console.log("[VSP][TOPFIND_V6] ok via JSON", c.length);
+  }
+
+  function bind(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.();
+      const old = b2.textContent;
+      b2.disabled = true; b2.textContent = "Loading…";
+      try{ await loadTop(25); }
+      catch(e){ console.warn("[VSP][TOPFIND_V6] failed:", e); setStatus("Load failed: " + (e?.message||String(e))); }
+      finally{ b2.disabled = false; b2.textContent = old || "Load top findings (25)"; }
+    }, {capture:true});
+    console.log("[VSP][TOPFIND_V6] bound (button cloned last)");
+    return true;
+  }
+
+  function start(){
+    bind();
+    let tries=0;
+    const t=setInterval(()=>{ tries++; bind(); if (tries>=12) clearInterval(t); }, 700);
+    const obs = new MutationObserver(()=> bind());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else setTimeout(start, 0);
+})();
+
+
+
+
+/* VSP_P0_TOPFIND_EMERGENCY_JSON_ONLY_V1
+   Force override click handler (clone button) + load ONLY from findings_unified.json
+   This bypasses CSV/SARIF exporter issues completely.
+*/
+(()=> {
+  if (window.__vsp_topfind_emg_json_only_v1) return;
+  window.__vsp_topfind_emg_json_only_v1 = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const PATH_JSON  = "findings_unified.json";
+  const SEV_W = {CRITICAL:600,HIGH:500,MEDIUM:400,LOW:300,INFO:200,TRACE:100};
+  const norm  = (v)=> (v==null ? "" : String(v)).trim();
+  const upper = (v)=> norm(v).toUpperCase();
+
+  function normSev(v){
+    const x = upper(v);
+    if (SEV_W[x]) return x;
+    if (x==="ERROR") return "HIGH";
+    if (x==="WARNING"||x==="WARN") return "MEDIUM";
+    if (x==="NOTE") return "LOW";
+    if (x==="DEBUG") return "TRACE";
+    return x || "INFO";
+  }
+
+  async function getRidLatest(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    if (!r.ok) throw new Error("rid_latest_gate_root http " + r.status);
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  function rfUrl(rid, path){
+    return `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}`;
+  }
+
+  function findTopCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTbody(){
+    const card = findTopCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function renderRows(items){
+    const tb = findTbody();
+    if (!tb) throw new Error("cannot find <tbody>");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+
+  function takeTopN(items, n){
+    items.sort((a,b)=> (SEV_W[upper(b.severity)]||0) - (SEV_W[upper(a.severity)]||0));
+    if (items.length>n) items.length=n;
+    return items;
+  }
+
+  function pick(obj, keys){
+    for (const k of keys){
+      const v = obj?.[k];
+      if (v!=null && String(v).trim()!=="") return v;
+    }
+    return "";
+  }
+
+  async function loadFromUnifiedJson(rid, limit){
+    const r = await fetch(rfUrl(rid, PATH_JSON), {cache:"no-store"});
+    if (!r.ok) throw new Error("JSON http " + r.status);
+    const j = await r.json();
+
+    // if backend returns {"ok":false,"err":"not allowed"} -> treat as error
+    if (j && j.ok === False) {
+      throw new Error("not allowed: findings_unified.json");
+    }
+
+    const arr = Array.isArray(j) ? j : (Array.isArray(j?.findings) ? j.findings : []);
+    if (!arr.length) throw new Error("JSON findings empty");
+
+    const items=[];
+    for (const f of arr){
+      const sev = normSev(pick(f, ["severity","normalized_severity"]) || pick(f?.meta, ["severity"]) || pick(f?.properties, ["severity"]));
+      const tool = norm(pick(f, ["tool","source","engine"]) || pick(f?.meta, ["tool"]) || pick(f?.properties, ["tool"]));
+      const title = norm(pick(f, ["title","message","rule_id","ruleId","id"]) || pick(f?.meta, ["title","message"])) || "Finding";
+      const file = norm(pick(f, ["file","path"]) || pick(f?.location, ["file","path"]) || pick(f?.meta, ["file","path"]));
+      const line = norm(pick(f, ["line"]) || pick(f?.location, ["line","startLine"]) || pick(f?.meta, ["line","startLine"]));
+      if (!title && !file) continue;
+      items.push({severity: sev || "INFO", tool, title, file, line});
+    }
+    if (!items.length) throw new Error("JSON yielded 0 items");
+    return takeTopN(items, limit);
+  }
+
+  async function runLoad(limit=25){
+    const rid = await getRidLatest();
+    if (!rid) throw new Error("RID empty");
+    setStatus("Loading…");
+    console.log("[VSP][TOPFIND_EMG_JSON] start rid=", rid);
+    const items = await loadFromUnifiedJson(rid, limit);
+    renderRows(items);
+    setStatus("Loaded: " + items.length + " (JSON)");
+    console.log("[VSP][TOPFIND_EMG_JSON] OK items=", items.length);
+  }
+
+  function bind(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation?.();
+      const old = b2.textContent;
+      b2.disabled = true;
+      b2.textContent = "Loading…";
+      try{
+        await runLoad(25);
+      }catch(e){
+        console.warn("[VSP][TOPFIND_EMG_JSON] failed:", e);
+        setStatus("Load failed: " + (e?.message || String(e)));
+      }finally{
+        b2.disabled = false;
+        b2.textContent = old || "Load top findings (25)";
+      }
+    }, {capture:true});
+
+    console.log("[VSP][TOPFIND_EMG_JSON] bound (button cloned last)");
+    return true;
+  }
+
+  function start(){
+    bind();
+    let tries=0;
+    const t=setInterval(()=>{ tries++; bind(); if (tries>=15) clearInterval(t); }, 600);
+    const obs = new MutationObserver(()=> bind());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else setTimeout(start, 0);
+
+  // manual trigger from console:
+  window.vspTopFindEmgJsonLoad = ()=> runLoad(25);
+})();
+
+
+
+
+/* VSP_P0_TOPFIND_UI_CALL_API_V1
+   UI: click "Load top findings" -> GET /api/vsp/top_findings_v1?rid=<rid_latest>&limit=25
+   This avoids missing findings_unified.json (your current case).
+*/
+(()=> {
+  if (window.__vsp_topfind_ui_call_api_v1) return;
+  window.__vsp_topfind_ui_call_api_v1 = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const TOP_API = "/api/vsp/top_findings_v1";
+
+  function findTopCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTbody(){
+    const card = findTopCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function render(items){
+    const tb = findTbody();
+    if (!tb) throw new Error("cannot find tbody");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+  async function getRid(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  async function run(){
+    const rid = await getRid();
+    if (!rid) throw new Error("RID empty");
+    setStatus("Loading…");
+    const url = `${TOP_API}?rid=${encodeURIComponent(rid)}&limit=25`;
+    const r = await fetch(url, {cache:"no-store"});
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error(j && (j.err || "top_findings failed"));
+    render(j.items || []);
+    setStatus(`Loaded: ${(j.items||[]).length} (${j.source || "api"})`);
+    console.log("[VSP][TOPFIND_API_V1] ok rid=", rid, "source=", j.source, "n=", (j.items||[]).length);
+  }
+
+  function bind(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.();
+      const old = b2.textContent;
+      b2.disabled = true; b2.textContent = "Loading…";
+      try { await run(); }
+      catch(e){ console.warn("[VSP][TOPFIND_API_V1] failed:", e); setStatus("Load failed: " + (e?.message || String(e))); }
+      finally { b2.disabled = false; b2.textContent = old || "Load top findings (25)"; }
+    }, {capture:true});
+    console.log("[VSP][TOPFIND_API_V1] bound");
+    return true;
+  }
+
+  function start(){
+    bind();
+    let tries=0;
+    const t=setInterval(()=>{ tries++; bind(); if (tries>=12) clearInterval(t); }, 700);
+    const obs = new MutationObserver(()=> bind());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else setTimeout(start, 0);
+})();
+
+
+
+
+/* VSP_P0_TOPFIND_UI_CALL_API_V2
+   Override click -> call /api/vsp/top_findings_v2 (includes HTML fallback)
+*/
+(()=> {
+  if (window.__vsp_topfind_ui_call_api_v2) return;
+  window.__vsp_topfind_ui_call_api_v2 = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const TOP_API = "/api/vsp/top_findings_v2";
+
+  function findTopCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTbody(){
+    const card = findTopCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function render(items){
+    const tb = findTbody();
+    if (!tb) throw new Error("cannot find tbody");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+  async function getRid(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  async function run(){
+    const rid = await getRid();
+    if (!rid) throw new Error("RID empty");
+    setStatus("Loading…");
+    const url = `${TOP_API}?rid=${encodeURIComponent(rid)}&limit=25`;
+    const r = await fetch(url, {cache:"no-store"});
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error(j && (j.err || "top_findings failed"));
+    render(j.items || []);
+    setStatus(`Loaded: ${(j.items||[]).length} (${j.source || "api"})`);
+    console.log("[VSP][TOPFIND_API_V2] ok rid=", rid, "source=", j.source, "n=", (j.items||[]).length);
+  }
+
+  function bind(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.();
+      const old = b2.textContent;
+      b2.disabled = true; b2.textContent = "Loading…";
+      try { await run(); }
+      catch(e){ console.warn("[VSP][TOPFIND_API_V2] failed:", e); setStatus("Load failed: " + (e?.message || String(e))); }
+      finally { b2.disabled = false; b2.textContent = old || "Load top findings (25)"; }
+    }, {capture:true});
+    console.log("[VSP][TOPFIND_API_V2] bound");
+    return true;
+  }
+
+  function start(){
+    bind();
+    let tries=0;
+    const t=setInterval(()=>{ tries++; bind(); if (tries>=12) clearInterval(t); }, 700);
+    const obs = new MutationObserver(()=> bind());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else setTimeout(start, 0);
+})();
+
+
+
+
+/* VSP_P0_TOPFIND_UI_CALL_API_V3
+   Click -> /api/vsp/top_findings_v3 (scan any tool outputs)
+*/
+(()=> {
+  if (window.__vsp_topfind_ui_call_api_v3) return;
+  window.__vsp_topfind_ui_call_api_v3 = true;
+
+  const RID_LATEST = "/api/vsp/rid_latest_gate_root";
+  const TOP_API = "/api/vsp/top_findings_v3";
+
+  function findTopCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function findButton(){
+    const btns = Array.from(document.querySelectorAll("button"));
+    for (const b of btns){
+      const t = (b.textContent || "").toLowerCase().replace(/\s+/g," ").trim();
+      if (t.includes("load top findings")) return b;
+    }
+    return null;
+  }
+  function findTbody(){
+    const card = findTopCard();
+    if (card){
+      const tb = card.querySelector("tbody");
+      if (tb) return tb;
+    }
+    return document.querySelector("tbody");
+  }
+  function setStatus(msg){
+    const card = findTopCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+  function render(items){
+    const tb = findTbody();
+    if (!tb) throw new Error("cannot find tbody");
+    tb.innerHTML = "";
+    for (const it of items){
+      const tr = document.createElement("tr");
+      const tdSev = document.createElement("td");
+      const tdTool = document.createElement("td");
+      const tdTitle = document.createElement("td");
+      const tdLoc = document.createElement("td");
+      tdSev.textContent = it.severity || "";
+      tdTool.textContent = it.tool || "";
+      tdTitle.textContent = it.title || "";
+      tdLoc.textContent = (it.file ? it.file : "") + (it.line ? (":" + it.line) : "");
+      tr.appendChild(tdSev); tr.appendChild(tdTool); tr.appendChild(tdTitle); tr.appendChild(tdLoc);
+      tb.appendChild(tr);
+    }
+  }
+  async function getRid(){
+    const r = await fetch(RID_LATEST, {cache:"no-store"});
+    const j = await r.json();
+    return j && j.rid ? String(j.rid) : "";
+  }
+  async function run(){
+    const rid = await getRid();
+    if (!rid) throw new Error("RID empty");
+    setStatus("Loading…");
+    const url = `${TOP_API}?rid=${encodeURIComponent(rid)}&limit=25`;
+    const r = await fetch(url, {cache:"no-store"});
+    const j = await r.json();
+    if (!j || !j.ok) throw new Error(j && (j.err || "top_findings_v3 failed"));
+    render(j.items || []);
+    setStatus(`Loaded: ${(j.items||[]).length} (${j.source || "scan"})`);
+    console.log("[VSP][TOPFIND_API_V3] ok rid=", rid, "n=", (j.items||[]).length, "scanned=", j.scanned);
+  }
+
+  function bind(){
+    const btn = findButton();
+    if (!btn || !btn.parentNode) return false;
+    const b2 = btn.cloneNode(true);
+    btn.parentNode.replaceChild(b2, btn);
+    b2.addEventListener("click", async (ev)=> {
+      ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.();
+      const old = b2.textContent;
+      b2.disabled = true; b2.textContent = "Loading…";
+      try { await run(); }
+      catch(e){ console.warn("[VSP][TOPFIND_API_V3] failed:", e); setStatus("Load failed: " + (e?.message || String(e))); }
+      finally { b2.disabled = false; b2.textContent = old || "Load top findings (25)"; }
+    }, {capture:true});
+    console.log("[VSP][TOPFIND_API_V3] bound");
+    return true;
+  }
+
+  function start(){
+    bind();
+    let tries=0;
+    const t=setInterval(()=>{ tries++; bind(); if (tries>=12) clearInterval(t); }, 700);
+    const obs = new MutationObserver(()=> bind());
+    obs.observe(document.documentElement, {subtree:true, childList:true});
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else setTimeout(start, 0);
+})();
+
+
+
+
+/* VSP_P0_TOPFIND_COUNTS_ONLY_MSG_V1
+   If top_findings API returns ok:false => show clear message (not stuck loading).
+*/
+(()=> {
+  if (window.__vsp_topfind_counts_only_msg_v1) return;
+  window.__vsp_topfind_counts_only_msg_v1 = true;
+
+  function findTopCard(){
+    const nodes = Array.from(document.querySelectorAll("div,section,article"));
+    for (const n of nodes){
+      const t = (n.textContent || "").toLowerCase();
+      if (t.includes("top findings")) return n;
+    }
+    return null;
+  }
+  function setStatus(msg){
+    const card = findTopCard();
+    if (!card) return;
+    const cells = Array.from(card.querySelectorAll("td,div,span,p"));
+    for (const c of cells){
+      const t = (c.textContent || "").toLowerCase().trim();
+      if (t === "not loaded" || t === "loading..." || t === "loading…" || t.startsWith("load failed") || t.startsWith("loaded:")){
+        c.textContent = msg;
+        return;
+      }
+    }
+  }
+
+  // Hook fetch to detect ok:false from our endpoints and update UI status
+  const _fetch = window.fetch;
+  window.fetch = async (...args)=> {
+    const res = await _fetch(...args);
+    try{
+      const url = String(args[0]||"");
+      if (url.includes("/api/vsp/top_findings_v1") || url.includes("/api/vsp/top_findings_v2") || url.includes("/api/vsp/top_findings_v3")){
+        const clone = res.clone();
+        const j = await clone.json().catch(()=>null);
+        if (j && j.ok === false){
+          setStatus("No detailed findings saved for this run (counts-only). Re-run pipeline with raw findings export enabled.");
+        }
+      }
+    }catch(_){}
+    return res;
+  };
+})();
+
+
+
+
+/* VSP_P0_DISABLE_RID_RELOAD_LOOP_V1: prevent reload storms */
+(()=> {
+  try{
+    if (window.__vsp_disable_rid_reload_loop_v1) return;
+    window.__vsp_disable_rid_reload_loop_v1 = true;
+    const KEY="__vsp_rid_reload_once_v1";
+    const oldReload = window.location.reload.bind(window.location);
+    window.location.reload = function(){
+      try{
+        if (sessionStorage.getItem(KEY)) {
+          console.warn("[VSP] reload suppressed (loop guard)");
+          return;
+        }
+        sessionStorage.setItem(KEY,"1");
+      }catch(_){}
+      return oldReload();
+    };
+  }catch(_){}
+})();
+
+
+
+
+/* ===================== VSP_P1_FOLLOW_TOGGLE_UI_V1 ===================== */
+(()=> {
+  if (window.__vsp_p1_follow_toggle_ui_v1) return;
+  window.__vsp_p1_follow_toggle_ui_v1 = true;
+
+  function get(){ return (localStorage.getItem("vsp_follow_latest") ?? "on"); }
+  function set(v){ localStorage.setItem("vsp_follow_latest", v); }
+
+  function mount(){
+    try {
+      if (document.getElementById("vsp_follow_toggle_v1")) return;
+      const box = document.createElement("div");
+      box.id = "vsp_follow_toggle_v1";
+      box.style.cssText = "position:fixed;z-index:99999;top:10px;right:12px;background:rgba(10,18,32,.82);border:1px solid rgba(255,255,255,.10);backdrop-filter: blur(10px);padding:8px 10px;border-radius:12px;font:12px/1.2 system-ui,Segoe UI,Roboto;color:#cfe3ff;box-shadow:0 10px 30px rgba(0,0,0,.35)";
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-weight:700;letter-spacing:.2px">Follow latest</div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+            <input id="vsp_follow_toggle_chk_v1" type="checkbox" style="width:14px;height:14px;accent-color:#3aa0ff">
+            <span id="vsp_follow_toggle_txt_v1" style="opacity:.9">ON</span>
+          </label>
+        </div>
+      `;
+      document.body.appendChild(box);
+
+      const chk = document.getElementById("vsp_follow_toggle_chk_v1");
+      const txt = document.getElementById("vsp_follow_toggle_txt_v1");
+
+      const cur = get();
+      chk.checked = (cur !== "off");
+      txt.textContent = chk.checked ? "ON" : "OFF";
+
+      chk.addEventListener("change", ()=> {
+        const v = chk.checked ? "on" : "off";
+        set(v);
+        txt.textContent = chk.checked ? "ON" : "OFF";
+        try { window.dispatchEvent(new CustomEvent("vsp:follow_latest_changed",{detail:{value:v}})); } catch(e) {}
+      }, {passive:true});
+    } catch(e) {}
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
+})();
+/* ===================== /VSP_P1_FOLLOW_TOGGLE_UI_V1 ===================== */
+
+
+
+
+/* ===================== VSP_P1_NOISE_PANEL_EXPORT_V1 ===================== */
+(()=> {
+  if (window.__vsp_p1_noise_export_v1) return;
+  window.__vsp_p1_noise_export_v1 = true;
+
+  function safeJson(v){ try { return JSON.stringify(v, null, 2); } catch(e){ return String(v); } }
+
+  function counts(items){
+    const c = { "404":0,"403":0,"500":0,"JS":0,"OTHER":0, total:0 };
+    if (!Array.isArray(items)) return c;
+    for (const it of items){
+      c.total++;
+      const st = (it && (it.status||it.code||it.http)) ? String(it.status||it.code||it.http) : "";
+      const typ = (it && (it.type||it.kind)) ? String(it.type||it.kind) : "";
+      if (st === "404") c["404"]++;
+      else if (st === "403") c["403"]++;
+      else if (st === "500") c["500"]++;
+      else if (typ.toLowerCase().includes("js") || (it && it.msg && String(it.msg).toLowerCase().includes("js"))) c["JS"]++;
+      else c["OTHER"]++;
+    }
+    return c;
+  }
+
+  function mount(){
+    const panel = document.querySelector("[data-vsp-noise-panel],#vsp_noise_panel,.vsp-noise-panel");
+    if (!panel) return;
+
+    if (panel.querySelector("#vsp_noise_tools_v1")) return;
+    const bar = document.createElement("div");
+    bar.id = "vsp_noise_tools_v1";
+    bar.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0;padding:6px 0;border-top:1px solid rgba(255,255,255,.08)";
+    bar.innerHTML = `
+      <button id="vsp_noise_copy_v1" style="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(30,60,110,.35);color:#d8ecff;cursor:pointer">Copy JSON</button>
+      <button id="vsp_noise_clear_v1" style="padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(80,20,20,.35);color:#ffd7d7;cursor:pointer">Clear</button>
+      <span id="vsp_noise_counts_v1" style="opacity:.85;font:12px/1.2 system-ui,Segoe UI,Roboto"></span>
+    `;
+    panel.appendChild(bar);
+
+    function refreshCounts(){
+      const b = window.__vsp_noise_items || window.__vsp_noise_log || window.__vsp_noise_buffer;
+      const its = Array.isArray(b) ? b : (Array.isArray(b?.items) ? b.items : []);
+      const c = counts(its);
+      const el = document.getElementById("vsp_noise_counts_v1");
+      if (el) el.textContent = `total=${c.total} | 404=${c["404"]} 403=${c["403"]} 500=${c["500"]} JS=${c["JS"]} other=${c["OTHER"]}`;
+    }
+    refreshCounts();
+
+    document.getElementById("vsp_noise_copy_v1")?.addEventListener("click", async ()=>{
+      const b = window.__vsp_noise_items || window.__vsp_noise_log || window.__vsp_noise_buffer;
+      const its = Array.isArray(b) ? b : (Array.isArray(b?.items) ? b.items : b);
+      const text = safeJson(its ?? []);
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch(e) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText="position:fixed;left:-10000px;top:-10000px";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch(_){}
+        ta.remove();
+      }
+      refreshCounts();
+    }, {passive:true});
+
+    document.getElementById("vsp_noise_clear_v1")?.addEventListener("click", ()=>{
+      if (Array.isArray(window.__vsp_noise_items)) window.__vsp_noise_items.length = 0;
+      if (Array.isArray(window.__vsp_noise_log)) window.__vsp_noise_log.length = 0;
+      if (Array.isArray(window.__vsp_noise_buffer)) window.__vsp_noise_buffer.length = 0;
+      if (window.__vsp_noise_buffer && Array.isArray(window.__vsp_noise_buffer.items)) window.__vsp_noise_buffer.items.length = 0;
+      refreshCounts();
+      try { window.dispatchEvent(new CustomEvent("vsp:noise_cleared",{detail:{ok:true}})); } catch(e){}
+    }, {passive:true});
+
+    window.addEventListener("vsp:rid_changed", refreshCounts);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
+})();
+/* ===================== /VSP_P1_NOISE_PANEL_EXPORT_V1 ===================== */
+
+
+
+
+/* ===================== VSP_P1_VSP5_SOFTREFRESH_SEQ_BADGE_V1F ===================== */
+(()=>{
+  if (window.__vsp_p1_vsp5_softrefresh_seq_badge_v1f) return;
+  window.__vsp_p1_vsp5_softrefresh_seq_badge_v1f = true;
+
+  function followOn(){
+    try {
+      return (localStorage.getItem("vsp_follow_latest") ?? "on") !== "off";
+    } catch(e) {
+      return true;
+    }
+  }
+
+  function ensureBadge(){
+    let el = document.getElementById("vsp_refresh_badge_v1f");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "vsp_refresh_badge_v1f";
+    el.style.cssText = "position:fixed;z-index:99998;top:52px;right:12px;display:none;background:rgba(10,18,32,.82);border:1px solid rgba(255,255,255,.10);backdrop-filter: blur(10px);padding:6px 10px;border-radius:999px;font:12px/1.2 system-ui,Segoe UI,Roboto;color:#cfe3ff;box-shadow:0 10px 30px rgba(0,0,0,.35)";
+    el.textContent = "Updating…";
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showBadge(msg){
+    try {
+      const el = ensureBadge();
+      el.textContent = msg || "Updating…";
+      el.style.display = "block";
+    } catch(e) {}
+  }
+  function hideBadge(){
+    try {
+      const el = document.getElementById("vsp_refresh_badge_v1f");
+      if (el) el.style.display = "none";
+    } catch(e) {}
+  }
+
+  async function doRefreshSequence(newRid, prevRid){
+    // best effort: call known functions if present
+    try { await refreshFromGateSummary(); } catch(e) {}
+    try { await loadTopFindings(); } catch(e) {}
+    try { render(); } catch(e) {}
+  }
+
+  // Override soft refresh apply with explicit sequence for /vsp5
+  const __old = window.__vsp_soft_refresh_apply;
+  window.__vsp_soft_refresh_apply = function(newRid, prevRid){
+    try {
+      if (!followOn()) return false; // when OFF -> allow fallback behavior (or pinned mode in P2)
+      if (!newRid) return false;
+      if (newRid === prevRid) return true;
+
+      // update state/global
+      try { window.__vsp_rid_prev = prevRid || window.__vsp_rid_prev || null; } catch(e) {}
+      try { window.__vsp_rid_latest = newRid; } catch(e) {}
+      try { if (typeof state === "object" && state) state.rid = newRid; } catch(e) {}
+
+      // update rid labels if any
+      try {
+        const ids = ["rid_txt","rid_val","rid_text","rid_label"];
+        for (const id of ids) {
+          const el = document.getElementById(id);
+          if (el) el.textContent = newRid;
+        }
+      } catch(e) {}
+
+      // fire refresh async
+      showBadge("Updating: " + newRid);
+      Promise.resolve(doRefreshSequence(newRid, prevRid))
+        .catch(()=>{})
+        .finally(()=>{ setTimeout(hideBadge, 350); });
+      return true;
+    } catch(e) {
+      // fallback to old handler if present
+      try { return __old ? __old(newRid, prevRid) : false; } catch(_) { return false; }
+    }
+  };
+
+  // Also respond to rid_changed events without recursion
+  window.addEventListener("vsp:rid_changed", (ev)=>{
+    try {
+      const d = ev && ev.detail ? ev.detail : null;
+      const rid = d && d.rid ? d.rid : (window.__vsp_rid_latest||null);
+      const prev = d && d.prev ? d.prev : (window.__vsp_rid_prev||null);
+      window.__vsp_soft_refresh_apply && window.__vsp_soft_refresh_apply(rid, prev);
+    } catch(e) {}
+  }, {passive:true});
+})();
+/* ===================== /VSP_P1_VSP5_SOFTREFRESH_SEQ_BADGE_V1F ===================== */
+
+
+
+
+/* ===================== VSP_P0_TOPFIND_UI_RENDER_V4_SEMGREP_V1 ===================== */
+(()=> {
+  try{
+    if (window.__vsp_p0_topfind_ui_v4) return;
+    window.__vsp_p0_topfind_ui_v4 = true;
+
+    const log=(...a)=>console.log("[VSP][TOPFIND_UI_V4]",...a);
+
+    function qsAll(sel, root=document){ try{return Array.from(root.querySelectorAll(sel));}catch(_){return [];} }
+    function textOf(el){ return (el && (el.textContent||"")).trim(); }
+
+    function findButton(){
+      const btns = qsAll("button");
+      for (const b of btns){
+        const t = textOf(b).toLowerCase();
+        if (t.includes("load") && t.includes("top") && t.includes("finding")) return b;
+        if (t.includes("top findings")) return b;
+      }
+      return null;
+    }
+
+    function findTopFindTable(){
+      // best-effort: find table having headers Severity/Tool/Title
+      const tables = qsAll("table");
+      for (const tb of tables){
+        const ths = qsAll("th", tb).map(x=>textOf(x).toLowerCase());
+        if (ths.includes("severity") && ths.includes("tool") && ths.includes("title")) return tb;
+      }
+      // fallback: first table in section containing "Top findings"
+      const heads = qsAll("*").filter(el => textOf(el).toLowerCase()==="top findings (sample)" || textOf(el).toLowerCase().startsWith("top findings"));
+      for (const h of heads){
+        // search downwards
+        const sec = h.closest("section,div") || h.parentElement;
+        if (sec){
+          const t = sec.querySelector("table");
+          if (t) return t;
+        }
+      }
+      return tables[0] || null;
+    }
+
+    function ensureTbody(table){
+      if (!table) return null;
+      let tb = table.querySelector("tbody");
+      if (!tb){
+        tb = document.createElement("tbody");
+        table.appendChild(tb);
+      }
+      return tb;
+    }
+
+    function setStatus(msg){
+      // show under button if possible
+      let el = document.getElementById("vsp_topfind_status_v4");
+      const btn = findButton();
+      if (!el && btn){
+        el = document.createElement("span");
+        el.id = "vsp_topfind_status_v4";
+        el.style.marginLeft = "10px";
+        el.style.opacity = "0.85";
+        el.style.fontSize = "12px";
+        btn.parentElement && btn.parentElement.appendChild(el);
+      }
+      if (el) el.textContent = msg;
+    }
+
+    async function getLatestRid(){
+      const r = await fetch("/api/vsp/rid_latest_gate_root", {cache:"no-store"});
+      const j = await r.json();
+      return j && j.rid ? j.rid : "";
+    }
+
+    function rowHtml(it){
+      const sev = (it.severity||"INFO").toString();
+      const tool = (it.tool||"").toString();
+      const title = (it.title||"").toString();
+      const loc = ((it.file||"") + (it.line? (":" + it.line) : "")).trim();
+      return `<tr>
+        <td style="white-space:nowrap">${sev}</td>
+        <td style="white-space:nowrap">${tool}</td>
+        <td>${title}</td>
+        <td style="white-space:nowrap">${loc}</td>
+      </tr>`;
+    }
+
+    async function loadTopFindings(limit=25){
+      setStatus("Loading…");
+      const rid = await getLatestRid();
+      if (!rid){
+        setStatus("No RID");
+        return;
+      }
+      const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=${encodeURIComponent(limit)}`;
+      log("fetch", url);
+      const res = await fetch(url, {cache:"no-store"});
+      const j = await res.json();
+      if (!j || !j.ok){
+        setStatus(`No data (${(j&&j.err)||"err"})`);
+        log("no data", j);
+        return;
+      }
+      const items = Array.isArray(j.items) ? j.items : [];
+      const table = findTopFindTable();
+      const tb = ensureTbody(table);
+      if (!tb){
+        setStatus(`Loaded ${items.length} but no table`);
+        return;
+      }
+      tb.innerHTML = items.map(rowHtml).join("");
+      setStatus(`Loaded ${items.length} • ${j.source||"v4"}`);
+      log("rendered", items.length, "rid", rid);
+    }
+
+    function bind(){
+      const btn = findButton();
+      if (!btn){
+        log("button not found; retry");
+        return false;
+      }
+      if (btn.__vspBoundV4) return true;
+      btn.__vspBoundV4 = true;
+      btn.addEventListener("click", (e)=>{ e.preventDefault(); loadTopFindings(25); });
+      setStatus("Ready");
+      log("bound button");
+      return true;
+    }
+
+    function boot(){
+      if (bind()) return;
+      let n=0;
+      const t=setInterval(()=>{
+        n++;
+        if (bind() || n>40) clearInterval(t);
+      }, 250);
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+    else boot();
+
+  }catch(e){
+    console.error("[VSP][TOPFIND_UI_V4] fatal", e);
+  }
+})();
+ /* ===================== /VSP_P0_TOPFIND_UI_RENDER_V4_SEMGREP_V1 ===================== */
+
+
+
+/* ===================== VSP_P0_TOPFIND_UI_CAPTURE_PANEL_V2 ===================== */
+(()=> {
+  try{
+    if (window.__vsp_topfind_ui_panel_v2) return;
+    window.__vsp_topfind_ui_panel_v2 = true;
+
+    const log=(...a)=>console.log("[VSP][TOPFIND_PANEL_V2]",...a);
+    const norm=(x)=>String(x||"").toLowerCase().replace(/\s+/g," ").trim();
+
+    function findTopFindContainer(){
+      // Locate a block that contains the "Top findings" title
+      const all = Array.from(document.querySelectorAll("h1,h2,h3,h4,div,span,strong,b"));
+      for (const el of all){
+        const t = norm(el.textContent);
+        if (t.startsWith("top findings")){
+          return el.closest("section,div") || el.parentElement || document.body;
+        }
+      }
+      return document.body;
+    }
+
+    function ensurePanel(){
+      let p = document.getElementById("vsp_topfind_panel_v2");
+      if (p) return p;
+      const host = findTopFindContainer();
+      p = document.createElement("div");
+      p.id="vsp_topfind_panel_v2";
+      p.style.marginTop="10px";
+      p.style.padding="10px";
+      p.style.border="1px solid rgba(255,255,255,0.08)";
+      p.style.borderRadius="10px";
+      p.style.background="rgba(255,255,255,0.03)";
+      p.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;">
+          <div style="font-weight:600;opacity:.9">Top findings (live)</div>
+          <div id="vsp_topfind_status_v2" style="font-size:12px;opacity:.75">Ready</div>
+        </div>
+        <div style="overflow:auto;margin-top:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="opacity:.75;text-align:left">
+                <th style="padding:6px 8px;white-space:nowrap">Severity</th>
+                <th style="padding:6px 8px;white-space:nowrap">Tool</th>
+                <th style="padding:6px 8px;">Title</th>
+                <th style="padding:6px 8px;white-space:nowrap">Location</th>
+              </tr>
+            </thead>
+            <tbody id="vsp_topfind_tbody_v2">
+              <tr><td colspan="4" style="padding:8px;opacity:.7">Not loaded</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      host.appendChild(p);
+      return p;
+    }
+
+    function setStatus(msg){
+      ensurePanel();
+      const el=document.getElementById("vsp_topfind_status_v2");
+      if (el) el.textContent=msg;
+    }
+
+    async function getLatestRid(){
+      const r = await fetch("/api/vsp/rid_latest_gate_root", {cache:"no-store"});
+      const j = await r.json();
+      return (j && j.rid) ? j.rid : "";
+    }
+
+    function esc(s){ return String(s||"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+    function render(items){
+      ensurePanel();
+      const tb=document.getElementById("vsp_topfind_tbody_v2");
+      if (!tb) return;
+      if (!items.length){
+        tb.innerHTML = `<tr><td colspan="4" style="padding:8px;opacity:.7">No findings</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.map(it=>{
+        const sev=esc(it.severity||"INFO");
+        const tool=esc(it.tool||"");
+        const title=esc(it.title||"");
+        const loc=esc(((it.file||"") + (it.line? (":"+it.line):"")).trim());
+        return `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+          <td style="padding:6px 8px;white-space:nowrap">${sev}</td>
+          <td style="padding:6px 8px;white-space:nowrap">${tool}</td>
+          <td style="padding:6px 8px">${title}</td>
+          <td style="padding:6px 8px;white-space:nowrap">${loc}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    async function load(limit=25){
+      setStatus("Loading…");
+      const rid = await getLatestRid();
+      if (!rid){ setStatus("No RID"); return; }
+      const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=${encodeURIComponent(limit)}`;
+      log("fetch", url);
+      const res = await fetch(url, {cache:"no-store"});
+      const j = await res.json();
+      if (!j || !j.ok){
+        setStatus(`No data (${(j&&j.err)||"err"})`);
+        log("no data", j);
+        render([]);
+        return;
+      }
+      const items = Array.isArray(j.items) ? j.items : [];
+      render(items);
+      setStatus(`Loaded ${items.length} • ${j.source||"v4"} • ${rid}`);
+    }
+
+    function isLoadTopFindingsClick(ev){
+      // capture any element clicked (button/div/a/span) containing the text
+      const path = (ev.composedPath && ev.composedPath()) || [];
+      for (const el of path){
+        if (!el || !el.textContent) continue;
+        const t = norm(el.textContent);
+        if (t.includes("load top findings")) return true;
+      }
+      return false;
+    }
+
+    // Capturing listener (beats other handlers)
+    document.addEventListener("click", (ev)=>{
+      try{
+        if (isLoadTopFindingsClick(ev)){
+          ev.preventDefault();
+          ev.stopPropagation();
+          ensurePanel();
+          load(25);
+        }
+      }catch(e){ console.error("[VSP][TOPFIND_PANEL_V2] click err", e); }
+    }, true);
+
+    // Ensure panel is visible even before click
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensurePanel);
+    else ensurePanel();
+
+    log("installed capture+panel");
+  }catch(e){
+    console.error("[VSP][TOPFIND_PANEL_V2] fatal", e);
+  }
+})();
+/* ===================== /VSP_P0_TOPFIND_UI_CAPTURE_PANEL_V2 ===================== */
+
+
+/* ===================== VSP_P0_TOPFIND_OVERLAY_AUTOLOAD_V3 ===================== */
+(()=> {
+  try{
+    if (window.__vsp_topfind_overlay_v3) return;
+    window.__vsp_topfind_overlay_v3 = true;
+
+    const log=(...a)=>console.log("[VSP][TOPFIND_OVERLAY_V3]",...a);
+
+    function esc(s){ return String(s||"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+    function ensureOverlay(){
+      let box = document.getElementById("vsp_topfind_overlay_v3");
+      if (box) return box;
+      box = document.createElement("div");
+      box.id = "vsp_topfind_overlay_v3";
+      box.style.position = "fixed";
+      box.style.right = "14px";
+      box.style.bottom = "14px";
+      box.style.width = "560px";
+      box.style.maxWidth = "92vw";
+      box.style.maxHeight = "52vh";
+      box.style.overflow = "auto";
+      box.style.zIndex = "2147483647";
+      box.style.background = "rgba(10,14,26,0.96)";
+      box.style.border = "1px solid rgba(255,255,255,0.12)";
+      box.style.borderRadius = "14px";
+      box.style.boxShadow = "0 10px 30px rgba(0,0,0,0.45)";
+      box.style.color = "rgba(255,255,255,0.92)";
+      box.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      box.style.fontSize = "13px";
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;position:sticky;top:0;background:rgba(10,14,26,0.98);backdrop-filter: blur(6px);border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="font-weight:700">Top Findings (overlay)</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="vsp_topfind_overlay_status_v3" style="opacity:.75;font-size:12px">Ready</span>
+            <button id="vsp_topfind_overlay_reload_v3" style="cursor:pointer;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.9);padding:6px 10px;border-radius:10px">Reload</button>
+            <button id="vsp_topfind_overlay_close_v3" style="cursor:pointer;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.9);padding:6px 10px;border-radius:10px">Close</button>
+          </div>
+        </div>
+        <div style="padding:10px 12px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="opacity:.75;text-align:left">
+                <th style="padding:6px 8px;white-space:nowrap">Sev</th>
+                <th style="padding:6px 8px;white-space:nowrap">Tool</th>
+                <th style="padding:6px 8px;">Title</th>
+                <th style="padding:6px 8px;white-space:nowrap">Loc</th>
+              </tr>
+            </thead>
+            <tbody id="vsp_topfind_overlay_tbody_v3">
+              <tr><td colspan="4" style="padding:8px;opacity:.7">Not loaded</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      document.body.appendChild(box);
+
+      document.getElementById("vsp_topfind_overlay_close_v3")?.addEventListener("click", ()=> box.remove());
+      document.getElementById("vsp_topfind_overlay_reload_v3")?.addEventListener("click", ()=> load(25));
+
+      return box;
+    }
+
+    function setStatus(msg){
+      ensureOverlay();
+      const el = document.getElementById("vsp_topfind_overlay_status_v3");
+      if (el) el.textContent = msg;
+    }
+
+    function render(items){
+      ensureOverlay();
+      const tb = document.getElementById("vsp_topfind_overlay_tbody_v3");
+      if (!tb) return;
+      if (!items || !items.length){
+        tb.innerHTML = `<tr><td colspan="4" style="padding:8px;opacity:.7">No findings</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.map(it=>{
+        const sev=esc(it.severity||"INFO");
+        const tool=esc(it.tool||"");
+        const title=esc(it.title||"");
+        const loc=esc(((it.file||"") + (it.line? (":"+it.line):"")).trim());
+        return `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
+          <td style="padding:6px 8px;white-space:nowrap">${sev}</td>
+          <td style="padding:6px 8px;white-space:nowrap">${tool}</td>
+          <td style="padding:6px 8px">${title}</td>
+          <td style="padding:6px 8px;white-space:nowrap">${loc}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    async function getLatestRid(){
+      const r = await fetch("/api/vsp/rid_latest_gate_root", {cache:"no-store"});
+      const j = await r.json();
+      return (j && j.rid) ? j.rid : "";
+    }
+
+    async function load(limit=25){
+      try{
+        ensureOverlay();
+        setStatus("Loading…");
+        const rid = await getLatestRid();
+        if (!rid){ setStatus("No RID"); return; }
+        const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=${encodeURIComponent(limit)}`;
+        log("fetch", url);
+        const res = await fetch(url, {cache:"no-store"});
+        const j = await res.json();
+        if (!j || !j.ok){
+          setStatus(`No data (${(j&&j.err)||"err"})`);
+          log("no data", j);
+          render([]);
+          return;
+        }
+        render(Array.isArray(j.items)?j.items:[]);
+        setStatus(`Loaded ${(j.items||[]).length} • ${j.source||"v4"} • ${rid}`);
+      }catch(e){
+        console.error("[VSP][TOPFIND_OVERLAY_V3] load err", e);
+        setStatus("Error (see console)");
+      }
+    }
+
+    // Boot: show overlay + auto load once
+    function boot(){
+      ensureOverlay();
+      load(25);
+      log("boot ok");
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+    else boot();
+
+  }catch(e){
+    console.error("[VSP][TOPFIND_OVERLAY_V3] fatal", e);
+  }
+})();
+/* ===================== /VSP_P0_TOPFIND_OVERLAY_AUTOLOAD_V3 ===================== */

@@ -1,0 +1,9 @@
+== HARD RESET 8910 ==
+[PIDFILE] out_ci/ui_8910.pid => 211203
+== kill PID from pidfile ==
+== pkill gunicorn 8910 ==
+== remove stale pidfile ==
+== start 8910 ==
+== check listen ==
+LISTEN 0      2048       127.0.0.1:8910      0.0.0.0:*    users:(("gunicorn",pid=213032,fd=7),("gunicorn",pid=213031,fd=7),("gunicorn",pid=213029,fd=7))
+== boot log tail ==

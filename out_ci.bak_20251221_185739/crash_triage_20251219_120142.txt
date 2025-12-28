@@ -1,0 +1,18 @@
+== TS=20251219_120142 BASE=http://127.0.0.1:8910 ==
+== START loop ==
+1 000ERR
+== BREAK on i=1 code=000ERR ==
+
+== ss -ltnp | grep 8910 ==
+
+== ps grep gunicorn ==
+root        2555  0.0  0.0  32980 10488 ?        Ss   Thg 1217   0:20 /usr/local/bin/python3.12 /usr/local/bin/gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --graceful-timeout 15 --access-logfile - --error-logfile - --log-level info
+root        2634  0.0  0.0 727580 17888 ?        Sl   Thg 1217   0:44 /usr/local/bin/python3.12 /usr/local/bin/gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --graceful-timeout 15 --access-logfile - --error-logfile - --log-level info
+root        2635  0.0  0.0 727584 17776 ?        Sl   Thg 1217   0:33 /usr/local/bin/python3.12 /usr/local/bin/gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --graceful-timeout 15 --access-logfile - --error-logfile - --log-level info
+test      662599  0.0  0.0  12188  2340 pts/2    S+   12:01   0:00 grep -E gunicorn|wsgi_vsp_ui_gateway
+
+== dmesg OOM tail ==
+
+== tail boot/error/access ==
+---
+---

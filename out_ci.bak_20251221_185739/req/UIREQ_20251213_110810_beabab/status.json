@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "req_id": "UIREQ_20251213_110810_beabab",
+  "status": "RUNNING",
+  "final": false,
+  "gate": "UNKNOWN",
+  "created_at": "2025-12-13T04:08:10Z",
+  "started_at": "2025-12-13T04:08:10Z",
+  "finished_at": null,
+  "exit_code": null,
+  "ci_run_dir": "",
+  "vsp_run_id": "",
+  "flag": {
+    "has_findings": null
+  },
+  "severity": {},
+  "reasons": [],
+  "sync": {
+    "done": false,
+    "ok": null
+  },
+  "tail": "[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4\n[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER\n[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data/SECURITY_BUNDLE\n[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4\n[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251213_110810\n[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_110810\n[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===\n[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh\n"
+}

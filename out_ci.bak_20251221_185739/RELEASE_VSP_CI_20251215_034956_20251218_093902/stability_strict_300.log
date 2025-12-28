@@ -1,0 +1,10 @@
+== VSP UI STABILITY STRICT+LOCK P0 V2 ==
+[BASE]=http://127.0.0.1:8910 [N]=300 [LOCK]=/tmp/vsp_ui_8910.lock
+[PID0]=228707
+== RESULT ==
+[OK] stable: no non-200 + no restart in 300 rounds
+== VSP UI STABILITY STRICT+LOCK P0 V2 ==
+[BASE]=http://127.0.0.1:8910 [N]=300 [LOCK]=/tmp/vsp_ui_8910.lock
+[PID0]=262384
+== RESULT ==
+[OK] stable: no non-200 + no restart in 300 rounds

@@ -1,0 +1,9 @@
+body { margin:0; font-family:Arial,sans-serif; background:#f4fdf9; color:#111; }
+.sidebar { width:220px; background:#2e7d32; color:white; height:100vh; position:fixed; }
+.sidebar .logo { padding:20px; font-size:20px; font-weight:bold; text-align:center; border-bottom:1px solid #1b5e20; }
+.sidebar nav a { display:block; padding:14px 18px; color:white; text-decoration:none; }
+.sidebar nav a:hover { background:#1b5e20; }
+.main { margin-left:220px; padding:24px; }
+.card { background:#fff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.12); padding:18px; margin-bottom:24px; }
+button { background:#4caf50; border:none; padding:10px 20px; color:white; font-size:14px; border-radius:4px; cursor:pointer; }
+button:hover { background:#388e3c; }

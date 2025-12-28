@@ -1,0 +1,609 @@
+(function () {
+  const state = {
+    charts: {
+      severityDonut: null,
+      trend: null,
+    },
+    datasource: {
+      limit: 50,
+      offset: 0,
+      currentTool: "",
+      currentSeverity: "",
+      currentSearch: "",
+      total: 0,
+      runId: null,
+    },
+    settings: null,
+  };
+
+  function showToast(message) {
+    const el = document.getElementById("vsp-toast");
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add("visible");
+    setTimeout(() => {
+      el.classList.remove("visible");
+    }, 2800);
+  }
+
+  function switchTab(tabName) {
+    document.querySelectorAll(".vsp-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll(".vsp-tab-pane").forEach((pane) => {
+      pane.classList.toggle("active", pane.id === "tab-" + tabName);
+    });
+  }
+
+  async function fetchJSON(url, options) {
+    const res = await fetch(url, options || {});
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status + " for " + url);
+    }
+    return res.json();
+  }
+
+  /* SETTINGS */
+
+  async function loadSettings() {
+    try {
+      const data = await fetchJSON("/api/vsp/settings");
+      state.settings = data || {};
+
+      const envChip = document.getElementById("vsp-env-chip");
+      const srcChip = document.getElementById("vsp-src-chip");
+      if (envChip) envChip.textContent = "PROFILE: " + (data.profile || "--");
+      if (srcChip) srcChip.textContent = "SRC: " + (data.src_path || "--");
+
+      const envGrid = document.getElementById("vsp-env-grid");
+      if (envGrid) {
+        envGrid.innerHTML = "";
+        const rows = [
+          ["Profile", data.profile || "--"],
+          ["Source path", data.src_path || "--"],
+          ["Last run ID", data.last_run_id || "--"],
+          ["Last run time", data.ts_last_run || "--"],
+        ];
+        rows.forEach(([label, value]) => {
+          const div = document.createElement("div");
+          div.className = "vsp-env-item";
+          div.innerHTML = `
+            <div class="vsp-env-label">${label}</div>
+            <div class="vsp-env-value">${value || "--"}</div>
+          `;
+          envGrid.appendChild(div);
+        });
+      }
+
+      const toolsTbody = document.getElementById("vsp-tools-tbody");
+      if (toolsTbody) {
+        toolsTbody.innerHTML = "";
+        const toolDesc = {
+          gitleaks: "Secrets scanning",
+          semgrep: "SAST (rules-based)",
+          kics: "IaC misconfig",
+          codeql: "CodeQL (advanced)",
+          bandit: "Python SAST",
+          trivy_fs: "FS scan (misconfig/secrets)",
+          syft: "SBOM generator",
+          grype: "Vuln from SBOM",
+        };
+        const tools = data.tools || {};
+        const order = [
+          "gitleaks",
+          "semgrep",
+          "kics",
+          "codeql",
+          "bandit",
+          "trivy_fs",
+          "syft",
+          "grype",
+        ];
+        order.forEach((key) => {
+          const tr = document.createElement("tr");
+          const enabled = tools[key] === true;
+          tr.innerHTML = `
+            <td>${key}</td>
+            <td>${toolDesc[key] || ""}</td>
+            <td>${enabled ? "ENABLED" : "DISABLED"}</td>
+          `;
+          toolsTbody.appendChild(tr);
+        });
+      }
+    } catch (e) {
+      console.warn("[VSP] Load settings error:", e);
+      showToast("Cannot load settings.");
+    }
+  }
+
+  /* DASHBOARD */
+
+  function buildSeverityArray(sev) {
+    return [
+      sev.CRITICAL || 0,
+      sev.HIGH || 0,
+      sev.MEDIUM || 0,
+      sev.LOW || 0,
+      sev.INFO || 0,
+      sev.TRACE || 0,
+    ];
+  }
+
+  function updateDashboardKpi(data) {
+    const sev = data.severity || {};
+    const total = data.total_findings || 0;
+    const infoTrace = (sev.INFO || 0) + (sev.TRACE || 0);
+
+    const map = {
+      "kpi-total": total,
+      "kpi-critical": sev.CRITICAL || 0,
+      "kpi-high": sev.HIGH || 0,
+      "kpi-medium": sev.MEDIUM || 0,
+      "kpi-low": sev.LOW || 0,
+      "kpi-info-trace": infoTrace,
+    };
+
+    Object.keys(map).forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = map[id];
+    });
+
+    const subtitle = document.getElementById("vsp-last-run-subtitle");
+    const meta = document.getElementById("vsp-last-run-meta");
+    if (subtitle) {
+      subtitle.textContent = data.run_id
+        ? "Last run: " + data.run_id
+        : "No run yet.";
+    }
+    if (meta) {
+      meta.textContent = data.ts ? data.ts : "";
+    }
+  }
+
+  function renderByToolList(byTool) {
+    const listEl = document.getElementById("vsp-bytool-list");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+    const entries = Object.entries(byTool || {});
+    if (!entries.length) {
+      const li = document.createElement("li");
+      li.textContent = "No data.";
+      listEl.appendChild(li);
+      return;
+    }
+    entries
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([tool, count]) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${tool}</span><span>${count}</span>`;
+        listEl.appendChild(li);
+      });
+  }
+
+  function renderSeverityDonut(data) {
+    const ctx = document.getElementById("chart-severity-donut");
+    if (!ctx) return;
+
+    const sev = data.severity || {};
+    const values = buildSeverityArray(sev);
+    const labels = ["CRIT", "HIGH", "MED", "LOW", "INFO", "TRACE"];
+
+    if (state.charts.severityDonut) {
+      state.charts.severityDonut.destroy();
+    }
+
+    state.charts.severityDonut = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [
+          {
+            data: values,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "68%",
+        plugins: {
+          legend: {
+            display: true,
+            position: "right",
+            labels: {
+              font: { size: 10 },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderTrendChart(extra) {
+    const ctx = document.getElementById("chart-trend");
+    if (!ctx) return;
+
+    const rows = (extra && extra.trend && Array.isArray(extra.trend)) ? extra.trend : [];
+    if (state.charts.trend) {
+      state.charts.trend.destroy();
+    }
+    if (!rows.length) {
+      state.charts.trend = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              data: [],
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            x: { display: false },
+            y: { display: false },
+          },
+        },
+      });
+      return;
+    }
+
+    const labels = rows.map((r) => r.run_id || "");
+    const values = rows.map((r) => r.total_findings || 0);
+
+    state.charts.trend = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            data: values,
+            tension: 0.3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          x: {
+            ticks: { font: { size: 9 } },
+          },
+          y: {
+            ticks: { font: { size: 9 } },
+          },
+        },
+      },
+    });
+  }
+
+  async function loadDashboard() {
+    try {
+      const data = await fetchJSON("/api/vsp/dashboard");
+      updateDashboardKpi(data);
+      renderByToolList(data.by_tool || {});
+      renderSeverityDonut(data);
+      renderTrendChart(data.extra_charts || {});
+    } catch (e) {
+      console.warn("[VSP] dashboard error:", e);
+      showToast("Cannot load dashboard.");
+    }
+  }
+
+  /* RUNS */
+
+  async function loadRuns() {
+    try {
+      const rows = await fetchJSON("/api/vsp/runs");
+      const tbody = document.getElementById("vsp-runs-tbody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      if (!Array.isArray(rows) || !rows.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.textContent = "No runs.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.dataset.runId = row.run_id;
+        const sev = row.by_severity || {};
+        tr.innerHTML = `
+          <td>${row.run_id || ""}</td>
+          <td>${row.ts || ""}</td>
+          <td>${row.total_findings || 0}</td>
+          <td>${sev.CRITICAL || 0}</td>
+          <td>${sev.HIGH || 0}</td>
+          <td>${sev.MEDIUM || 0}</td>
+          <td>${sev.LOW || 0}</td>
+        `;
+        tr.addEventListener("click", () => {
+          selectRun(row.run_id);
+        });
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      console.warn("[VSP] runs error:", e);
+    }
+  }
+
+  async function selectRun(runId) {
+    if (!runId) return;
+    try {
+      const data = await fetchJSON(`/api/vsp/run/${encodeURIComponent(runId)}/summary`);
+      const subtitle = document.getElementById("vsp-run-detail-subtitle");
+      if (subtitle) {
+        subtitle.textContent = "Run " + runId;
+      }
+
+      const link = document.getElementById("vsp-run-report-link");
+      if (link) {
+        link.href = `/api/vsp/run/${encodeURIComponent(runId)}/report/html`;
+        link.classList.add("visible");
+      }
+
+      const container = document.getElementById("vsp-run-detail-content");
+      if (!container) return;
+
+      container.innerHTML = "";
+      const sev = data.by_severity || {};
+      const total = data.total_findings || 0;
+      const byTool = data.by_tool || {};
+
+      const items = [
+        ["Total findings", String(total)],
+        ["Critical", String(sev.CRITICAL || 0)],
+        ["High", String(sev.HIGH || 0)],
+        ["Medium", String(sev.MEDIUM || 0)],
+        ["Low", String(sev.LOW || 0)],
+        ["Info", String(sev.INFO || 0)],
+        ["Trace", String(sev.TRACE || 0)],
+        ["Timestamp", data.ts || ""],
+        ["Profile", data.profile || ""],
+      ];
+
+      items.forEach(([label, value]) => {
+        const div = document.createElement("div");
+        div.className = "vsp-run-detail-item";
+        div.innerHTML = `
+          <div class="vsp-run-detail-label">${label}</div>
+          <div class="vsp-run-detail-value">${value || "--"}</div>
+        `;
+        container.appendChild(div);
+      });
+
+      const toolStr = Object.entries(byTool)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+      if (toolStr) {
+        const div = document.createElement("div");
+        div.className = "vsp-run-detail-item";
+        div.innerHTML = `
+          <div class="vsp-run-detail-label">By tool</div>
+          <div class="vsp-run-detail-value">${toolStr}</div>
+        `;
+        container.appendChild(div);
+      }
+    } catch (e) {
+      console.warn("[VSP] run detail error:", e);
+      showToast("Cannot load run detail.");
+    }
+  }
+
+  /* DATA SOURCE */
+
+  function updateDsSubtitle(runId) {
+    const el = document.getElementById("vsp-ds-subtitle");
+    if (!el) return;
+    if (!runId) {
+      el.textContent = "Last run findings_unified.json (no run yet)";
+    } else {
+      el.textContent = "Last run findings_unified.json – " + runId;
+    }
+  }
+
+  function buildDsQuery() {
+    const params = new URLSearchParams();
+    const dsState = state.datasource;
+    params.set("limit", String(dsState.limit));
+    params.set("offset", String(dsState.offset));
+    if (dsState.currentTool) {
+      params.set("tool", dsState.currentTool);
+    }
+    if (dsState.currentSeverity) {
+      params.set("severity", dsState.currentSeverity);
+    }
+    if (dsState.currentSearch) {
+      params.set("search", dsState.currentSearch);
+    }
+    return params.toString();
+  }
+
+  async function loadDatasource() {
+    try {
+      const qs = buildDsQuery();
+      const url = "/api/vsp/datasource" + (qs ? "?" + qs : "");
+      const data = await fetchJSON(url);
+      const tbody = document.getElementById("vsp-ds-tbody");
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+      const items = data.items || [];
+      state.datasource.total = data.total || 0;
+      state.datasource.runId = data.run_id || null;
+
+      updateDsSubtitle(data.run_id);
+      const meta = document.getElementById("vsp-ds-meta");
+      if (meta) {
+        meta.textContent = "Showing " + items.length + " / " + (data.total || 0);
+      }
+
+      if (!items.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.textContent = "No findings.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      } else {
+        let baseIndex = state.datasource.offset;
+        items.forEach((f, idx) => {
+          const tr = document.createElement("tr");
+          const index = baseIndex + idx + 1;
+          tr.innerHTML = `
+            <td>${index}</td>
+            <td>${f.tool || ""}</td>
+            <td>${f.severity || ""}</td>
+            <td title="${(f.file || "").replace(/"/g, '&quot;')}">${f.file || ""}</td>
+            <td>${f.line != null ? f.line : ""}</td>
+            <td>${f.rule_id || ""}</td>
+            <td title="${(f.message || "").replace(/"/g, '&quot;')}">${f.message || ""}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      const pageLabel = document.getElementById("ds-page-label");
+      if (pageLabel) {
+        const page = Math.floor(state.datasource.offset / state.datasource.limit) + 1;
+        pageLabel.textContent = "Page " + page;
+      }
+    } catch (e) {
+      console.warn("[VSP] datasource error:", e);
+      showToast("Cannot load Data Source.");
+    }
+  }
+
+  function attachDatasourceEvents() {
+    const toolSel = document.getElementById("ds-tool");
+    const sevSel = document.getElementById("ds-severity");
+    const searchInput = document.getElementById("ds-search");
+    const applyBtn = document.getElementById("ds-apply");
+    const prevBtn = document.getElementById("ds-prev");
+    const nextBtn = document.getElementById("ds-next");
+
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        state.datasource.currentTool = toolSel ? toolSel.value : "";
+        state.datasource.currentSeverity = sevSel ? sevSel.value : "";
+        state.datasource.currentSearch = searchInput ? searchInput.value.trim() : "";
+        state.datasource.offset = 0;
+        loadDatasource();
+      });
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => {
+        state.datasource.offset = Math.max(
+          0,
+          state.datasource.offset - state.datasource.limit
+        );
+        loadDatasource();
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => {
+        const maxOffset = Math.max(
+          0,
+          state.datasource.total - state.datasource.limit
+        );
+        state.datasource.offset = Math.min(
+          maxOffset,
+          state.datasource.offset + state.datasource.limit
+        );
+        loadDatasource();
+      });
+    }
+  }
+
+  /* RUN SCAN */
+
+  async function handleRunScan() {
+    const btn = document.getElementById("vsp-run-btn");
+    if (!btn) return;
+
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = "Running...";
+
+    try {
+      const s = state.settings || {};
+      const body = {
+        src_path: s.src_path || "/home/test/Data/khach6",
+        profile: s.profile || "EXT",
+        level: "EXT",
+        no_net: 0,
+      };
+
+      const data = await fetchJSON("/api/vsp/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      showToast("Scan started: " + (data.run_id || ""));
+      await Promise.all([loadDashboard(), loadRuns(), loadDatasource(), loadSettings()]);
+    } catch (e) {
+      console.error("[VSP] run error:", e);
+      showToast("Run scan failed.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  }
+
+  /* INIT */
+
+  function initTabs() {
+    document.querySelectorAll(".vsp-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tabName = btn.dataset.tab;
+        if (!tabName) return;
+        switchTab(tabName);
+
+        if (tabName === "dashboard") {
+          loadDashboard();
+        } else if (tabName === "runs") {
+          loadRuns();
+        } else if (tabName === "datasource") {
+          loadDatasource();
+        } else if (tabName === "settings") {
+          loadSettings();
+        } else if (tabName === "overrides") {
+          // hiện tại tab này chỉ static UI, chưa cần gọi API
+        }
+      });
+    });
+  }
+
+  function initRunButton() {
+    const btn = document.getElementById("vsp-run-btn");
+    if (btn) {
+      btn.addEventListener("click", handleRunScan);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initTabs();
+    initRunButton();
+    attachDatasourceEvents();
+
+    loadSettings();
+    loadDashboard();
+    loadRuns();
+    loadDatasource();
+  });
+})();

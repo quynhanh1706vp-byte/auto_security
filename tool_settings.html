@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Tool Settings – Security Bundle</title>
+  {% if config and config.get('BUNDLE_NAME') %}
+  <title>{{ config.get('BUNDLE_NAME') }} – Tool Settings</title>
+  {% endif %}
+
+  <!-- CSS cơ bản (giữ tên file cũ nếu có) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='security_resilient.css') }}">
+  <style>
+    body {
+      background-color: #0b1120;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .page-wrapper {
+      padding: 16px;
+    }
+    .card-main {
+      background: #020617;
+      border-radius: 16px;
+      border: 1px solid #1f2937;
+      padding: 16px 20px 20px 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f9fafb;
+    }
+    .card-subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .badge-pill {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid #374151;
+      color: #e5e7eb;
+    }
+    .badge-pill span {
+      opacity: 0.85;
+    }
+    .summary-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .summary-chip {
+      background: #020617;
+      border-radius: 999px;
+      border: 1px solid #1f2937;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #e5e7eb;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .summary-label {
+      color: #9ca3af;
+    }
+    .summary-value {
+      font-weight: 600;
+      color: #f9fafb;
+    }
+    .summary-severity-crit { border-color: #f97373; }
+    .summary-severity-high { border-color: #fb923c; }
+    .summary-severity-med  { border-color: #facc15; }
+    .summary-severity-low  { border-color: #22c55e; }
+
+    .table-wrapper {
+      margin-top: 8px;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+      overflow: hidden;
+    }
+    table.tool-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.tool-table thead {
+      background: #020617;
+    }
+    table.tool-table th,
+    table.tool-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #111827;
+    }
+    table.tool-table th {
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+    table.tool-table tbody tr:hover {
+      background: rgba(31,41,55,0.5);
+    }
+    .col-tool-name   { width: 18%; }
+    .col-tool-desc   { width: 32%; }
+    .col-tool-enable { width: 10%; text-align: center; }
+    .col-tool-level  { width: 14%; text-align: center; }
+    .col-tool-modes  { width: 26%; }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 18px;
+    }
+    .toggle-switch input {
+      display: none;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #111827;
+      transition: .2s;
+      border-radius: 999px;
+      border: 1px solid #374151;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 12px;
+      width: 12px;
+      left: 3px;
+      bottom: 2px;
+      background-color: #e5e7eb;
+      transition: .2s;
+      border-radius: 999px;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #22c55e;
+      border-color: #16a34a;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(14px);
+      background-color: #0b1120;
+    }
+    .pill-mode {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-right: 4px;
+      margin-bottom: 2px;
+      color: #e5e7eb;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pill-mode.active-offline { border-color: #22c55e; color: #bbf7d0; }
+    .pill-mode.active-online  { border-color: #3b82f6; color: #bfdbfe; }
+    .pill-mode.active-ci      { border-color: #a855f7; color: #e9d5ff; }
+
+    .footer-hint {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .footer-hint code {
+      font-size: 11px;
+      color: #9ca3af;
+      background: #020617;
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+
+    @media (max-width: 768px) {
+      .card-header-row {
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper container-fluid">
+    <div class="card-main">
+      <div class="card-header-row">
+        <div>
+          <div class="card-title">SETTINGS – TOOL CONFIG</div>
+          <div class="card-subtitle">
+            Quản lý danh sách tool trong bundle: bật/tắt, chọn level và cho phép chạy ở từng mode (Offline / Online / CI/CD).
+          </div>
+        </div>
+        <div class="badge-pill">
+          <span>Tổng số tool: </span>
+          <span id="tool-settings-total" style="font-weight:600; margin-left:4px;">–</span>
+        </div>
+      </div>
+
+      <!-- HÀNG TÓM TẮT NGẮN GỌN, KHÔNG CÒN "8/7" -->
+      <div class="summary-row">
+        <div class="summary-chip">
+          <span class="summary-label">Enabled:</span>
+          <span class="summary-value" id="tool-settings-enabled">–</span>
+        </div>
+        <div class="summary-chip summary-severity-crit">
+          <span class="summary-label">Critical:</span>
+          <span class="summary-value" id="tool-settings-crit">–</span>
+        </div>
+        <div class="summary-chip summary-severity-high">
+          <span class="summary-label">High:</span>
+          <span class="summary-value" id="tool-settings-high">–</span>
+        </div>
+        <div class="summary-chip summary-severity-med">
+          <span class="summary-label">Medium:</span>
+          <span class="summary-value" id="tool-settings-med">–</span>
+        </div>
+        <div class="summary-chip summary-severity-low">
+          <span class="summary-label">Low:</span>
+          <span class="summary-value" id="tool-settings-low">–</span>
+        </div>
+      </div>
+
+      <!-- BẢNG CẤU HÌNH TOOL -->
+      <div class="table-wrapper">
+        <table class="tool-table" id="tool-config-table">
+          <thead>
+            <tr>
+              <th class="col-tool-name">Tool</th>
+              <th class="col-tool-desc">Mô tả</th>
+              <th class="col-tool-enable">Enabled</th>
+              <th class="col-tool-level">Level</th>
+              <th class="col-tool-modes">Mode (Offline / Online / CI/CD)</th>
+            </tr>
+          </thead>
+          <tbody id="tool-config-tbody">
+            <!-- tool_config.js sẽ populate tbody này từ tool_config.json -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer-hint">
+        Cấu hình chi tiết cho từng tool được lưu trong file 
+        <code>/home/test/Data/SECURITY_BUNDLE/ui/static/tool_config.json</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- JS: giữ nguyên hook cũ, để sau này mình nối lại logic -->
+  <script src="{{ url_for('static', filename='data_source.js') }}"></script>
+  <script src="{{ url_for('static', filename='tool_config.js') }}"></script>
+</body>
+</html>

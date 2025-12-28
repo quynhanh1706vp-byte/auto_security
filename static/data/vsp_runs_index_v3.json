@@ -1,0 +1,565 @@
+{
+  "ok": true,
+  "items": [
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_145619",
+      "ts": "2025-12-03T15:01:47.029624",
+      "profile": "EXT+",
+      "total_findings": 3767,
+      "by_severity": {
+        "CRITICAL": 18,
+        "HIGH": 3203,
+        "MEDIUM": 335,
+        "LOW": 211,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_143137",
+      "ts": "2025-12-03T14:37:17.095642",
+      "profile": "EXT+",
+      "total_findings": 7242,
+      "by_severity": {
+        "CRITICAL": 18,
+        "HIGH": 412,
+        "MEDIUM": 335,
+        "LOW": 211,
+        "INFO": 0,
+        "TRACE": 6266
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_140952",
+      "ts": "2025-12-03T14:16:15.936564",
+      "profile": "EXT+",
+      "total_findings": 7242,
+      "by_severity": {
+        "CRITICAL": 18,
+        "HIGH": 412,
+        "MEDIUM": 335,
+        "LOW": 211,
+        "INFO": 0,
+        "TRACE": 6266
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_134428",
+      "ts": "2025-12-03T13:46:02.096689",
+      "profile": "EXT+",
+      "total_findings": 546,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 240,
+        "MEDIUM": 176,
+        "LOW": 130,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_133621",
+      "ts": "2025-12-03T13:37:50.525774",
+      "profile": "EXT+",
+      "total_findings": 546,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 240,
+        "MEDIUM": 176,
+        "LOW": 130,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_124249",
+      "ts": "2025-12-03T12:44:26.336467",
+      "profile": "EXT+",
+      "total_findings": 546,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 240,
+        "MEDIUM": 176,
+        "LOW": 130,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_124218",
+      "ts": "2025-12-03T12:42:49.945170",
+      "profile": "EXT+",
+      "total_findings": 245,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 89,
+        "MEDIUM": 92,
+        "LOW": 64,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_121126",
+      "ts": "2025-12-03T12:12:56.455844",
+      "profile": "EXT+",
+      "total_findings": 245,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 89,
+        "MEDIUM": 92,
+        "LOW": 64,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_120447",
+      "ts": "2025-12-03T12:06:19.834919",
+      "profile": "EXT+",
+      "total_findings": 245,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 89,
+        "MEDIUM": 92,
+        "LOW": 64,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251203_114325",
+      "ts": "2025-12-03T11:44:28.755827",
+      "profile": "EXT+",
+      "total_findings": 245,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 89,
+        "MEDIUM": 92,
+        "LOW": 64,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_091119",
+      "ts": "2025-12-03T08:54:32.557400",
+      "profile": "EXT+",
+      "total_findings": 111356,
+      "by_severity": {
+        "CRITICAL": 13,
+        "HIGH": 102193,
+        "MEDIUM": 1363,
+        "LOW": 2507,
+        "INFO": 295,
+        "TRACE": 4985
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_121212",
+      "ts": "2025-12-03T08:03:49.247549",
+      "profile": "EXT+",
+      "total_findings": 4516,
+      "by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 1614,
+        "MEDIUM": 436,
+        "LOW": 808,
+        "INFO": 337,
+        "TRACE": 1319
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_083522",
+      "ts": "2025-12-02T09:01:38.374296",
+      "profile": "EXT+",
+      "total_findings": 27596,
+      "by_severity": {
+        "CRITICAL": 30,
+        "HIGH": 19394,
+        "MEDIUM": 634,
+        "LOW": 911,
+        "INFO": 361,
+        "TRACE": 6266
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_081145",
+      "ts": "2025-12-02T08:14:59.988705",
+      "profile": "EXT+",
+      "total_findings": 4327,
+      "by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 1525,
+        "MEDIUM": 354,
+        "LOW": 784,
+        "INFO": 343,
+        "TRACE": 1319
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_080803",
+      "ts": "2025-12-02T08:11:26.215878",
+      "profile": "EXT+",
+      "total_findings": 4362,
+      "by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 1527,
+        "MEDIUM": 357,
+        "LOW": 806,
+        "INFO": 351,
+        "TRACE": 1319
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_080347",
+      "ts": "2025-12-02T08:06:58.993950",
+      "profile": "EXT+",
+      "total_findings": 4386,
+      "by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 1525,
+        "MEDIUM": 381,
+        "LOW": 794,
+        "INFO": 365,
+        "TRACE": 1319
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251202_075910",
+      "ts": "2025-12-02T07:59:54.698426",
+      "profile": "EXT+",
+      "total_findings": 0,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_160841",
+      "ts": "2025-12-01T16:33:15.953122",
+      "profile": "EXT+",
+      "total_findings": 27614,
+      "by_severity": {
+        "CRITICAL": 30,
+        "HIGH": 19571,
+        "MEDIUM": 610,
+        "LOW": 809,
+        "INFO": 328,
+        "TRACE": 6266
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_160900",
+      "ts": "2025-12-01T15:48:30.527664",
+      "profile": "EXT",
+      "total_findings": 15,
+      "by_severity": {
+        "CRITICAL": 2,
+        "HIGH": 9,
+        "MEDIUM": 3,
+        "LOW": 0,
+        "INFO": 1,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_144712",
+      "ts": "2025-12-01T15:13:48.482557",
+      "profile": "EXT+",
+      "total_findings": 27744,
+      "by_severity": {
+        "CRITICAL": 30,
+        "HIGH": 19600,
+        "MEDIUM": 628,
+        "LOW": 868,
+        "INFO": 352,
+        "TRACE": 6266
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_144145",
+      "ts": "2025-12-01T14:43:22.912965",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_144017",
+      "ts": "2025-12-01T14:41:45.018023",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_142230",
+      "ts": "2025-12-01T14:23:54.270809",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_141955",
+      "ts": "2025-12-01T14:21:23.535465",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_141304",
+      "ts": "2025-12-01T14:14:32.540036",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_140619",
+      "ts": "2025-12-01T14:07:49.141303",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251201_120117",
+      "ts": "2025-12-01T12:02:45.226667",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_145503",
+      "ts": "2025-11-30T08:48:20.245181",
+      "profile": "EXT+",
+      "total_findings": 6528,
+      "by_severity": {
+        "CRITICAL": 11,
+        "HIGH": 2778,
+        "MEDIUM": 576,
+        "LOW": 860,
+        "INFO": 343,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251130_004809",
+      "ts": "2025-11-30T07:51:44.100903",
+      "profile": "EXT+",
+      "total_findings": 3095,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 1572,
+        "MEDIUM": 115,
+        "LOW": 81,
+        "INFO": 8,
+        "TRACE": 1319
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251130_073321",
+      "ts": "2025-11-30T07:34:51.908810",
+      "profile": "EXT+",
+      "total_findings": 6,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 6,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251130_000412",
+      "ts": "2025-11-30T07:08:19.260329",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_235431",
+      "ts": "2025-11-30T06:58:45.229296",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_234737",
+      "ts": "2025-11-30T06:51:33.487306",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_121654",
+      "ts": "2025-11-29T19:20:34.736933",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_185856",
+      "ts": "2025-11-29T19:02:36.651103",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_184611",
+      "ts": "2025-11-29T18:50:28.141479",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_183826",
+      "ts": "2025-11-29T18:42:07.235412",
+      "profile": "EXT+",
+      "total_findings": 4842,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 2633,
+        "MEDIUM": 146,
+        "LOW": 95,
+        "INFO": 8,
+        "TRACE": 1960
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_182532",
+      "ts": "2025-11-29T18:26:25.207222",
+      "profile": "EXT+",
+      "total_findings": 27,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 7,
+        "MEDIUM": 12,
+        "LOW": 8,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_172313",
+      "ts": "2025-11-29T17:23:13.298585",
+      "profile": "EXT+",
+      "total_findings": 0,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    },
+    {
+      "run_id": "RUN_VSP_FULL_EXT_20251129_143155",
+      "ts": "2025-11-29T14:36:37.534624",
+      "profile": "EXT+",
+      "total_findings": 0,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    }
+  ]
+}

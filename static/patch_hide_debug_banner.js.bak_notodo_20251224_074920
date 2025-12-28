@@ -1,0 +1,190 @@
+(function () {
+  function log() {
+    if (console && console.log) {
+      console.log.apply(console, ['[SB-PATCH]'].concat([].slice.call(arguments)));
+    }
+  }
+
+  // ====== ẨN / SỬA TEXT ======
+  function hideByTextFragment(txt) {
+    try {
+      var all = document.querySelectorAll('body *');
+      all.forEach(function (el) {
+        if (!el.textContent) return;
+        if (el.textContent.indexOf(txt) !== -1) {
+          el.style.display = 'none';
+        }
+      });
+    } catch (e) {
+      log('hideByTextFragment error', e);
+    }
+  }
+
+  function patchTexts() {
+    hideByTextFragment('Bản DEBUG đơn giản – nếu bạn nhìn thấy dòng này là template đã chạy OK.');
+    hideByTextFragment('DEBUG TEMPLATE V2');
+    hideByTextFragment('Nhấn để gọi /api/run_scan_simple');
+
+    // Ẩn dòng mô tả tool_config.json dưới BY TOOL / CONFIG
+    hideByTextFragment('Đọc từ file tool_config.json – ON/OFF, level, mode (Offline / Online / CI/CD).');
+
+    // Bỏ "(TOOL_CONFIG.JSON)" trong tiêu đề, giữ lại "BY TOOL / CONFIG"
+    try {
+      var all = document.querySelectorAll('body *');
+      all.forEach(function (el) {
+        if (!el.textContent) return;
+        if (el.textContent.indexOf('BY TOOL / CONFIG (TOOL_CONFIG.JSON)') !== -1) {
+          el.textContent = el.textContent
+            .replace('(TOOL_CONFIG.JSON)', '')
+            .replace(/\s+\)/g, ')')
+            .trim();
+        }
+      });
+    } catch (e) {
+      log('patch title error', e);
+    }
+  }
+
+  // ====== FILL CHI TIẾT MODES TỪ tool_config.json ======
+  async function loadToolConfig() {
+    // thử lần lượt các URL khả dĩ, fail thì bỏ qua
+    var urls = [
+      '/static/tool_config.json',
+      '/ui/static/tool_config.json',
+      '/config/static/tool_config.json',
+      '/data/static/tool_config.json'
+    ];
+
+    for (var i = 0; i < urls.length; i++) {
+      var url = urls[i];
+      try {
+        var resp = await fetch(url);
+        if (!resp.ok) continue;
+        var txt = await resp.text();
+        try {
+          var json = JSON.parse(txt);
+          log('Loaded tool_config từ', url);
+          return json;
+        } catch (e) {
+          log('Không parse được JSON từ', url);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    log('Không tải được tool_config.json – bỏ qua fill Modes.');
+    return null;
+  }
+
+  function buildModesLabel(item) {
+    try {
+      var active = [];
+
+      // Trường "modes" dạng object: {offline:true,online:false,cicd:true}
+      if (item.modes && typeof item.modes === 'object' && !Array.isArray(item.modes)) {
+        Object.keys(item.modes).forEach(function (k) {
+          var v = item.modes[k];
+          if (!v) return;
+          var lk = k.toLowerCase();
+          if (lk.indexOf('offline') !== -1) active.push('Offline');
+          else if (lk.indexOf('online') !== -1) active.push('Online');
+          else if (lk.indexOf('ci') !== -1) active.push('CI/CD');
+        });
+      }
+
+      // Các key kiểu mode_offline, mode_online, mode_cicd
+      Object.keys(item).forEach(function (k) {
+        if (!/^mode/i.test(k)) return;
+        var v = item[k];
+        if (!v) return;
+        var lk = k.toLowerCase();
+        if (lk.indexOf('offline') !== -1) active.push('Offline');
+        else if (lk.indexOf('online') !== -1) active.push('Online');
+        else if (lk.indexOf('ci') !== -1) active.push('CI/CD');
+      });
+
+      if (active.length === 0 && typeof item.modes === 'string') {
+        // nếu server đã format sẵn string thì dùng nguyên
+        return item.modes;
+      }
+
+      if (active.length === 0) return '';
+
+      // unique
+      var seen = {};
+      var uniq = [];
+      active.forEach(function (x) {
+        if (seen[x]) return;
+        seen[x] = true;
+        uniq.push(x);
+      });
+
+      return uniq.join(' / ');
+    } catch (e) {
+      log('buildModesLabel error', e);
+      return '';
+    }
+  }
+
+  function findToolConfigTable() {
+    var tables = document.querySelectorAll('table');
+    for (var i = 0; i < tables.length; i++) {
+      var tbl = tables[i];
+      var head = tbl.querySelector('thead') || tbl;
+      var text = (head.textContent || '').toUpperCase();
+      if (text.indexOf('TOOL') !== -1 &&
+          text.indexOf('ENABLED') !== -1 &&
+          text.indexOf('LEVEL') !== -1 &&
+          text.indexOf('MODES') !== -1) {
+        return tbl;
+      }
+    }
+    return null;
+  }
+
+  async function fillModesColumn() {
+    var tbl = findToolConfigTable();
+    if (!tbl) {
+      log('Không tìm thấy bảng BY TOOL / CONFIG.');
+      return;
+    }
+
+    var cfg = await loadToolConfig();
+    if (!cfg || !Array.isArray(cfg)) return;
+
+    // map tool -> item trong JSON
+    var map = {};
+    cfg.forEach(function (item) {
+      var name = item.tool || item.name || item.id;
+      if (!name) return;
+      map[String(name).trim()] = item;
+    });
+
+    var rows = tbl.querySelectorAll('tbody tr');
+    rows.forEach(function (tr) {
+      var tds = tr.querySelectorAll('td');
+      if (tds.length < 4) return; // TOOL, ENABLED, LEVEL, MODES
+      var toolName = (tds[0].textContent || '').trim();
+      if (!toolName) return;
+      var item = map[toolName];
+      if (!item) return;
+
+      var label = buildModesLabel(item);
+      if (!label) return;
+
+      // ô cuối cùng là MODES
+      tds[tds.length - 1].textContent = label;
+    });
+  }
+
+  function runAll() {
+    patchTexts();
+    fillModesColumn();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runAll);
+  } else {
+    runAll();
+  }
+})();

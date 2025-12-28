@@ -1,0 +1,4 @@
+[2025-12-14 19:43:24 +0700] [35614] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 19:43:24 +0700] [35614] [INFO] Listening at: http://127.0.0.1:8910 (35614)
+[2025-12-14 19:43:24 +0700] [35614] [INFO] Using worker: gthread
+[2025-12-14 19:43:24 +0700] [35616] [INFO] Booting worker with pid: 35616

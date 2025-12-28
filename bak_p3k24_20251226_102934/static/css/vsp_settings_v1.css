@@ -1,0 +1,249 @@
+/* =========================================================
+ * VSP SETTINGS – EXT+ PROFILE
+ * - Style cho Unified scan configuration + Tool stack.
+ * - Giữ layout desktop, đẹp trên màn nhỏ.
+ * =======================================================*/
+
+#tab-settings {
+  padding: 24px 32px 40px;
+}
+
+@media (max-width: 1200px) {
+  #tab-settings {
+    padding: 16px 16px 32px;
+  }
+}
+
+/* Card chung */
+#tab-settings .vsp-card {
+  background:
+    radial-gradient(circle at top left, rgba(76, 231, 196, 0.1), transparent 55%),
+    rgba(6, 13, 32, 0.98);
+  border-radius: 18px;
+  border: 1px solid rgba(151, 255, 214, 0.18);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.65);
+  padding: 18px 22px 20px;
+  margin-bottom: 22px;
+}
+
+/* Tiêu đề & mô tả */
+#tab-settings .vsp-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8f6ff;
+  margin-bottom: 6px;
+}
+
+#tab-settings .vsp-card-subtitle {
+  font-size: 12px;
+  color: #7f8ba5;
+  margin-bottom: 12px;
+}
+
+/* ============= Unified scan configuration ================= */
+
+.vsp-settings-run-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Hàng mode / source / nút RUN */
+.vsp-settings-run-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.vsp-settings-run-row label {
+  font-size: 12px;
+  color: #9fb3d9;
+}
+
+/* Select mode */
+.vsp-settings-run-row select {
+  height: 30px;
+  min-width: 90px;
+  border-radius: 999px;
+  padding: 0 12px;
+  border: 1px solid rgba(126, 163, 210, 0.7);
+  background: rgba(7, 16, 37, 0.98);
+  color: #e8f6ff;
+  font-size: 12px;
+}
+
+/* Source path / URL / domain */
+.vsp-settings-input-src {
+  flex: 1 1 260px;
+  min-width: 220px;
+  height: 32px;
+  border-radius: 999px;
+  padding: 0 14px;
+  border: 1px solid rgba(126, 163, 210, 0.7);
+  background: rgba(7, 16, 37, 0.98);
+  color: #e8f6ff;
+  font-size: 12px;
+}
+
+.vsp-settings-input-src::placeholder {
+  color: #64769a;
+}
+
+/* Nút RUN */
+.vsp-settings-run-btn {
+  height: 32px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #3be6b9, #46bfff);
+  color: #020814;
+  box-shadow: 0 16px 36px rgba(66, 232, 187, 0.4);
+}
+
+/* Trạng thái Last run + Ready / Running */
+.vsp-settings-run-status {
+  font-size: 12px;
+  color: #9fb3d9;
+}
+
+.vsp-settings-run-status strong {
+  color: #e8f6ff;
+}
+
+.vsp-settings-run-status .is-running {
+  color: #ffb347;
+}
+
+.vsp-settings-run-status .is-ready {
+  color: #4dd6a8;
+}
+
+/* Responsive cho block RUN */
+@media (max-width: 900px) {
+  .vsp-settings-run-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vsp-settings-run-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ===================== TOOL STACK TABLE ================== */
+
+.vsp-toolstack-card {
+  margin-top: 8px;
+}
+
+.vsp-toolstack-table-wrapper {
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 210, 0.45);
+  background:
+    radial-gradient(circle at top left, rgba(90, 150, 255, 0.1), transparent 55%),
+    rgba(4, 11, 26, 0.98);
+  overflow: hidden;
+}
+
+/* Scroll ngang nếu màn nhỏ */
+.vsp-toolstack-scroll {
+  overflow-x: auto;
+}
+
+.vsp-toolstack-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vsp-toolstack-table thead th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9fb3d9;
+  border-bottom: 1px solid rgba(108, 140, 190, 0.8);
+  background: rgba(5, 16, 40, 0.95);
+}
+
+.vsp-toolstack-table tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(35, 46, 80, 0.85);
+  color: #e5eeff;
+  vertical-align: middle;
+}
+
+.vsp-toolstack-table tbody tr:nth-child(even) {
+  background: rgba(9, 16, 32, 0.88);
+}
+
+.vsp-toolstack-table tbody tr:nth-child(odd) {
+  background: rgba(7, 13, 28, 0.88);
+}
+
+.vsp-toolstack-table tbody tr:hover {
+  background: rgba(74, 206, 184, 0.13);
+}
+
+/* Cột Mode profile – pill FAST / EXT / EXT+ / FULL */
+
+.vsp-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  margin-right: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(126, 163, 210, 0.75);
+  background: rgba(8, 18, 40, 0.9);
+  color: #a9bbdd;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+/* Mode đang active – bật sáng, viền gradient */
+.vsp-mode-pill.is-active {
+  color: #020814;
+  border-color: transparent;
+  background: linear-gradient(90deg, #3be6b9, #46bfff);
+  box-shadow: 0 10px 24px rgba(59, 230, 185, 0.32);
+}
+
+/* Enabled checkbox */
+.vsp-tool-enabled {
+  text-align: center;
+}
+
+.vsp-tool-enabled input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3be6b9;
+}
+
+/* Responsive: card full width, spacing nhỏ hơn */
+@media (max-width: 900px) {
+  #tab-settings .vsp-card {
+    padding: 14px 16px 16px;
+  }
+
+  .vsp-toolstack-table {
+    font-size: 11px;
+  }
+}

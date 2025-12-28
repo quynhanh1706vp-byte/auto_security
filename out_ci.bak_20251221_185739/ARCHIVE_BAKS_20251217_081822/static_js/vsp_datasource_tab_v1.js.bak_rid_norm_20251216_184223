@@ -1,0 +1,158 @@
+/* VSP_DATASOURCE_TAB_V1 (commercial P1): RID -> findings_unified API + filters + paging */
+(function(){
+  'use strict';
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+
+  async function getActiveRid(){
+    // Prefer rid state injected by vsp_rid_state_v1.js (your template already loads it)
+    try{
+      if (window.VSP_RID_STATE && typeof window.VSP_RID_STATE.get === "function"){
+        const r = window.VSP_RID_STATE.get();
+        if (r) return r;
+      }
+    }catch(_){}
+
+    // Fallback: dashboard_v3 run_id (best-effort)
+    try{
+      const j = await fetch("/api/vsp/dashboard_v3").then(r=>r.json());
+      if (j && j.run_id) return j.run_id;
+    }catch(_){}
+
+    return null;
+  }
+
+  function esc(s){
+    return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderTable(items){
+    const host = $("#vsp4-datasource-table") || $("#datasource-table") || $("#tab-datasource");
+    if (!host) return;
+
+    const rows = (items||[]).map(it=>{
+      const sev = esc(it.severity||"");
+      const tool = esc(it.tool||"");
+      const title = esc(it.title||"");
+      const file = esc(it.file||"");
+      const line = esc(it.line||"");
+      const cwe = Array.isArray(it.cwe) ? esc(it.cwe[0]||"") : esc(it.cwe||"");
+      return `<tr>
+        <td class="vsp-mono">${sev}</td>
+        <td class="vsp-mono">${tool}</td>
+        <td>${title}</td>
+        <td class="vsp-mono">${cwe}</td>
+        <td class="vsp-mono">${file}:${line}</td>
+      </tr>`;
+    }).join("");
+
+    host.innerHTML = `
+      <div class="vsp-row" style="gap:10px; align-items:center; margin:10px 0;">
+        <input id="ds-q" class="vsp-input" style="min-width:260px" placeholder="search title/file/id..." />
+        <input id="ds-file" class="vsp-input" style="min-width:220px" placeholder="file contains..." />
+        <select id="ds-sev" class="vsp-input">
+          <option value="">SEV (all)</option>
+          <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option>
+          <option>LOW</option><option>INFO</option><option>TRACE</option>
+        </select>
+        <select id="ds-tool" class="vsp-input" style="min-width:180px"><option value="">TOOL (all)</option></select>
+        <input id="ds-cwe" class="vsp-input" style="min-width:140px" placeholder="CWE-79" />
+        <button id="ds-go" class="vsp-btn">Apply</button>
+        <span id="ds-meta" class="vsp-muted" style="margin-left:auto;"></span>
+      </div>
+      <div class="vsp-row" style="gap:10px; align-items:center; margin:10px 0;">
+        <button id="ds-prev" class="vsp-btn vsp-btn-ghost">Prev</button>
+        <button id="ds-next" class="vsp-btn vsp-btn-ghost">Next</button>
+        <input id="ds-limit" class="vsp-input" style="width:90px" value="50" />
+        <span class="vsp-muted">limit (1..500)</span>
+      </div>
+      <div class="vsp-card" style="overflow:auto;">
+        <table class="vsp-table" style="min-width:1100px">
+          <thead><tr>
+            <th>Severity</th><th>Tool</th><th>Title</th><th>CWE</th><th>File:Line</th>
+          </tr></thead>
+          <tbody>${rows || `<tr><td colspan="5" class="vsp-muted">No items</td></tr>`}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function populateToolOptions(byTool){
+    const sel = document.querySelector('#ds-tool');
+    if(!sel) return;
+    const cur = sel.value || '';
+    const keys = Object.keys(byTool||{}).sort((a,b)=>String(a).localeCompare(String(b)));
+    sel.innerHTML = '<option value="">TOOL (all)</option>' + keys.map(k=>`<option value="${k}">${k} (${byTool[k]})</option>`).join('');
+    if(cur) sel.value = cur;
+  }
+
+  async function load(page){
+    const rid = await getActiveRid();
+    const meta = $("#ds-meta");
+    if (!rid){
+      renderTable([]);
+      if (meta) meta.textContent = "RID: (missing)";
+      return;
+    }
+
+    const q = ($("#ds-q")?.value || "").trim();
+    const fileq = ($("#ds-file")?.value || "").trim();
+    const sev = ($("#ds-sev")?.value || "").trim();
+    const tool = ($("#ds-tool")?.value || "").trim();
+    const cwe = ($("#ds-cwe")?.value || "").trim();
+    const limit = parseInt(($("#ds-limit")?.value || "50"), 10) || 50;
+
+    const params = new URLSearchParams();
+    params.set("page", String(page||1));
+    params.set("limit", String(limit));
+    if (q) params.set("q", q);
+    if (fileq) params.set("file", fileq);
+    if (sev) params.set("sev", sev);
+    if (tool) params.set("tool", tool);
+    if (cwe) params.set("cwe", cwe);
+
+    const url = `/api/vsp/findings_unified_v2/${encodeURIComponent(rid)}?` + params.toString();
+    const j = await fetch(url).then(r=>r.json()).catch(()=>null);
+
+    if (!j){
+      renderTable([]);
+      if (meta) meta.textContent = `RID=${rid} | fetch failed`;
+      return;
+    }
+
+    if (j.warning && j.warning.includes("run_dir_not_found")){
+      renderTable([]);
+      if (meta) meta.textContent = `RID=${rid} | run_dir_not_found (RID state not persisted?)`;
+      return;
+    }
+
+    renderTable(j.items || []);
+    try{ populateToolOptions((j.counts||{}).by_tool||{}); }catch(_){ }
+
+    const total = j.total ?? 0;
+    const p = j.page ?? 1;
+    const l = j.limit ?? limit;
+    const start = total ? ((p-1)*l + 1) : 0;
+    const end = Math.min(total, (p*l));
+    const src = j.resolve_source || "-";
+    const warn = j.warning ? ` | ${j.warning}` : "";
+    const sevCounts = (j.counts||{}).by_sev||{};
+const sevMini = Object.keys(sevCounts).sort().map(k=>`${k}:${sevCounts[k]}`).join(" ");
+if ($("#ds-meta")) $("#ds-meta").textContent = `RID=${rid} | ${start}-${end}/${total} | ${sevMini} | src=${src}${warn}`;
+
+    // wire buttons
+    $("#ds-go")?.addEventListener("click", ()=>load(1));
+    $("#ds-prev")?.addEventListener("click", ()=>load(Math.max(1, (p-1))));
+    $("#ds-next")?.addEventListener("click", ()=>load((p+1)));
+  }
+
+  // expose for debugging
+  window.VSP_DS_P1 = { reload: ()=>load(1) };
+
+  // auto-load when tab exists
+  document.addEventListener("DOMContentLoaded", ()=> {
+    // First render shell then load data
+    renderTable([]);
+    load(1);
+  });
+})();

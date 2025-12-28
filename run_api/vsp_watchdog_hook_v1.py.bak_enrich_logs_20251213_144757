@@ -1,0 +1,222 @@
+import json, os, time, subprocess
+from pathlib import Path
+from flask import jsonify
+
+STATE_DIR = Path(__file__).resolve().parents[1] / "out_ci" / "ui_req_state"
+STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+def _dbg(*a):
+    if os.environ.get("VSP_WD_DEBUG","0") == "1":
+        print("[VSP_WD_HOOK][DBG]", *a)
+
+def _atomic_write(path: Path, obj: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+def _spawn_watchdog(state_path: Path) -> None:
+    wd = Path(__file__).resolve().parent / "vsp_watchdog_v1.py"
+    if not wd.exists():
+        _dbg("missing watchdog", wd)
+        return
+    try:
+        subprocess.Popen(
+            ["python3", str(wd), "--state", str(state_path), "--tick", "2"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception as e:
+        _dbg("spawn watchdog failed:", e)
+
+def _find_endpoint(app, suffix: str):
+    for k in app.view_functions.keys():
+        if k == suffix or k.endswith("." + suffix) or k.endswith(suffix):
+            return k
+    return None
+
+def _extract_json(resp):
+    base = resp[0] if isinstance(resp, tuple) and len(resp) > 0 else resp
+    try:
+        if isinstance(base, dict):
+            return base
+        if hasattr(base, "get_json"):
+            j = base.get_json(silent=True)
+            if isinstance(j, dict):
+                return j
+        if hasattr(base, "get_data"):
+            raw = (base.get_data(as_text=True) or "").strip()
+            if raw.startswith("{") and raw.endswith("}"):
+                return json.loads(raw)
+    except Exception as e:
+        _dbg("extract_json failed:", e)
+    return None
+
+def _guess_pid() -> int:
+    """
+    Best-effort: find youngest process that looks like CI runner.
+    Works even if run_v1 wrapper can't capture subprocess.Popen pid.
+    """
+    needles = [
+        "run_all_tools_v2.sh",
+        "run_vsp_full",
+        "VSP_CI_",
+        "/home/test/Data/SECURITY-10-10-v4",
+        "SECURITY-10-10-v4",
+    ]
+    try:
+        out = subprocess.check_output(["ps", "-eo", "pid,etimes,cmd"], text=True, errors="ignore")
+        best = None  # (etimes, pid)
+        for line in out.splitlines()[1:]:
+            parts = line.strip().split(None, 2)
+            if len(parts) < 3:
+                continue
+            pid_s, et_s, cmd = parts[0], parts[1], parts[2]
+            try:
+                pid = int(pid_s); et = int(et_s)
+            except Exception:
+                continue
+            if et > 1800:  # ignore older than 30m
+                continue
+            score = 0
+            for n in needles:
+                if n in cmd:
+                    score += 1
+            if score >= 2:  # require at least 2 hits
+                cand = (et, pid)
+                if best is None or cand[0] < best[0]:
+                    best = cand
+        return best[1] if best else 0
+    except Exception as e:
+        _dbg("guess_pid failed:", e)
+        return 0
+
+def _default_state(rid: str, target: str = "", profile: str = "", pid: int = 0) -> dict:
+    stall = int(os.environ.get("VSP_STALL_TIMEOUT_SEC", "600"))
+    total = int(os.environ.get("VSP_TOTAL_TIMEOUT_SEC", "7200"))
+    now = int(time.time())
+    return {
+        "req_id": rid,
+        "start_ts": now,
+        "status": "RUNNING",
+        "final": False,
+        "killed": False,
+        "kill_reason": "",
+        "stall_timeout_sec": stall,
+        "total_timeout_sec": total,
+        "progress_pct": 0,
+        "stage_index": 0,
+        "stage_total": 0,
+        "stage_name": "",
+        "stage_sig": "0/0||0",
+        "last_sig_change_ts": now,
+        "target": target or "",
+        "profile": profile or "",
+        "ci_run_dir": "",
+        "runner_log": "",
+        "pid": int(pid or 0),
+    }
+
+def install(app):
+    ep_run = _find_endpoint(app, "run_v1")
+    ep_status = _find_endpoint(app, "run_status_v1")
+
+    if not ep_run:
+        print("[VSP_WD_HOOK] cannot find endpoint run_v1 in app.view_functions")
+        return
+
+    orig_run = app.view_functions[ep_run]
+
+    def wrapped_run(*args, **kwargs):
+        # Try to capture PID from first subprocess.Popen in run_v1
+        import subprocess as _sp
+        real_popen = _sp.Popen
+        holder = {}
+
+        def popen_proxy(*a, **kw):
+            p = real_popen(*a, **kw)
+            if "proc" not in holder:
+                holder["proc"] = p
+            return p
+
+        _sp.Popen = popen_proxy
+        try:
+            resp = orig_run(*args, **kwargs)
+        finally:
+            _sp.Popen = real_popen
+
+        data = _extract_json(resp)
+        _dbg("run_v1 extracted data:", data)
+
+        if isinstance(data, dict):
+            rid = str(data.get("request_id", "") or "")
+            if rid.startswith("VSP_UIREQ_"):
+                pid = 0
+                try:
+                    pid = int(getattr(holder.get("proc"), "pid", 0) or 0)
+                except Exception:
+                    pid = 0
+                if pid <= 0:
+                    pid = _guess_pid()
+
+                target = str(data.get("target", "") or "")
+                profile = str(data.get("profile", "") or "")
+                sp = STATE_DIR / (rid + ".json")
+                st = _default_state(rid, target, profile, pid)
+                # merge into existing state if it was lazy-created
+                if sp.exists():
+                    try:
+                        old = json.loads(sp.read_text(encoding='utf-8', errors='ignore'))
+                        old.update({k:v for k,v in st.items() if v not in (None,'')})
+                        st = old
+                    except Exception:
+                        pass
+                _atomic_write(sp, st)
+                _spawn_watchdog(sp)
+                _dbg("state written:", sp, "pid=", pid)
+
+        return resp
+
+    app.view_functions[ep_run] = wrapped_run
+    print(f"[VSP_WD_HOOK] installed run_v1 wrapper on endpoint={ep_run}")
+
+    if ep_status:
+        orig_status = app.view_functions[ep_status]
+
+        def wrapped_status(req_id, *args, **kwargs):
+            rid = str(req_id)
+
+            if rid.startswith("VSP_UIREQ_"):
+                sp = STATE_DIR / (rid + ".json")
+
+                # LAZY CREATE STATE: guarantee file exists for watchdog/commercial
+                if not sp.exists():
+                    pid = _guess_pid()
+                    st = _default_state(rid, "", "", pid)
+                    _atomic_write(sp, st)
+                    _spawn_watchdog(sp)
+                    _dbg("lazy state created:", sp, "pid=", pid)
+
+                # Now read state if possible
+                try:
+                    st = json.loads(sp.read_text(encoding="utf-8", errors="ignore"))
+                except Exception:
+                    st = _default_state(rid)
+
+                return jsonify({
+                    "status": st.get("status","RUNNING"),
+                    "final": bool(st.get("final", False)),
+                    "progress_pct": int(st.get("progress_pct", 0)),
+                    "stage_sig": st.get("stage_sig","0/0||0") or "0/0||0",
+                    "runner_log": st.get("runner_log","") or None,
+                    "ci_run_dir": st.get("ci_run_dir","") or None,
+                    "killed": st.get("killed", None),
+                    "kill_reason": st.get("kill_reason", None),
+                    "stall_timeout_sec": int(st.get("stall_timeout_sec", 600)),
+                    "total_timeout_sec": int(st.get("total_timeout_sec", 7200)),
+                })
+
+            return orig_status(req_id, *args, **kwargs)
+
+        app.view_functions[ep_status] = wrapped_status
+        print(f"[VSP_WD_HOOK] installed run_status_v1 wrapper on endpoint={ep_status}")

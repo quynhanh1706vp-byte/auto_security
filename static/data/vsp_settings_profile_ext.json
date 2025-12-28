@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "profile": "EXT+",
+  "description": "VSP Security Bundle – EXT+ FULL TOOL & UNIFY",
+  "source_root": "/home/test/Data/khach6",
+  "tools": {
+    "gitleaks":  { "enabled": true,  "mode": "full" },
+    "semgrep":   { "enabled": true,  "mode": "full" },
+    "kics":      { "enabled": true,  "mode": "full" },
+    "codeql":    { "enabled": true,  "mode": "full" },
+    "bandit":    { "enabled": true,  "mode": "full" },
+    "trivy_fs":  { "enabled": true,  "mode": "full" },
+    "syft":      { "enabled": true,  "mode": "full" },
+    "grype":     { "enabled": true,  "mode": "full" }
+  },
+  "severity_gate": {
+    "max_critical": 0,
+    "max_high": 10,
+    "max_medium": 100
+  },
+  "report": {
+    "html": true,
+    "pdf": true,
+    "csv": true,
+    "sarif": true
+  }
+}

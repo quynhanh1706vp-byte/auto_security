@@ -1,0 +1,531 @@
+/* VSP 2025 – V2.5.1 Polish MAX
+ * - Shell layout chuẩn 1440px
+ * - Card glassmorphism mềm hơn
+ * - Table nâng cao
+ * - Badge Gate
+ * - Filter bar
+ * - Animation fade-in nhẹ
+ */
+
+:root {
+  --vsp-shell-max-width: 1440px;
+  --vsp-shell-padding-x: 32px;
+  --vsp-shell-padding-y: 24px;
+  --vsp-card-radius: 18px;
+  --vsp-card-shadow-soft: 0 20px 50px rgba(15, 23, 42, 0.8);
+  --vsp-anim-duration: 0.45s;
+}
+
+/* Shell ôm content từng tab */
+.vsp-main-shell {
+  max-width: var(--vsp-shell-max-width);
+  margin: 0 auto;
+  padding: var(--vsp-shell-padding-y) var(--vsp-shell-padding-x) 40px;
+  box-sizing: border-box;
+}
+
+/* Header cho từng tab (chèn bằng JS) */
+.vsp-tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 18px;
+}
+
+.vsp-tab-header-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e5e7eb;
+}
+
+.vsp-tab-header-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Card style chung – glassmorphism */
+.vsp-card,
+.vsp-kpi-card,
+.vsp-chart-card,
+.vsp-table-card {
+  border-radius: var(--vsp-card-radius);
+  background: radial-gradient(circle at top left, rgba(15, 118, 255, 0.16), transparent 55%),
+              radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.18), transparent 55%),
+              #020617;
+  box-shadow: var(--vsp-card-shadow-soft);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  backdrop-filter: blur(18px);
+  transition:
+    transform 180ms ease-out,
+    box-shadow 180ms ease-out,
+    border-color 180ms ease-out,
+    background 220ms ease-out;
+}
+
+.vsp-card:hover,
+.vsp-kpi-card:hover,
+.vsp-chart-card:hover,
+.vsp-table-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 26px 65px rgba(15, 23, 42, 0.95);
+  border-color: rgba(129, 140, 248, 0.7);
+}
+
+/* Table card */
+.vsp-table-card {
+  padding: 16px 20px 14px;
+}
+
+.vsp-table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.vsp-table-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e5e7eb;
+}
+
+.vsp-table-card-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Compact table */
+.vsp-table-compact {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vsp-table-compact thead {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.vsp-table-compact th,
+.vsp-table-compact td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(30, 64, 175, 0.55);
+  white-space: nowrap;
+}
+
+.vsp-table-compact tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.vsp-table-compact tbody tr:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Dashboard extras grid */
+.vsp-dashboard-extras-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.5fr);
+  gap: 18px;
+  margin-top: 20px;
+}
+
+/* Badge Gate / Delta */
+.vsp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vsp-badge-green {
+  background: rgba(22, 163, 74, 0.16);
+  color: #bbf7d0;
+  border: 1px solid rgba(22, 163, 74, 0.8);
+}
+
+.vsp-badge-amber {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fed7aa;
+  border: 1px solid rgba(245, 158, 11, 0.8);
+}
+
+.vsp-badge-red {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fecaca;
+  border: 1px solid rgba(239, 68, 68, 0.85);
+}
+
+/* Animation */
+@keyframes vspFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vsp-fadein {
+  opacity: 0;
+  animation: vspFadeUp var(--vsp-anim-duration) ease-out forwards;
+}
+
+.vsp-fadein-delay-1 { animation-delay: 0.04s; }
+.vsp-fadein-delay-2 { animation-delay: 0.10s; }
+.vsp-fadein-delay-3 { animation-delay: 0.16s; }
+.vsp-fadein-delay-4 { animation-delay: 0.22s; }
+.vsp-fadein-delay-5 { animation-delay: 0.28s; }
+.vsp-fadein-delay-6 { animation-delay: 0.34s; }
+
+/* Filter bar cho Runs & DataSource */
+.vsp-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vsp-filter-input {
+  background: #020617;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  padding: 5px 11px;
+  font-size: 12px;
+  color: #e5e7eb;
+  outline: none;
+}
+
+.vsp-filter-input::placeholder {
+  color: #6b7280;
+}
+
+.vsp-filter-input:focus {
+  border-color: rgba(129, 140, 248, 0.95);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.6);
+}
+
+/* Nhỏ lại trên mobile */
+@media (max-width: 1024px) {
+  :root {
+    --vsp-shell-padding-x: 16px;
+  }
+
+  .vsp-dashboard-extras-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* === VSP 2025 – Severity & gate colors (shared across 5 tabs) === */
+
+.vsp-badge {
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:0.02em;
+  border:1px solid rgba(148,163,184,0.5);
+  background:rgba(15,23,42,0.9);
+  color:#e5e7eb;
+}
+
+.vsp-badge-red {
+  border-color: rgba(248,113,113,0.9);
+  background: radial-gradient(circle at top left,#450a0a,#111827);
+  color:#fecaca;
+}
+.vsp-badge-amber {
+  border-color: rgba(251,191,36,0.9);
+  background: radial-gradient(circle at top left,#451a03,#111827);
+  color:#fcd34d;
+}
+.vsp-badge-green {
+  border-color: rgba(74,222,128,0.9);
+  background: radial-gradient(circle at top left,#022c22,#020617);
+  color:#bbf7d0;
+}
+.vsp-badge-blue {
+  border-color: rgba(56,189,248,0.9);
+  background: radial-gradient(circle at top left,#082f49,#020617);
+  color:#e0f2fe;
+}
+.vsp-badge-purple {
+  border-color: rgba(168,85,247,0.9);
+  background: radial-gradient(circle at top left,#3b0764,#020617);
+  color:#f5d0fe;
+}
+
+/* Severity text helpers (nếu cần dùng trong bảng) */
+.vsp-sev-critical { color:#fecaca; }
+.vsp-sev-high     { color:#fed7aa; }
+.vsp-sev-medium   { color:#fef3c7; }
+.vsp-sev-low      { color:#bbf7d0; }
+.vsp-sev-info     { color:#bae6fd; }
+.vsp-sev-trace    { color:#e9d5ff; }
+
+/* CI Gate – Latest Run floating card polish */
+#vsp-ci-gate-global-card {
+  border-radius: 18px;
+  background: radial-gradient(circle at top left,#111827,#020617);
+  border:1px solid rgba(148,163,184,0.4);
+}
+#vsp-ci-gate-global-card .vsp-table-card-header {
+  padding-bottom:4px;
+}
+#vsp-ci-gate-sev-chips span {
+  background: rgba(15,23,42,0.8);
+  border-radius:999px;
+  border:1px solid rgba(55,65,81,0.8);
+}
+
+
+/* === VSP 2025 – Severity & Gate badges (neon 2025) === */
+.vsp-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.vsp-pill-badge span {
+  margin-left: 4px;
+}
+
+.sev-critical { background: #ff006e20; color: #ff4d94; border: 1px solid #ff006e70; }
+.sev-high     { background: #ffbe0b20; color: #ffdd57; border: 1px solid #ffbe0b70; }
+.sev-medium   { background: #fb560720; color: #ff9f68; border: 1px solid #fb560770; }
+.sev-low      { background: #8338ec20; color: #c4b5fd; border: 1px solid #8338ec70; }
+.sev-info     { background: #3a86ff20; color: #93c5fd; border: 1px solid #3a86ff70; }
+.sev-trace    { background: #4cc9f020; color: #bae6fd; border: 1px solid #4cc9f070; }
+
+/* CI/CD gate badges */
+.gate-red    { background: #7f1d1d; color: #fecaca; border: 1px solid #fca5a5; }
+.gate-amber  { background: #78350f; color: #fed7aa; border: 1px solid #fdba74; }
+.gate-green  { background: #14532d; color: #bbf7d0; border: 1px solid #4ade80; }
+
+/* Small helper for CI Gate – Latest Run card */
+.vsp-ci-gate-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.vsp-ci-gate-chip {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: rgba(15,23,42,0.8);
+  border: 1px solid rgba(148,163,184,0.4);
+}
+
+/* Subtle pulse for FAILED gate */
+.vsp-ci-gate-failed {
+  box-shadow: 0 0 0 1px rgba(248,113,113,0.3), 0 0 24px rgba(248,113,113,0.3);
+  animation: vsp-ci-pulse 2.4s infinite;
+}
+
+@keyframes vsp-ci-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(248,113,113,0.6); }
+  70%  { box-shadow: 0 0 0 18px rgba(248,113,113,0); }
+  100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); }
+}
+
+/* Extra block for advanced settings appended by JS */
+.vsp-settings-advanced {
+  margin-top: 32px;
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: radial-gradient(circle at top left, #111827, #020617 65%);
+  border: 1px solid rgba(148,163,184,0.3);
+}
+
+.vsp-settings-advanced-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.vsp-settings-advanced h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.vsp-settings-advanced p {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.vsp-settings-advanced dl {
+  margin: 0;
+  font-size: 13px;
+}
+
+.vsp-settings-advanced dt {
+  color: #6b7280;
+}
+
+.vsp-settings-advanced dd {
+  margin: 0 0 6px 0;
+  color: #e5e7eb;
+}
+
+.vsp-run-button {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(96,165,250,0.8);
+  background: linear-gradient(135deg, #0f172a, #1d4ed8);
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.vsp-run-button[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+
+/* === VSP 2025 – Severity & Gate badges (neon 2025) === */
+.vsp-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.vsp-pill-badge span {
+  margin-left: 4px;
+}
+
+.sev-critical { background: #ff006e20; color: #ff4d94; border: 1px solid #ff006e70; }
+.sev-high     { background: #ffbe0b20; color: #ffdd57; border: 1px solid #ffbe0b70; }
+.sev-medium   { background: #fb560720; color: #ff9f68; border: 1px solid #fb560770; }
+.sev-low      { background: #8338ec20; color: #c4b5fd; border: 1px solid #8338ec70; }
+.sev-info     { background: #3a86ff20; color: #93c5fd; border: 1px solid #3a86ff70; }
+.sev-trace    { background: #4cc9f020; color: #bae6fd; border: 1px solid #4cc9f070; }
+
+/* CI/CD gate badges */
+.gate-red    { background: #7f1d1d; color: #fecaca; border: 1px solid #fca5a5; }
+.gate-amber  { background: #78350f; color: #fed7aa; border: 1px solid #fdba74; }
+.gate-green  { background: #14532d; color: #bbf7d0; border: 1px solid #4ade80; }
+
+/* Small helper for CI Gate – Latest Run card */
+.vsp-ci-gate-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.vsp-ci-gate-chip {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: rgba(15,23,42,0.8);
+  border: 1px solid rgba(148,163,184,0.4);
+}
+
+/* Subtle pulse for FAILED gate */
+.vsp-ci-gate-failed {
+  box-shadow: 0 0 0 1px rgba(248,113,113,0.3), 0 0 24px rgba(248,113,113,0.3);
+  animation: vsp-ci-pulse 2.4s infinite;
+}
+
+@keyframes vsp-ci-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(248,113,113,0.6); }
+  70%  { box-shadow: 0 0 0 18px rgba(248,113,113,0); }
+  100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); }
+}
+
+/* Extra block for advanced settings appended by JS */
+.vsp-settings-advanced {
+  margin-top: 32px;
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: radial-gradient(circle at top left, #111827, #020617 65%);
+  border: 1px solid rgba(148,163,184,0.3);
+}
+
+.vsp-settings-advanced-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.vsp-settings-advanced h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.vsp-settings-advanced p {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.vsp-settings-advanced dl {
+  margin: 0;
+  font-size: 13px;
+}
+
+.vsp-settings-advanced dt {
+  color: #6b7280;
+}
+
+.vsp-settings-advanced dd {
+  margin: 0 0 6px 0;
+  color: #e5e7eb;
+}
+
+.vsp-run-button {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(96,165,250,0.8);
+  background: linear-gradient(135deg, #0f172a, #1d4ed8);
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.vsp-run-button[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+

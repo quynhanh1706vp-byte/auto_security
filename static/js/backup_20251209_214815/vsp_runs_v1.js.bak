@@ -1,0 +1,305 @@
+/**
+ * VSP Runs & Reports – NEW IMPLEMENTATION (mass replace)
+ * Không còn loadRunsTable, không còn VSP_RUNS_UI_v1.
+ */
+(function () {
+  'use strict';
+
+  function $(sel) {
+    return document.querySelector(sel);
+  }
+
+  function deriveRunsArray(data) {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.runs)) return data.runs;
+    if (Array.isArray(data.last_runs)) return data.last_runs;
+    return [];
+  }
+
+  function average(list) {
+    if (!list.length) return null;
+    var s = 0;
+    for (var i = 0; i < list.length; i++) s += list[i];
+    return s / list.length;
+  }
+
+  function renderKpis(runs) {
+    var totalSpan = $('#vsp-kpi-runs-total');
+    var last10Span = $('#vsp-kpi-runs-last10');
+    var avgFindSpan = $('#vsp-kpi-runs-avg-findings');
+    var toolsPerRunSpan = $('#vsp-kpi-runs-tools-per-run');
+
+    var totalRuns = runs.length;
+    var last10 = runs.slice(0, 10);
+
+    var findingsList = [];
+    var toolsCounts = [];
+
+    runs.forEach(function (run) {
+      var f = run.total_findings;
+      if (f == null) f = run.findings_total;
+      if (f == null && run.summary && run.summary.total_findings != null) {
+        f = run.summary.total_findings;
+      }
+      if (typeof f === 'number') findingsList.push(f);
+
+      var tools = run.tools_enabled || run.tools;
+      if (Array.isArray(tools)) {
+        toolsCounts.push((new Set(tools)).size);
+      }
+    });
+
+    if (totalSpan) totalSpan.textContent = String(totalRuns);
+    if (last10Span) last10Span.textContent = String(last10.length);
+
+    var avgFind = average(findingsList);
+    if (avgFindSpan) avgFindSpan.textContent = (avgFind != null ? avgFind.toFixed(1) : '–');
+
+    var avgTools = average(toolsCounts);
+    if (toolsPerRunSpan) toolsPerRunSpan.textContent = (avgTools != null ? avgTools.toFixed(1) : '–');
+  }
+
+  function renderTable(runs) {
+    var tbody = $('#vsp-runs-tbody');
+    if (!tbody) {
+      console.log('[VSP_RUNS_TAB] Không tìm thấy #vsp-runs-tbody – bỏ qua render bảng.');
+      return;
+    }
+
+    tbody.innerHTML = '';
+
+    if (!runs.length) {
+      var trEmpty = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 12;
+      td.textContent = 'Chưa có VSP run nào.';
+      trEmpty.appendChild(td);
+      tbody.appendChild(trEmpty);
+      return;
+    }
+
+    runs.forEach(function (run, idx) {
+      var tr = document.createElement('tr');
+
+      function cell(text) {
+        var td = document.createElement('td');
+        td.textContent = text;
+        return td;
+      }
+
+      var id = run.run_id || run.id || run.name || '–';
+      var created = run.created_at || run.started_at || run.time || run.started || '';
+      var profile = run.profile || run.scan_profile || '–';
+
+      var f = run.total_findings;
+      if (f == null) f = run.findings_total;
+      if (f == null && run.summary && run.summary.total_findings != null) {
+        f = run.summary.total_findings;
+      }
+
+      var tools = run.tools_enabled || run.tools;
+      var toolsText = Array.isArray(tools) ? tools.join(', ') : (tools || '');
+
+      tr.setAttribute('data-run-id', id);
+
+      tr.appendChild(cell(String(idx + 1)));
+      tr.appendChild(cell(id));
+      tr.appendChild(cell(created || ''));
+      tr.appendChild(cell(profile));
+      tr.appendChild(cell(f != null ? String(f) : ''));
+      tr.appendChild(cell(toolsText));
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function loadRuns() {
+    var placeholder = $('#vsp-runs-loading');
+    if (placeholder) placeholder.textContent = 'Đang load danh sách runs...';
+
+    try {
+      var res = await fetch('/api/vsp/runs_index_v3');
+      if (!res.ok) {
+        console.error('[VSP_RUNS_TAB] HTTP', res.status, 'khi gọi runs_index_v3');
+        if (placeholder) {
+          placeholder.textContent = 'Lỗi HTTP ' + res.status + ' khi load runs_index_v3.';
+        }
+        return;
+      }
+
+      var data = await res.json();
+      var runs = deriveRunsArray(data);
+      if (placeholder) placeholder.textContent = '';
+
+      console.log('[VSP_RUNS_TAB] Loaded ' + runs.length + ' runs từ runs_index_v3');
+      renderKpis(runs);
+      renderTable(runs);
+    } catch (err) {
+      console.error('[VSP_RUNS_TAB] Lỗi fetch runs_index_v3', err);
+      if (placeholder) placeholder.textContent = 'Lỗi khi load runs: ' + err;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log('[VSP_RUNS_TAB] vsp_runs_v1.js (mass replace) loaded – auto load runs.');
+    loadRuns();
+    window.vspReloadRuns = loadRuns;
+  });
+})();
+
+
+
+/* VSP_P2_RUNS_FILTERS_SORT_V1 */
+(function(){
+  function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+  function el(tag, attrs, html){
+    const e=document.createElement(tag);
+    if(attrs){ for(const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]); }
+    if(html!==undefined) e.innerHTML=html;
+    return e;
+  }
+  async function jget(url){
+    const r=await fetch(url, {credentials:"same-origin"});
+    const t=await r.text();
+    try { return {ok:true, json: JSON.parse(t)}; } catch(e){ return {ok:false, text:t}; }
+  }
+
+  function findRunsRoot(){
+    return document.querySelector('[data-testid="vsp-runs-main"]') || document.body;
+  }
+
+  function mountFilterBar(root, onChange){
+    let bar=root.querySelector('[data-testid="runs-filterbar"]');
+    if(bar) return bar;
+
+    bar=el('div', {'data-testid':'runs-filterbar'});
+    bar.style.cssText="max-width:1200px;margin:12px auto 8px auto;padding:0 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center";
+
+    const q=el('input', {'data-testid':'runs-q', 'placeholder':'Search RID…'});
+    q.style.cssText="flex:1;min-width:220px;padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit";
+
+    const sort=el('select', {'data-testid':'runs-sort'});
+    sort.style.cssText="padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit";
+    sort.innerHTML = `
+      <option value="ts_desc">Newest</option>
+      <option value="ts_asc">Oldest</option>
+      <option value="rid_asc">RID A→Z</option>
+      <option value="rid_desc">RID Z→A</option>
+    `;
+
+    const lim=el('select', {'data-testid':'runs-limit'});
+    lim.style.cssText=sort.style.cssText;
+    lim.innerHTML = `<option>20</option><option>50</option><option>100</option>`;
+
+    const btn=el('button', {'data-testid':'runs-refresh'}, 'Refresh');
+    btn.style.cssText="padding:9px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:inherit;cursor:pointer";
+    btn.onmouseenter=()=>btn.style.background="rgba(255,255,255,0.06)";
+    btn.onmouseleave=()=>btn.style.background="rgba(255,255,255,0.04)";
+
+    bar.appendChild(q); bar.appendChild(sort); bar.appendChild(lim); bar.appendChild(btn);
+    root.prepend(bar);
+
+    function fire(){ onChange({q:q.value||"", sort:sort.value, limit:+lim.value}); }
+    q.addEventListener("input", ()=>fire());
+    sort.addEventListener("change", ()=>fire());
+    lim.addEventListener("change", ()=>fire());
+    btn.addEventListener("click", ()=>fire());
+
+    return bar;
+  }
+
+  function renderTable(root, runs){
+    let host=document.querySelector('[data-testid="runs-table-host"]');
+    if(!host){
+      host=el('div', {'data-testid':'runs-table-host'});
+      host.style.cssText="max-width:1200px;margin:0 auto;padding:0 12px 18px 12px;";
+      root.appendChild(host);
+    }
+
+    if(!runs || !runs.length){
+      host.innerHTML = `<div style="opacity:.8;padding:14px;border:1px solid rgba(255,255,255,0.10);border-radius:14px;background:rgba(255,255,255,0.03)">No runs</div>`;
+      return;
+    }
+
+    const rows=runs.map(r=>{
+      const rid=esc(r.rid||r.run_id||"");
+      const ts=esc(r.ts||r.created_ts||"");
+      const rootDir=esc(r.root||"");
+      return `<tr data-rid="${rid}">
+        <td style="padding:10px 12px;font-weight:700;white-space:nowrap">${rid}</td>
+        <td style="padding:10px 12px;opacity:.85;white-space:nowrap">${ts}</td>
+        <td style="padding:10px 12px;opacity:.75;max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rootDir}</td>
+      </tr>`;
+    }).join("");
+
+    host.innerHTML = `
+      <div style="border:1px solid rgba(255,255,255,0.10);border-radius:14px;overflow:hidden;background:rgba(255,255,255,0.03)">
+        <table style="width:100%;border-collapse:separate;border-spacing:0;font-size:13px">
+          <thead>
+            <tr style="text-align:left;opacity:.75;background:rgba(15,18,24,0.92)">
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)">RID</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)">Time</th>
+              <th style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.10)">Root</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div data-testid="runs-hint" style="opacity:.7;margin-top:8px">Tip: click a RID row to copy RID.</div>
+    `;
+
+    host.querySelectorAll("tbody tr").forEach(tr=>{
+      tr.style.cursor="pointer";
+      tr.style.transition="background 120ms ease";
+      tr.onmouseenter=()=>tr.style.background="rgba(255,255,255,0.05)";
+      tr.onmouseleave=()=>tr.style.background="transparent";
+      tr.onclick=()=>{
+        const rid=tr.getAttribute("data-rid")||"";
+        if(rid) navigator.clipboard?.writeText(rid).catch(()=>{});
+      };
+    });
+  }
+
+  async function run(){
+    const root=findRunsRoot();
+    mountFilterBar(root, async (st)=>{
+      const lim=st.limit||50;
+      const res=await jget(`/api/vsp/runs?limit=${encodeURIComponent(lim)}&offset=0`);
+      const runs=(res.ok && res.json && res.json.runs) ? res.json.runs : [];
+      const q=(st.q||"").toLowerCase().trim();
+
+      let out=runs;
+      if(q) out=out.filter(r=>String(r.rid||r.run_id||"").toLowerCase().includes(q));
+
+      const sort=st.sort||"ts_desc";
+      out=[...out].sort((a,b)=>{
+        const ar=String(a.rid||a.run_id||"");
+        const br=String(b.rid||b.run_id||"");
+        const at=String(a.ts||a.created_ts||"");
+        const bt=String(b.ts||b.created_ts||"");
+        if(sort==="rid_asc") return ar.localeCompare(br);
+        if(sort==="rid_desc") return br.localeCompare(ar);
+        if(sort==="ts_asc") return at.localeCompare(bt);
+        return bt.localeCompare(at);
+      });
+
+      renderTable(root, out);
+    });
+
+    // initial render
+    const bar=root.querySelector('[data-testid="runs-filterbar"]');
+    const q=bar?.querySelector('[data-testid="runs-q"]');
+    const sort=bar?.querySelector('[data-testid="runs-sort"]');
+    const lim=bar?.querySelector('[data-testid="runs-limit"]');
+    const st={q:q?.value||"", sort:sort?.value||"ts_desc", limit:+(lim?.value||50)};
+    bar?.querySelector('[data-testid="runs-refresh"]')?.click();
+  }
+
+  // Only run on /runs (avoid affecting other tabs)
+  if(String(location.pathname||"").includes("/runs")){
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", run);
+    else run();
+  }
+})();

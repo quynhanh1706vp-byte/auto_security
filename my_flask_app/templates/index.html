@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VersaSecure Platform 2025</title>
+
+  <!-- CORE THEME -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_core.css') }}">
+
+  <!-- TAB-SPECIFIC CSS (có thể thêm sau) -->
+  {# chừa sẵn nếu bạn muốn tách file theo tab #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_dashboard.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_runs.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_datasource.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_settings.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_overrides.css') }}"> #}
+
+  <!-- VSP bottom padding fix v1 -->
+  <style id="vsp-dashboard-bottom-fix-v1">
+    /* Thêm khoảng trống dưới để không cắt bo góc / mất dòng cuối của bảng */
+    body {
+      padding-bottom: 40px !important;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <!-- ===================================== -->
+  <!--               SIDEBAR                 -->
+  <!-- ===================================== -->
+  <aside id="vsp-sidebar">
+    <div class="logo-area">
+      <div class="logo-circle">V</div>
+      <div class="logo-text">
+        <div class="logo-title">VersaSecure</div>
+        <div class="logo-sub">Security Bundle 2025</div>
+      </div>
+    </div>
+
+    <ul class="menu">
+      <li data-tab="dashboard" class="active"><span>Dashboard</span></li>
+      <li data-tab="runs"><span>Runs &amp; Reports</span></li>
+      <li data-tab="datasource"><span>Data Source</span></li>
+      <li data-tab="settings"><span>Settings</span></li>
+      <li data-tab="overrides"><span>Rule Overrides</span></li>
+    </ul>
+  </aside>
+
+
+  <!-- ===================================== -->
+  <!--               MAIN AREA               -->
+  <!-- ===================================== -->
+  <main id="vsp-main">
+
+    <!-- HEADER -->
+    <header id="vsp-header">
+      <div class="header-left">
+        <h1 id="vsp-header-title">Dashboard</h1>
+        <div id="vsp-header-subtitle">CIO-Level Security Overview</div>
+      </div>
+      <div class="header-right">
+        <div id="vsp-profile-mini">
+          <div class="profile-line profile-env">ENV: <span id="mini-env">staging</span></div>
+          <div class="profile-line profile-src">SRC: <span id="mini-src">/home/test/Data/khach6</span></div>
+          <div class="profile-line profile-profile">PROFILE: <span id="mini-profile">EXT+</span></div>
+        </div>
+        <button id="btn-global-refresh">Refresh</button>
+      </div>
+    </header>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 1 — DASHBOARD -->
+    <!-- ===================================== -->
+    <section id="tab-dashboard" class="tab active">
+
+      <!-- KPI row (10 KPI) -->
+      <div class="dash-row dash-kpi-row">
+        <div class="kpi-card" id="kpi-total"></div>
+        <div class="kpi-card" id="kpi-critical"></div>
+        <div class="kpi-card" id="kpi-high"></div>
+        <div class="kpi-card" id="kpi-medium"></div>
+        <div class="kpi-card" id="kpi-low"></div>
+        <div class="kpi-card" id="kpi-infotrace"></div>
+        <div class="kpi-card" id="kpi-score"></div>
+        <div class="kpi-card" id="kpi-tool"></div>
+        <div class="kpi-card" id="kpi-cwe"></div>
+        <div class="kpi-card" id="kpi-module"></div>
+      </div>
+
+      <!-- Chart row -->
+      <div class="dash-row dash-chart-row">
+        <div class="chart-card">
+          <h3>Severity Distribution</h3>
+          <canvas id="chart-donut"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Trend Over Time</h3>
+          <canvas id="chart-trend"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Findings by Tool</h3>
+          <canvas id="chart-bytool"></canvas>
+        </div>
+      </div>
+
+      <!-- TOP RISKS -->
+      <div class="dash-row dash-top-row">
+        <div class="top-card">
+          <h3>Top Findings</h3>
+          <table id="top-findings" class="vsp-table compact"></table>
+        </div>
+
+        <div class="top-card">
+          <h3>Top CVE</h3>
+          <table id="top-cve" class="vsp-table compact"></table>
+        </div>
+
+        <div class="top-card">
+          <h3>Top Modules</h3>
+          <table id="top-mod" class="vsp-table compact"></table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 2 — RUNS & REPORTS -->
+    <!-- ===================================== -->
+    
+<section id="tab-runs" class="tab-pane">
+  <div class="vsp-section-title">RUNS &amp; REPORTS</div>
+
+  <div class="vsp-row vsp-row-kpi">
+    <div class="vsp-kpi-card">
+      <div class="vsp-kpi-label">Total runs</div>
+      <div class="vsp-kpi-value" id="vsp-runs-total">-</div>
+    </div>
+    <div class="vsp-kpi-card">
+      <div class="vsp-kpi-label">Avg findings / run</div>
+      <div class="vsp-kpi-value" id="vsp-runs-avg">-</div>
+    </div>
+    <div class="vsp-kpi-card">
+      <div class="vsp-kpi-label">Last run id</div>
+      <div class="vsp-kpi-value" id="vsp-runs-last-id">-</div>
+    </div>
+    <div class="vsp-kpi-card">
+      <div class="vsp-kpi-label">Last run findings</div>
+      <div class="vsp-kpi-value" id="vsp-runs-last-total">-</div>
+    </div>
+  </div>
+
+  <div class="vsp-card vsp-card-table">
+    <div class="vsp-card-header">RUN HISTORY</div>
+    <div class="vsp-card-body">
+      <table class="vsp-table vsp-table-runs">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Run ID</th>
+            <th>Timestamp</th>
+            <th>Profile</th>
+            <th>Source path</th>
+            <th>Total</th>
+            <th>CRIT</th>
+            <th>HIGH</th>
+            <th>MED</th>
+            <th>LOW</th>
+            <th>INFO</th>
+            <th>TRACE</th>
+            <th>Tools</th>
+            <th>Reports</th>
+          </tr>
+        </thead>
+        <tbody id="vsp-runs-tbody">
+          <tr>
+            <td colspan="14" class="vsp-table-empty">Loading runs...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    function safeRuns(data) {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.runs)) return data.runs;
+      if (Array.isArray(data.items)) return data.items;
+      return [];
+    }
+
+    fetch('/api/vsp/runs_index')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        var runs = safeRuns(data);
+        var tbody = document.getElementById('vsp-runs-tbody');
+        if (!tbody) return;
+
+        if (!runs.length) {
+          tbody.innerHTML = '<tr><td colspan="14" class="vsp-table-empty">No runs found in /out. Please execute a scan first.</td></tr>';
+          return;
+        }
+
+        var total = 0;
+        var cnt = 0;
+
+        var rowsHtml = runs.map(function(run, idx) {
+          var sev = run.severity || {};
+          var t   = (typeof run.total_findings === 'number') ? run.total_findings : null;
+          if (t !== null) {
+            total += t;
+            cnt += 1;
+          }
+          var tools = (run.tools || run.tools_enabled || []).join(', ');
+          var htmlReport = run.report_html ? '<a href="' + run.report_html + '\" target=\"_blank\">HTML</a>' : '';
+          var pdfReport  = run.report_pdf  ? '<a href="' + run.report_pdf  + '\" target=\"_blank\">PDF</a>' : '';
+          var reports = [htmlReport, pdfReport].filter(Boolean).join(' | ') || '-';
+
+          return '' +
+            '<tr>' +
+              '<td>' + (idx + 1) + '</td>' +
+              '<td>' + (run.run_id || '-') + '</td>' +
+              '<td>' + (run.ts || run.timestamp || '-') + '</td>' +
+              '<td>' + (run.profile || '-') + '</td>' +
+              '<td class=\"vsp-cell-path\">' + (run.src_path || '-') + '</td>' +
+              '<td>' + (t !== null ? t : '-') + '</td>' +
+              '<td>' + (sev.CRITICAL || 0) + '</td>' +
+              '<td>' + (sev.HIGH || 0) + '</td>' +
+              '<td>' + (sev.MEDIUM || 0) + '</td>' +
+              '<td>' + (sev.LOW || 0) + '</td>' +
+              '<td>' + (sev.INFO || 0) + '</td>' +
+              '<td>' + (sev.TRACE || 0) + '</td>' +
+              '<td>' + (tools || '-') + '</td>' +
+              '<td>' + reports + '</td>' +
+            '</tr>';
+        }).join('');
+
+        tbody.innerHTML = rowsHtml;
+
+        var totalRuns = runs.length;
+        var avg       = cnt ? Math.round(total / cnt) : '-';
+        var last      = runs[0] || {};
+        var lastTotal = (typeof last.total_findings === 'number') ? last.total_findings : '-';
+
+        var elTotal  = document.getElementById('vsp-runs-total');
+        var elAvg    = document.getElementById('vsp-runs-avg');
+        var elLastId = document.getElementById('vsp-runs-last-id');
+        var elLastT  = document.getElementById('vsp-runs-last-total');
+
+        if (elTotal)  elTotal.textContent  = totalRuns;
+        if (elAvg)    elAvg.textContent    = avg;
+        if (elLastId) elLastId.textContent = last.run_id || '-';
+        if (elLastT)  elLastT.textContent  = lastTotal;
+      })
+      .catch(function(err) {
+        var tbody = document.getElementById('vsp-runs-tbody');
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="14" class="vsp-table-empty">Error loading /api/vsp/runs_index</td></tr>';
+        }
+        console.warn('[VSP][RUNS] error', err);
+      });
+  })();
+  </script>
+</section>
+
+
+
+    <!-- ===================================== -->
+    <!-- TAB 3 — DATA SOURCE -->
+    <!-- ===================================== -->
+    <section id="tab-datasource" class="tab">
+
+      <div class="ds-filters">
+        <select id="ds-sev"></select>
+        <select id="ds-tool"></select>
+        <input id="ds-file" placeholder="Path contains...">
+        <input id="ds-text" placeholder="Message / CWE / CVE / tags...">
+        <button id="ds-reset">Reset</button>
+      </div>
+
+      <div class="ds-mini-charts">
+        <div class="mini-card">
+          <h3>Severity (current filter)</h3>
+          <canvas id="ds-chart-sev"></canvas>
+        </div>
+        <div class="mini-card">
+          <h3>Top Tools</h3>
+          <canvas id="ds-chart-tool"></canvas>
+        </div>
+      </div>
+
+      <div class="ds-table-wrap">
+        <table id="tbl-ds" class="vsp-table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Tool</th>
+              <th>Rule</th>
+              <th>File</th>
+              <th>Line</th>
+              <th>Message</th>
+              <th>CWE / CVE</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="ds-export">
+        <button data-format="json">Export JSON</button>
+        <button data-format="csv">Export CSV</button>
+        <button data-format="sarif">Export SARIF</button>
+        <button data-format="zip">Export ZIP</button>
+      </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 4 — SETTINGS -->
+    <!-- ===================================== -->
+    <section id="tab-settings" class="tab">
+
+      <div class="set-row">
+        <div id="set-profile" class="set-card"></div>
+        <div id="set-src" class="set-card"></div>
+        <div id="set-run-dir" class="set-card"></div>
+        <div id="set-last-run" class="set-card"></div>
+      </div>
+
+      <div class="set-grid">
+        <div class="set-panel">
+          <h2>Enabled Tools</h2>
+          <table id="tbl-tools" class="vsp-table"></table>
+        </div>
+
+        <div class="set-panel">
+          <h2>Profiles &amp; Integrations</h2>
+
+          <div class="cfg-block">
+            <label>Scanner Profile</label>
+            <select id="set-sel-profile">
+              <option>FAST</option>
+              <option>EXT+</option>
+              <option>AGGR</option>
+              <option>FULL</option>
+            </select>
+            <button id="btn-save-profile">Save Profile</button>
+          </div>
+
+          <div class="cfg-block">
+            <label>Webhook URL</label>
+            <input id="set-webhook">
+
+            <label>Slack Webhook</label>
+            <input id="set-slack">
+
+            <label>SARIF Endpoint</label>
+            <input id="set-sarif">
+
+            <button id="btn-save-integr">Save Integrations</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 5 — RULE OVERRIDES -->
+    <!-- ===================================== -->
+    <section id="tab-overrides" class="tab">
+
+      <div class="ro-filters">
+        <select id="ro-tool"></select>
+        <select id="ro-severity"></select>
+        <input id="ro-search" placeholder="Rule ID / pattern...">
+      </div>
+
+      <div class="ro-main">
+        <div class="ro-table">
+          <table id="tbl-overrides" class="vsp-table">
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Rule ID</th>
+                <th>Match</th>
+                <th>Action</th>
+                <th>New Severity</th>
+                <th>Allowlist</th>
+                <th>Enabled</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="ro-impact">
+          <h3>Impact Preview</h3>
+          <p id="ro-impact-txt">Overrides impact will appear here.</p>
+          <canvas id="ro-chart"></canvas>
+          <div class="ro-actions">
+            <button id="ro-recalc">Recalculate Impact</button>
+            <button id="ro-export">Export Overrides JSON</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- JS CORE -->
+  <script src="{{ url_for('static', filename='js/vsp_core_runtime.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vsp_api.js') }}"></script>
+
+  <!-- PER TAB JS (skeleton, sẽ fill dần) -->
+  <script src="{{ url_for('static', filename='js/dashboard_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/runs_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/datasource_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/overrides_render.js') }}"></script>
+
+</body>
+</html>

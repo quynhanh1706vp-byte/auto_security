@@ -1,0 +1,367 @@
+[2025-12-17 19:03:33 +0700] [934995] [INFO] Handling signal: term
+[2025-12-17 19:03:33 +0700] [934998] [INFO] Worker exiting (pid: 934998)
+[2025-12-17 19:03:34 +0700] [936377] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:03:34 +0700] [936377] [INFO] Listening at: http://127.0.0.1:8910 (936377)
+[2025-12-17 19:03:34 +0700] [936377] [INFO] Using worker: gthread
+[2025-12-17 19:03:34 +0700] [936379] [INFO] Booting worker with pid: 936379
+[2025-12-17 19:03:34 +0700] [936380] [INFO] Booting worker with pid: 936380
+[2025-12-17 19:03:35 +0700] [934997] [INFO] Worker exiting (pid: 934997)
+[2025-12-17 19:09:23 +0700] [936377] [INFO] Handling signal: term
+[2025-12-17 19:09:24 +0700] [936380] [INFO] Parent changed, shutting down: <Worker 936380>
+[2025-12-17 19:09:24 +0700] [936380] [INFO] Worker exiting (pid: 936380)
+[2025-12-17 19:09:24 +0700] [936379] [INFO] Parent changed, shutting down: <Worker 936379>
+[2025-12-17 19:09:24 +0700] [936379] [INFO] Worker exiting (pid: 936379)
+[2025-12-17 19:09:24 +0700] [938830] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:09:24 +0700] [938830] [INFO] Listening at: http://127.0.0.1:8910 (938830)
+[2025-12-17 19:09:24 +0700] [938830] [INFO] Using worker: gthread
+[2025-12-17 19:09:24 +0700] [938832] [INFO] Booting worker with pid: 938832
+[2025-12-17 19:09:24 +0700] [938833] [INFO] Booting worker with pid: 938833
+[2025-12-17 19:11:26 +0700] [938830] [INFO] Handling signal: term
+[2025-12-17 19:11:26 +0700] [938832] [INFO] Worker exiting (pid: 938832)
+[2025-12-17 19:11:26 +0700] [938833] [INFO] Worker exiting (pid: 938833)
+[2025-12-17 19:11:26 +0700] [938830] [INFO] Shutting down: Master
+[2025-12-17 19:11:28 +0700] [939724] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:11:28 +0700] [939724] [INFO] Listening at: http://127.0.0.1:8910 (939724)
+[2025-12-17 19:11:28 +0700] [939724] [INFO] Using worker: gthread
+[2025-12-17 19:11:28 +0700] [939726] [INFO] Booting worker with pid: 939726
+[2025-12-17 19:11:28 +0700] [939727] [INFO] Booting worker with pid: 939727
+[2025-12-17 19:16:58 +0700] [939724] [INFO] Handling signal: term
+[2025-12-17 19:16:58 +0700] [939726] [INFO] Worker exiting (pid: 939726)
+[2025-12-17 19:16:58 +0700] [939727] [INFO] Worker exiting (pid: 939727)
+[2025-12-17 19:16:58 +0700] [939724] [INFO] Shutting down: Master
+[2025-12-17 19:17:00 +0700] [942094] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:17:00 +0700] [942094] [INFO] Listening at: http://127.0.0.1:8910 (942094)
+[2025-12-17 19:17:00 +0700] [942094] [INFO] Using worker: gthread
+[2025-12-17 19:17:00 +0700] [942096] [INFO] Booting worker with pid: 942096
+[2025-12-17 19:17:00 +0700] [942097] [INFO] Booting worker with pid: 942097
+[2025-12-17 19:22:54 +0700] [942094] [INFO] Handling signal: term
+[2025-12-17 19:22:54 +0700] [942096] [INFO] Worker exiting (pid: 942096)
+[2025-12-17 19:22:55 +0700] [942097] [INFO] Worker exiting (pid: 942097)
+[2025-12-17 19:22:56 +0700] [944567] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:22:56 +0700] [944567] [INFO] Listening at: http://127.0.0.1:8910 (944567)
+[2025-12-17 19:22:56 +0700] [944567] [INFO] Using worker: gthread
+[2025-12-17 19:22:56 +0700] [944569] [INFO] Booting worker with pid: 944569
+[2025-12-17 19:22:56 +0700] [944570] [INFO] Booting worker with pid: 944570
+[2025-12-17 19:33:57 +0700] [5528] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:33:57 +0700] [5528] [INFO] Listening at: http://127.0.0.1:8910 (5528)
+[2025-12-17 19:33:57 +0700] [5528] [INFO] Using worker: gthread
+[2025-12-17 19:33:57 +0700] [5530] [INFO] Booting worker with pid: 5530
+[2025-12-17 19:33:57 +0700] [5531] [INFO] Booting worker with pid: 5531
+[2025-12-18 06:07:22 +0700] [5528] [INFO] Handling signal: term
+[2025-12-18 06:07:22 +0700] [5531] [INFO] Worker exiting (pid: 5531)
+[2025-12-18 06:07:22 +0700] [5530] [INFO] Worker exiting (pid: 5530)
+[2025-12-18 06:07:22 +0700] [5528] [INFO] Shutting down: Master
+[2025-12-18 06:07:24 +0700] [92315] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:07:24 +0700] [92315] [INFO] Listening at: http://127.0.0.1:8910 (92315)
+[2025-12-18 06:07:24 +0700] [92315] [INFO] Using worker: gthread
+[2025-12-18 06:07:24 +0700] [92317] [INFO] Booting worker with pid: 92317
+[2025-12-18 06:07:24 +0700] [92329] [INFO] Booting worker with pid: 92329
+[2025-12-18 06:07:57 +0700] [92315] [INFO] Handling signal: term
+[2025-12-18 06:07:58 +0700] [92329] [INFO] Worker exiting (pid: 92329)
+[2025-12-18 06:07:59 +0700] [92470] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:07:59 +0700] [92470] [INFO] Listening at: http://127.0.0.1:8910 (92470)
+[2025-12-18 06:07:59 +0700] [92470] [INFO] Using worker: gthread
+[2025-12-18 06:07:59 +0700] [92472] [INFO] Booting worker with pid: 92472
+[2025-12-18 06:07:59 +0700] [92473] [INFO] Booting worker with pid: 92473
+[2025-12-18 06:08:13 +0700] [92317] [INFO] Worker exiting (pid: 92317)
+[2025-12-18 06:44:28 +0700] [92470] [INFO] Handling signal: term
+[2025-12-18 06:44:29 +0700] [92472] [INFO] Parent changed, shutting down: <Worker 92472>
+[2025-12-18 06:44:29 +0700] [92472] [INFO] Worker exiting (pid: 92472)
+[2025-12-18 06:44:29 +0700] [92473] [INFO] Parent changed, shutting down: <Worker 92473>
+[2025-12-18 06:44:29 +0700] [92473] [INFO] Worker exiting (pid: 92473)
+[2025-12-18 06:44:29 +0700] [104440] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:44:29 +0700] [104440] [INFO] Listening at: http://127.0.0.1:8910 (104440)
+[2025-12-18 06:44:29 +0700] [104440] [INFO] Using worker: gthread
+[2025-12-18 06:44:29 +0700] [104442] [INFO] Booting worker with pid: 104442
+[2025-12-18 06:44:29 +0700] [104443] [INFO] Booting worker with pid: 104443
+[2025-12-18 06:44:41,259] ERROR in app: Exception on /api/vsp/verify_report_sha_latest_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 6861, in api_verify_report_sha_latest_v1
+    _vsp__pack_report__p0(run_dir)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 6807, in _vsp__pack_report__p0
+    return {{
+           ^^
+TypeError: unhashable type: 'dict'
+[2025-12-18 06:44:41,523] ERROR in app: Exception on /api/vsp/pack_report_latest_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 6823, in api_pack_report_latest_v1
+    res = _vsp__pack_report__p0(run_dir)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 6807, in _vsp__pack_report__p0
+    return {{
+           ^^
+TypeError: unhashable type: 'dict'
+[2025-12-18 06:46:59 +0700] [104440] [INFO] Handling signal: term
+[2025-12-18 06:46:59 +0700] [104443] [INFO] Worker exiting (pid: 104443)
+[2025-12-18 06:46:59 +0700] [104442] [INFO] Worker exiting (pid: 104442)
+[2025-12-18 06:46:59 +0700] [104440] [INFO] Shutting down: Master
+[2025-12-18 06:47:00 +0700] [104896] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:47:00 +0700] [104896] [INFO] Listening at: http://127.0.0.1:8910 (104896)
+[2025-12-18 06:47:00 +0700] [104896] [INFO] Using worker: gthread
+[2025-12-18 06:47:00 +0700] [104898] [INFO] Booting worker with pid: 104898
+[2025-12-18 06:47:00 +0700] [104899] [INFO] Booting worker with pid: 104899
+[2025-12-18 06:48:26 +0700] [104896] [INFO] Handling signal: term
+[2025-12-18 06:48:26 +0700] [104899] [INFO] Worker exiting (pid: 104899)
+[2025-12-18 06:48:26 +0700] [104898] [INFO] Worker exiting (pid: 104898)
+[2025-12-18 06:48:26 +0700] [104896] [INFO] Shutting down: Master
+[2025-12-18 06:48:28 +0700] [105183] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:48:28 +0700] [105183] [INFO] Listening at: http://127.0.0.1:8910 (105183)
+[2025-12-18 06:48:28 +0700] [105183] [INFO] Using worker: gthread
+[2025-12-18 06:48:28 +0700] [105185] [INFO] Booting worker with pid: 105185
+[2025-12-18 06:48:28 +0700] [105186] [INFO] Booting worker with pid: 105186
+[2025-12-18 06:52:21 +0700] [105183] [INFO] Handling signal: term
+[2025-12-18 06:52:22 +0700] [105186] [INFO] Parent changed, shutting down: <Worker 105186>
+[2025-12-18 06:52:22 +0700] [105186] [INFO] Worker exiting (pid: 105186)
+[2025-12-18 06:52:22 +0700] [105185] [INFO] Parent changed, shutting down: <Worker 105185>
+[2025-12-18 06:52:22 +0700] [105185] [INFO] Worker exiting (pid: 105185)
+[2025-12-18 06:52:23 +0700] [105901] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:52:23 +0700] [105901] [INFO] Listening at: http://127.0.0.1:8910 (105901)
+[2025-12-18 06:52:23 +0700] [105901] [INFO] Using worker: gthread
+[2025-12-18 06:52:23 +0700] [105903] [INFO] Booting worker with pid: 105903
+[2025-12-18 06:52:23 +0700] [105904] [INFO] Booting worker with pid: 105904
+[2025-12-18 06:55:03 +0700] [105901] [INFO] Handling signal: term
+[2025-12-18 06:55:03 +0700] [105903] [INFO] Worker exiting (pid: 105903)
+[2025-12-18 06:55:04 +0700] [105904] [INFO] Parent changed, shutting down: <Worker 105904>
+[2025-12-18 06:55:04 +0700] [105904] [INFO] Worker exiting (pid: 105904)
+[2025-12-18 06:55:04 +0700] [106812] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 06:55:04 +0700] [106812] [INFO] Listening at: http://127.0.0.1:8910 (106812)
+[2025-12-18 06:55:04 +0700] [106812] [INFO] Using worker: gthread
+[2025-12-18 06:55:04 +0700] [106814] [INFO] Booting worker with pid: 106814
+[2025-12-18 06:55:04 +0700] [106815] [INFO] Booting worker with pid: 106815
+[2025-12-18 07:00:35 +0700] [106812] [INFO] Handling signal: term
+[2025-12-18 07:00:35 +0700] [106814] [INFO] Worker exiting (pid: 106814)
+[2025-12-18 07:00:35 +0700] [106815] [INFO] Worker exiting (pid: 106815)
+[2025-12-18 07:00:35 +0700] [106812] [INFO] Shutting down: Master
+[2025-12-18 07:00:36 +0700] [107642] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:00:36 +0700] [107642] [INFO] Listening at: http://127.0.0.1:8910 (107642)
+[2025-12-18 07:00:36 +0700] [107642] [INFO] Using worker: gthread
+[2025-12-18 07:00:36 +0700] [107644] [INFO] Booting worker with pid: 107644
+[2025-12-18 07:00:36 +0700] [107645] [INFO] Booting worker with pid: 107645
+[2025-12-18 07:03:22 +0700] [107642] [INFO] Handling signal: term
+[2025-12-18 07:03:23 +0700] [107644] [INFO] Worker exiting (pid: 107644)
+[2025-12-18 07:03:23 +0700] [107645] [INFO] Worker exiting (pid: 107645)
+[2025-12-18 07:03:23 +0700] [107642] [INFO] Shutting down: Master
+[2025-12-18 07:03:24 +0700] [108450] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:03:24 +0700] [108450] [INFO] Listening at: http://127.0.0.1:8910 (108450)
+[2025-12-18 07:03:24 +0700] [108450] [INFO] Using worker: gthread
+[2025-12-18 07:03:24 +0700] [108452] [INFO] Booting worker with pid: 108452
+[2025-12-18 07:03:24 +0700] [108453] [INFO] Booting worker with pid: 108453
+[2025-12-18 07:08:20 +0700] [108450] [INFO] Handling signal: term
+[2025-12-18 07:08:20 +0700] [108452] [INFO] Worker exiting (pid: 108452)
+[2025-12-18 07:08:20 +0700] [108453] [INFO] Parent changed, shutting down: <Worker 108453>
+[2025-12-18 07:08:20 +0700] [108453] [INFO] Worker exiting (pid: 108453)
+[2025-12-18 07:08:21 +0700] [109514] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:08:21 +0700] [109514] [INFO] Listening at: http://127.0.0.1:8910 (109514)
+[2025-12-18 07:08:21 +0700] [109514] [INFO] Using worker: gthread
+[2025-12-18 07:08:21 +0700] [109516] [INFO] Booting worker with pid: 109516
+[2025-12-18 07:08:21 +0700] [109517] [INFO] Booting worker with pid: 109517
+[2025-12-18 07:13:44 +0700] [109514] [INFO] Handling signal: term
+[2025-12-18 07:13:44 +0700] [109517] [INFO] Worker exiting (pid: 109517)
+[2025-12-18 07:13:44 +0700] [109516] [INFO] Worker exiting (pid: 109516)
+[2025-12-18 07:13:45 +0700] [109514] [INFO] Shutting down: Master
+[2025-12-18 07:13:46 +0700] [110320] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:13:46 +0700] [110320] [INFO] Listening at: http://127.0.0.1:8910 (110320)
+[2025-12-18 07:13:46 +0700] [110320] [INFO] Using worker: gthread
+[2025-12-18 07:13:46 +0700] [110322] [INFO] Booting worker with pid: 110322
+[2025-12-18 07:13:46 +0700] [110323] [INFO] Booting worker with pid: 110323
+[2025-12-18 07:17:38 +0700] [110320] [INFO] Handling signal: term
+[2025-12-18 07:17:39 +0700] [110322] [INFO] Worker exiting (pid: 110322)
+[2025-12-18 07:17:39 +0700] [110323] [INFO] Worker exiting (pid: 110323)
+[2025-12-18 07:17:39 +0700] [110320] [INFO] Shutting down: Master
+[2025-12-18 07:17:40 +0700] [111051] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:17:40 +0700] [111051] [INFO] Listening at: http://127.0.0.1:8910 (111051)
+[2025-12-18 07:17:40 +0700] [111051] [INFO] Using worker: gthread
+[2025-12-18 07:17:40 +0700] [111071] [INFO] Booting worker with pid: 111071
+[2025-12-18 07:17:40 +0700] [111072] [INFO] Booting worker with pid: 111072
+[2025-12-18 07:20:43 +0700] [111051] [INFO] Handling signal: term
+[2025-12-18 07:20:43 +0700] [111072] [INFO] Worker exiting (pid: 111072)
+[2025-12-18 07:20:43 +0700] [111071] [INFO] Worker exiting (pid: 111071)
+[2025-12-18 07:20:44 +0700] [112164] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:20:44 +0700] [112164] [INFO] Listening at: http://127.0.0.1:8910 (112164)
+[2025-12-18 07:20:44 +0700] [112164] [INFO] Using worker: gthread
+[2025-12-18 07:20:44 +0700] [112166] [INFO] Booting worker with pid: 112166
+[2025-12-18 07:20:44 +0700] [112167] [INFO] Booting worker with pid: 112167
+[2025-12-18 07:29:27 +0700] [112164] [INFO] Handling signal: term
+[2025-12-18 07:29:28 +0700] [112167] [INFO] Parent changed, shutting down: <Worker 112167>
+[2025-12-18 07:29:28 +0700] [112166] [INFO] Parent changed, shutting down: <Worker 112166>
+[2025-12-18 07:29:28 +0700] [112167] [INFO] Worker exiting (pid: 112167)
+[2025-12-18 07:29:28 +0700] [112166] [INFO] Worker exiting (pid: 112166)
+[2025-12-18 07:29:29 +0700] [117129] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:29:29 +0700] [117129] [INFO] Listening at: http://127.0.0.1:8910 (117129)
+[2025-12-18 07:29:29 +0700] [117129] [INFO] Using worker: gthread
+[2025-12-18 07:29:29 +0700] [117131] [INFO] Booting worker with pid: 117131
+[2025-12-18 07:29:29 +0700] [117132] [INFO] Booting worker with pid: 117132
+[2025-12-18 07:33:11 +0700] [117129] [INFO] Handling signal: term
+[2025-12-18 07:33:12 +0700] [117131] [INFO] Parent changed, shutting down: <Worker 117131>
+[2025-12-18 07:33:12 +0700] [117131] [INFO] Worker exiting (pid: 117131)
+[2025-12-18 07:33:12 +0700] [117132] [INFO] Parent changed, shutting down: <Worker 117132>
+[2025-12-18 07:33:12 +0700] [117132] [INFO] Worker exiting (pid: 117132)
+[2025-12-18 07:33:13 +0700] [117896] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:33:13 +0700] [117896] [INFO] Listening at: http://127.0.0.1:8910 (117896)
+[2025-12-18 07:33:13 +0700] [117896] [INFO] Using worker: gthread
+[2025-12-18 07:33:13 +0700] [117898] [INFO] Booting worker with pid: 117898
+[2025-12-18 07:33:13 +0700] [117899] [INFO] Booting worker with pid: 117899
+[2025-12-18 07:40:43 +0700] [117896] [INFO] Handling signal: term
+[2025-12-18 07:40:44 +0700] [117898] [INFO] Parent changed, shutting down: <Worker 117898>
+[2025-12-18 07:40:44 +0700] [117898] [INFO] Worker exiting (pid: 117898)
+[2025-12-18 07:40:44 +0700] [117899] [INFO] Parent changed, shutting down: <Worker 117899>
+[2025-12-18 07:40:44 +0700] [117899] [INFO] Worker exiting (pid: 117899)
+[2025-12-18 07:40:44 +0700] [120533] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 07:40:44 +0700] [120533] [INFO] Listening at: http://127.0.0.1:8910 (120533)
+[2025-12-18 07:40:44 +0700] [120533] [INFO] Using worker: gthread
+[2025-12-18 07:40:44 +0700] [120535] [INFO] Booting worker with pid: 120535
+[2025-12-18 07:40:44 +0700] [120536] [INFO] Booting worker with pid: 120536
+[2025-12-18 08:00:35 +0700] [120533] [INFO] Handling signal: term
+[2025-12-18 08:00:35 +0700] [120535] [INFO] Worker exiting (pid: 120535)
+[2025-12-18 08:00:35 +0700] [120536] [INFO] Worker exiting (pid: 120536)
+[2025-12-18 08:00:35 +0700] [120533] [INFO] Shutting down: Master
+[2025-12-18 08:00:36 +0700] [133426] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 08:00:36 +0700] [133426] [INFO] Listening at: http://127.0.0.1:8910 (133426)
+[2025-12-18 08:00:36 +0700] [133426] [INFO] Using worker: gthread
+[2025-12-18 08:00:36 +0700] [133428] [INFO] Booting worker with pid: 133428
+[2025-12-18 08:00:36 +0700] [133429] [INFO] Booting worker with pid: 133429
+[2025-12-18 08:00:44 +0700] [133426] [INFO] Handling signal: term
+[2025-12-18 08:00:44 +0700] [133428] [INFO] Worker exiting (pid: 133428)
+[2025-12-18 08:00:44 +0700] [133429] [INFO] Worker exiting (pid: 133429)
+[2025-12-18 08:00:44 +0700] [133426] [INFO] Shutting down: Master
+[2025-12-18 08:00:46 +0700] [133572] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 08:00:46 +0700] [133572] [INFO] Listening at: http://127.0.0.1:8910 (133572)
+[2025-12-18 08:00:46 +0700] [133572] [INFO] Using worker: gthread
+[2025-12-18 08:00:46 +0700] [133574] [INFO] Booting worker with pid: 133574
+[2025-12-18 08:00:46 +0700] [133575] [INFO] Booting worker with pid: 133575
+[2025-12-18 08:17:05 +0700] [133572] [INFO] Handling signal: term
+[2025-12-18 08:17:06 +0700] [133574] [INFO] Parent changed, shutting down: <Worker 133574>
+[2025-12-18 08:17:06 +0700] [133574] [INFO] Worker exiting (pid: 133574)
+[2025-12-18 08:17:06 +0700] [133575] [INFO] Parent changed, shutting down: <Worker 133575>
+[2025-12-18 08:17:06 +0700] [133575] [INFO] Worker exiting (pid: 133575)
+[2025-12-18 08:17:07 +0700] [147988] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 08:17:07 +0700] [147988] [INFO] Listening at: http://127.0.0.1:8910 (147988)
+[2025-12-18 08:17:07 +0700] [147988] [INFO] Using worker: gthread
+[2025-12-18 08:17:07 +0700] [147990] [INFO] Booting worker with pid: 147990
+[2025-12-18 08:17:07 +0700] [147991] [INFO] Booting worker with pid: 147991
+[2025-12-18 08:35:46 +0700] [147988] [INFO] Handling signal: term
+[2025-12-18 08:35:47 +0700] [147990] [INFO] Worker exiting (pid: 147990)
+[2025-12-18 08:35:47 +0700] [147991] [INFO] Worker exiting (pid: 147991)
+[2025-12-18 08:35:47 +0700] [147988] [INFO] Shutting down: Master
+[2025-12-18 08:35:48 +0700] [169916] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 08:35:48 +0700] [169916] [INFO] Listening at: http://127.0.0.1:8910 (169916)
+[2025-12-18 08:35:48 +0700] [169916] [INFO] Using worker: gthread
+[2025-12-18 08:35:48 +0700] [169918] [INFO] Booting worker with pid: 169918
+[2025-12-18 08:35:48 +0700] [169919] [INFO] Booting worker with pid: 169919
+[2025-12-18 08:42:32 +0700] [169916] [INFO] Handling signal: term
+[2025-12-18 08:42:32 +0700] [169918] [INFO] Worker exiting (pid: 169918)
+[2025-12-18 08:42:32 +0700] [169919] [INFO] Worker exiting (pid: 169919)
+[2025-12-18 08:42:33 +0700] [169916] [INFO] Shutting down: Master
+[2025-12-18 08:42:34 +0700] [179143] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 08:42:34 +0700] [179143] [INFO] Listening at: http://127.0.0.1:8910 (179143)
+[2025-12-18 08:42:34 +0700] [179143] [INFO] Using worker: gthread
+[2025-12-18 08:42:34 +0700] [179145] [INFO] Booting worker with pid: 179145
+[2025-12-18 08:42:34 +0700] [179146] [INFO] Booting worker with pid: 179146
+[2025-12-18 08:57:10 +0700] [179143] [INFO] Handling signal: term
+[2025-12-18 08:57:10 +0700] [179146] [INFO] Worker exiting (pid: 179146)
+[2025-12-18 08:57:10 +0700] [179145] [INFO] Parent changed, shutting down: <Worker 179145>
+[2025-12-18 08:57:10 +0700] [179145] [INFO] Worker exiting (pid: 179145)
+[2025-12-18 08:57:11 +0700] [193327] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 08:57:11 +0700] [193327] [INFO] Listening at: http://127.0.0.1:8910 (193327)
+[2025-12-18 08:57:11 +0700] [193327] [INFO] Using worker: gthread
+[2025-12-18 08:57:11 +0700] [193329] [INFO] Booting worker with pid: 193329
+[2025-12-18 08:57:11 +0700] [193330] [INFO] Booting worker with pid: 193330
+[2025-12-18 09:11:09 +0700] [193327] [INFO] Handling signal: term
+[2025-12-18 09:11:10 +0700] [193329] [INFO] Parent changed, shutting down: <Worker 193329>
+[2025-12-18 09:11:10 +0700] [193329] [INFO] Worker exiting (pid: 193329)
+[2025-12-18 09:11:10 +0700] [193330] [INFO] Parent changed, shutting down: <Worker 193330>
+[2025-12-18 09:11:10 +0700] [193330] [INFO] Worker exiting (pid: 193330)
+[2025-12-18 09:11:11 +0700] [206492] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:11:11 +0700] [206492] [INFO] Listening at: http://127.0.0.1:8910 (206492)
+[2025-12-18 09:11:11 +0700] [206492] [INFO] Using worker: gthread
+[2025-12-18 09:11:11 +0700] [206494] [INFO] Booting worker with pid: 206494
+[2025-12-18 09:11:11 +0700] [206495] [INFO] Booting worker with pid: 206495
+[2025-12-18 09:15:22 +0700] [206492] [INFO] Handling signal: term
+[2025-12-18 09:15:22 +0700] [206494] [INFO] Worker exiting (pid: 206494)
+[2025-12-18 09:15:22 +0700] [206495] [INFO] Worker exiting (pid: 206495)
+[2025-12-18 09:15:22 +0700] [206492] [INFO] Shutting down: Master
+[2025-12-18 09:15:24 +0700] [209400] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:15:24 +0700] [209400] [INFO] Listening at: http://127.0.0.1:8910 (209400)
+[2025-12-18 09:15:24 +0700] [209400] [INFO] Using worker: gthread
+[2025-12-18 09:15:24 +0700] [209402] [INFO] Booting worker with pid: 209402
+[2025-12-18 09:15:24 +0700] [209403] [INFO] Booting worker with pid: 209403
+[2025-12-18 09:17:58 +0700] [209400] [INFO] Handling signal: term
+[2025-12-18 09:17:59 +0700] [209402] [INFO] Parent changed, shutting down: <Worker 209402>
+[2025-12-18 09:17:59 +0700] [209402] [INFO] Worker exiting (pid: 209402)
+[2025-12-18 09:17:59 +0700] [209403] [INFO] Parent changed, shutting down: <Worker 209403>
+[2025-12-18 09:17:59 +0700] [209403] [INFO] Worker exiting (pid: 209403)
+[2025-12-18 09:18:00 +0700] [210622] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:18:00 +0700] [210622] [INFO] Listening at: http://127.0.0.1:8910 (210622)
+[2025-12-18 09:18:00 +0700] [210622] [INFO] Using worker: gthread
+[2025-12-18 09:18:00 +0700] [210624] [INFO] Booting worker with pid: 210624
+[2025-12-18 09:18:00 +0700] [210625] [INFO] Booting worker with pid: 210625
+[2025-12-18 09:21:33 +0700] [210622] [INFO] Handling signal: term
+[2025-12-18 09:21:33 +0700] [210624] [INFO] Worker exiting (pid: 210624)
+[2025-12-18 09:21:33 +0700] [210625] [INFO] Worker exiting (pid: 210625)
+[2025-12-18 09:21:34 +0700] [211203] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:21:34 +0700] [211203] [INFO] Listening at: http://127.0.0.1:8910 (211203)
+[2025-12-18 09:21:34 +0700] [211203] [INFO] Using worker: gthread
+[2025-12-18 09:21:34 +0700] [211208] [INFO] Booting worker with pid: 211208
+[2025-12-18 09:21:34 +0700] [211209] [INFO] Booting worker with pid: 211209
+[2025-12-18 09:24:11 +0700] [211203] [INFO] Handling signal: term
+[2025-12-18 09:24:11 +0700] [211209] [INFO] Worker exiting (pid: 211209)
+[2025-12-18 09:24:11 +0700] [211208] [INFO] Worker exiting (pid: 211208)
+[2025-12-18 09:24:11 +0700] [211203] [INFO] Shutting down: Master
+[2025-12-18 09:24:13 +0700] [213029] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:24:13 +0700] [213029] [INFO] Listening at: http://127.0.0.1:8910 (213029)
+[2025-12-18 09:24:13 +0700] [213029] [INFO] Using worker: gthread
+[2025-12-18 09:24:13 +0700] [213031] [INFO] Booting worker with pid: 213031
+[2025-12-18 09:24:13 +0700] [213032] [INFO] Booting worker with pid: 213032
+[2025-12-18 09:26:04 +0700] [213029] [INFO] Handling signal: term
+[2025-12-18 09:26:04 +0700] [213032] [INFO] Worker exiting (pid: 213032)
+[2025-12-18 09:26:04 +0700] [213031] [INFO] Worker exiting (pid: 213031)
+[2025-12-18 09:26:05 +0700] [213029] [INFO] Shutting down: Master
+[2025-12-18 09:26:06 +0700] [214328] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:26:06 +0700] [214328] [INFO] Listening at: http://127.0.0.1:8910 (214328)
+[2025-12-18 09:26:06 +0700] [214328] [INFO] Using worker: gthread
+[2025-12-18 09:26:06 +0700] [214330] [INFO] Booting worker with pid: 214330
+[2025-12-18 09:26:06 +0700] [214331] [INFO] Booting worker with pid: 214331
+[2025-12-18 09:27:40 +0700] [214328] [INFO] Handling signal: term
+[2025-12-18 09:27:41 +0700] [214331] [INFO] Parent changed, shutting down: <Worker 214331>
+[2025-12-18 09:27:41 +0700] [214331] [INFO] Worker exiting (pid: 214331)
+[2025-12-18 09:27:41 +0700] [214330] [INFO] Parent changed, shutting down: <Worker 214330>
+[2025-12-18 09:27:41 +0700] [214330] [INFO] Worker exiting (pid: 214330)
+[2025-12-18 09:27:42 +0700] [216065] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:27:42 +0700] [216065] [INFO] Listening at: http://127.0.0.1:8910 (216065)
+[2025-12-18 09:27:42 +0700] [216065] [INFO] Using worker: gthread
+[2025-12-18 09:27:42 +0700] [216067] [INFO] Booting worker with pid: 216067
+[2025-12-18 09:27:42 +0700] [216068] [INFO] Booting worker with pid: 216068
+[2025-12-18 09:31:28 +0700] [216065] [INFO] Handling signal: term
+[2025-12-18 09:31:29 +0700] [216067] [INFO] Parent changed, shutting down: <Worker 216067>
+[2025-12-18 09:31:29 +0700] [216067] [INFO] Worker exiting (pid: 216067)
+[2025-12-18 09:31:29 +0700] [216068] [INFO] Parent changed, shutting down: <Worker 216068>
+[2025-12-18 09:31:29 +0700] [216068] [INFO] Worker exiting (pid: 216068)
+[2025-12-18 09:31:29 +0700] [218721] [INFO] Starting gunicorn 23.0.0
+[2025-12-18 09:31:29 +0700] [218721] [INFO] Listening at: http://127.0.0.1:8910 (218721)
+[2025-12-18 09:31:29 +0700] [218721] [INFO] Using worker: gthread
+[2025-12-18 09:31:29 +0700] [218723] [INFO] Booting worker with pid: 218723
+[2025-12-18 09:31:29 +0700] [218724] [INFO] Booting worker with pid: 218724

@@ -1,0 +1,103 @@
+<!-- VSP 2025 – Dashboard cards (Unified Findings / Security Score / Top Risk & Hotspot) -->
+
+<!-- UNIFIED FINDINGS -->
+<section class="vsp-card">
+  <header class="vsp-card-header">
+    <div class="vsp-card-title">UNIFIED FINDINGS</div>
+    <div class="vsp-card-subtitle">Normalized from unified findings file.</div>
+    <div class="vsp-card-badge-right">All buckets</div>
+  </header>
+
+  <div class="vsp-card-body">
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label">Total</div>
+      <div class="vsp-metric-value">
+        <span id="card_total_findings">N/A</span>
+      </div>
+    </div>
+
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label"></div>
+      <div class="vsp-metric-note">
+        Tổng số issue từ 7–8 tool SAST / SBOM / Secrets.
+      </div>
+    </div>
+
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label"></div>
+      <div class="vsp-metric-note">
+        0 CRITICAL0 HIGH0 MEDIUM0 LOW0 INFO0 TRACE
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY SCORE -->
+<section class="vsp-card">
+  <header class="vsp-card-header">
+    <div class="vsp-card-title">SECURITY SCORE</div>
+    <div class="vsp-card-subtitle">
+      Calculated from CRITICAL/HIGH + coverage FULL-MAX.
+    </div>
+    <div class="vsp-card-badge-right">VSP score</div>
+  </header>
+
+  <div class="vsp-card-body">
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label">CURRENT</div>
+      <div class="vsp-metric-value">
+        <span id="sec_score_current">N/A / 100</span>
+      </div>
+    </div>
+
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label">Target</div>
+      <div class="vsp-metric-note">
+        85+ mapped to ISO 27001 / OWASP.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TOP RISK & HOTSPOT -->
+<section class="vsp-card">
+  <header class="vsp-card-header">
+    <div class="vsp-card-title">TOP RISK &amp; HOTSPOT</div>
+    <div class="vsp-card-subtitle">
+      Aggregated from unified findings: tool, CWE, module.
+    </div>
+    <div class="vsp-card-badge-right">Risk focus</div>
+  </header>
+
+  <div class="vsp-card-body">
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label">Top risky tool</div>
+      <div class="vsp-metric-value">
+        <span id="risk_top_tool">N/A</span>
+        <div id="risk_top_tool_note" class="vsp-metric-note">
+          Sẽ hiển thị CRITICAL/HIGH theo tool.
+        </div>
+      </div>
+    </div>
+
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label">Highest impacted CWE</div>
+      <div class="vsp-metric-value">
+        <span id="risk_top_cwe">N/A</span>
+        <div id="risk_top_cwe_note" class="vsp-metric-note">
+          Số lượng findings theo CWE.
+        </div>
+      </div>
+    </div>
+
+    <div class="vsp-metric-row">
+      <div class="vsp-metric-label">Top vulnerable module</div>
+      <div class="vsp-metric-value">
+        <span id="risk_top_module">N/A</span>
+        <div id="risk_top_module_note" class="vsp-metric-note">
+          Module/bundle có nhiều CRITICAL/HIGH.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

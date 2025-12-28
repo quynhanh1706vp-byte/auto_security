@@ -1,0 +1,89 @@
+(function () {
+  console.log('[VSP_SETTINGS_TAB] vsp_settings_tab_simple_v1.js loaded');
+
+  const TAB_HASH = 'settings';
+  const TAB_ID = 'vsp-tab-settings';
+
+  function $(id) { return document.getElementById(id); }
+
+  async function fetchSettings() {
+    const res = await fetch('/api/vsp/settings_ui_v1');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  }
+
+  function render(container, data) {
+    const pretty = JSON.stringify(data, null, 2);
+    container.innerHTML = `
+      <div style="padding:16px 16px 8px 16px;">
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+          Settings
+        </div>
+        <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+          Cấu hình SECURITY_BUNDLE (settings_ui_v1)
+        </div>
+      </div>
+      <div style="padding:0 16px 16px 16px;">
+        <pre style="
+          margin:0;
+          padding:16px;
+          border-radius:10px;
+          border:1px solid rgba(148,163,184,0.25);
+          background:rgba(15,23,42,0.96);
+          font-size:11px;
+          line-height:1.4;
+          overflow:auto;
+          color:#e5e7eb;
+        ">${pretty}</pre>
+      </div>
+    `;
+  }
+
+  let loaded = false;
+
+  async function hydrateTab() {
+    const container = $(TAB_ID);
+    if (!container) {
+      console.warn('[VSP_SETTINGS_TAB] Không thấy #' + TAB_ID);
+      return;
+    }
+    if (loaded) return;
+    loaded = true;
+
+    container.innerHTML = `
+      <div style="padding:16px; font-size:12px; opacity:0.7;">
+        Đang tải settings từ <code>/api/vsp/settings_ui_v1</code>...
+      </div>
+    `;
+    try {
+      const data = await fetchSettings();
+      render(container, data);
+      console.log('[VSP_SETTINGS_TAB] Hydrated settings tab');
+    } catch (e) {
+      console.error('[VSP_SETTINGS_TAB] Lỗi khi load settings_ui_v1', e);
+      container.innerHTML = `
+        <div style="padding:16px; font-size:12px; color:#fecaca;">
+          Lỗi khi tải settings_ui_v1: ${e}
+        </div>
+      `;
+    }
+  }
+
+  function onHashChange() {
+    const h = (window.location.hash || '').replace('#', '') || 'dashboard';
+    if (h === TAB_HASH) {
+      hydrateTab();
+    }
+  }
+
+  function init() {
+    window.addEventListener('hashchange', onHashChange);
+    onHashChange();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+})();

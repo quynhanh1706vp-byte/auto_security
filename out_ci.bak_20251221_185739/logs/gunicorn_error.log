@@ -1,0 +1,9 @@
+[2025-12-14 19:53:43 +0700] [41576] [INFO] Starting gunicorn 23.0.0
+[2025-12-14 19:53:43 +0700] [41576] [INFO] Listening at: http://0.0.0.0:8910 (41576)
+[2025-12-14 19:53:43 +0700] [41576] [INFO] Using worker: gthread
+[2025-12-14 19:53:43 +0700] [41591] [INFO] Booting worker with pid: 41591
+[2025-12-14 19:53:43 +0700] [41592] [INFO] Booting worker with pid: 41592
+[2025-12-14 19:56:20 +0700] [41576] [INFO] Handling signal: term
+[2025-12-14 19:56:20 +0700] [41591] [INFO] Worker exiting (pid: 41591)
+[2025-12-14 19:56:21 +0700] [41592] [INFO] Worker exiting (pid: 41592)
+[2025-12-14 19:56:21 +0700] [41576] [INFO] Shutting down: Master

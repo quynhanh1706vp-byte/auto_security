@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Warm-up findings_page_v3 across multiple gunicorn workers (parallel hits)
+# Usage: RID=... N=8 bash bin/p0_warmup_findings_workers_v1.sh
+set -u
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  echo "[ERR] Do NOT source. Run: bash ${BASH_SOURCE[0]}"
+  return 2
+fi
+set -euo pipefail
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+RID="${RID:-VSP_CI_20251218_114312}"
+N="${N:-8}"
+
+URL="${BASE}/api/vsp/findings_page_v3?rid=${RID}&limit=1&offset=0"
+
+echo "[INFO] warmup URL=$URL"
+echo "[INFO] parallel N=$N  (set N to #workers*2 if you want)"
+
+# Fire N parallel requests; spread across workers
+seq 1 "$N" | xargs -I{} -P "$N" bash -lc '
+  u="$0"
+  i="$1"
+  out=$(curl -sS -o /dev/null -w "code=%{http_code} t=%{time_total}s\n" --connect-timeout 1 --max-time 20 "$u" || true)
+  echo "[warm#$i] $out"
+' "$URL" {}
+
+echo "[OK] warmup done"

@@ -1,0 +1,26 @@
+== VSP COMMERCIAL AUTO-FIX + GATE P2 ==
+[BASE]=http://127.0.0.1:8910
+[TS]=20251218_090339
+== SNAP latest_rid_v1 ==
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+== HEALTH endpoints ==
+[HTTP] 200 http://127.0.0.1:8910/vsp4
+[HTTP] 200 http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/dashboard_commercial_v2
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/dashboard_commercial_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/findings_latest_v1?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/rule_overrides_v1
+[HEALTH_FAILS]=0
+== VERIFY SHA ==
+== EXPORT TGZ (HEAD) ==
+== STABILITY 10min (no non-200) ==
+== LOG SCAN ==
+[ERROR_SCAN_LINES] 4
+== DASH snapshot (commercial) ==
+{"gate":{"by_tool":{"CODEQL":{"counts":{"CRITICAL":0,"HIGH":0,"INFO":0,"LOW":0,"MEDIUM":0,"TRACE":0},"total":0,"verdict":"AMBER"},"GITLEAKS":{"counts":{"CRITICAL":0,"HIGH":43,"INFO":0,"LOW":0,"MEDIUM":0,"TRACE":0},"total":43,"verdict":"RED"},"SEMGREP":{"counts":{"CRITICAL":0,"HIGH":0,"INFO":0,"LOW":0,"MEDIUM":0,"TRACE":0},"total":0,"verdict":"GREEN"},"TRIVY":{"counts":{"CRITICAL":0,"HIGH":0,"INFO":0,"LOW":0,"MEDIUM":0,"TRACE":0},"total":0,"verdict":"GREEN"}},"counts_total":{"CRITICAL":0,"HIGH":43,"INFO":0,"LOW":0,"MEDIUM":0,"TRACE":0},"evidence":{"amber_tools":[],"red_tools":["GITLEAKS"]},"overall":"RED","rule":{"AMBER_if_any":{"MEDIUM":1},"RED_if_any":{"CRITICAL":1,"HIGH":1}},"ts":"2025-12-14T20:53:00.978356Z"},"ok":true,"overall":{"degraded":[],"degraded_yes":false,"rid":"VSP_CI_20251215_034956","run_dir":"/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956","severity":{"CRITICAL":13,"HIGH":233,"INFO":438,"LOW":900,"MEDIUM":6600,"TRACE":0,"total":8184},"verdict":"N/A","warnings":[]},"source":{"findings":"/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/findings.json","gate":"/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/run_gate_summary.json"},"tools":["BANDIT","CODEQL","GITLEAKS","GRYPE","KICS","SEMGREP","SYFT","TRIVY"]}
+== PACK evidence ==
+[OK] out_ci/COMMERCIAL_20251218_090339.tgz
+[OK] out_ci/COMMERCIAL_20251218_090339.SHA256SUMS.txt
+[NEXT] Open UI: http://127.0.0.1:8910/vsp4  (Ctrl+Shift+R).

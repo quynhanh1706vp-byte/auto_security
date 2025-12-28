@@ -1,0 +1,760 @@
+import os
+import glob
+import json
+from flask import Flask, render_template, jsonify, request
+
+# ========== PATH CƠ BẢN ==========
+BASE_DIR = os.path.dirname(os.path.abspath(os.path.join(__file__, "..")))
+OUT_DIR = os.path.join(BASE_DIR, "out")
+RUN_GLOB = os.path.join(OUT_DIR, "RUN_VSP_FULL_EXT_*")
+
+app = Flask(__name__, template_folder="templates", static_folder="static")
+
+
+# ========== TIỆN ÍCH ĐỌC RUN & JSON ==========
+def get_latest_run_dir():
+    runs = sorted(glob.glob(RUN_GLOB))
+    return runs[-1] if runs else None
+
+
+def get_all_run_dirs():
+    return sorted(glob.glob(RUN_GLOB))
+
+
+def load_json(path, default=None):
+    if default is None:
+        default = {}
+    try:
+        if not os.path.exists(path):
+            return default
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return default
+
+
+def load_summary(run_dir):
+    return load_json(os.path.join(run_dir, "report", "summary_unified.json"), {})
+
+
+def load_findings(run_dir):
+    return load_json(os.path.join(run_dir, "report", "findings_unified.json"), [])
+
+
+# ========== ROUTE UI ==========
+@app.route("/")
+@app.route("/security_bundle")
+def security_bundle():
+    return render_template("vsp_dashboard_2025.html")
+
+
+# ========== API: DASHBOARD ==========
+@app.route("/api/vsp/dashboard_v3")
+def api_vsp_dashboard_v3():
+    run_dir = get_latest_run_dir()
+    if not run_dir:
+        return jsonify(ok=False, error="NO_RUN_FOUND"), 200
+
+    summary = load_summary(run_dir)
+    run_id = os.path.basename(run_dir)
+
+    res = {
+        "ok": True,
+        "run_id": run_id,
+        "total_findings": summary.get("total_findings") or summary.get("total") or 0,
+        "by_severity": summary.get("by_severity", {}),
+        "by_tool": summary.get("by_tool", {}),
+        "security_score": summary.get("security_score", 0),
+        "top_risky_tool": summary.get("top_risky_tool"),
+        "top_cwe": summary.get("top_cwe"),
+        "top_module": summary.get("top_module"),
+    }
+    return jsonify(res)
+
+
+@app.route("/api/vsp/trend_v1")
+def api_vsp_trend_v1():
+    runs = get_all_run_dirs()
+    points = []
+    for run_dir in runs[-10:]:
+        summary = load_summary(run_dir)
+        total = summary.get("total_findings") or summary.get("total") or 0
+        run_id = os.path.basename(run_dir)
+        label = run_id.replace("RUN_VSP_FULL_EXT_", "")
+        points.append({
+            "label": label,
+            "run_id": run_id,
+            "total": total,
+        })
+
+    return jsonify(ok=True, points=points)
+
+
+@app.route("/api/vsp/top_findings_v1")
+def api_vsp_top_findings_v1():
+    run_dir = get_latest_run_dir()
+    if not run_dir:
+        return jsonify(ok=False, run_id=None, total=0, items=[]), 200
+
+    findings = load_findings(run_dir)
+    severities_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4, "TRACE": 5}
+
+    filtered = [f for f in findings if f.get("severity") in ("CRITICAL", "HIGH")]
+    filtered.sort(key=lambda f: severities_order.get(f.get("severity", "TRACE"), 5))
+
+    limit = int(request.args.get("limit", 10))
+    items = filtered[:limit]
+
+    return jsonify(
+        ok=True,
+        run_id=os.path.basename(run_dir),
+        total=len(filtered),
+        items=items,
+    )
+
+
+# ========== API: DATA SOURCE ==========
+@app.route("/api/vsp/datasource_v2", methods=["GET"])
+def datasource_v2():
+    from flask import request, jsonify
+    from pathlib import Path
+    import json
+
+    cur = Path(__file__).resolve()
+    ROOT = None
+    for p in cur.parents:
+        if (p / "out").is_dir():
+            ROOT = p
+            break
+    if ROOT is None:
+        ROOT = cur.parents[1]
+    out_dir = ROOT / "out"
+
+    run_dir = request.args.get("run_dir", "").strip()
+    limit = request.args.get("limit", "").strip()
+    offset = request.args.get("offset", "").strip()
+
+    try:
+        limit_val = int(limit) if limit else None
+    except ValueError:
+        limit_val = None
+    try:
+        offset_val = int(offset) if offset else 0
+    except ValueError:
+        offset_val = 0
+
+    if run_dir:
+        run_path = Path(run_dir)
+    else:
+        runs = sorted(out_dir.glob("RUN_VSP_FULL_EXT_*"), reverse=True)
+        if not runs:
+            return jsonify(ok=False, error="No runs found")
+        run_path = runs[0]
+
+    findings_path = run_path / "report" / "findings_unified.json"
+    if not findings_path.is_file():
+        return jsonify(ok=False, error=f"findings_unified.json not found for {run_path}")
+
+    try:
+        data = json.loads(findings_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        return jsonify(ok=False, error=f"Parse error: {e}")
+
+    # Hỗ trợ cả dạng list và dạng { "items": [...] }
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        items = data.get("items") or []
+    else:
+        items = []
+
+    total = len(items)
+    start = offset_val if offset_val >= 0 else 0
+    end = start + limit_val if (limit_val is not None and limit_val > 0) else total
+    sliced = items[start:end]
+
+    return jsonify(
+        ok=True,
+        items=sliced,
+        count=total,
+        limit=limit_val,
+        offset=offset_val,
+        run_dir=str(run_path),
+    )
+
+@app.route("/api/vsp/datasource_stats_v1")
+def api_vsp_datasource_stats_v1():
+    run_dir = get_latest_run_dir()
+    if not run_dir:
+        return jsonify(ok=False, run_id=None, by_severity={}, by_tool={}), 200
+
+    findings = load_findings(run_dir)
+
+    by_severity = {}
+    by_tool = {}
+
+    for f in findings:
+        s = f.get("severity", "TRACE")
+        t = f.get("tool", "unknown")
+        by_severity[s] = by_severity.get(s, 0) + 1
+        by_tool[t] = by_tool.get(t, 0) + 1
+
+    return jsonify(
+        ok=True,
+        run_id=os.path.basename(run_dir),
+        by_severity=by_severity,
+        by_tool=by_tool,
+    )
+
+
+# ========== API: RUNS & REPORTS ==========
+@app.route("/api/vsp/runs_v2")
+def api_vsp_runs_v2():
+    runs = get_all_run_dirs()[::-1]
+    items = []
+
+    for run_dir in runs:
+        summary = load_summary(run_dir)
+        run_id = os.path.basename(run_dir)
+        ts = os.path.getmtime(run_dir)
+        items.append({
+            "run_id": run_id,
+            "date_ts": ts,
+            "profile": "EXT",
+            "tools": list((summary.get("by_tool") or {}).keys()),
+            "total_findings": summary.get("total_findings") or summary.get("total") or 0,
+            "score": summary.get("security_score", 0),
+            "status": summary.get("status", "DONE"),
+        })
+
+    return jsonify(ok=True, items=items)
+
+
+@app.route("/api/vsp/run_scan_status_v2")
+def api_vsp_run_scan_status_v2():
+    run_dir = get_latest_run_dir()
+    run_id = os.path.basename(run_dir) if run_dir else None
+    return jsonify(ok=True, run_id=run_id, status="DONE")
+
+
+# ========== API: SETTINGS ==========
+@app.route("/api/vsp/settings/get")
+def api_vsp_settings_get():
+    data = {
+        "profile": "EXT",
+        "tools": {
+            "gitleaks": True,
+            "semgrep": True,
+            "bandit": True,
+            "trivy_fs": True,
+            "syft": True,
+            "grype": True,
+            "kics": True,
+            "codeql": True,
+        }
+    }
+    return jsonify(ok=True, settings=data)
+
+
+@app.route("/api/vsp/settings/save", methods=["POST"])
+def api_vsp_settings_save():
+    cfg = request.get_json(force=True, silent=True) or {}
+    return jsonify(ok=True, saved=cfg)
+
+
+# ========== API: RULE OVERRIDES ==========
+OVERRIDE_PATH = os.path.join(BASE_DIR, "rules", "overrides.json")
+
+
+@app.route("/api/vsp/rule_overrides")
+def api_vsp_rule_overrides():
+    data = load_json(OVERRIDE_PATH, [])
+    return jsonify(ok=True, items=data)
+
+
+@app.route("/api/vsp/rule_overrides_raw")
+def api_vsp_rule_overrides_raw():
+    data = load_json(OVERRIDE_PATH, [])
+    return jsonify(ok=True, raw=data)
+
+
+@app.route("/api/vsp/save_rule_override", methods=["POST"])
+def api_vsp_save_rule_override():
+    body = request.get_json(force=True, silent=True) or {}
+    items = load_json(OVERRIDE_PATH, [])
+    items.append(body)
+    os.makedirs(os.path.dirname(OVERRIDE_PATH), exist_ok=True)
+    with open(OVERRIDE_PATH, "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
+    return jsonify(ok=True, saved=body)
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8910, debug=True)
+
+@app.route("/security_bundle")
+def vsp_index():
+    return render_template("vsp_index.html")
+
+@app.route("/security_bundle")
+def vsp_index():
+    return render_template("vsp_index.html")
+
+# ======================= VSP_RUN_EXPORTS_API_V1 =======================
+from flask import send_file, abort, request
+from pathlib import Path
+import json
+import csv
+
+def _vsp_find_run_dir(run_id: str) -> Path | None:
+    """Tìm thư mục run tương ứng trong /out."""
+    base = Path(__file__).resolve().parents[1]  # /home/test/Data/SECURITY_BUNDLE
+    out_dir = base / "out"
+    candidate = out_dir / run_id
+    if candidate.is_dir():
+        return candidate
+    if out_dir.is_dir():
+        for p in out_dir.iterdir():
+            if p.is_dir() and p.name.startswith(run_id):
+                return p
+    return None
+
+def _vsp_find_json(run_dir: Path, pattern: str) -> Path | None:
+    """Tìm JSON theo pattern, ví dụ '*summary_unified*.json'."""
+    for root in [run_dir / "report", run_dir / "reports", run_dir]:
+        if not root.exists():
+            continue
+        matches = sorted(root.rglob(pattern))
+        for m in matches:
+            if m.is_file():
+                return m
+    return None
+
+def _vsp_generate_html_report(run_dir: Path) -> Path | None:
+    """Generate HTML report thương mại cho VSP từ summary_unified + findings_unified."""
+    summary_path = _vsp_find_json(run_dir, "*summary_unified*.json")
+    findings_path = _vsp_find_json(run_dir, "*findings_unified*.json")
+
+    if not summary_path and not findings_path:
+        return None
+
+    summary = {}
+    findings = []
+
+    if summary_path:
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        except Exception:
+            summary = {}
+
+    if findings_path:
+        try:
+            data = json.loads(findings_path.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                findings = data
+            elif isinstance(data, dict) and "items" in data and isinstance(data["items"], list):
+                findings = data["items"]
+        except Exception:
+            findings = []
+
+    max_findings = 500
+    findings_display = findings[:max_findings]
+
+    def _fv(item, key, default=""):
+        v = item.get(key, default)
+        if isinstance(v, (list, dict)):
+            return json.dumps(v, ensure_ascii=False)
+        return v
+
+    summary_root = summary.get("summary", summary)
+
+    by_severity = summary_root.get("by_severity", {})
+    by_tool     = summary_root.get("by_tool", summary.get("by_tool", {}))
+    total_findings = summary_root.get("total_findings", summary.get("total_findings", len(findings)))
+    security_score = summary_root.get("security_score", summary.get("security_score", 0))
+    top_risky_tool = summary_root.get("top_risky_tool", summary.get("top_risky_tool", "—"))
+    top_cwe        = summary_root.get("top_cwe", summary.get("top_cwe", "—"))
+    top_module     = summary_root.get("top_module", summary.get("top_module", "—"))
+    run_id         = summary_root.get("run_id", summary.get("run_id", run_dir.name))
+    ts             = summary_root.get("ts", summary.get("ts", ""))
+
+    crit  = by_severity.get("CRITICAL", 0)
+    high  = by_severity.get("HIGH", 0)
+    med   = by_severity.get("MEDIUM", 0)
+    low   = by_severity.get("LOW", 0)
+    info  = by_severity.get("INFO", 0)
+    trace = by_severity.get("TRACE", 0)
+
+    html_parts = []
+    html_parts.append("<!DOCTYPE html>")
+    html_parts.append("<html lang='en'>")
+    html_parts.append("<head>")
+    html_parts.append("<meta charset='utf-8' />")
+    html_parts.append(f"<title>VSP Run Report – {run_id}</title>")
+    html_parts.append("""<style>
+      :root {
+        --bg-body: #020617;
+        --bg-surface: #020617;
+        --bg-card: #020617;
+        --bg-card-soft: #020617;
+        --accent: #22c55e;
+        --accent-soft: rgba(34,197,94,0.16);
+        --border-subtle: #1f2937;
+        --text-main: #e5e7eb;
+        --text-soft: #9ca3af;
+      }
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #020617 0, #020617 45%, #0b1120 100%);
+        color: var(--text-main);
+        margin: 0;
+        padding: 24px 32px 40px;
+      }
+      .vsp-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        padding: 16px 20px;
+        border-radius: 18px;
+        background: radial-gradient(circle at 0 0, rgba(56,189,248,0.25), transparent 55%),
+                    radial-gradient(circle at 100% 0, rgba(34,197,94,0.28), transparent 55%),
+                    #020617;
+        border: 1px solid rgba(148,163,184,0.28);
+        box-shadow: 0 18px 45px rgba(15,23,42,0.85);
+      }
+      .vsp-header-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .vsp-logo-mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: radial-gradient(circle at 30% 0, #4ade80 0, #22c55e 40%, #15803d 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: 0.08em;
+        color: #0b1120;
+        box-shadow: 0 10px 30px rgba(34,197,94,0.65);
+      }
+      .vsp-title-block {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .vsp-title {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .vsp-subtitle {
+        font-size: 12px;
+        color: var(--text-soft);
+      }
+      .vsp-header-right {
+        text-align: right;
+        font-size: 12px;
+        color: var(--text-soft);
+      }
+      .vsp-header-right strong {
+        color: var(--text-main);
+      }
+      .vsp-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 3px 10px;
+        background: rgba(15,23,42,0.9);
+        border: 1px solid rgba(148,163,184,0.35);
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+      .vsp-badge-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        margin-right: 6px;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34,197,94,0.25);
+      }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .kpi-card {
+        background: radial-gradient(circle at 0 0, rgba(37,99,235,0.18), transparent 55%),
+                    #020617;
+        border-radius: 18px;
+        padding: 14px 16px 16px;
+        border: 1px solid rgba(31,41,55,0.85);
+        box-shadow: 0 16px 32px rgba(0,0,0,0.55);
+      }
+      .kpi-card.compact { padding: 12px 14px 14px; }
+      .kpi-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+        color: var(--text-soft);
+        margin-bottom: 4px;
+      }
+      .kpi-value {
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .kpi-sub {
+        font-size: 11px;
+        color: var(--text-soft);
+        margin-top: 2px;
+      }
+      .badge-soft {
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        border-radius: 999px;
+        padding: 2px 8px;
+        background: rgba(15,23,42,0.9);
+        border: 1px solid rgba(51,65,85,0.85);
+        margin-right: 4px;
+      }
+      .sev-CRITICAL { color: #fecaca; }
+      .sev-HIGH { color: #fed7aa; }
+      .sev-MEDIUM { color: #facc15; }
+      .sev-LOW { color: #bbf7d0; }
+      .sev-INFO { color: #bae6fd; }
+      .sev-TRACE { color: #e5e7eb; }
+      .pill-sev {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        margin-right: 4px;
+        background: rgba(15,23,42,0.9);
+        border: 1px solid rgba(55,65,81,0.85);
+      }
+      .pill-sev span {
+        margin-right: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        margin-top: 10px;
+      }
+      .section-note {
+        font-size: 11px;
+        color: var(--text-soft);
+        margin-bottom: 4px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 8px;
+        font-size: 12px;
+      }
+      th, td {
+        border-bottom: 1px solid #1f2933;
+        padding: 7px 6px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: radial-gradient(circle at 0 0, rgba(15,23,42,1), transparent 70%);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      tr:nth-child(even) { background: rgba(15,23,42,0.7); }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 11px;
+      }
+      .loc-cell { font-size: 11px; color: var(--text-soft); }
+      .msg-cell { font-size: 12px; }
+    </style>""")
+    html_parts.append("</head>")
+    html_parts.append("<body>")
+
+    html_parts.append("<div class='vsp-header'>")
+    html_parts.append("<div class='vsp-header-left'>")
+    html_parts.append("<div class='vsp-logo-mark'>VSP</div>")
+    html_parts.append("<div class='vsp-title-block'>")
+    html_parts.append("<div class='vsp-title'>VersaSecure Platform 2025</div>")
+    html_parts.append("<div class='vsp-subtitle'>EXT+ Enterprise Security Profile – Run Report</div>")
+    html_parts.append("</div></div>")
+    html_parts.append("<div class='vsp-header-right'>")
+    html_parts.append("<div class='vsp-badge'><span class='vsp-badge-dot'></span>Run completed – consolidated report</div>")
+    html_parts.append(f"<div><strong>Run ID:</strong> {run_id}</div>")
+    if ts:
+        html_parts.append(f"<div><strong>Timestamp:</strong> {ts}</div>")
+    html_parts.append("</div></div>")
+
+    html_parts.append("<div class='kpi-grid'>")
+    html_parts.append("<div class='kpi-card'><div class='kpi-label'>Total Findings</div>")
+    html_parts.append(f"<div class='kpi-value'>{total_findings}</div>")
+    html_parts.append("<div class='kpi-sub'>Consolidated across all tools</div></div>")
+
+    html_parts.append("<div class='kpi-card'><div class='kpi-label'>Security Score</div>")
+    html_parts.append(f"<div class='kpi-value'>{security_score}</div>")
+    html_parts.append("<div class='kpi-sub'>0–100 (higher is better)</div></div>")
+
+    html_parts.append("<div class='kpi-card compact'><div class='kpi-label'>By Severity</div><div>")
+    html_parts.append(f"<span class='pill-sev sev-CRITICAL'><span>CRIT</span>{crit}</span>")
+    html_parts.append(f"<span class='pill-sev sev-HIGH'><span>HIGH</span>{high}</span>")
+    html_parts.append(f"<span class='pill-sev sev-MEDIUM'><span>MED</span>{med}</span>")
+    html_parts.append(f"<span class='pill-sev sev-LOW'><span>LOW</span>{low}</span>")
+    html_parts.append(f"<span class='pill-sev sev-INFO'><span>INFO</span>{info}</span>")
+    html_parts.append(f"<span class='pill-sev sev-TRACE'><span>TRACE</span>{trace}</span>")
+    html_parts.append("</div></div>")
+
+    html_parts.append("<div class='kpi-card compact'><div class='kpi-label'>Key Signals</div><div class='kpi-sub'>")
+    html_parts.append(f"<div class='badge-soft'><strong>Top Tool:&nbsp;</strong>{top_risky_tool}</div>")
+    html_parts.append(f"<div class='badge-soft'><strong>Top CWE:&nbsp;</strong>{top_cwe}</div>")
+    html_parts.append(f"<div class='badge-soft'><strong>Top Module:&nbsp;</strong>{top_module}</div>")
+    html_parts.append("</div></div>")
+    html_parts.append("</div>")
+
+    html_parts.append("<div class='section'>")
+    html_parts.append("<div class='section-title'>Consolidated Findings</div>")
+    if not findings_display:
+        html_parts.append("<div class='section-note'>Không tìm thấy findings_unified*.json hoặc danh sách rỗng.</div>")
+    else:
+        html_parts.append(f"<div class='section-note'>Hiển thị tối đa {len(findings_display)} trên tổng {len(findings)} findings.</div>")
+        html_parts.append("<table><thead><tr><th>#</th><th>Severity</th><th>Tool</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead><tbody>")
+        for idx, item in enumerate(findings_display, start=1):
+            sev = str(_fv(item, "severity", "")).upper()
+            tool = _fv(item, "tool", _fv(item, "scanner", ""))
+            rule = _fv(item, "rule_id", _fv(item, "check_id", ""))
+            file_path = _fv(item, "file", _fv(item, "target", ""))
+            line = _fv(item, "line", _fv(item, "start_line", ""))
+            msg = _fv(item, "message", _fv(item, "description", ""))
+
+            sev_class = f"sev-{sev}" if sev else ""
+            loc = f"{file_path}:{line}" if (file_path or line) else ""
+            html_parts.append("<tr>")
+            html_parts.append(f"<td>{idx}</td>")
+            html_parts.append(f"<td class='{sev_class}'>{sev}</td>")
+            html_parts.append(f"<td>{tool}</td>")
+            html_parts.append(f"<td><code>{rule}</code></td>")
+            html_parts.append(f"<td class='loc-cell'><code>{loc}</code></td>")
+            html_parts.append(f"<td class='msg-cell'>{msg}</td>")
+            html_parts.append("</tr>")
+        html_parts.append("</tbody></table>")
+    html_parts.append("</div>")
+
+    html_parts.append("</body></html>")
+
+    report_dir = run_dir / "report"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    out_path = report_dir / "report_auto.html"
+    out_path.write_text("".join(html_parts), encoding="utf-8")
+    return out_path
+
+def _vsp_generate_csv(run_dir: Path) -> Path | None:
+    """Generate CSV từ findings_unified*.json."""
+    findings_path = _vsp_find_json(run_dir, "*findings_unified*.json")
+    if not findings_path:
+        return None
+
+    try:
+        data = json.loads(findings_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    items = []
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict) and "items" in data and isinstance(data["items"], list):
+        items = data["items"]
+
+    if not items:
+        return None
+
+    cols = ["severity", "tool", "rule_id", "file", "line", "message", "cwe", "category"]
+
+    def _get(item, key):
+        v = item.get(key, "")
+        if isinstance(v, (list, dict)):
+            return json.dumps(v, ensure_ascii=False)
+        return v
+
+    report_dir = run_dir / "report"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    out_path = report_dir / "findings_unified_auto.csv"
+
+    with out_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(cols)
+        for it in items:
+            row = [
+                _get(it, "severity"),
+                _get(it, "tool") or _get(it, "scanner"),
+                _get(it, "rule_id") or _get(it, "check_id"),
+                _get(it, "file") or _get(it, "target"),
+                _get(it, "line") or _get(it, "start_line"),
+                _get(it, "message") or _get(it, "description"),
+                _get(it, "cwe") or _get(it, "cwe_id"),
+                _get(it, "category") or _get(it, "type"),
+            ]
+            writer.writerow(row)
+
+    return out_path
+
+def _vsp_pick_file(run_dir: Path, fmt: str) -> Path | None:
+    """Chọn file export theo format (html/pdf/csv/zip), nếu không có thì auto-generate."""
+    fmt = fmt.lower()
+    patterns_by_fmt = {
+        "html": ["*.html"],
+        "pdf":  ["*.pdf"],
+        "csv":  ["*findings*.csv", "*.csv"],
+        "zip":  ["*bundle*.zip", "*.zip"],
+    }
+
+    preferred_roots = [run_dir / "report", run_dir / "reports", run_dir]
+
+    if fmt in patterns_by_fmt:
+        for root in preferred_roots:
+            if not root.exists():
+                continue
+            for pattern in patterns_by_fmt[fmt]:
+                for m in sorted(root.rglob(pattern)):
+                    if m.is_file():
+                        return m
+
+    if fmt == "html":
+        return _vsp_generate_html_report(run_dir)
+    if fmt == "csv":
+        return _vsp_generate_csv(run_dir)
+
+    return None
+
+@app.route("/api/vsp/run_exports", methods=["GET"])
+def api_vsp_run_exports():
+    """Trả về file export cho 1 run: html/pdf/csv/zip."""
+    run_id = request.args.get("run_id", "").strip()
+    fmt = request.args.get("format", "html").strip().lower()
+
+    if not run_id:
+        abort(400, "Missing run_id")
+
+    run_dir = _vsp_find_run_dir(run_id)
+    if not run_dir:
+        abort(404, f"Run not found: {run_id}")
+
+    target = _vsp_pick_file(run_dir, fmt)
+    if not target:
+        abort(404, f"No export file for format={fmt} in {run_dir}")
+
+    return send_file(target, as_attachment=False)
+# ===================== END VSP_RUN_EXPORTS_API_V1 =====================

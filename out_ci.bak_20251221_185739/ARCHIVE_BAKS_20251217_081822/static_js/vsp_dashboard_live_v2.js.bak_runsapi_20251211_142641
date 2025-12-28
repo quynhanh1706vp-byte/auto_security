@@ -1,0 +1,636 @@
+// === VSP DASHBOARD FIX V3 – CHUẨN 2025 ===
+
+// mapping severity 6 mức chuẩn
+const VSP_SEVERITY_KEYS = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+
+// mapping tool 8 chuẩn
+const VSP_TOOL_KEYS = [
+  "gitleaks","semgrep","kics","codeql",
+  "bandit","trivy_fs","grype","syft"
+];
+
+// Load KPI vào Dashboard
+function vspLoadKPIs(data) {
+  $("#kpi-total").text(data.total_findings);
+
+  // by severity
+  VSP_SEVERITY_KEYS.forEach(sev => {
+    const el = $("#kpi-" + sev.toLowerCase());
+    el.text(data.by_severity[sev] || 0);
+    el.addClass("sev-" + sev.toLowerCase());
+  });
+
+  // by tool
+  VSP_TOOL_KEYS.forEach(tool => {
+    $("#kpi-tool-" + tool).text(data.by_tool[tool] || 0);
+  });
+
+  $("#kpi-top-cwe").text(data.top_cwe || "N/A");
+  $("#kpi-top-module").text(data.top_module || "N/A");
+  $("#kpi-top-risky-tool").text(data.top_risky_tool || "N/A");
+}
+
+// MAIN fetch
+function loadDashboard() {
+  fetch("/api/vsp/dashboard_v3")
+    .then(r => r.json())
+    .then(json => {
+      if (!json.ok) return console.error("[DASHBOARD] JSON not ok");
+      vspLoadKPIs(json);
+      drawCharts(json); // gọi chart
+    })
+    .catch(err => console.error("[DASHBOARD] Error", err));
+}
+
+document.addEventListener("DOMContentLoaded", loadDashboard);
+
+
+/* ======================= VSP_DASHBOARD_KPI_V2 – BEGIN ======================= */
+
+window.vspDashboardApplyExtrasV1 = function(extras) {
+  try {
+    if (!extras) return;
+    window.vspApplyKpiDiffFromExtras(extras);
+    window.vspRenderTopRiskFromExtras(extras);
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V2] Error apply extras:", e);
+  }
+};
+
+window.vspApplyKpiDiffFromExtras = function(extras) {
+  try {
+    if (!extras || !extras.kpi_diff_v1) return;
+    var diff  = extras.kpi_diff_v1;
+    var cur   = diff.current || {};
+    var prev  = diff.prev   || {};
+    var delta = diff.delta  || {};
+
+    // Last run label: PREV → CURRENT
+    var prevId = prev.run_id || "N/A";
+    var curId  = cur.run_id  || "N/A";
+    var lastRunLabel = prevId + " \u2192 " + curId; // arrow
+
+    // Delta total + chi tiết từng severity
+    var dTotal = delta.total_findings || 0;
+    var signTotal = dTotal > 0 ? "+" : "";
+    var baseText = signTotal + dTotal + " findings vs prev";
+
+    var sevOrder = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+    var sevParts = [];
+    if (delta.by_severity) {
+      sevOrder.forEach(function(s) {
+        var v = delta.by_severity.hasOwnProperty(s)
+          ? delta.by_severity[s]
+          : 0;
+        if (!v) return;
+        var sign = v > 0 ? "+" : "";
+        sevParts.push(sign + v + " " + s);
+      });
+    }
+    var details = sevParts.length ? " (" + sevParts.join(", ") + ")" : "";
+    var deltaText = baseText + details;
+
+    var elLast = document.getElementById("kpi-last-run-label");
+    if (!elLast) {
+      elLast = document.querySelector("[data-kpi-last-run]");
+    }
+    if (elLast) {
+      elLast.textContent = lastRunLabel;
+    }
+
+    var elDelta = document.getElementById("kpi-delta-label");
+    if (!elDelta) {
+      elDelta = document.querySelector("[data-kpi-delta]");
+    }
+    if (elDelta) {
+      elDelta.textContent = deltaText;
+    }
+
+    if (window.console && console.log) {
+      console.log("[VSP][KPI_V2] Applied KPI diff extras.");
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V2] Error in vspApplyKpiDiffFromExtras:", e);
+  }
+};
+
+window.vspRenderTopRiskFromExtras = function(extras) {
+  try {
+    if (!extras || !extras.top_risk_findings) return;
+    var items = extras.top_risk_findings;
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    var tbody = document.getElementById("vsp-top-risk-tbody");
+    if (!tbody) {
+      tbody = document.querySelector("tbody[data-top-risk-body]");
+    }
+    if (!tbody) {
+      return;
+    }
+
+    while (tbody.firstChild) {
+      tbody.removeChild(tbody.firstChild);
+    }
+
+    items.forEach(function(it, idx) {
+      var tr = document.createElement("tr");
+
+      var tdIdx  = document.createElement("td");
+      var tdSev  = document.createElement("td");
+      var tdTool = document.createElement("td");
+      var tdFile = document.createElement("td");
+      var tdRule = document.createElement("td");
+
+      tdIdx.textContent  = String(idx + 1);
+
+      // Severity badge + palette
+      var sev = (it.severity || "").toUpperCase();
+      tdSev.textContent = sev;
+      var cls = "sev-" + sev.toLowerCase();
+      tdSev.classList.add("sev-pill");
+      tdSev.classList.add(cls);
+
+      tdTool.textContent = it.tool || "";
+
+      var fileLabel = it.file || "";
+      if (it.line) {
+        fileLabel += ":" + it.line;
+      }
+      tdFile.textContent = fileLabel;
+
+      // Rule / CWE gọn đẹp
+      var rule = it.rule_id || "";
+      var cwe  = it.cwe || "";
+      var label = "";
+      if (rule && cwe) {
+        label = rule + " \u2022 " + cwe; // bullet giữa
+      } else if (rule) {
+        label = rule;
+      } else if (cwe) {
+        label = cwe;
+      }
+      // Cắt ngắn nếu quá dài
+      var maxLen = 60;
+      if (label.length > maxLen) {
+        label = label.slice(0, maxLen - 1) + "\u2026";
+      }
+      tdRule.textContent = label;
+
+      tr.appendChild(tdIdx);
+      tr.appendChild(tdSev);
+      tr.appendChild(tdTool);
+      tr.appendChild(tdFile);
+      tr.appendChild(tdRule);
+
+      tbody.appendChild(tr);
+    });
+
+    if (window.console && console.log) {
+      console.log("[VSP][KPI_V2] Rendered top_risk_findings:", items.length);
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V2] Error in vspRenderTopRiskFromExtras:", e);
+  }
+};
+
+/* ======================= VSP_DASHBOARD_KPI_V2 – END ========================= */
+
+
+/* ======================= VSP_DASHBOARD_KPI_V3 – BEGIN ======================= */
+
+window.vspDashboardApplyExtrasV1 = function(extras) {
+  try {
+    if (!extras) return;
+    window.vspApplyKpiDiffFromExtras(extras);
+    window.vspRenderTopRiskFromExtras(extras);
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V3] Error apply extras:", e);
+  }
+};
+
+window.vspApplyKpiDiffFromExtras = function(extras) {
+  try {
+    if (!extras || !extras.kpi_diff_v1) return;
+    var diff  = extras.kpi_diff_v1;
+    var cur   = diff.current || {};
+    var prev  = diff.prev   || {};
+    var delta = diff.delta  || {};
+
+    // Last run label: PREV → CURRENT
+    var prevId = prev.run_id || "N/A";
+    var curId  = cur.run_id  || "N/A";
+    var lastRunLabel = prevId + " \u2192 " + curId; // arrow
+
+    // Delta total
+    var dTotal = delta.total_findings || 0;
+    var signTotal = dTotal > 0 ? "+" : (dTotal < 0 ? "" : ""); // âm tự có dấu '-'
+    var baseText = signTotal + dTotal + " findings vs prev";
+
+    // Delta chi tiết 6 severity
+    var sevOrder = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+    var sevParts = [];
+    if (delta.by_severity) {
+      sevOrder.forEach(function(s) {
+        var raw = delta.by_severity.hasOwnProperty(s)
+          ? delta.by_severity[s]
+          : 0;
+        var v = raw || 0;
+        if (!v) return; // bỏ những cái = 0 cho gọn
+        var sign = v > 0 ? "+" : ""; // âm tự có '-'
+        sevParts.push(sign + v + " " + s);
+      });
+    }
+    var details = sevParts.length ? " (" + sevParts.join(", ") + ")" : "";
+    var deltaText = baseText + details;
+
+    // Update DOM
+    var elLast = document.getElementById("kpi-last-run-label");
+    if (!elLast) {
+      elLast = document.querySelector("[data-kpi-last-run]");
+    }
+    if (elLast) {
+      elLast.textContent = lastRunLabel;
+    }
+
+    var elDelta = document.getElementById("kpi-delta-label");
+    if (!elDelta) {
+      elDelta = document.querySelector("[data-kpi-delta]");
+    }
+    if (elDelta) {
+      // reset class cũ
+      elDelta.classList.remove("kpi-delta-bad", "kpi-delta-good", "kpi-delta-neutral");
+      elDelta.textContent = deltaText;
+      if (dTotal > 0) {
+        elDelta.classList.add("kpi-delta-bad");
+      } else if (dTotal < 0) {
+        elDelta.classList.add("kpi-delta-good");
+      } else {
+        elDelta.classList.add("kpi-delta-neutral");
+      }
+    }
+
+    if (window.console && console.log) {
+      console.log("[VSP][KPI_V3] Applied KPI diff extras.");
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V3] Error in vspApplyKpiDiffFromExtras:", e);
+  }
+};
+
+window.vspRenderTopRiskFromExtras = function(extras) {
+  try {
+    if (!extras || !extras.top_risk_findings) return;
+    var items = extras.top_risk_findings;
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    var tbody = document.getElementById("vsp-top-risk-tbody");
+    if (!tbody) {
+      tbody = document.querySelector("tbody[data-top-risk-body]");
+    }
+    if (!tbody) {
+      return;
+    }
+
+    while (tbody.firstChild) {
+      tbody.removeChild(tbody.firstChild);
+    }
+
+    items.forEach(function(it, idx) {
+      var tr = document.createElement("tr");
+
+      var tdIdx  = document.createElement("td");
+      var tdSev  = document.createElement("td");
+      var tdTool = document.createElement("td");
+      var tdFile = document.createElement("td");
+      var tdRule = document.createElement("td");
+
+      tdIdx.textContent  = String(idx + 1);
+
+      // Severity badge + palette
+      var sev = (it.severity || "").toUpperCase();
+      tdSev.textContent = sev;
+      var sevCls = "sev-" + sev.toLowerCase(); // sev-critical, sev-high, ...
+      tdSev.classList.add("sev-pill");
+      tdSev.classList.add(sevCls);
+
+      tdTool.textContent = it.tool || "";
+
+      var fileLabel = it.file || "";
+      if (it.line) {
+        fileLabel += ":" + it.line;
+      }
+      tdFile.textContent = fileLabel;
+
+      // Rule / CWE gọn đẹp
+      var rule = it.rule_id || "";
+      var cwe  = it.cwe || "";
+      var label = "";
+      if (rule && cwe) {
+        label = rule + " \u2022 " + cwe; // bullet giữa
+      } else if (rule) {
+        label = rule;
+      } else if (cwe) {
+        label = cwe;
+      }
+      var maxLen = 60;
+      if (label.length > maxLen) {
+        label = label.slice(0, maxLen - 1) + "\u2026";
+      }
+      tdRule.textContent = label;
+
+      tr.appendChild(tdIdx);
+      tr.appendChild(tdSev);
+      tr.appendChild(tdTool);
+      tr.appendChild(tdFile);
+      tr.appendChild(tdRule);
+
+      tbody.appendChild(tr);
+    });
+
+    if (window.console && console.log) {
+      console.log("[VSP][KPI_V3] Rendered top_risk_findings:", items.length);
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V3] Error in vspRenderTopRiskFromExtras:", e);
+  }
+};
+
+/* ======================= VSP_DASHBOARD_KPI_V3 – END ========================= */\n\n
+// ===================== VSP RUNS TABLE META V1 =====================
+
+function vspRenderRunsTable(runs) {
+  const tbody = document.getElementById("vsp-runs-tbody");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  runs.forEach(run => {
+    const row = document.createElement("tr");
+    const sev = run.by_severity || {};
+    const tools = run.by_tool ? Object.keys(run.by_tool).length : 0;
+
+    const ts = run.timestamp || "";
+    const profile = run.profile || "";
+    const src = run.src_path || "";
+    const url = run.entry_url || "";
+
+    const urlShort = url
+      ? (url.length > 40 ? url.slice(0, 37) + "..." : url)
+      : "";
+
+    row.innerHTML = `
+      <td class="vsp-cell-runid">\${run.run_id || ""}</td>
+      <td>\${ts}</td>
+      <td>\${profile}</td>
+      <td>\${src}</td>
+      <td>\${url ? `<a href="\${url}" target="_blank" rel="noopener noreferrer">\${urlShort}</a>` : ""}</td>
+      <td>\${run.total_findings || 0}</td>
+      <td>\${sev.CRITICAL || 0}</td>
+      <td>\${sev.HIGH || 0}</td>
+      <td>\${sev.MEDIUM || 0}</td>
+      <td>\${sev.LOW || 0}</td>
+      <td>\${sev.INFO || 0}</td>
+      <td>\${sev.TRACE || 0}</td>
+      <td>\${tools}</td>
+      <td><span class="vsp-tag vsp-tag-muted">N/A</span></td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function vspLoadRunsIndexV3() {
+  try {
+    const res = await fetch("/api/vsp/runs_index_v3_v3");
+    if (!res.ok) {
+      console.error("[RUNS] HTTP error", res.status);
+      return;
+    }
+    const runs = await res.json();
+    if (!Array.isArray(runs)) {
+      console.error("[RUNS] Unexpected payload", runs);
+      return;
+    }
+    vspRenderRunsTable(runs);
+  } catch (err) {
+    console.error("[RUNS] Failed to load runs_index_v3:", err);
+  }
+}
+// =================== END VSP RUNS TABLE META V1 ====================
+
+// ================= VSP_SETTINGS_PROFILE_RULES_V1 =================
+
+// Load settings JSON, có fallback demo
+async function vspLoadSettingsProfileV1() {
+  try {
+    const res = await fetch("/static/data/vsp_settings_profile_v1.json?_=" + Date.now());
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const js = await res.json();
+    return js;
+  } catch (e) {
+    console.warn("[VSP_SETTINGS] Không load được settings_profile_v1, dùng demo. Lý do:", e);
+    return {
+      profile_name: "VSP_FULL_EXT_2025",
+      env: "STAGING / DEMO",
+      run_id_latest: "RUN_VSP_FULL_EXT_DEMO",
+      security_score: 0,
+      tools: [
+        { id: "bandit", name: "bandit", type: "SAST", mode: "EXT", enabled: true, findings: 0, severity_min: "LOW" },
+        { id: "gitleaks", name: "gitleaks", type: "Secrets", mode: "EXT", enabled: true, findings: 0, severity_min: "HIGH" },
+        { id: "kics", name: "kics", type: "IaC", mode: "EXT", enabled: true, findings: 0, severity_min: "MEDIUM" },
+      ],
+      profiles: [
+        { id: "FULL_EXT", label: "Full EXT (all tools)", tools: ["bandit","gitleaks","kics"], description: "Full extended profile – all tools enabled." }
+      ]
+    };
+  }
+}
+
+// Render Tab 4 – Settings / Profile / Tools
+async function vspInitSettingsTabV1() {
+  const panel = document.querySelector('.vsp-tab-panel[data-tab="4"]');
+  if (!panel) {
+    console.warn("[VSP_SETTINGS] Không thấy panel Tab 4.");
+    return;
+  }
+
+  const cfg = await vspLoadSettingsProfileV1();
+  const tools = Array.isArray(cfg.tools) ? cfg.tools : [];
+  const profiles = Array.isArray(cfg.profiles) ? cfg.profiles : [];
+
+  let toolsRows = "";
+  tools.forEach((t, idx) => {
+    const badge = t.enabled ? "Enabled" : "Disabled";
+    const badgeClass = t.enabled ? "status-badge status-ok" : "status-badge status-off";
+    toolsRows += `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${t.id}</td>
+        <td>${t.type || "-"}</td>
+        <td>${t.mode || "-"}</td>
+        <td>${t.severity_min || "-"}</td>
+        <td>${t.findings != null ? t.findings : "-"}</td>
+        <td><span class="${badgeClass}">${badge}</span></td>
+      </tr>
+    `;
+  });
+
+  let profilesRows = "";
+  profiles.forEach((p, idx) => {
+    profilesRows += `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${p.id}</td>
+        <td>${p.label || "-"}</td>
+        <td>${(p.tools || []).join(", ")}</td>
+        <td>${p.description || "-"}</td>
+      </tr>
+    `;
+  });
+
+  panel.innerHTML = `
+    <div class="vsp-section-header">
+      <div class="vsp-section-title">Tab 4 – Settings / Profile / Tools</div>
+      <div class="vsp-section-subtitle">Scan profile &amp; tool configuration (read-only)</div>
+    </div>
+
+    <div class="vsp-grid vsp-grid-2">
+      <div class="vsp-card">
+        <div class="vsp-card-title">Profile overview</div>
+        <div class="vsp-card-body">
+          <div class="vsp-metric-line"><span>Active profile:</span><span>${cfg.profile_name || "-"}</span></div>
+          <div class="vsp-metric-line"><span>Environment:</span><span>${cfg.env || "-"}</span></div>
+          <div class="vsp-metric-line"><span>Latest run:</span><span>${cfg.run_id_latest || "-"}</span></div>
+          <div class="vsp-metric-line"><span>Security posture score:</span><span>${cfg.security_score || 0} / 100</span></div>
+          <div class="vsp-metric-line"><span>Tools enabled:</span><span>${tools.length}</span></div>
+        </div>
+      </div>
+
+      <div class="vsp-card">
+        <div class="vsp-card-title">Profiles</div>
+        <div class="vsp-card-body">
+          <div class="vsp-table-wrapper">
+            <table class="vsp-table compact">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>ID</th>
+                  <th>Label</th>
+                  <th>Tools</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${profilesRows || `<tr><td colspan="5" style="text-align:center;opacity:.6;">No profiles defined.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vsp-card vsp-card-fullwidth">
+      <div class="vsp-card-title">Tools configuration</div>
+      <div class="vsp-card-body">
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table compact">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tool</th>
+                <th>Type</th>
+                <th>Mode</th>
+                <th>Severity min</th>
+                <th>Findings (latest run)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${toolsRows || `<tr><td colspan="7" style="text-align:center;opacity:.6;">No tools found.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Render Tab 5 – Rule Overrides (read-only)
+async function vspInitRuleOverridesTabV1() {
+  const panel = document.querySelector('.vsp-tab-panel[data-tab="5"]');
+  if (!panel) {
+    console.warn("[VSP_RULES] Không thấy panel Tab 5.");
+    return;
+  }
+
+  // Thử load file overrides nếu sau này bạn có, còn hiện tại coi như chưa cấu hình
+  let overrides = [];
+  try {
+    const res = await fetch("/static/data/vsp_rule_overrides_v1.json?_=" + Date.now());
+    if (res.ok) {
+      const js = await res.json();
+      if (Array.isArray(js)) overrides = js;
+      else if (Array.isArray(js.items)) overrides = js.items;
+    }
+  } catch (e) {
+    console.warn("[VSP_RULES] Không load được vsp_rule_overrides_v1.json:", e);
+  }
+
+  let rows = "";
+  overrides.forEach((ov, idx) => {
+    rows += `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${ov.tool || "-"}</td>
+        <td>${ov.rule_id || "-"}</td>
+        <td>${ov.rule_name || "-"}</td>
+        <td>${ov.severity_raw || "-"}</td>
+        <td>${ov.severity_effective || "-"}</td>
+        <td>${ov.reason || "-"}</td>
+      </tr>
+    `;
+  });
+
+  panel.innerHTML = `
+    <div class="vsp-section-header">
+      <div class="vsp-section-title">Tab 5 – Rule overrides</div>
+      <div class="vsp-section-subtitle">View / audit severity overrides &amp; rule tuning (read-only)</div>
+    </div>
+
+    <div class="vsp-card vsp-card-fullwidth">
+      <div class="vsp-card-title">Overrides registry</div>
+      <div class="vsp-card-body">
+        <div class="vsp-table-wrapper">
+          <table class="vsp-table compact">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tool</th>
+                <th>Rule ID</th>
+                <th>Rule name</th>
+                <th>Severity raw</th>
+                <th>Severity effective</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="7" style="text-align:center;opacity:.6;">No rule overrides configured.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;opacity:.7;font-size:12px;">
+          This view is read-only in demo. Production edition can load overrides from central config
+          (YAML/JSON) and allow export for ISO 27001 / DevSecOps audits.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Gắn init vào DOMContentLoaded của Dashboard
+document.addEventListener("DOMContentLoaded", function () {
+  vspInitSettingsTabV1();
+  vspInitRuleOverridesTabV1();
+});
+
+// ================= END VSP_SETTINGS_PROFILE_RULES_V1 =================
+

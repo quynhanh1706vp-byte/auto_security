@@ -1,0 +1,86 @@
+/* VSP_RULE_OVERRIDES_TAB_V1: clean + stable */
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  const log = (...a)=>console.log("[VSP_RULES_V1]", ...a);
+
+  function setMsg(t){
+    const el = $("rules-msg");
+    if(el) el.textContent = t || "";
+  }
+
+  function normalize(obj){
+    if(!obj || typeof obj!=="object") return { version:1, items:[] };
+    if(Array.isArray(obj.items)) return { version: obj.version||1, items: obj.items };
+    if(obj.meta && Array.isArray(obj.overrides)){
+      return { version: 1, items: obj.overrides.map((x,i)=>({
+        id: x.id || ("ovr_"+i),
+        match: x.match || {},
+        action: x.action || (x.set ? "set" : "suppress"),
+        set: x.set || undefined,
+        justification: x.justification || "",
+        expires_at: x.expires_at || ""
+      })) };
+    }
+    return { version:1, items:[] };
+  }
+
+  async function apiGet(){
+    const r = await fetch("/api/vsp/rule_overrides_v1", { cache:"no-store" });
+    if(!r.ok) throw new Error("GET rule_overrides_v1 failed: "+r.status);
+    return await r.json();
+  }
+
+  async function apiSave(obj){
+    const r = await fetch("/api/vsp/rule_overrides_v1", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(obj)
+    });
+    if(!r.ok) throw new Error("POST rule_overrides_v1 failed: "+r.status);
+    return await r.json();
+  }
+
+  async function reload(){
+    setMsg("Loading...");
+    try{
+      const raw = await apiGet();
+      const norm = normalize(raw);
+      const ta = $("rules-json");
+      if(ta) ta.value = JSON.stringify(norm, null, 2);
+      setMsg("Loaded. items=" + (norm.items?norm.items.length:0));
+    }catch(e){
+      console.warn(e);
+      setMsg(String(e));
+    }
+  }
+
+  async function save(){
+    const ta = $("rules-json");
+    if(!ta) return;
+    try{
+      const obj = JSON.parse(ta.value || "{}");
+      setMsg("Saving...");
+      const res = await apiSave(obj);
+      setMsg("Saved: " + (res && res.file ? res.file : "ok"));
+      await reload();
+    }catch(e){
+      console.warn(e);
+      setMsg("Save error: " + String(e));
+    }
+  }
+
+  function wire(){
+    const bReload = $("rules-reload");
+    const bSave   = $("rules-save");
+    if(bReload) bReload.addEventListener("click", reload);
+    if(bSave) bSave.addEventListener("click", save);
+  }
+
+  window.VSP_RULE_OVERRIDES_TAB_V1 = { reload, save, wire };
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    wire();
+  });
+
+  log("loaded");
+})();

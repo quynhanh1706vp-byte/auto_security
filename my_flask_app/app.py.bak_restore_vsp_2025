@@ -1,0 +1,68 @@
+from importlib import import_module
+from flask import Flask, render_template, redirect, url_for, Blueprint
+
+
+def _register_blueprints(app: Flask, module_name: str):
+  """
+  Import module_name và tự động register tất cả biến kiểu Blueprint
+  có trong module đó. Không cần biết tên là bp / bp_dashboard / vsp_bp...
+  """
+  try:
+    m = import_module(module_name)
+  except Exception as e:
+    print(f"[VSP][APP] Cannot import {module_name}: {e}")
+    return
+
+  count = 0
+  for attr_name, attr_val in vars(m).items():
+    if isinstance(attr_val, Blueprint):
+      app.register_blueprint(attr_val)
+      count += 1
+      print(f"[VSP][APP] Registered blueprint from {module_name}: {attr_name} (name={attr_val.name})")
+  if count == 0:
+    print(f"[VSP][APP] No Blueprint found in {module_name}")
+
+
+def create_app() -> Flask:
+  app = Flask(
+    __name__,
+    static_folder="static",
+    template_folder="templates",
+  )
+
+  # ====== PAGE ROUTES (UI) ======
+  @app.route("/")
+  def root():
+    # Vào thẳng màn VSP
+    return redirect(url_for("security_bundle"))
+
+  @app.route("/security_bundle")
+  def security_bundle():
+    # index.html mới VSP UI/UX 2025
+    return render_template("index.html")
+
+  # ====== API ROUTES (VSP) ======
+  #
+  # Các module dưới đây mình đã dùng trước giờ:
+  #   api_vsp_dashboard_v2.py  → dashboard_v3, trend_v1, top_findings_v1,
+  #                               settings/get, settings/save,
+  #                               rule_overrides, save_rule_override...
+  #   api_vsp_datasource_v2.py → datasource_v2, datasource_stats_v1
+  #   api_vsp_runs_v2.py       → runs_v2, run_bundle/<run_id>
+  #
+  # Hàm _register_blueprints sẽ tự quét mọi Blueprint trong từng module
+  # và register với app (kể cả khi tên biến không phải 'bp').
+  for module_name in [
+    "api_vsp_dashboard_v2",
+    "api_vsp_datasource_v2",
+    "api_vsp_runs_v2",
+  ]:
+    _register_blueprints(app, module_name)
+
+  return app
+
+
+app = create_app()
+
+if __name__ == "__main__":
+  app.run(host="0.0.0.0", port=8910)

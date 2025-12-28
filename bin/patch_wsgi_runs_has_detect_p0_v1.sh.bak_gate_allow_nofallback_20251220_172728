@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+F="wsgi_vsp_ui_gateway.py"
+SVC="vsp-ui-8910.service"
+[ -f "$F" ] || { echo "[ERR] missing $F"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$F" "${F}.bak_runs_has_${TS}"
+echo "[BACKUP] ${F}.bak_runs_has_${TS}"
+
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+p = Path("wsgi_vsp_ui_gateway.py")
+s = p.read_text(encoding="utf-8", errors="replace")
+
+MARK="VSP_RUNS_HAS_DETECT_P0_V1"
+if MARK in s:
+    print("[OK] already patched")
+    raise SystemExit(0)
+
+# inject after "app = application" (safe place: Flask object exists)
+m = re.search(r'(?m)^\s*app\s*=\s*application\s*$', s)
+if not m:
+    raise SystemExit("[ERR] cannot find `app = application`")
+
+inject = r'''
+# --- VSP_RUNS_HAS_DETECT_P0_V1 ---
+# Commercial: /api/vsp/runs must show accurate artifact presence (csv/json/sarif/html/summary).
+from flask import request as _vsp_req
+import os as _vsp_os
+import json as _vsp_json
+
+def _vsp_detect_artifacts(run_dir: str) -> dict:
+    d = {"csv":False,"json":False,"sarif":False,"summary":False,"html":False,"html_path":None}
+    if not run_dir:
+        return d
+
+    # common artifact locations (support both run-root and reports/)
+    cand = [
+        ("json",   ["findings_unified.json", "reports/findings_unified.json"]),
+        ("csv",    ["findings_unified.csv",  "reports/findings_unified.csv"]),
+        ("sarif",  ["findings_unified.sarif","reports/findings_unified.sarif"]),
+        ("summary",["run_gate_summary.json","SUMMARY.txt","reports/SUMMARY.txt","reports/run_gate_summary.json"]),
+    ]
+    for k, rels in cand:
+        for rel in rels:
+            if _vsp_os.path.exists(_vsp_os.path.join(run_dir, rel)):
+                d[k] = True
+                break
+
+    html_cands = [
+        "reports/index.html",
+        "report/index.html",
+        "reports/report.html",
+        "reports/findings_unified.html",
+        "findings_unified.html",
+        "index.html",
+    ]
+    for rel in html_cands:
+        fp = _vsp_os.path.join(run_dir, rel)
+        if _vsp_os.path.exists(fp):
+            d["html"] = True
+            d["html_path"] = fp
+            break
+    return d
+
+@app.after_request
+def _vsp_after_request_runs_has(resp):
+    try:
+        # only patch the runs listing JSON
+        if _vsp_req.path != "/api/vsp/runs":
+            return resp
+        ctype = (resp.headers.get("Content-Type") or "")
+        if "application/json" not in ctype:
+            return resp
+
+        data = None
+        try:
+            data = resp.get_json(silent=True)
+        except Exception:
+            data = None
+        if not isinstance(data, dict):
+            return resp
+
+        items = data.get("items")
+        if not isinstance(items, list):
+            return resp
+
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            run_dir = it.get("path") or ""
+            has = it.get("has")
+            if not isinstance(has, dict):
+                has = {}
+            det = _vsp_detect_artifacts(str(run_dir))
+            has.update(det)
+            it["has"] = has
+
+        out = _vsp_json.dumps(data, ensure_ascii=False)
+        resp.set_data(out.encode("utf-8"))
+        resp.headers["Content-Length"] = str(len(resp.get_data()))
+        resp.headers["X-VSP-RUNS-HAS"] = "VSP_RUNS_HAS_DETECT_P0_V1"
+        return resp
+    except Exception:
+        return resp
+
+# --- /VSP_RUNS_HAS_DETECT_P0_V1 ---
+'''
+s = s[:m.end()] + "\n" + inject + "\n" + s[m.end():]
+p.write_text(s, encoding="utf-8")
+print("[OK] injected runs has detector")
+PY
+
+python3 -m py_compile "$F"
+sudo systemctl restart "$SVC"
+sleep 0.8
+
+echo "== verify header + sample =="
+curl -sS -I 'http://127.0.0.1:8910/api/vsp/runs?limit=1' | sed -n '1,30p'
+curl -sS 'http://127.0.0.1:8910/api/vsp/runs?limit=1' | jq '.items[0].run_id,.items[0].has'

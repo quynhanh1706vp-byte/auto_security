@@ -1,0 +1,39 @@
+== [0] Basic endpoints reachable ==
+[OK] tab /vsp5 => 200
+[OK] tab /runs => 200
+[OK] tab /data_source => 200
+[OK] tab /settings => 200
+[OK] tab /rule_overrides => 200
+
+== [1] Extract JS per tab + duplicate JS count ==
+[OK] /vsp5 js_count=7
+[OK] /runs js_count=7
+[OK] /data_source js_count=7
+[OK] /settings js_count=8
+[OK] /rule_overrides js_count=5
+[OK] unique js urls: 24
+[OK] no suspicious js basename duplication
+
+== [2] HTML sanity checks (missing anchors / placeholders) ==
+[OK] /vsp5 has #vsp-dashboard-main
+[OK] /vsp5 no obvious placeholders
+[OK] /runs no obvious placeholders
+[OK] /data_source no obvious placeholders
+[OK] /settings no obvious placeholders
+[OK] /rule_overrides no obvious placeholders
+
+== [3] API contract checks (RID + run_gate_summary + findings contract) ==
+[OK] rid_latest=VSP_CI_20251218_114312
+[OK] run_gate_summary.json reachable
+[CHECK] ok= True findings_len= 10 items_len= 10
+[OK] findings contract OK (findings non-empty)
+
+== [4] Headers cleanliness (no promote debug headers) ==
+[OK] no X-VSP-RFA* headers
+
+== [5] DS lazy cache policy (no-store expected) ==
+[OK] DS lazy Cache-Control: no-store
+
+== [RESULT] ==
+OK=23 AMBER=0 ERR=0
+tmp=/tmp/vsp_p2_smoke_kAAZ0j

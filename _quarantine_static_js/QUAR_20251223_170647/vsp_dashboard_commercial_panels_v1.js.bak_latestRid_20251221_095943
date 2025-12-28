@@ -1,0 +1,230 @@
+/* VSP_P1_COMMERCIAL_PANELS_EXT_V1 (safe external panels; never break UI) */
+(() => {
+  if (window.__vsp_p1_panels_ext_v1) return;
+  window.__vsp_p1_panels_ext_v1 = true;
+
+  const log = (...a)=>console.log("[P1PanelsExtV1]", ...a);
+  const warn = (...a)=>console.warn("[P1PanelsExtV1]", ...a);
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  function el(tag, attrs={}, children=[]){
+    const e=document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs||{})){
+      if (k==="style") Object.assign(e.style, v||{});
+      else if (k==="class") e.className = v;
+      else e.setAttribute(k, String(v));
+    }
+    for (const c of (children||[])){
+      if (c==null) continue;
+      e.appendChild(typeof c==="string" ? document.createTextNode(c) : c);
+    }
+    return e;
+  }
+
+  function ensureHost(){
+    let host = document.getElementById("vsp_p1_ext_panels_host");
+    if (host) return host;
+
+    // attach under main root if exists
+    const root = document.getElementById("vsp5_root") || document.body;
+
+    host = el("div", { id:"vsp_p1_ext_panels_host", class:"vsp_p1_ext_panels_host" });
+    host.style.margin = "14px";
+    host.style.paddingBottom = "18px";
+
+    const title = el("div", { class:"vsp_p1_ext_title" }, ["Commercial Panels"]);
+    title.style.opacity = "0.75";
+    title.style.fontSize = "12px";
+    title.style.margin = "8px 2px";
+
+    const grid = el("div", { class:"vsp_p1_ext_grid" });
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = "repeat(12, 1fr)";
+    grid.style.gap = "12px";
+
+    host.appendChild(title);
+    host.appendChild(grid);
+    root.appendChild(host);
+    return host;
+  }
+
+  function card(title){
+    const c = el("div", { class:"vsp_p1_ext_card" });
+    c.style.gridColumn = "span 6";
+    c.style.border = "1px solid rgba(255,255,255,.10)";
+    c.style.borderRadius = "16px";
+    c.style.background = "rgba(255,255,255,.03)";
+    c.style.boxShadow = "0 12px 30px rgba(0,0,0,.35)";
+    c.style.padding = "12px 12px 10px";
+
+    const h = el("div", { class:"vsp_p1_ext_card_title" }, [title]);
+    h.style.fontSize = "12px";
+    h.style.fontWeight = "700";
+    h.style.opacity = "0.9";
+    h.style.marginBottom = "8px";
+
+    const body = el("div", { class:"vsp_p1_ext_card_body" });
+    body.style.fontSize = "12px";
+    body.style.opacity = "0.92";
+
+    c.appendChild(h);
+    c.appendChild(body);
+    return { c, body };
+  }
+
+  async function fetchJSON(url){
+    // IMPORTANT: read body only once; handle both {ok:true,data:...} and direct payload
+    const r = await fetch(url, { credentials:"same-origin", cache:"no-store" });
+    const txt = await r.text();
+    let j;
+    try { j = JSON.parse(txt); } catch(e){ throw new Error("bad_json"); }
+    if (j && typeof j==="object" && j.ok===true && j.data!=null) return j.data;
+    return j;
+  }
+
+  function pickLatestRID(runsPayload){
+    // support: {runs:[{rid/run_id/id}]} OR {items:[...]} OR [...]
+    const arr =
+      (runsPayload && Array.isArray(runsPayload.runs) && runsPayload.runs) ||
+      (runsPayload && Array.isArray(runsPayload.items) && runsPayload.items) ||
+      (Array.isArray(runsPayload) && runsPayload) ||
+      [];
+    const o = arr[0] || {};
+    return o.rid || o.run_id || o.id || o.RID || null;
+  }
+
+  function normalizeFindingsPayload(p){
+    // expected: {meta:{counts_by_severity}, findings:[...]} but accept variations
+    if (!p || typeof p!=="object") return { meta:{}, findings:[] };
+
+    // sometimes wrapped {meta:{ok,counts_by_severity}, findings:[...]} already ok
+    const meta = (p.meta && typeof p.meta==="object") ? p.meta : {};
+    const findings = Array.isArray(p.findings) ? p.findings : (Array.isArray(p.items) ? p.items : []);
+    return { meta, findings };
+  }
+
+  function countsFrom(meta, findings){
+    const c = (meta && meta.counts_by_severity && typeof meta.counts_by_severity==="object") ? meta.counts_by_severity : null;
+    if (c) return c;
+
+    // fallback derive from findings
+    const out = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+    for (const f of (findings||[])){
+      const s = (f && (f.severity||f.sev||f.level||"")).toString().toUpperCase();
+      if (out[s] != null) out[s] += 1;
+      else out.INFO += 1;
+    }
+    return out;
+  }
+
+  function renderCounts(body, c){
+    const row = el("div");
+    row.style.display = "flex";
+    row.style.flexWrap = "wrap";
+    row.style.gap = "8px";
+
+    const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    for (const k of order){
+      const v = (c && c[k]!=null) ? c[k] : 0;
+      const pill = el("div", {}, [`${k}: ${v}`]);
+      pill.style.padding = "6px 10px";
+      pill.style.borderRadius = "999px";
+      pill.style.border = "1px solid rgba(255,255,255,.14)";
+      pill.style.background = "rgba(0,0,0,.20)";
+      pill.style.fontSize = "12px";
+      row.appendChild(pill);
+    }
+    body.innerHTML = "";
+    body.appendChild(row);
+  }
+
+  function renderTopFindings(body, findings){
+    const top = (findings||[]).slice(0, 10);
+    const box = el("div");
+    box.style.display="grid";
+    box.style.gap="6px";
+
+    if (!top.length){
+      box.appendChild(el("div", {}, ["No findings (or not available)."]));
+      body.innerHTML=""; body.appendChild(box);
+      return;
+    }
+
+    for (const f of top){
+      const sev = (f.severity||f.sev||"INFO").toString().toUpperCase();
+      const title = (f.title||f.rule||f.check_id||f.id||"Finding").toString();
+      const where = (f.location||f.path||f.file||"").toString();
+      const line = (f.line!=null ? `:${f.line}` : "");
+      const item = el("div", {}, [
+        `${sev} • ${title}${where?` • ${where}${line}`:""}`
+      ]);
+      item.style.padding="6px 10px";
+      item.style.border="1px solid rgba(255,255,255,.10)";
+      item.style.borderRadius="12px";
+      item.style.background="rgba(255,255,255,.02)";
+      item.style.whiteSpace="nowrap";
+      item.style.overflow="hidden";
+      item.style.textOverflow="ellipsis";
+      box.appendChild(item);
+    }
+    body.innerHTML=""; body.appendChild(box);
+  }
+
+  
+  function sevRank(f){
+    const s = String((f && (f.severity_norm || f.severity_normalized || f.severity || (f.meta && f.meta.severity) || "")) || "").toUpperCase();
+    const order = {CRITICAL:6, HIGH:5, MEDIUM:4, LOW:3, INFO:2, TRACE:1};
+    return order[s] || 0;
+  }
+  function sevLabel(f){
+    const s = String((f && (f.severity_norm || f.severity_normalized || f.severity || (f.meta && f.meta.severity) || "")) || "").toUpperCase();
+    return s || "UNKNOWN";
+  }
+  function titleOf(f){
+    return (f && (f.title || f.rule_name || f.rule_id || f.check_name || f.message || f.id || "")) ? String(f.title || f.rule_name || f.rule_id || f.check_name || f.message || f.id) : "finding";
+  }
+async function main(){
+    const host = ensureHost();
+    const grid = host.querySelector(".vsp_p1_ext_grid");
+    if (!grid) return;
+
+    const c1 = card("Findings Summary");
+    const c2 = card("Top Findings (sample)");
+
+    grid.innerHTML = "";
+    grid.appendChild(c1.c);
+    grid.appendChild(c2.c);
+
+    // loading state
+    c1.body.textContent = "Loading…";
+    c2.body.textContent = "Loading…";
+
+    try{
+      const runs = await fetchJSON("/api/vsp/runs?limit=1");
+      const rid = pickLatestRID(runs);
+      if (!rid) throw new Error("no_rid");
+      log("rid=", rid);
+
+      const fp = await fetchJSON(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json`);
+      const { meta, findings } = normalizeFindingsPayload(fp);
+      const c = countsFrom(meta, findings);
+
+      renderCounts(c1.body, c);
+      renderTopFindings(c2.body, findings);
+
+      log("rendered ok");
+    } catch(e){
+      warn("degraded:", e && (e.message||e));
+      c1.body.textContent = "DEGRADED: cannot load findings (see console).";
+      c2.body.textContent = "DEGRADED: cannot load findings (see console).";
+    }
+  }
+
+  // start when DOM ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ()=>main());
+  } else {
+    main();
+  }
+})();

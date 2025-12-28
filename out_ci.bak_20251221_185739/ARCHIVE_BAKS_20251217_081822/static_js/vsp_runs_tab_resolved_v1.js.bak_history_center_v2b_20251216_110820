@@ -1,0 +1,706 @@
+
+/* VSP_RUNS_PERROW_EXPORT_V1: per-row export + rid live update */
+(function(){
+  'use strict';
+
+  function __vspExportUrl(rid, fmt){
+    const base = (window.VSP_RUN_EXPORT_BASE || "/api/vsp/run_export_v3");
+    return `${base}/${encodeURIComponent(rid)}?fmt=${encodeURIComponent(fmt)}`;
+  }
+
+  function __vspOpenExport(rid, fmt){
+    if(!rid) return;
+    const url = __vspExportUrl(rid, fmt);
+    window.open(url, "_blank", "noopener");
+  }
+
+  function __vspSetRidLive(rid){
+    if(!rid) return;
+
+    // prefer shared rid-state if present
+    try{
+      if(window.VSP_RID && typeof window.VSP_RID.set === "function"){
+        window.VSP_RID.set(rid);
+      } else {
+        // fallback: set multiple keys (avoid breaking older code)
+        try{ localStorage.setItem("vsp_selected_rid", rid); }catch(e){}
+        try{ localStorage.setItem("vsp_selected_rid_v2", rid); }catch(e){}
+        try{ localStorage.setItem("vsp_current_rid", rid); }catch(e){}
+        try{ localStorage.setItem("VSP_RID", rid); }catch(e){}
+        try{ localStorage.setItem("vsp_rid", rid); }catch(e){}
+        try{
+          window.dispatchEvent(new CustomEvent("vsp:rid_changed", { detail:{ rid } }));
+        }catch(e){}
+      }
+    }catch(e){
+      console.warn("[VSP_SET_RID_LIVE] err", e);
+    }
+
+    // update common labels if exist
+    const ids = ["vsp-current-rid","vsp-rid-label","vsp-runs-current-rid"];
+    ids.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = rid;
+    });
+
+    // update any export buttons bound by data attr
+    document.querySelectorAll("[data-vsp-export-rid]").forEach(btn=>{
+      btn.setAttribute("data-vsp-export-rid", rid);
+    });
+  }
+
+  // global delegation for per-row export buttons (works even if table re-rendered)
+  document.addEventListener("click", function(ev){
+    const a = ev.target && ev.target.closest && ev.target.closest("[data-vsp-export-fmt][data-vsp-export-rid]");
+    if(!a) return;
+    ev.preventDefault();
+    const rid = a.getAttribute("data-vsp-export-rid");
+    const fmt = a.getAttribute("data-vsp-export-fmt");
+    __vspOpenExport(rid, fmt);
+  }, true);
+
+  // expose for internal use
+  window.__vspOpenExport = __vspOpenExport;
+  window.__vspSetRidLive = __vspSetRidLive;
+})();
+
+/* vsp_runs_tab_resolved_v1.js
+ * Commercial wiring: Runs tab uses /api/vsp/runs_index_v3_fs_v4
+ * - Shows: RID + rid_norm + ci_run_dir
+ * - Links: status_v2, artifacts_index, report/summary_unified.json, report/findings_unified.json
+ */
+(function () {
+  'use strict';
+
+  var ENDPOINT = '/api/vsp/runs_index_v3_fs_v4?limit=50&hide_empty=0&filter=1';
+
+  function log() { try { console.log.apply(console, arguments); } catch (e) {} }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  /* VSP_USE_RID_INTEGRATION_V2 */
+  function vspSetRidUnified(rid){
+    try {
+      if(!rid) return;
+      // best: use global setter from RID state v2 if present
+      if (window && typeof window.VSP_SET_RID === 'function') {
+        window.VSP_SET_RID(rid);
+      } else {
+        try { localStorage.setItem("VSP_CURRENT_RID", rid); } catch(e) {}
+      }
+
+      // update label immediately (no need to rely on storage event)
+      try {
+        var lab = document.getElementById("vsp-rid-label");
+        if (lab) lab.textContent = "RID: " + rid;
+      } catch(e) {}
+
+      // notify others
+      try {
+        window.dispatchEvent(new CustomEvent("vsp:rid", { detail: { rid: rid } }));
+      } catch(e) {}
+    } catch(e) {}
+  }
+
+  function pickRunsPane() {
+    return (
+      document.getElementById('vsp-runs-main') ||
+      document.getElementById('vsp-runs') ||
+      document.querySelector('[data-vsp-pane="runs"]') ||
+      document.querySelector('#pane-runs') ||
+      document.querySelector('#tab-runs') ||
+      document.querySelector('.vsp-pane-runs') ||
+      // fallback: any pane that mentions "Runs"
+      Array.from(document.querySelectorAll('div,section,main')).find(function (el) {
+        var id = (el.id || '').toLowerCase();
+        return id.includes('runs') && id.includes('vsp');
+      }) ||
+      null
+    );
+  }
+
+  function mkLink(href, label) {
+    return '<a class="vsp-btn vsp-btn-soft" target="_blank" rel="noopener" href="' + esc(href) + '">' + esc(label) + '</a>';
+  }
+
+  
+  // === VSP_RUNS_SET_RID_V1 ===
+  var VSP_RID_KEY = 'VSP_CURRENT_RID';
+  var VSP_RID_RE = /(RUN_)?VSP_CI_\d{8}_\d{6}/;
+
+  function normalizeRidForApi(rid){
+    rid = String(rid || '').trim();
+    if (!rid) return '';
+    // if it's VSP_CI_... without RUN_, prefix it to be consistent
+    if (!rid.startsWith('RUN_') && /^VSP_CI_\d{8}_\d{6}$/.test(rid)) return 'RUN_' + rid;
+    // keep other forms (already RUN_..., or other request ids)
+    return rid;
+  }
+
+  function getCurrentRid(){
+    try {
+      var v = localStorage.getItem(VSP_RID_KEY) || '';
+      var m = (v || '').match(VSP_RID_RE);
+      return m ? normalizeRidForApi(m[0]) : normalizeRidForApi(v);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function setCurrentRid(rid, opts){
+    opts = opts || {};
+    rid = normalizeRidForApi(rid);
+    if (!rid) return false;
+
+    try { localStorage.setItem(VSP_RID_KEY, rid); } catch (e) {}
+
+    // update sticky label if present
+    try {
+      var lab = document.getElementById('vsp-rid-label');
+      if (lab) lab.textContent = 'RID: ' + rid;
+    } catch (e) {}
+
+    // notify other tabs
+    try {
+      window.dispatchEvent(new CustomEvent('vsp:rid-changed', { detail: { rid: rid } }));
+    } catch (e) {}
+
+    // optional: jump to dashboard so user sees KPI for selected run
+    if (opts && opts.gotoDashboard) {
+      try { location.hash = '#dashboard'; } catch (e) {}
+      try { window.dispatchEvent(new Event('hashchange')); } catch (e) {}
+    }
+    return true;
+  }
+
+  function mkUseRidBtn(rid){
+    rid = normalizeRidForApi(rid);
+    var t = rid ? rid : '';
+    return '<button class="vsp-btn vsp-btn-primary" data-vsp-set-rid="' + esc(t) + '" ' +
+           'style="padding:8px 10px; border-radius:10px; font-size:12px;">Use RID</button>' +
+           ' <a href="#" data-vsp-export-rid="'+rid+'" data-vsp-export-fmt="html" style="margin-left:8px; padding:7px 10px; border-radius:10px; font-size:12px; border:1px solid rgba(148,163,184,.25); color:#cbd5e1; text-decoration:none;">HTML</a>' +
+           ' <a href="#" data-vsp-export-rid="'+rid+'" data-vsp-export-fmt="zip" style="margin-left:6px; padding:7px 10px; border-radius:10px; font-size:12px; border:1px solid rgba(148,163,184,.25); color:#cbd5e1; text-decoration:none;">ZIP</a>' +
+           ' <a href="#" data-vsp-export-rid="'+rid+'" data-vsp-export-fmt="pdf" style="margin-left:6px; padding:7px 10px; border-radius:10px; font-size:12px; border:1px solid rgba(148,163,184,.25); color:#cbd5e1; text-decoration:none;">PDF</a>';
+  }
+
+  function wireUseRidButtons(tb){
+    if (!tb) return;
+    var btns = tb.querySelectorAll('button[data-vsp-set-rid]');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        var rid = b.getAttribute('data-vsp-set-rid') || '';
+        
+      vspSetRidUnified(rid);
+setCurrentRid(rid, { gotoDashboard: true });
+      });
+    });
+  }
+function rowActions(rid) {
+    var base = '/api/vsp';
+    var status = base + '/run_status_v2/' + encodeURIComponent(rid);
+    var artIdx = base + '/run_artifacts_index_v1/' + encodeURIComponent(rid);
+    var summary = base + '/run_artifact_v2/' + encodeURIComponent(rid) + '?path=' + encodeURIComponent('report/summary_unified.json');
+    var findings = base + '/run_artifact_v2/' + encodeURIComponent(rid) + '?path=' + encodeURIComponent('report/findings_unified.json');
+    return [
+            mkUseRid(rid),
+mkLink(status, 'status_v2'),
+      mkLink(artIdx, 'artifacts'),
+      mkLink(summary, 'summary'),
+      mkLink(findings, 'findings')
+    ].join(' ');
+  }
+
+  function render(pane, items) {
+    var html = '';
+    html += '<div class="vsp-card" style="margin:12px 0; padding:14px;">';
+    html += '  <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">';
+    html += '    <div>';
+    html += '      <div style="font-weight:700; font-size:16px;">Runs & Reports (resolved)</div>';
+    html += '      <div style="opacity:.75; font-size:12px;">Source: <code>' + esc(ENDPOINT) + '</code></div>';
+    html += '    </div>';
+    html += '    <div style="display:flex; gap:10px; align-items:center;">';
+    html += '      <input id="vsp-runs-q" placeholder="filter by RID / rid_norm / target / profile..." ';
+    html += '        style="min-width:320px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); color:inherit;">';
+    html += '      <button id="vsp-runs-refresh" class="vsp-btn vsp-btn-primary" style="padding:10px 14px;">Refresh</button>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+
+    html += '<div class="vsp-card" style="padding:0; overflow:auto;">';
+    html += '<table style="width:100%; border-collapse:collapse;">';
+    html += '  <thead>';
+    html += '    <tr style="text-align:left; font-size:12px; opacity:.85;">';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">Created</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">RID</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">rid_norm</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">Profile</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">Target</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">CI run dir</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">Degraded</th>';
+    html += '      <th style="padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06);">Links</th>';
+    html += '    </tr>';
+    html += '  </thead>';
+    html += '  <tbody id="vsp-runs-body"></tbody>';
+    html += '</table>';
+    html += '</div>';
+
+    pane.innerHTML = html;
+
+
+    // VSP_USE_RID_HANDLER_V1: event delegation for Use RID buttons
+    pane.addEventListener('click', function(ev){
+      var t = ev && ev.target ? ev.target : null;
+      if(!t) return;
+      var btn = (t.closest ? t.closest('.vsp-use-rid') : null);
+      if(!btn) return;
+      ev.preventDefault();
+
+      var rid = btn.getAttribute('data-rid') || '';
+      if(!rid) return;
+
+      try {
+        if (window.VSP_SET_RID) window.VSP_SET_RID(rid);
+        try { localStorage.setItem("VSP_CURRENT_RID", rid); } catch(e){}
+        var lab = document.getElementById("vsp-rid-label");
+        if (lab) lab.textContent = "RID: " + rid;
+        console.log("[VSP][RID] set from Runs:", rid);
+      } catch(e){
+        console.warn("[VSP][RID] set failed:", e);
+      }
+    }, { passive: false });
+    function applyFilter(q) {
+      q = (q || '').toLowerCase().trim();
+      var tb = document.getElementById('vsp-runs-body');
+      if (!tb) return;
+
+      var filtered = items.filter(function (it) {
+        if (!q) return true;
+        var hay = [
+          it.created_at, it.run_id, it.req_id, it.request_id, it.rid_norm,
+          it.profile, it.target, it.ci_run_dir
+        ].join(' ').toLowerCase();
+        return hay.indexOf(q) >= 0;
+      });
+
+      tb.innerHTML = filtered.map(function (it) {
+        var rid = it.run_id || it.request_id || it.req_id || '';
+        var degradedN = 0;
+        if (Array.isArray(it.degraded_tools)) degradedN = it.degraded_tools.length;
+        if (typeof it.degraded_n === 'number') degradedN = it.degraded_n;
+
+        var cur = getCurrentRid();
+        var isCur = (normalizeRidForApi(rid) && (normalizeRidForApi(rid) === cur));
+
+        return '' +
+          '<tr style="border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; ' + (isCur ? 'background:rgba(56,189,248,.06);' : '') + '">' +
+          '<!-- VSP_RUNS_ROW_HILITE_V1 -->' +
+          '  <td style="padding:12px 14px; white-space:nowrap; opacity:.85;">' + esc(it.created_at || '') + '</td>' +
+          '  <td style="padding:12px 14px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">' + esc(rid) + '</td>' +
+          '  <td style="padding:12px 14px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; opacity:.85;">' + esc(it.rid_norm || '') + '</td>' +
+          '  <td style="padding:12px 14px;">' + esc(it.profile || '') + '</td>' +
+          '  <td style="padding:12px 14px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(it.target || '') + '</td>' +
+          '  <td style="padding:12px 14px; max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.85;">' + esc(it.ci_run_dir || '') + '</td>' +
+          '  <td style="padding:12px 14px; white-space:nowrap;">' + esc(degradedN) + '</td>' +
+          '  <td style="padding:12px 14px; white-space:nowrap;">' + rowActions(rid) + '</td>' +
+          '</tr>';
+      }).join('');
+    
+      wireUseRidButtons(tb);
+}
+
+    var qEl = document.getElementById('vsp-runs-q');
+    var rEl = document.getElementById('vsp-runs-refresh');
+    if (qEl) qEl.addEventListener('input', function () { applyFilter(qEl.value); });
+    if (rEl) rEl.addEventListener('click', function () { window.VSP_RUNS_RESOLVED_REFRESH && window.VSP_RUNS_RESOLVED_REFRESH(); });
+
+    applyFilter('');
+  }
+
+  function loadAndRender(force) {
+    var pane = pickRunsPane();
+    if (!pane) { log('[VSP_RUNS_RESOLVED] runs pane not found -> skip'); return; }
+
+    // Only refresh when runs tab active, unless forced
+    var hash = (location.hash || '').toLowerCase();
+    if (!force && hash && !hash.includes('runs') && !hash.includes('reports')) return;
+
+    pane.innerHTML = '<div class="vsp-card" style="margin:12px 0; padding:14px;">Loading runs (resolved)…</div>';
+
+    fetch(ENDPOINT, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var items = (j && j.items) ? j.items : [];
+        render(pane, items);
+        log('[VSP_RUNS_RESOLVED] loaded items=', items.length);
+      })
+      .catch(function (e) {
+        pane.innerHTML = '<div class="vsp-card" style="margin:12px 0; padding:14px;">' +
+          '<div style="font-weight:700;">Runs load failed</div>' +
+          '<pre style="white-space:pre-wrap; opacity:.85; font-size:12px;">' + esc(String(e && e.stack ? e.stack : e)) + '</pre>' +
+          '</div>';
+      });
+  }
+
+  window.VSP_RUNS_RESOLVED_REFRESH = function () { loadAndRender(true); };
+
+  // Hook hash router
+  window.addEventListener('hashchange', function () { loadAndRender(false); });
+  document.addEventListener('DOMContentLoaded', function () { loadAndRender(false); });
+
+  log('[VSP_RUNS_RESOLVED] loaded');
+})();
+
+
+/* VSP_RUNS_HISTORY_CENTER_P1_V1: search + quick filters (client-side) */
+(function(){
+  'use strict';
+
+  function _ensureToolbar(){
+    const root = document.getElementById("vsp4-runs") || document.querySelector("[data-tab='runs']") || document.body;
+    if(!root) return;
+    if(document.getElementById("vsp-runs-toolbar")) return;
+
+    const bar = document.createElement("div");
+    bar.id="vsp-runs-toolbar";
+    bar.style.cssText="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 12px 0;padding:10px 12px;border:1px solid rgba(148,163,184,.18);border-radius:14px;background:rgba(2,6,23,.35);";
+    bar.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input id="vsp-runs-q" placeholder="Search RID…" style="width:min(320px,70vw);padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.45);color:#e2e8f0;font-size:12px;outline:none;">
+        <label style="display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#cbd5e1;">
+          <input type="checkbox" id="vsp-runs-only-findings"> Has findings
+        </label>
+        <label style="display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#cbd5e1;">
+          <input type="checkbox" id="vsp-runs-only-degraded"> Degraded only
+        </label>
+        <button id="vsp-runs-reset" style="padding:7px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.55);color:#cbd5e1;font-size:12px;cursor:pointer">Reset</button>
+      </div>
+      <div style="margin-left:auto;font-size:12px;color:#cbd5e1;opacity:.9">
+        <span>Showing: </span><b id="vsp-runs-count">—</b>
+      </div>
+    `;
+    root.prepend(bar);
+
+    const apply = ()=>{ try{ window.__VSP_RUNS_APPLY_FILTER && window.__VSP_RUNS_APPLY_FILTER(); }catch(e){} };
+    bar.querySelector("#vsp-runs-q").addEventListener("input", ()=>setTimeout(apply, 80));
+    bar.querySelector("#vsp-runs-only-findings").addEventListener("change", apply);
+    bar.querySelector("#vsp-runs-only-degraded").addEventListener("change", apply);
+    bar.querySelector("#vsp-runs-reset").addEventListener("click", ()=>{
+      bar.querySelector("#vsp-runs-q").value="";
+      bar.querySelector("#vsp-runs-only-findings").checked=false;
+      bar.querySelector("#vsp-runs-only-degraded").checked=false;
+      apply();
+    });
+  }
+
+  // Provide a generic filter function that works on the rendered table rows.
+  window.__VSP_RUNS_APPLY_FILTER = function(){
+    _ensureToolbar();
+    const q = (document.getElementById("vsp-runs-q")?.value || "").trim().toLowerCase();
+    const onlyFind = !!document.getElementById("vsp-runs-only-findings")?.checked;
+    const onlyDeg = !!document.getElementById("vsp-runs-only-degraded")?.checked;
+
+    // best-effort: find runs table
+    const table = document.querySelector("#vsp-runs-table, table[data-vsp-runs], .vsp-runs-table table") || document.querySelector("table");
+    if(!table) return;
+
+    const rows = Array.from(table.querySelectorAll("tr")).slice(1);
+    let shown = 0;
+    for(const tr of rows){
+      const txt = (tr.textContent || "").toLowerCase();
+
+      // heuristics:
+      const ridOk = !q || txt.includes(q);
+      const hasFind = !onlyFind || txt.includes("has_findings") || txt.includes("findings") || txt.includes("true") || txt.includes("total");
+      const degOk = !onlyDeg || txt.includes("degraded") || txt.includes("timeout") || txt.includes("rc=");
+
+      const ok = ridOk && hasFind && degOk;
+      tr.style.display = ok ? "" : "none";
+      if(ok) shown += 1;
+    }
+    const c = document.getElementById("vsp-runs-count");
+    if(c) c.textContent = String(shown);
+  };
+
+  // Try install toolbar now and after hashchange
+  window.addEventListener("load", ()=>setTimeout(()=>{ _ensureToolbar(); }, 200));
+  window.addEventListener("hashchange", ()=>setTimeout(()=>{ _ensureToolbar(); }, 120));
+})();
+
+
+/* VSP_RUNS_ADD_REPORT_BTN_V1: open CIO report (HTML route) */
+(function(){
+  'use strict';
+  function normRid(x){
+    if(!x) return "";
+    return String(x).trim().replace(/^RID:\s*/i,'').replace(/^RUN_/i,'');
+  }
+
+  document.addEventListener("click", function(ev){
+    const btn = ev.target && ev.target.closest ? ev.target.closest(".vsp-run-report-btn") : null;
+    if(!btn) return;
+    ev.preventDefault();
+    const rid = normRid(btn.getAttribute("data-rid") || "");
+    if(!rid){ alert("Missing RID"); return; }
+    const url = "/vsp/report_cio_v1/" + encodeURIComponent(rid);
+    window.open(url, "_blank", "noopener");
+  }, true);
+})();
+
+
+/* VSP_RUNS_ARTIFACTS_ROW_P1_V1: per-row artifacts quick-open */
+(function(){
+  'use strict';
+
+  function normRid(x){
+    if(!x) return "";
+    return String(x).trim().replace(/^RID:\s*/i,'').replace(/^RUN_/i,'');
+  }
+
+  function artUrl(rid, rel){
+    return "/api/vsp/run_artifact_raw_v1/" + encodeURIComponent(rid) + "?rel=" + encodeURIComponent(rel);
+  }
+
+  // Render small pill buttons (open in new tab)
+  window.VSP_RUNS_renderArtifactsPills = function(rid){
+    rid = normRid(rid);
+    const pills = [
+      ["KICS log",  "kics/kics.log"],
+      ["KICS json", "kics/kics.json"],
+      ["Trivy err", "trivy/trivy.json.err"],
+      ["Semgrep",   "semgrep/semgrep.json"],
+      ["Gitleaks",  "gitleaks/gitleaks.json"],
+      ["Bandit",    "bandit/bandit.json"],
+      ["Syft",      "syft/syft.json"],
+      ["Grype",     "grype/grype.json"],
+      ["CodeQL",    "codeql/codeql.sarif"],
+      ["Unified",   "findings_unified.json"],
+      ["Effective", "findings_effective.json"],
+    ];
+
+    const mk = (label, rel) => (
+      '<a class="vsp-pill-btn" target="_blank" rel="noopener" '+
+      'href="'+artUrl(rid,rel)+'" '+
+      'style="display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:6px 8px;border-radius:999px;'+
+      'border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.35);color:#e2e8f0;font-size:12px;text-decoration:none;">'+
+      label+'</a>'
+    );
+
+    return pills.map(([l,rel])=>mk(l,rel)).join("");
+  };
+
+  // Try to patch row HTML after runs table is rendered.
+  // We don't assume exact renderer; we do best-effort DOM patching: find each row with data-rid attr.
+  function patchTable(){
+    const rows = document.querySelectorAll("[data-run-id],[data-rid],tr[data-rid],tr[data-run-id]");
+    if(!rows || !rows.length) return;
+
+    rows.forEach((row)=>{
+      const rid = normRid(row.getAttribute("data-rid") || row.getAttribute("data-run-id") || "");
+      if(!rid) return;
+      if(row.querySelector(".vsp-artifacts-cell")) return;
+
+      // place after existing buttons cell if present, else append to row
+      const cell = document.createElement("td");
+      cell.className = "vsp-artifacts-cell";
+      cell.style.cssText = "min-width:420px;max-width:620px;white-space:normal;";
+      cell.innerHTML = window.VSP_RUNS_renderArtifactsPills(rid);
+
+      // If it's a <tr>, append cell; else append into row container
+      if(row.tagName && row.tagName.toLowerCase()==="tr"){
+        row.appendChild(cell);
+      }else{
+        const div = document.createElement("div");
+        div.className="vsp-artifacts-cell";
+        div.innerHTML = cell.innerHTML;
+        row.appendChild(div);
+      }
+    });
+  }
+
+  // CSS once
+  function injectCss(){
+    if(document.getElementById("vsp-runs-artifacts-css")) return;
+    const st=document.createElement("style");
+    st.id="vsp-runs-artifacts-css";
+    st.textContent = ".vsp-pill-btn:hover{filter:brightness(1.08);} .vsp-artifacts-cell{padding-top:6px;padding-bottom:6px;}";
+    document.head.appendChild(st);
+  }
+
+  function boot(){
+    injectCss();
+    patchTable();
+    // keep trying for async table rendering
+    let n=0;
+    const t=setInterval(()=>{ patchTable(); n++; if(n>20) clearInterval(t); }, 500);
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+VSP_RUNS_HISTORY_CENTER_P1_V2
+
+/* VSP_RUNS_HISTORY_CENTER_P1_V2: toolbar filters + client-side filtering + refetch */
+(function(){
+  'use strict';
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+  function normRid(x){
+    if(!x) return "";
+    return String(x).trim().replace(/^RID:\s*/i,'').replace(/^RUN_/i,'');
+  }
+
+  function getPanel(){
+    // best-effort: find runs main pane
+    return document.getElementById("vsp-runs-main")
+        || document.querySelector("#vsp-runs-pane")
+        || document.querySelector("[data-tab='runs']")
+        || document.body;
+  }
+
+  function ensureToolbar(){
+    const host = getPanel();
+    if(!host) return null;
+    if(document.getElementById("vsp-runs-history-toolbar")) return document.getElementById("vsp-runs-history-toolbar");
+
+    const bar = document.createElement("div");
+    bar.id = "vsp-runs-history-toolbar";
+    bar.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:10px 0 12px;padding:10px;border-radius:14px;border:1px solid rgba(148,163,184,.18);background:rgba(2,6,23,.35);";
+
+    bar.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+        <input id="vsp-runs-q" placeholder="Search RID contains…" style="width:240px;max-width:45vw;padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.35);color:#e2e8f0;">
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#cbd5e1;">
+          <input id="vsp-runs-hasfind" type="checkbox"> Has findings
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#cbd5e1;">
+          <input id="vsp-runs-degraded" type="checkbox"> Degraded only
+        </label>
+        <select id="vsp-runs-limit" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.35);color:#e2e8f0;">
+          <option value="20">limit=20</option>
+          <option value="50" selected>limit=50</option>
+          <option value="100">limit=100</option>
+          <option value="200">limit=200</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span id="vsp-runs-count" style="font-size:12px;color:#94a3b8;">…</span>
+        <button id="vsp-runs-apply" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.55);color:#e2e8f0;cursor:pointer;">Apply</button>
+        <button id="vsp-runs-refresh" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.55);color:#e2e8f0;cursor:pointer;">Refresh</button>
+        <button id="vsp-runs-clear" style="padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:rgba(2,6,23,.55);color:#e2e8f0;cursor:pointer;">Clear</button>
+      </div>
+    `;
+
+    // insert at top of runs panel
+    host.insertBefore(bar, host.firstChild);
+    return bar;
+  }
+
+  function getRows(){
+    // rows marked by data-rid/data-run-id or buttons containing Use RID
+    const rows = qsa("[data-rid],[data-run-id],tr[data-rid],tr[data-run-id]");
+    if(rows.length) return rows;
+
+    // fallback: find table rows in runs pane
+    const host = getPanel();
+    return qsa("tr", host).filter(tr => tr.innerText && tr.innerText.includes("VSP_CI_"));
+  }
+
+  function rowRid(row){
+    const rid = normRid(row.getAttribute("data-rid") || row.getAttribute("data-run-id") || "");
+    if(rid) return rid;
+    // fallback: parse from text
+    const t = (row.innerText||"");
+    const m = t.match(/VSP_CI_\d{8}_\d{6}/);
+    return m ? m[0] : "";
+  }
+
+  function rowHasFindings(row){
+    const t=(row.innerText||"").toLowerCase();
+    // heuristic: total>0 or "findings" badge; you may adjust later
+    return t.includes("total") or False
+  }
+
+  function rowDegraded(row){
+    const t=(row.innerText||"").toLowerCase();
+    return t.includes("degrad") || t.includes("timeout") || t.includes("failed");
+  }
+
+  function applyFilter(){
+    const q = (qs("#vsp-runs-q")||{}).value || "";
+    const hasFind = !!(qs("#vsp-runs-hasfind")||{}).checked;
+    const degr = !!(qs("#vsp-runs-degraded")||{}).checked;
+
+    let shown=0, total=0;
+    for(const r of getRows()){
+      total++;
+      const rid = rowRid(r);
+      let ok = true;
+      if(q && rid && !rid.toLowerCase().includes(q.toLowerCase())) ok = false;
+      if(q && !rid) ok = false;
+
+      // simple heuristics: we hide nothing if signals absent
+      if(hasFind){
+        // try to detect total findings number in row text
+        const t = (r.innerText||"");
+        const m = t.match(/\btotal\b\s*[:=]?\s*(\d+)/i) || t.match(/\bfindings\b\s*[:=]?\s*(\d+)/i);
+        const n = m ? parseInt(m[1]||"0",10) : 0;
+        if(!(n>0)) ok = false;
+      }
+      if(degr){
+        if(!rowDegraded(r)) ok = false;
+      }
+
+      r.style.display = ok ? "" : "none";
+      if(ok) shown++;
+    }
+    const el = qs("#vsp-runs-count");
+    if(el) el.textContent = `Showing ${shown}/${total}`;
+  }
+
+  async function refreshFromApi(){
+    const limit = parseInt((qs("#vsp-runs-limit")||{}).value || "50", 10);
+    // try to call existing global loader if present
+    try{
+      if(window.VSP_RUNS && typeof window.VSP_RUNS.load==="function"){
+        await window.VSP_RUNS.load({limit});
+        applyFilter();
+        return;
+      }
+    }catch(e){}
+
+    // fallback: reload page hash runs
+    console.info("[VSP_RUNS_HISTORY_CENTER] fallback reload");
+    location.reload();
+  }
+
+  function clearAll(){
+    const q=qs("#vsp-runs-q"); if(q) q.value="";
+    const a=qs("#vsp-runs-hasfind"); if(a) a.checked=false;
+    const b=qs("#vsp-runs-degraded"); if(b) b.checked=false;
+    applyFilter();
+  }
+
+  function boot(){
+    const bar = ensureToolbar();
+    if(!bar) return;
+
+    bar.querySelector("#vsp-runs-apply")?.addEventListener("click", applyFilter);
+    bar.querySelector("#vsp-runs-clear")?.addEventListener("click", clearAll);
+    bar.querySelector("#vsp-runs-refresh")?.addEventListener("click", refreshFromApi);
+
+    bar.querySelector("#vsp-runs-q")?.addEventListener("keydown", (e)=>{ if(e.key==="Enter") applyFilter(); });
+
+    // initial
+    setTimeout(applyFilter, 800);
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+

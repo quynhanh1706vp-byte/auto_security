@@ -1,0 +1,321 @@
+/**
+ * VSP Dashboard & Runs KPI binder v1.3
+ * - /api/vsp/dashboard_v3
+ * - /api/vsp/runs_index_v3
+ */
+
+console.log("[VSP][KPI] vsp_dashboard_kpi_v1.js loaded.");
+
+async function vspFetchJson(url) {
+  try {
+    const resp = await fetch(url, { credentials: "same-origin" });
+    if (!resp.ok) {
+      console.error("[VSP][KPI] HTTP error", url, resp.status);
+      return null;
+    }
+    return await resp.json();
+  } catch (err) {
+    console.error("[VSP][KPI] Fetch error", url, err);
+    return null;
+  }
+}
+
+function vspSetTextMulti(ids, value, fallback = "–") {
+  const text = (value === null || value === undefined || value === "") ? fallback : String(value);
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = text;
+    }
+  });
+}
+
+function vspFormatNumber(n) {
+  if (typeof n !== "number" || !isFinite(n)) return "0";
+  return n.toLocaleString("en-US");
+}
+
+function vspSetKpiByLabel(labelText, value, fallback = "–") {
+  const text = (value === null || value === undefined || value === "") ? fallback : String(value);
+  const all = document.querySelectorAll("div, span, p, h1, h2, h3, h4, h5, h6");
+  all.forEach(el => {
+    const t = (el.textContent || "").trim();
+    if (!t) return;
+    if (t.toUpperCase() === labelText.toUpperCase()) {
+      let card = el.closest(".kpi-card");
+      if (!card) card = el.parentElement;
+      if (!card) return;
+
+      let valueEl = card.querySelector(".kpi-value");
+      if (!valueEl) valueEl = el.nextElementSibling;
+      if (!valueEl) return;
+
+      valueEl.textContent = text;
+    }
+  });
+}
+
+/* --------- Dashboard KPI --------- */
+
+function vspBindDashboardKpi(dashboard) {
+  if (!dashboard) return;
+
+  const totalFindings = dashboard.total_findings || 0;
+  const bySeverity = dashboard.by_severity || {};
+  const securityScore = (dashboard.security_score !== undefined && dashboard.security_score !== null)
+    ? dashboard.security_score
+    : 0;
+  const topCwe = dashboard.top_cwe || "N/A";
+
+  const byTool = dashboard.by_tool || {};
+  let topRiskyTool = dashboard.top_risky_tool || "N/A";
+  if (topRiskyTool === "N/A" && byTool && typeof byTool === "object") {
+    let bestName = null;
+    let bestCount = -1;
+    Object.entries(byTool).forEach(([name, cnt]) => {
+      const n = Number(cnt || 0);
+      if (n > bestCount) {
+        bestCount = n;
+        bestName = name;
+      }
+    });
+    if (bestName) {
+      topRiskyTool = bestName; // hoặc `${bestName} (${bestCount})`
+    }
+  }
+
+  console.log("[VSP][KPI] Dashboard data:", {
+    totalFindings,
+    bySeverity,
+    securityScore,
+    topCwe,
+    topRiskyTool,
+  });
+
+  const totalStr = vspFormatNumber(totalFindings);
+
+  // TOTAL FINDINGS
+  vspSetTextMulti(
+    ["vsp-kpi-total-findings", "kpi-total-findings", "dash-kpi-total-findings"],
+    totalStr,
+    "0"
+  );
+  vspSetKpiByLabel("TOTAL FINDINGS", totalStr);
+
+  // SECURITY SCORE
+  vspSetTextMulti(
+    ["vsp-kpi-security-score", "kpi-security-score"],
+    securityScore,
+    "0"
+  );
+
+  // TOP CWE
+  vspSetTextMulti(
+    ["vsp-kpi-top-cwe", "kpi-top-cwe"],
+    topCwe,
+    "N/A"
+  );
+
+  // TOP RISKY TOOL
+  vspSetTextMulti(
+    ["vsp-kpi-top-risky-tool", "kpi-top-risky-tool"],
+    topRiskyTool,
+    "N/A"
+  );
+
+  // Severity cards
+  const sevMap = {
+    "CRITICAL": bySeverity.CRITICAL || 0,
+    "HIGH": bySeverity.HIGH || 0,
+    "MEDIUM": bySeverity.MEDIUM || 0,
+    "LOW": bySeverity.LOW || 0,
+    "INFO": bySeverity.INFO || 0,
+    "TRACE": bySeverity.TRACE || 0,
+  };
+
+  Object.entries(sevMap).forEach(([sev, val]) => {
+    const valStr = vspFormatNumber(val);
+    vspSetTextMulti(
+      [
+        `vsp-kpi-sev-${sev.toLowerCase()}`,
+        `kpi-sev-${sev.toLowerCase()}`,
+      ],
+      valStr,
+      "0"
+    );
+    vspSetKpiByLabel(sev, valStr);
+  });
+
+  // Chart by severity (nếu có canvas & Chart.js)
+  try {
+    const canvas = document.getElementById("vsp-chart-by-severity");
+    if (canvas && window.Chart) {
+      const ctx = canvas.getContext("2d");
+      const labels = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+      const data = labels.map(sev => bySeverity[sev] || 0);
+
+      if (canvas._vspChart) {
+        canvas._vspChart.destroy();
+      }
+
+      canvas._vspChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{ label: "Findings by severity", data }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { autoSkip: false } },
+            y: { beginAtZero: true },
+          },
+        },
+      });
+      console.log("[VSP][KPI] Severity chart rendered.");
+    } else {
+      console.log("[VSP][KPI] No Chart.js or canvas#vsp-chart-by-severity – skip chart.");
+    }
+  } catch (err) {
+    console.warn("[VSP][KPI] severity chart error:", err);
+  }
+}
+
+/* --------- Runs KPI --------- */
+
+function vspBindRunsKpi(runs) {
+  if (!Array.isArray(runs) || runs.length === 0) {
+    vspSetTextMulti(["vsp-runs-kpi-total-runs", "kpi-runs-total"], 0, "0");
+    vspSetTextMulti(["vsp-runs-kpi-avg-findings", "kpi-runs-avg"], 0, "0");
+    return;
+  }
+
+  const totalRuns = runs.length;
+  let sumFindings = 0;
+  let maxFindings = 0;
+
+  runs.forEach(r => {
+    const tf = Number(r.total_findings || 0);
+    sumFindings += tf;
+    if (tf > maxFindings) maxFindings = tf;
+  });
+
+  const avgFindings = totalRuns > 0 ? Math.round(sumFindings / totalRuns) : 0;
+  const lastRun = runs[0] || {};
+  const lastRunFindings = Number(lastRun.total_findings || 0);
+
+  console.log("[VSP][KPI] Runs data:", {
+    totalRuns,
+    avgFindings,
+    lastRunFindings,
+    maxFindings,
+  });
+
+  const totalRunsStr = vspFormatNumber(totalRuns);
+  const avgStr = vspFormatNumber(avgFindings);
+
+  vspSetTextMulti(["vsp-runs-kpi-total-runs", "kpi-runs-total"], totalRunsStr, "0");
+  vspSetTextMulti(["vsp-runs-kpi-avg-findings", "kpi-runs-avg"], avgStr, "0");
+
+  vspSetKpiByLabel("TOTAL RUNS", totalRunsStr);
+  vspSetKpiByLabel("AVG FINDINGS / RUN", avgStr);
+}
+
+/* --------- Init --------- */
+
+async function vspInitKpiBinding() {
+  console.log("[VSP][KPI] Init KPI binding...");
+
+  try {
+    const dashboard = await vspFetchJson("/api/vsp/dashboard_v3");
+    if (dashboard) {
+      vspBindDashboardKpi(dashboard);
+    } else {
+      console.warn("[VSP][KPI] Không lấy được /api/vsp/dashboard_v3");
+    }
+
+    const runs = await vspFetchJson("/api/vsp/runs_index_v3?limit=200");
+    if (runs) {
+      vspBindRunsKpi(runs);
+    } else {
+      console.warn("[VSP][KPI] Không lấy được /api/vsp/runs_index_v3");
+    }
+  } catch (err) {
+    console.error("[VSP][KPI] init error:", err);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", vspInitKpiBinding);
+} else {
+  vspInitKpiBinding();
+}
+
+
+
+// ===== VSP_KPI_SECURITY_SCORE_V2 – tune security score card =====
+function vspKpiTuneSecurityScoreCard() {
+  try {
+    var card = document.querySelector('[data-kpi-id="security_score"]') ||
+               document.querySelector('#vspKpiSecurityScore');
+    if (!card) return;
+    var valEl = card.querySelector('.vsp-kpi-value-main');
+    if (!valEl) return;
+    var txt = (valEl.textContent || "0").trim();
+    // lấy số trước dấu '/' nếu format "0 / 100"
+    var score = parseFloat(txt.split('/')[0]) || 0;
+
+    var clsList = ['vsp-kpi-good','vsp-kpi-warn','vsp-kpi-bad',
+                   'vsp-kpi-critical','vsp-kpi-high','vsp-kpi-medium',
+                   'vsp-kpi-low','vsp-kpi-info','vsp-kpi-trace'];
+
+    clsList.forEach(function(c){ card.classList.remove(c); });
+
+    var cls = 'vsp-kpi-bad';
+    if (score >= 80) cls = 'vsp-kpi-good';
+    else if (score >= 50) cls = 'vsp-kpi-warn';
+    else cls = 'vsp-kpi-bad';
+
+    card.classList.add(cls);
+  } catch (e) {
+    console.error('[VSP][KPI] Error tuning security score card:', e);
+  }
+}
+
+// gọi sau khi KPI đã bind xong
+setTimeout(vspKpiTuneSecurityScoreCard, 2200);
+
+
+
+// ===== VSP_TOP_RISK_TABLE_CLEAN_V1 – hide placeholder '–' =====
+function vspTopRiskCleanPlaceholder() {
+  try {
+    var card = document.querySelector('#vspTopRiskCard') ||
+               document.querySelector('[data-card-id="top_risk_findings"]');
+    var tbody = document.querySelector('#vspTopRiskTableBody') ||
+                (card && card.querySelector('tbody'));
+    if (!card || !tbody) return;
+
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    if (!rows.length) return;
+
+    var hasRealData = rows.some(function(tr) {
+      var tds = Array.from(tr.querySelectorAll('td'));
+      return tds.some(function(td) {
+        var txt = (td.textContent || '').trim();
+        return txt && txt !== '-';
+      });
+    });
+
+    if (!hasRealData) {
+      tbody.innerHTML = '<tr><td colspan="4" class="vsp-empty-text">No CRITICAL/HIGH findings available for this run.</td></tr>';
+    }
+  } catch (e) {
+    console.error('[VSP][KPI] Error cleaning Top risk table placeholder:', e);
+  }
+}
+
+// gọi sau khi dashboard đã bind xong
+setTimeout(vspTopRiskCleanPlaceholder, 2500);

@@ -1,0 +1,33 @@
+/* VSP P53 polish (safe overlay) */
+:root{
+  --vsp-radius: 14px;
+  --vsp-gap: 14px;
+}
+html, body{
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body{
+  line-height: 1.45;
+}
+a, button{
+  transition: transform .08s ease, filter .12s ease, opacity .12s ease;
+}
+button:active{
+  transform: translateY(0.5px);
+}
+.vsp-card, .card, .panel, .box, .kpi-card{
+  border-radius: var(--vsp-radius) !important;
+}
+table{
+  border-collapse: separate;
+  border-spacing: 0;
+}
+thead th{
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+input, select, textarea{
+  border-radius: 10px !important;
+}

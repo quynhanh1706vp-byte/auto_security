@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<script>
+/* P0_DD_GLOBAL_LOCK_HEAD_V1 */
+(function(){
+  try{
+    if (typeof window === "undefined") return;
+
+    // store real impl here if any script sets it correctly
+    if (typeof window.__vsp_dd_real !== "function") window.__vsp_dd_real = null;
+
+    function __vsp_dd_stub(){
+      try{ console.info("[VSP][P0] drilldown stub invoked"); }catch(_){}
+      return {open:function(){},show:function(){},close:function(){},destroy:function(){}};
+    }
+
+    function __vsp_dd_get(){
+      return (typeof window.__vsp_dd_real === "function") ? window.__vsp_dd_real : __vsp_dd_stub;
+    }
+
+    // LOCK: always returns a function; ignores non-function overwrites
+    try{
+      Object.defineProperty(window, "VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2", {
+        configurable: false,
+        enumerable: true,
+        get: function(){ return __vsp_dd_get(); },
+        set: function(v){
+          if (typeof v === "function") {
+            window.__vsp_dd_real = v;
+            try{ console.info("[VSP][P0] drilldown real impl accepted"); }catch(_){}
+          } else {
+            try{ console.warn("[VSP][P0] blocked drilldown overwrite (non-function):", v); }catch(_){}
+          }
+        }
+      });
+    }catch(e){
+      // if defineProperty fails, fallback: force function value
+      window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = __vsp_dd_get();
+    }
+
+    // ensure initial value is callable
+    if (typeof window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 !== "function") {
+      window.__vsp_dd_real = null;
+    }
+  }catch(_){}
+})();
+</script>
+
+
+  <meta charset="UTF-8">
+  <title>VersaSecure Platform – VSP 2025 Enterprise V2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Font Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --vsp-bg: #050814;
+      --vsp-surface: #0b1020;
+      --vsp-surface-soft: #131832;
+      --vsp-border-subtle: rgba(255, 255, 255, 0.06);
+      --vsp-border-strong: rgba(255, 255, 255, 0.18);
+      --vsp-text-main: #E5E7EB;
+      --vsp-text-muted: #9CA3AF;
+      --vsp-accent: #38bdf8;
+      --vsp-critical: #f97373;
+      --vsp-high: #fb923c;
+      --vsp-medium: #facc15;
+      --vsp-low: #22c55e;
+      --vsp-info: #38bdf8;
+      --vsp-trace: #64748b;
+      --vsp-gate-green: #22c55e;
+      --vsp-gate-amber: #facc15;
+      --vsp-gate-red: #f97373;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top left, #111827 0, #020617 60%);
+      color: var(--vsp-text-main);
+      min-height: 100vh;
+    }
+
+    .vsp-app {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+    }
+
+    .vsp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .vsp-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .vsp-subtitle {
+      font-size: 13px;
+      color: var(--vsp-text-muted);
+      margin-top: 4px;
+    }
+
+    .vsp-env-badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--vsp-border-subtle);
+      background: linear-gradient(to right, #020617, #020617);
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-tabs {
+      display: inline-flex;
+      gap: 8px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--vsp-border-subtle);
+      margin-bottom: 20px;
+    }
+
+    .vsp-tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--vsp-text-muted);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .vsp-tab-btn:hover {
+      color: #f9fafb;
+      background: rgba(148, 163, 184, 0.18);
+    }
+
+    .vsp-tab-btn.active {
+      color: #f9fafb;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
+    }
+
+    .vsp-main {
+      margin-top: 8px;
+    }
+
+    .vsp-pane {
+      display: none;
+      gap: 16px;
+      flex-direction: column;
+    }
+
+    .vsp-pane.active {
+      display: flex;
+    }
+
+    .vsp-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .vsp-card {
+      background: linear-gradient(145deg, #020617, #020617);
+      border-radius: 16px;
+      border: 1px solid var(--vsp-border-subtle);
+      padding: 14px 14px 12px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.75);
+    }
+
+    .vsp-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .vsp-card-title {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-card-meta {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-kpi-value {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .vsp-kpi-sub {
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-kpi-score {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .vsp-kpi-score.badge-green { color: var(--vsp-gate-green); }
+    .vsp-kpi-score.badge-amber { color: var(--vsp-gate-amber); }
+    .vsp-kpi-score.badge-red { color: var(--vsp-gate-red); }
+
+    .vsp-gate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .vsp-gate-green {
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--vsp-gate-green);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .vsp-gate-amber {
+      background: rgba(250, 204, 21, 0.12);
+      color: var(--vsp-gate-amber);
+      border: 1px solid rgba(250, 204, 21, 0.35);
+    }
+    .vsp-gate-red {
+      background: rgba(248, 113, 113, 0.12);
+      color: var(--vsp-gate-red);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+    }
+
+    .vsp-charts-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr);
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .vsp-card-body {
+      font-size: 12px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-chart-placeholder {
+      height: 220px;
+      border-radius: 12px;
+      border: 1px dashed rgba(148, 163, 184, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-split-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .vsp-table-wrapper {
+      border-radius: 12px;
+      border: 1px solid var(--vsp-border-subtle);
+      overflow: hidden;
+      background: linear-gradient(145deg, #020617, #020617);
+    }
+
+    table.vsp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    table.vsp-table thead {
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    table.vsp-table th,
+    table.vsp-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    table.vsp-table th {
+      font-weight: 500;
+      color: var(--vsp-text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    table.vsp-table tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .vsp-sev-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 56px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .sev-critical { background: rgba(248, 113, 113, 0.15); color: #fecaca; }
+    .sev-high     { background: rgba(249, 115, 22, 0.18); color: #fed7aa; }
+    .sev-medium   { background: rgba(234, 179, 8, 0.18);  color: #fef3c7; }
+    .sev-low      { background: rgba(34, 197, 94, 0.18);  color: #bbf7d0; }
+    .sev-info     { background: rgba(56, 189, 248, 0.18); color: #bae6fd; }
+    .sev-trace    { background: rgba(148, 163, 184, 0.18);color: #e5e7eb; }
+
+    .vsp-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: flex-end;
+    }
+    .vsp-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 140px;
+    }
+    .vsp-field label {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .vsp-input,
+    .vsp-select {
+      border-radius: 999px;
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--vsp-text-main);
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .vsp-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.6);
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #f9fafb;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+    }
+    .vsp-btn-secondary {
+      border-radius: 999px;
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--vsp-text-muted);
+      font-size: 12px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    .vsp-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .vsp-section-subtitle {
+      font-size: 12px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-layout-2col {
+      display: grid;
+      grid-template-columns: minmax(0, 2.3fr) minmax(0, 1.2fr);
+      gap: 16px;
+    }
+
+    .vsp-mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .vsp-tag {
+      border-radius: 999px;
+      border: 1px solid var(--vsp-border-subtle);
+      padding: 2px 7px;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+  </style>
+
+  <!-- VSP 2025 core JS -->
+<script src="/static/js/vsp_rid_state_v1.js?v=ui&v=20251217_071709" defer></script>
+<script src="/static/js/vsp_tabs_hash_router_v1.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/vendor/chart.umd.min.js" defer></script><script src="/static/js/vsp_dashboard_cleanup_v1.js?v=ui&v=20251217_071709" defer></script><!-- Tabs V2 -->
+<!-- VSP_COMMERCIAL_LOCK: disabled vsp_runs_tab_simple_v2.js -->
+  <script src="/static/js/vsp_datasource_tab_simple_v1.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/js/vsp_settings_tab_simple_v1.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/js/vsp_rules_tab_simple_v1.js?v=ui&v=20251217_071709" defer></script>
+
+
+  <!-- Chart.js for VSP dashboard charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="/static/css/vsp_v25_polish.css">\n  <script src="/static/js/vsp_ui_extras_v25.js?v=ui&v=20251217_071709" defer></script>\n  <script src="/static/js/vsp_settings_advanced_v1.js?v=ui&v=20251217_071709" defer></script>
+<!-- VSP_COMMERCIAL_LOCK: disabled vsp_runs_filters_advanced_v1.js -->
+  <script src="/static/js/vsp_datasource_filters_advanced_v1.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/js/vsp_rules_editor_v1.js?v=ui&v=20251217_071709" defer></script>
+<script src="/static/js/vsp_runs_scan_panel_commercial_v1.js?v=ui&v=20251217_071709" defer></script>
+<link rel="stylesheet" href="/static/css/vsp_runscan_commercial_v1.css">
+  <link rel="stylesheet" href="/static/css/vsp_commercial_bind_v1.css">
+
+<style id="VSP_DARK_FILTER_CONTROLS_V1">
+/* commercial dark: stop white inputs/selects */
+select, input[type="text"], input[type="number"], input[type="search"], textarea {
+  background: rgba(15, 23, 42, 0.65) !important;
+  color: rgba(255,255,255,0.92) !important;
+  border: 1px solid rgba(148,163,184,0.22) !important;
+  outline: none !important;
+}
+select option { background: #0b1220 !important; color: rgba(255,255,255,0.92) !important; }
+input::placeholder, textarea::placeholder { color: rgba(148,163,184,0.75) !important; }
+</style>
+
+</head>
+<body>
+  <div class="vsp-app">
+    <header class="vsp-header">
+      <div>
+        <div class="vsp-title">VersaSecure Platform – SECURITY_BUNDLE</div>
+        <div class="vsp-subtitle">
+          CIO-level view – FULL_EXT / Unified security posture / CI/CD Gates
+        </div>
+      </div>
+      <div class="vsp-env-badge">
+        ENV: STAGING • RUN: <span id="vsp-header-run-id">RUN_VSP_FULL_EXT_20251208_142917</span>
+      </div>
+    </header>
+
+    <nav class="vsp-tabs" id="vsp-tabs">
+      <button class="vsp-tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="vsp-tab-btn" data-tab="runs">Runs &amp; Reports</button>
+      <button class="vsp-tab-btn" data-tab="datasource">Data Source</button>
+      <button class="vsp-tab-btn" data-tab="settings">Settings</button>
+      <button class="vsp-tab-btn" data-tab="rules">Rule Overrides</button>
+    </nav>
+
+    <main class="vsp-main">
+      <!-- TAB 1: DASHBOARD -->
+      <section class="vsp-pane active" id="vsp-dashboard-main">
+        <div class="vsp-kpi-grid">
+          <!-- total -->
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Total Findings</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-total-findings">15,189</div>
+            <div class="vsp-kpi-sub">Tổng số phát hiện trong lần scan FULL_EXT mới nhất</div>
+          </div>
+
+          <!-- 5 severity -->
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Critical</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-critical">30</div>
+            <div class="vsp-kpi-sub">Phát hiện mức CRITICAL</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">High</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-high">3,405</div>
+            <div class="vsp-kpi-sub">Phát hiện mức HIGH</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Medium</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-medium">1,501</div>
+            <div class="vsp-kpi-sub">Phát hiện mức MEDIUM</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Low</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-low">1,330</div>
+            <div class="vsp-kpi-sub">LOW + Info/Trace xem thêm ở chart</div>
+          </div>
+        </div>
+
+        <!-- advanced KPI -->
+        <div class="vsp-kpi-grid">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Security Posture Score</div>
+            </div>
+            <div class="vsp-kpi-score badge-amber" id="vsp-kpi-score">20</div>
+            <div class="vsp-kpi-sub">0–100 (higher is better)</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top Risky Tool</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-top-tool">gitleaks</div>
+            <div class="vsp-kpi-sub">Tool sinh nhiều CRITICAL/HIGH nhất</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top Impacted CWE</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-top-cwe">CWE-396</div>
+            <div class="vsp-kpi-sub">Mã CWE bị ảnh hưởng nhiều nhất</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top Vulnerable Module</div>
+            </div>
+            <div class="vsp-kpi-value" id="vsp-kpi-top-module">/path/to/module</div>
+            <div class="vsp-kpi-sub">Thư viện / module có rủi ro CVE cao nhất</div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">CI/CD Gate Status</div>
+            </div>
+            <div class="vsp-gate-badge vsp-gate-red" id="vsp-kpi-ci-gate">
+              RED • Blocking pipeline
+            </div>
+            <div class="vsp-kpi-sub">
+              Gate dựa trên CRITICAL/HIGH, security score &amp; coverage
+            </div>
+          </div>
+        </div>
+
+        <!-- charts -->
+        <div class="vsp-charts-grid">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Severity Distribution</div>
+            </div>
+            <div class="vsp-chart-placeholder" id="vsp-chart-severity">
+              donut chart: 6 severity buckets
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Findings Trend</div>
+            </div>
+            <div class="vsp-chart-placeholder" id="vsp-chart-trend">
+              line chart: total findings per run
+            </div>
+          </div>
+        </div>
+
+        <div class="vsp-charts-grid" style="margin-top: 12px;">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Critical / High by Tool</div>
+            </div>
+            <div class="vsp-chart-placeholder" id="vsp-chart-bytool">
+              bar chart: CRITICAL+HIGH per tool
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top CWE Exposure</div>
+            </div>
+            <div class="vsp-chart-placeholder" id="vsp-chart-topcwe">
+              horizontal bar: top CWE list
+            </div>
+          </div>
+        </div>
+
+        <!-- findings zone -->
+        <div class="vsp-split-grid-4">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top Risk Findings</div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table">
+                  <thead>
+                    <tr>
+                      <th>Sev</th><th>Tool</th><th>CWE</th><th>File</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vsp-dash-top-risk">
+                    <tr>
+                      <td><span class="vsp-sev-badge sev-critical">CRIT</span></td>
+                      <td>semgrep</td>
+                      <td>CWE-79</td>
+                      <td>/src/web/login.py</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top Noisy Paths</div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table">
+                  <thead>
+                    <tr>
+                      <th>Path</th><th>Count</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vsp-dash-noisy-paths">
+                    <tr>
+                      <td>tests/</td><td>320</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Top Exploited CVEs</div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table">
+                  <thead>
+                    <tr>
+                      <th>CVE</th><th>CVSS</th><th>Count</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vsp-dash-top-cve">
+                    <tr>
+                      <td>CVE-2023-12345</td><td>9.8</td><td>5</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">By Tool – Severity Buckets</div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table">
+                  <thead>
+                    <tr>
+                      <th>Tool</th><th>CRIT</th><th>HIGH</th><th>MED</th><th>LOW</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vsp-dash-bytool-table">
+                    <tr>
+                      <td>gitleaks</td><td>10</td><td>2800</td><td>1000</td><td>600</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: RUNS & REPORTS -->
+      <section class="vsp-pane" id="vsp-runs-main">
+        <div class="vsp-card">
+          <div class="vsp-card-header">
+            <div>
+              <div class="vsp-section-title">Runs &amp; Reports</div>
+              <div class="vsp-section-subtitle">Lịch sử scan &amp; CI/CD gate status</div>
+            </div>
+            <div>
+              <button class="vsp-btn-secondary">Export index CSV</button>
+            </div>
+          </div>
+
+          <div class="vsp-kpi-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 6px;">
+            <div class="vsp-card" style="box-shadow:none;">
+              <div class="vsp-card-title">Total Runs</div>
+              <div class="vsp-kpi-value" id="vsp-runs-total">298</div>
+            </div>
+            <div class="vsp-card" style="box-shadow:none;">
+              <div class="vsp-card-title">Last 10 – Success</div>
+              <div class="vsp-kpi-value" id="vsp-runs-success">7</div>
+            </div>
+            <div class="vsp-card" style="box-shadow:none;">
+              <div class="vsp-card-title">Last 10 – Failed</div>
+              <div class="vsp-kpi-value" id="vsp-runs-failed">3</div>
+            </div>
+            <div class="vsp-card" style="box-shadow:none;">
+              <div class="vsp-card-title">Avg Findings / Run (Last 10)</div>
+              <div class="vsp-kpi-value" id="vsp-runs-avg">9,624.8</div>
+            </div>
+          </div>
+
+          <div class="vsp-filters" style="margin-top: 12px;">
+            <div class="vsp-field">
+              <label>Profile</label>
+              <select class="vsp-select" id="vsp-runs-filter-profile">
+                <option value="ALL">All profiles</option>
+                <option value="FULL_EXT">FULL_EXT</option>
+                <option value="FAST">FAST</option>
+              </select>
+            </div>
+            <div class="vsp-field">
+              <label>Gate</label>
+              <select class="vsp-select" id="vsp-runs-filter-gate">
+                <option value="ALL">Any</option>
+                <option value="GREEN">GREEN</option>
+                <option value="AMBER">AMBER</option>
+                <option value="RED">RED</option>
+              </select>
+            </div>
+            <div class="vsp-field">
+              <label>Time</label>
+              <select class="vsp-select" id="vsp-runs-filter-time">
+                <option value="30d">Last 30 days</option>
+                <option value="7d">Last 7 days</option>
+                <option value="all">All time</option>
+              </select>
+            </div>
+            <div class="vsp-field" style="flex:1; min-width:220px;">
+              <label>Search run / SRC / URL</label>
+              <input class="vsp-input" id="vsp-runs-search" placeholder="RUN_..., /path/to/src, https://..." />
+            </div>
+          </div>
+
+          <div class="vsp-table-wrapper">
+            <table class="vsp-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Started</th>
+                  <th>Profile</th>
+                  <th>SRC/URL</th>
+                  <th>CRIT</th>
+                  <th>HIGH</th>
+                  <th>MED</th>
+                  <th>LOW</th>
+                  <th>INFO</th>
+                  <th>TRACE</th>
+                  <th>Total</th>
+                  <th>Gate</th>
+                  <th>Reports</th>
+                </tr>
+              </thead>
+              <tbody id="vsp-runs-tbody">
+                <tr>
+                  <td class="vsp-mono">RUN_VSP_FULL_EXT_20251208_142917</td>
+                  <td>2025-12-08 14:29</td>
+                  <td>FULL_EXT</td>
+                  <td>/home/test/Data/project-x</td>
+                  <td>30</td><td>3405</td><td>1501</td><td>1330</td><td>2657</td><td>6266</td><td>15189</td>
+                  <td><span class="vsp-gate-badge vsp-gate-red">RED</span></td>
+                  <td><button class="vsp-btn-secondary">HTML</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: DATA SOURCE -->
+      <section class="vsp-pane" id="vsp-datasource-main">
+        <div class="vsp-layout-2col">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div>
+                <div class="vsp-section-title">Unified Findings</div>
+                <div class="vsp-section-subtitle">Dữ liệu thống nhất từ toàn bộ tool</div>
+              </div>
+              <div>
+                <button class="vsp-btn-secondary">Export CSV</button>
+                <button class="vsp-btn-secondary">Export SARIF</button>
+                <button class="vsp-btn-secondary">ZIP</button>
+              </div>
+            </div>
+
+            <div class="vsp-filters">
+              <div class="vsp-field">
+                <label>Severity</label>
+                <select class="vsp-select">
+                  <option>All</option>
+                  <option>CRITICAL</option>
+                  <option>HIGH</option>
+                  <option>MEDIUM</option>
+                  <option>LOW</option>
+                  <option>INFO</option>
+                  <option>TRACE</option>
+                </select>
+              </div>
+              <div class="vsp-field">
+                <label>Tool</label>
+                <select class="vsp-select">
+                  <option>All tools</option>
+                  <option>semgrep</option>
+                  <option>gitleaks</option>
+                  <option>trivy-fs</option>
+                </select>
+              </div>
+              <div class="vsp-field">
+                <label>CWE/CVE</label>
+                <input class="vsp-input" placeholder="CWE-79, CVE-2023-..." />
+              </div>
+              <div class="vsp-field">
+                <label>Folder</label>
+                <input class="vsp-input" placeholder="src/backend/" />
+              </div>
+              <div class="vsp-field" style="flex:1; min-width:220px;">
+                <label>Search message / rule</label>
+                <input class="vsp-input" placeholder="SQL injection, secret, ..." />
+              </div>
+            </div>
+
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table vsp-table-datasource">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Sev</th>
+                    <th>Tool</th>
+                    <th>File</th>
+                    <th>Line</th>
+                    <th>Rule</th>
+                    <th>Message</th>
+                    <th>CWE</th>
+                    <th>CVE</th>
+                    <th>Component</th>
+                  </tr>
+                </thead>
+                <tbody id="vsp-ds-tbody">
+                  <tr>
+                    <td>1</td>
+                    <td><span class="vsp-sev-badge sev-high">HIGH</span></td>
+                    <td>gitleaks</td>
+                    <td>/src/backend/config/settings.json</td>
+                    <td>42</td>
+                    <td>generic-api-key</td>
+                    <td>Possible hard-coded API key</td>
+                    <td>CWE-798</td>
+                    <td>&mdash;</td>
+                    <td>&mdash;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-section-title">Mini charts &amp; stats</div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-chart-placeholder" style="height:110px; margin-bottom:8px;">
+                donut: severity (theo filter)
+              </div>
+              <div class="vsp-chart-placeholder" style="height:110px; margin-bottom:8px;">
+                bar: findings by tool
+              </div>
+              <div class="vsp-chart-placeholder" style="height:110px;">
+                top CWE / directories
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SETTINGS -->
+      <section class="vsp-pane" id="vsp-settings-main">
+        <div class="vsp-layout-2col">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-section-title">General &amp; Tool Stack</div>
+            </div>
+            <div class="vsp-card-body">
+              <pre class="vsp-mono" id="vsp-settings-json" style="font-size:11px; white-space:pre-wrap;">
+{
+  "general": { ... },
+  "tools": {
+    "semgrep": { "enabled": true, ... },
+    "gitleaks": { "enabled": true, ... },
+    "trivy-fs": { "enabled": true, ... }
+  },
+  "profiles": { "FAST": { ... }, "FULL_EXT": { ... } },
+  "integrations": { "webhook": { ... }, "slack": { ... } },
+  "ci_gate_policy": { "min_security_score": 50, "max_critical": 0, ... }
+}
+              </pre>
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-section-title">Profile Manager &amp; Integrations</div>
+            </div>
+            <div class="vsp-card-body">
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                <span class="vsp-tag">Profile: FAST</span>
+                <span class="vsp-tag">Profile: FULL_EXT</span>
+                <span class="vsp-tag">Webhook: Enabled</span>
+                <span class="vsp-tag">Slack Alerts: Enabled</span>
+              </div>
+              <p style="font-size:12px;">
+                Tab này cho phép tạo/sửa profile scan, bật/tắt tool, cấu hình webhook,
+                Slack/Teams, push SARIF, upload SBOM...
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: RULE OVERRIDES -->
+      <section class="vsp-pane" id="vsp-rules-main">
+        <div class="vsp-layout-2col">
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-section-title">Rule Override Table</div>
+            </div>
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table">
+                <thead>
+                  <tr>
+                    <th>Rule ID</th>
+                    <th>Tool</th>
+                    <th>Current</th>
+                    <th>Override</th>
+                    <th>Scope</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody id="vsp-rules-tbody">
+                  <tr>
+                    <td>GITLEAKS_GENERIC_API_KEY</td>
+                    <td>gitleaks</td>
+                    <td>HIGH</td>
+                    <td>LOW</td>
+                    <td>path:^tests/</td>
+                    <td>Allow generic API key in test data</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="vsp-card">
+            <div class="vsp-card-header">
+              <div class="vsp-section-title">JSON/YAML Editor &amp; Metrics</div>
+            </div>
+            <div class="vsp-card-body">
+              <pre class="vsp-mono" style="font-size:11px; white-space:pre;">
+overrides:
+  - id: GITLEAKS_GENERIC_API_KEY
+    tool: gitleaks
+    severity: LOW
+    scope: "path:^tests/"
+  - id: SEMGREP_PYTHON_SQL
+    tool: semgrep
+    severity: CRITICAL
+    scope: null
+              </pre>
+              <p style="font-size:12px; margin-top:6px;">
+                Metrics: 12 overrides active, highest downgrade CRITICAL → LOW,
+                237 findings ignored theo chính sách.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Simple tab switcher (wireframe) – có thể bỏ nếu dùng router JS riêng
+    (function () {
+      var buttons = document.querySelectorAll(".vsp-tab-btn");
+      var panes = {
+        dashboard: document.getElementById("vsp-dashboard-main"),
+        runs: document.getElementById("vsp-runs-main"),
+        datasource: document.getElementById("vsp-datasource-main"),
+        settings: document.getElementById("vsp-settings-main"),
+        rules: document.getElementById("vsp-rules-main")
+      };
+
+      function show(tab) {
+        buttons.forEach(function (b) {
+          b.classList.toggle("active", b.getAttribute("data-tab") === tab);
+        });
+        Object.keys(panes).forEach(function (k) {
+          panes[k].classList.toggle("active", k === tab);
+        });
+      }
+
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var t = btn.getAttribute("data-tab");
+          show(t);
+        });
+      });
+
+      // default dashboard
+      show("dashboard");
+    })();
+  </script>
+      <script src="/static/js/vsp_runs_commercial_panel_v1.js?v=ui&v=20251217_071709" defer></script>
+
+  
+
+
+
+
+
+<script src="/static/js/vsp_degraded_panel_hook_v3.js?v=ui&v=20251217_071709" defer></script>
+<script src="/static/js/vsp_runs_tab_resolved_v1.js?v=ui&v=20251217_071709" defer></script>
+
+<!-- VSP_GATE_MOUNT_P0 -->
+<div id="vsp_gate_panel"></div>
+<div id="vsp_tools_status_panel" data-vsp-tools-panel="1"></div>
+<script src="/static/js/vsp_gate_panel_v1.js?v=ui&v=20251217_071709" defer></script>
+<script src="/static/js/vsp_ui_commercial_cleanup_v1.js?v=ui&v=20251217_071709" defer></script>
+
+
+  <!-- DASHBOARD CHARTS ORDER (commercial) -->
+  <script src="/static/js/vsp_dashboard_charts_v2.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/js/vsp_dashboard_charts_pretty_v3.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/js/vsp_dashboard_charts_bootstrap_v1.js?v=ui&v=20251217_071709" defer></script>
+  <script src="/static/js/vsp_dashboard_enhance_p0_clean_v1.js?v=20251217_072717" defer></script>
+
+  <script defer src="/static/js/vsp_commercial_bind_v1.js?v=ui&v=20251217_071709"></script>
+  <script src="/static/js/vsp_runs_verdict_badges_v1.js?v=ui&v=20251217_071709"></script>
+  <script src="/static/js/vsp_export_guard_v1.js?v=ui&v=20251217_071709"></script>
+<script src="/static/js/vsp_runs_overall_from_gate_shim_p0_v1.js?v=20251217_081430" defer></script>
+<script src="/static/js/vsp_tools_status_from_gate_p0_v1.js?v=20251217_081814" defer></script>
+</body>
+</html>
+\n
+<!-- VSP_COMMERCIAL_LOCK: disabled vsp_runs_kpi_reports_v1.js -->
+  <script src="/static/js/vsp_datasource_mini_charts_v1.js?v=ui&v=20251217_071709" defer></script>

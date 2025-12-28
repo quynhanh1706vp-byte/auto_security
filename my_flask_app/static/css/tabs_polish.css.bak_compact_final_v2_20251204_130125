@@ -1,0 +1,34 @@
+/* VSP tabs polish placeholder – tránh 404, có thể tinh chỉnh sau */
+.vsp-tabs-nav { }
+.vsp-tabs-nav button { }
+.vsp-tabs-content { }
+
+/* ===== [VSP][UI_POLISH_V1] Dashboard footer notes & table layout ===== */
+
+/* 3 dòng mô tả dưới Dashboard (Settings / Data Source / Rule Overrides) */
+.vsp-footer-note {
+  margin: 2px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #64748b; /* slate-500 */
+}
+
+.vsp-footer-note:first-of-type {
+  margin-top: 12px;
+}
+
+/* Thu gọn cột Location (path) trong các bảng dashboard, tránh tràn chữ */
+#vsp-dashboard-layout-full table tr > td:nth-child(2),
+#vsp-dashboard-layout-full table tr > th:nth-child(2) {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nhìn bảng gọn hơn một chút */
+#vsp-dashboard-layout-full table th,
+#vsp-dashboard-layout-full table td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}

@@ -1,0 +1,692 @@
+// === VSP_FIX_STRING_NEWLINES_V1 ===
+// === VSP_FIX_EFFLIMIT_REDECLARE_V1 ===
+(function(){
+  try {
+    if (window.__VSP_GUARD__ && window.__VSP_GUARD__.RUNS_COMMERCIAL_PANEL_V1) return;
+    window.__VSP_GUARD__ = window.__VSP_GUARD__ || {};
+    window.__VSP_GUARD__.RUNS_COMMERCIAL_PANEL_V1 = true;
+  } catch(e) {}
+
+// VSP_WRAP_RUNS_COMMERCIAL_PANEL_V1
+(function(){
+  try {
+    if (window.__VSP_GUARD__ && window.__VSP_GUARD__[tag]) return;
+    window.__VSP_GUARD__ = window.__VSP_GUARD__ || {};
+    window.__VSP_GUARD__[tag] = true;
+  } catch(e) {}
+
+(function () {
+  'use strict';
+
+// === VSP_RUNS_TOGGLE_CFG_V1 (limit/hide_empty via localStorage) ===
+(function(){
+  try {
+    var lim = parseInt(localStorage.getItem('vsp_runs_limit') || '0', 10);
+    if (lim && lim > 0) window.VSP_RUNS_LIMIT = lim;
+    var he = localStorage.getItem('vsp_runs_hide_empty');
+    if (he !== null && he !== undefined) window.VSP_RUNS_HIDE_EMPTY = parseInt(he, 10) || 0;
+  } catch (e) {}
+})();
+// === END VSP_RUNS_TOGGLE_CFG_V1 ===
+  // Commercial Runs Master (single source of truth)
+  window.VSP_COMMERCIAL_RUNS_MASTER = true;
+
+  if (window.VSP_RUNS_COMMERCIAL_PANEL_V1) return;
+  window.VSP_RUNS_COMMERCIAL_PANEL_V1 = true;
+
+  const qs = (s, r=document) => r.querySelector(s);
+
+  function htmlesc(s){
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function sumTotals(t){
+    if (!t || typeof t !== 'object') return 0;
+    let s = 0;
+    for (const k of Object.keys(t)){
+      const v = t[k];
+      const n = Number(v);
+      if (!Number.isNaN(n)) s += n;
+    }
+    return s;
+  }
+
+  function gateStatus(totals){
+    const c = Number(totals?.CRITICAL || 0);
+    const h = Number(totals?.HIGH || 0);
+    // align with your CI gate default (MAX_CRITICAL=0, MAX_HIGH=10)
+    if (c > 0 || h > 10) return {label:'FAIL', cls:'vsp-gate-red'};
+    return {label:'PASS', cls:'vsp-gate-green'};
+  }
+
+  function findRunsHost(){
+    return qs('#vsp-runs-main');
+  }
+
+  function ensureShell(host){
+    if (host.querySelector('.vsp-commercial-runs-shell')) return;
+
+    const shell = document.createElement('div');
+    shell.className = 'vsp-commercial-runs-shell';
+    shell.innerHTML = `
+      <div class="vsp-panel" style="margin-top:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <div class="vsp-h2" style="margin:0;">Runs & Reports</div>
+            <div class="vsp-subtle" style="margin-top:4px;">Commercial master panel (FS endpoint) • Fast • No legacy overlays</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label class="vsp-subtle" style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="vsp-cm-hide-empty" checked />
+              Hide empty
+            </label>
+            <select class="vsp-select" id="vsp-cm-limit">
+              <option value="50">Last 50</option>
+              <option value="100">Last 100</option>
+              <option value="200" selected>Last 200</option>
+              <option value="400">Last 400</option>
+            </select>
+            <input class="vsp-input" id="vsp-cm-search" placeholder="Search run_id…" style="min-width:240px;" />
+            <button class="vsp-btn" id="vsp-cm-refresh">Refresh</button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+          <div class="vsp-kpi-card" style="min-width:180px;">
+            <div class="vsp-kpi-label">
+        <!-- === VSP_COMMERCIAL_RUN_SCAN_BOX_V1 === -->
+        <div class="vsp-panel" style="margin-top:10px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div style="min-width:260px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">Target (path)</div>
+              <input class="vsp-input" id="vsp-cm-target" value="/home/test/Data/SECURITY-10-10-v4" />
+            </div>
+            <div style="min-width:160px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">Profile</div>
+              <select class="vsp-select" id="vsp-cm-profile">
+                <option value="FULL_EXT" selected>FULL_EXT</option>
+                <option value="FAST">FAST</option>
+              </select>
+            </div>
+            <div style="min-width:120px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">MAX_CRITICAL</div>
+              <input class="vsp-input" id="vsp-cm-maxc" value="0" />
+            </div>
+            <div style="min-width:120px;">
+              <div class="vsp-subtle" style="margin-bottom:6px;">MAX_HIGH</div>
+              <input class="vsp-input" id="vsp-cm-maxh" value="10" />
+            </div>
+            <button class="vsp-btn" id="vsp-cm-run-now">Run Scan Now</button>
+            <span class="vsp-subtle" id="vsp-cm-run-badge">Idle</span>
+          </div>
+
+          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr; gap:8px;">
+            <pre class="vsp-mono" id="vsp-cm-run-tail" style="max-height:220px; overflow:auto; font-size:11px; white-space:pre-wrap; border:1px solid rgba(255,255,255,0.08); padding:10px; border-radius:10px;"></pre>
+          </div>
+        </div>
+        <!-- === END VSP_COMMERCIAL_RUN_SCAN_BOX_V1 === -->
+Shown runs</div>
+            <div class="vsp-kpi-value" id="vsp-cm-kpi-count">-</div>
+          </div>
+          <div class="vsp-kpi-card" style="min-width:180px;">
+            <div class="vsp-kpi-label">PASS / FAIL</div>
+            <div class="vsp-kpi-value" id="vsp-cm-kpi-passfail">-</div>
+          </div>
+          <div class="vsp-kpi-card" style="min-width:180px;">
+            <div class="vsp-kpi-label">Latest run</div>
+            <div class="vsp-kpi-value" id="vsp-cm-kpi-latest" style="font-size:12px;">-</div>
+          </div>
+          <div class="vsp-kpi-card" style="min-width:180px;">
+            <div class="vsp-kpi-label">Data source</div>
+            <div class="vsp-kpi-value" id="vsp-cm-kpi-source">fs</div>
+          </div>
+        </div>
+
+        <div class="vsp-subtle" id="vsp-cm-status" style="margin-top:10px;">Ready.</div>
+
+        <div style="overflow:auto; margin-top:10px;">
+          <table class="vsp-table" style="min-width:980px;">
+            <thead>
+              <tr>
+                <th style="width:170px;">Created</th>
+                <th>Run ID</th>
+                <th style="width:90px;">Gate</th>
+                <th style="width:110px; text-align:right;">Total</th>
+                <th style="width:90px; text-align:right;">CRIT</th>
+                <th style="width:90px; text-align:right;">HIGH</th>
+                <th style="width:90px; text-align:right;">MED</th>
+                <th style="width:90px; text-align:right;">LOW</th>
+                <th style="width:90px; text-align:right;">INFO</th>
+                <th style="width:170px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vsp-cm-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    host.prepend(shell);
+  }
+
+  async function fetchRuns(limit, hideEmpty){
+    var effLimit = (window.VSP_RUNS_LIMIT ? Number(window.VSP_RUNS_LIMIT) : limit) || 50;
+    const effShowEmpty = !!window.VSP_RUNS_SHOW_EMPTY;
+    // === VSP_RUNS_URL_GLOBALS_V1 ===
+    var effLimit = (typeof window.VSP_RUNS_LIMIT === 'number' && window.VSP_RUNS_LIMIT > 0) ? window.VSP_RUNS_LIMIT : limit;
+    const effHide  = (typeof window.VSP_RUNS_HIDE_EMPTY === 'number') ? window.VSP_RUNS_HIDE_EMPTY : (hideEmpty ? 1 : 0);
+    const url = `/api/vsp/runs_index_v3_fs?limit=${encodeURIComponent(effLimit)}&hide_empty=${encodeURIComponent(effHide)}`;
+    // === END VSP_RUNS_URL_GLOBALS_V1 ===
+    const res = await fetch(url, {cache:'no-store'});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  function renderRows(items){
+    const tb = qs('#vsp-cm-tbody');
+    const q = (qs('#vsp-cm-search')?.value || '').trim().toLowerCase();
+    tb.innerHTML = '';
+
+    let pass = 0, fail = 0;
+    let shown = 0;
+
+    for (const it of (items || [])){
+      const runId = it.run_id || '';
+      if (q && !runId.toLowerCase().includes(q)) continue;
+
+      const totals = it.totals || {};
+      const total = Number(it.total_findings ?? sumTotals(totals)) || 0;
+      const g = gateStatus(totals);
+
+      if (g.label === 'PASS') pass++; else fail++;
+      shown++;
+
+      const created = it.created_at ? String(it.created_at).replace('T',' ').slice(0,19) : '-';
+
+      const html = `
+        <tr>
+          <td class="vsp-mono">${htmlesc(created)}</td>
+          <td class="vsp-mono">${htmlesc(runId)}</td>
+          <td><span class="vsp-gate-badge ${g.cls}">${g.label}</span></td>
+          <td class="vsp-mono" style="text-align:right;">${total.toLocaleString()}</td>
+          <td class="vsp-mono" style="text-align:right;">${Number(totals.CRITICAL||0).toLocaleString()}</td>
+          <td class="vsp-mono" style="text-align:right;">${Number(totals.HIGH||0).toLocaleString()}</td>
+          <td class="vsp-mono" style="text-align:right;">${Number(totals.MEDIUM||0).toLocaleString()}</td>
+          <td class="vsp-mono" style="text-align:right;">${Number(totals.LOW||0).toLocaleString()}</td>
+          <td class="vsp-mono" style="text-align:right;">${Number(totals.INFO||0).toLocaleString()}</td>
+          <td>
+            <button class="vsp-btn vsp-btn-ghost" data-act="html" data-run="${htmlesc(runId)}">HTML</button>
+            <button class="vsp-btn vsp-btn-ghost" data-act="zip" data-run="${htmlesc(runId)}">ZIP</button>
+          </td>
+        </tr>
+      `;
+      tb.insertAdjacentHTML('beforeend', html);
+    }
+
+    qs('#vsp-cm-kpi-count').textContent = String(shown);
+    qs('#vsp-cm-kpi-passfail').textContent = `${pass} / ${fail}`;
+
+    // latest run (first shown)
+    const first = (items || []).find(it => {
+      const runId = (it.run_id||'').toLowerCase();
+      const q2 = (qs('#vsp-cm-search')?.value || '').trim().toLowerCase();
+      return (!q2 || runId.includes(q2));
+    });
+    qs('#vsp-cm-kpi-latest').textContent = first?.run_id || '-';
+  }
+
+  function wireActions(){
+    const host = findRunsHost();
+    if (!host) return;
+
+    host.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('button[data-act]');
+      if (!btn) return;
+      const act = btn.getAttribute('data-act');
+      const runId = btn.getAttribute('data-run');
+      if (!runId) return;
+
+      // Try common export endpoint
+      const fmt = (act === 'zip') ? 'zip' : 'html';
+      const url = `/api/vsp/run_export_v3?run_id=${encodeURIComponent(runId)}&fmt=${encodeURIComponent(fmt)}`;
+      window.open(url, '_blank');
+    }, {passive:true});
+  }
+
+  let lastItems = [];
+
+  
+  async function startScan(){
+    const badge = qs('#vsp-cm-run-badge');
+    const tailEl = qs('#vsp-cm-run-tail');
+    const btn = qs('#vsp-cm-run-now');
+
+    const target = (qs('#vsp-cm-target')?.value || '').trim();
+    const profile = (qs('#vsp-cm-profile')?.value || 'FULL_EXT').trim();
+    const maxc = parseInt((qs('#vsp-cm-maxc')?.value || '0').trim(), 10) || 0;
+    const maxh = parseInt((qs('#vsp-cm-maxh')?.value || '10').trim(), 10) || 10;
+
+    if (!target) {
+      badge.textContent = 'ERR: target empty';
+      return;
+    }
+
+    badge.textContent = 'Submitting…';
+    tailEl.textContent = '';
+    btn && (btn.disabled = true);
+
+    let reqId = '';
+    try{
+      const res = await fetch('/api/vsp/run_v1', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({mode:'local', profile, target_type:'path', target, max_critical:maxc, max_high:maxh})
+      });
+      const js = await res.json();
+      if (!js.ok) throw new Error(js.error || ('HTTP ' + res.status));
+      reqId = js.req_id;
+      badge.textContent = 'RUNNING: ' + reqId;
+    }catch(err){
+      badge.textContent = 'ERR: ' + (err && err.message ? err.message : String(err));
+      btn && (btn.disabled = false);
+      return;
+    }
+
+    async function poll(){
+      try{
+        const r = await fetch('/api/vsp/run_status_v1/' + encodeURIComponent(reqId), {cache:'no-store'});
+        const st = await r.json();
+        tailEl.textContent = st.tail || '';
+        const g = st.gate || 'UNKNOWN';
+        const s = st.status || 'RUNNING';
+        badge.textContent = `${s} • gate=${g} • ${reqId}`;
+
+        if (st.final){
+          btn && (btn.disabled = false);
+          // refresh runs table after finish
+          refresh();
+          return;
+        }
+      }catch(err){
+        badge.textContent = 'POLL_ERR: ' + (err && err.message ? err.message : String(err));
+      }
+      setTimeout(poll, 2000);
+    }
+    poll();
+  }
+async function refresh(){
+    const host = findRunsHost();
+    if (!host) return;
+    ensureShell(host);
+
+    const limit = Number(qs('#vsp-cm-limit')?.value || 200) || 200;
+    const hideEmpty = !!qs('#vsp-cm-hide-empty')?.checked;
+    const st = qs('#vsp-cm-status');
+    st.textContent = 'Loading…';
+
+    try{
+      const data = await fetchRuns(limit, hideEmpty);
+      lastItems = data.items || [];
+      qs('#vsp-cm-kpi-source').textContent = data.source || 'fs';
+      renderRows(lastItems);
+      st.textContent = `Loaded ${lastItems.length} items from ${data.source || 'fs'}.`;
+    }catch(err){
+      st.textContent = `ERROR: ${String(err && err.message || err)}`;
+    }
+  }
+
+  function mount(){
+    const host = findRunsHost();
+    if (!host) return;
+
+    ensureShell(host);
+    wireActions();
+
+    const btn = qs('#vsp-cm-refresh');
+    const search = qs('#vsp-cm-search');
+    const limit = qs('#vsp-cm-limit');
+    const hide = qs('#vsp-cm-hide-empty');
+
+    if (btn && !btn.__bound){
+      btn.__bound = true;
+      btn.addEventListener('click', refresh);
+    }
+    
+    const runNow = qs("#vsp-cm-run-now");
+    if (runNow && !runNow.__bound) {
+      runNow.__bound = true;
+      runNow.addEventListener("click", startScan);
+    }
+if (search && !search.__bound){
+      search.__bound = true;
+      search.addEventListener('input', () => renderRows(lastItems));
+    }
+    if (limit && !limit.__bound){
+      limit.__bound = true;
+      limit.addEventListener('change', refresh);
+    }
+    if (hide && !hide.__bound){
+      hide.__bound = true;
+      hide.addEventListener('change', refresh);
+    }
+
+    console.log('[VSP_RUNS_COMMERCIAL_PANEL_V1] mounted into #vsp-runs-main (MASTER)');
+    refresh();
+  }
+
+  // mount on ready + whenever user switches tabs
+  function onReady(fn){
+    if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(fn, 0);
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+
+  onReady(() => {
+    mount();
+    window.addEventListener('hashchange', () => setTimeout(mount, 50));
+  });
+
+
+  // === VSP_RUNS_COMMERCIAL_WIRE_RUN_V1 ===
+  async function apiPostJSON(url, data) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data || {})
+    });
+    const t = await res.text();
+    let j = null;
+    try { j = JSON.parse(t); } catch(e) {}
+    return { ok: res.ok, status: res.status, json: j, text: t };
+  }
+
+  async function apiGetJSON(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    const t = await res.text();
+    let j = null;
+    try { j = JSON.parse(t); } catch(e) {}
+    return { ok: res.ok, status: res.status, json: j, text: t };
+  }
+
+  function ensurePanel(host) {
+    let box = host.querySelector('#vsp-commercial-runbox');
+    if (box) return box;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'vsp-commercial-runbox';
+    wrap.style.cssText = 'margin:12px 0; padding:12px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:rgba(255,255,255,.02)';
+
+    wrap.innerHTML = `
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <div style="font-weight:700;">Run Scan Now</div>
+        <span id="vsp-run-badge" class="vsp-badge" style="padding:4px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); opacity:.9;">IDLE</span>
+        <span id="vsp-run-req" class="vsp-mono" style="opacity:.85;"></span>
+        <span id="vsp-run-vspid" class="vsp-mono" style="opacity:.85;"></span>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+        <select id="vsp-run-profile" class="vsp-select" style="min-width:160px;">
+          <option value="FULL_EXT">FULL_EXT</option>
+          <option value="FAST">FAST</option>
+        </select>
+        <input id="vsp-run-target" class="vsp-input" style="min-width:420px; flex:1;"
+          placeholder="/path/to/repo or url..." />
+        <button id="vsp-run-go" class="vsp-btn" style="min-width:140px;">Run</button>
+        <button id="vsp-run-refresh" class="vsp-btn" style="min-width:140px;">Refresh Runs</button>
+      </div>
+
+      <pre id="vsp-run-tail" class="vsp-mono" style="margin-top:10px; max-height:220px; overflow:auto; font-size:11px; white-space:pre-wrap; opacity:.92; border-top:1px dashed rgba(255,255,255,.10); padding-top:10px;"></pre>
+    `;
+
+    // Insert near top of runs pane
+    host.insertBefore(wrap, host.firstChild);
+    return wrap;
+  }
+
+  function setBadge(text, kind) {
+    const b = document.querySelector('#vsp-run-badge');
+    if (!b) return;
+    b.textContent = text;
+    // lightweight "kind" styling
+    const map = {
+      IDLE: 'rgba(255,255,255,.12)',
+      RUNNING: 'rgba(255,193,7,.25)',
+      DONE: 'rgba(34,197,94,.25)',
+      FAILED: 'rgba(239,68,68,.25)',
+      ERROR: 'rgba(239,68,68,.25)'
+    };
+    b.style.background = map[kind || text] || 'rgba(255,255,255,.12)';
+  }
+
+  function setText(sel, s) {
+    const el = document.querySelector(sel);
+    if (el) el.textContent = s || '';
+  }
+
+  function setTail(s) {
+    const el = document.querySelector('#vsp-run-tail');
+    if (el) el.textContent = s || '';
+  }
+
+  async function refreshRuns() {
+    // If runs table loader exists, trigger it
+    try {
+      if (window.VSP_RUNS_TAB_SIMPLE_V2 && typeof window.VSP_RUNS_TAB_SIMPLE_V2.loadRuns === 'function') {
+        await window.VSP_RUNS_TAB_SIMPLE_V2.loadRuns();
+        return;
+      }
+    } catch(e) {}
+    // fallback: reload page data (router will re-render)
+    try { location.hash = '#runs'; } catch(e) {}
+  }
+
+  async function pollStatus(reqId) {
+    const url = `/api/vsp/run_status_v1/${encodeURIComponent(reqId)}`;
+    while (true) {
+      const r = await apiGetJSON(url);
+      if (!r.ok || !r.json) {
+        setBadge('ERROR', 'ERROR');
+        setTail(r.text || `Failed to fetch ${url}`);
+        return;
+      }
+      const st = r.json;
+      setBadge(st.status || 'RUNNING', st.status || 'RUNNING');
+      setText('#vsp-run-req', st.req_id ? `REQ: ${st.req_id}` : '');
+      setText('#vsp-run-vspid', st.vsp_run_id ? `VSP: ${st.vsp_run_id}` : '');
+      setTail(st.tail || '');
+
+      if (st.final === true) {
+        // auto refresh list once final
+        await refreshRuns();
+        return;
+      }
+      await new Promise(res => setTimeout(res, 2000));
+    }
+  }
+
+  async function bindRunActions(panel) {
+    const btn = panel.querySelector('#vsp-run-go');
+    const btnR = panel.querySelector('#vsp-run-refresh');
+    const inpT = panel.querySelector('#vsp-run-target');
+    const selP = panel.querySelector('#vsp-run-profile');
+
+    // defaults
+    if (inpT && !inpT.value) inpT.value = '/home/test/Data/SECURITY-10-10-v4';
+
+    btnR && btnR.addEventListener('click', async () => {
+      setBadge('IDLE','IDLE');
+      await refreshRuns();
+    });
+
+    btn && btn.addEventListener('click', async () => {
+      setBadge('RUNNING','RUNNING');
+      setTail('[UI] Spawning scan...\\n');
+      setText('#vsp-run-req','');
+      setText('#vsp-run-vspid','');
+
+      const payload = {
+        mode: 'local',
+        profile: (selP && selP.value) ? selP.value : 'FULL_EXT',
+        target_type: 'path',
+        target: (inpT && inpT.value) ? inpT.value.trim() : '/home/test/Data/SECURITY-10-10-v4'
+      };
+
+      const r = await apiPostJSON('/api/vsp/run_v1', payload);
+      if (!r.ok || !r.json || !r.json.req_id) {
+        setBadge('ERROR','ERROR');
+        setTail(r.text || '[UI] Run spawn failed');
+        return;
+      }
+      const reqId = r.json.req_id;
+      setText('#vsp-run-req', `REQ: ${reqId}`);
+      setTail(`[UI] Spawned: ${reqId}
+[UI] Polling status...
+`);
+      await pollStatus(reqId);
+    });
+  }
+  // === END VSP_RUNS_COMMERCIAL_WIRE_RUN_V1 ===
+
+})();
+
+
+/* === VSP_COMMERCIAL_RUNS_UI_TOGGLE_V1 === */
+(function () {
+  if (window.VSP_COMMERCIAL_RUNS_UI_TOGGLE_V1) return;
+  window.VSP_COMMERCIAL_RUNS_UI_TOGGLE_V1 = true;
+
+  function injectControls() {
+    var root = document.getElementById('vsp-runs-main');
+    if (!root) return;
+
+    if (root.querySelector('#vsp-runs-show-empty')) return;
+
+    var bar = document.createElement('div');
+    bar.style.cssText = "display:flex;gap:14px;align-items:center;justify-content:flex-end;margin:8px 0 12px 0;padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03)";
+
+    var showEmpty = !!window.VSP_RUNS_SHOW_EMPTY;
+    var limit = (window.VSP_RUNS_LIMIT ? Number(window.VSP_RUNS_LIMIT) : 50) || 50;
+
+    bar.innerHTML =
+      '<label style="display:flex;gap:8px;align-items:center;font-size:12px;opacity:.95;cursor:pointer">' +
+        '<input id="vsp-runs-show-empty" type="checkbox" ' + (showEmpty ? 'checked' : '') + ' />' +
+        '<span>Show empty runs</span>' +
+      '</label>' +
+      '<label style="display:flex;gap:8px;align-items:center;font-size:12px;opacity:.95">' +
+        '<span>Limit</span>' +
+        '<select id="vsp-runs-limit" style="background:rgba(255,255,255,.06);color:inherit;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:4px 8px;">' +
+          '<option value="50">50</option>' +
+          '<option value="200">200</option>' +
+          '<option value="500">500</option>' +
+        '</select>' +
+      '</label>';
+
+    root.prepend(bar);
+    var cb = bar.querySelector('#vsp-runs-show-empty');
+    var sel = bar.querySelector('#vsp-runs-limit');
+    sel.value = String(limit);
+
+    function apply() {
+      window.VSP_RUNS_SHOW_EMPTY = !!cb.checked;
+      window.VSP_RUNS_LIMIT = Number(sel.value) || 50;
+
+      // try soft refresh hooks first
+      if (typeof window.VSP_RUNS_REFRESH === 'function') { window.VSP_RUNS_REFRESH(); return; }
+
+      // try click refresh button if present
+      var btn = root.querySelector('[data-action="refresh"], .vsp-btn-refresh, button[title*="Refresh"], button[title*="reload"]');
+      if (btn) { btn.click(); return; }
+
+      // fallback: reload hash/page
+      try { location.hash = '#runs'; } catch (e) {}
+      setTimeout(function(){ try{ location.hash = '#runs'; }catch(e){} }, 50);
+      setTimeout(function(){ try{ location.reload(); }catch(e){} }, 150);
+    }
+
+    cb.addEventListener('change', apply);
+    sel.addEventListener('change', apply);
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(injectControls, 200); });
+  window.addEventListener('hashchange', function(){ setTimeout(injectControls, 120); });
+  setTimeout(injectControls, 400);
+})();
+
+
+// === VSP_RUNS_TOGGLE_UI_V1 (inject controls; reload on change for stability) ===
+(function(){
+  if (window.VSP_RUNS_TOGGLE_UI_V1) return;
+  window.VSP_RUNS_TOGGLE_UI_V1 = true;
+
+  function qs(sel){ try { return document.querySelector(sel); } catch(e){ return null; } }
+  function create(tag, html){
+    var el = document.createElement(tag);
+    if (html) el.innerHTML = html;
+    return el;
+  }
+
+  function inject(){
+    var host = qs('#vsp-runs-main');
+    if (!host) return false;
+
+    // Prefer header if exists
+    var header = qs('#vsp-runs-main .vsp-card-header') || host;
+    if (qs('#vsp-runs-toggle-box')) return true;
+
+    var lim = (typeof window.VSP_RUNS_LIMIT === 'number' && window.VSP_RUNS_LIMIT > 0) ? window.VSP_RUNS_LIMIT : 200;
+    var he  = (typeof window.VSP_RUNS_HIDE_EMPTY === 'number') ? window.VSP_RUNS_HIDE_EMPTY : 1;
+
+    var box = create('div', `
+      <div id="vsp-runs-toggle-box" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <div style="font-size:12px;opacity:.85">Runs view:</div>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer">
+          <input id="vsp-runs-hide-empty" type="checkbox" ${he ? 'checked' : ''}/>
+          Hide empty
+        </label>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12px">
+          Limit
+          <select id="vsp-runs-limit" style="background:rgba(255,255,255,.06);color:inherit;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:4px 8px">
+            <option value="50">50</option>
+            <option value="200">200</option>
+            <option value="500">500</option>
+          </select>
+        </label>
+        <button id="vsp-runs-toggle-apply" style="background:rgba(99,102,241,.18);color:inherit;border:1px solid rgba(99,102,241,.35);border-radius:10px;padding:6px 10px;font-size:12px;cursor:pointer">
+          Apply
+        </button>
+      </div>
+    `);
+
+    header.appendChild(box);
+
+    var sel = qs('#vsp-runs-limit');
+    if (sel) sel.value = String(lim);
+
+    function apply(){
+      try {
+        var newLim = parseInt((qs('#vsp-runs-limit')||{}).value || '200', 10) || 200;
+        var newHe  = (qs('#vsp-runs-hide-empty')||{}).checked ? 1 : 0;
+        localStorage.setItem('vsp_runs_limit', String(newLim));
+        localStorage.setItem('vsp_runs_hide_empty', String(newHe));
+      } catch(e) {}
+      // reload to ensure *all* runs widgets pick up new query params consistently
+      try { window.location.reload(); } catch(e) {}
+    }
+
+    var btn = qs('#vsp-runs-toggle-apply');
+    if (btn) btn.addEventListener('click', apply);
+    var cb = qs('#vsp-runs-hide-empty');
+    if (cb) cb.addEventListener('change', function(){ /* no-op until Apply */ });
+    return true;
+  }
+
+  // try now + retry a few times
+  var tries = 0;
+  var t = setInterval(function(){
+    tries++;
+    if (inject() || tries > 20) clearInterval(t);
+  }, 500);
+})();
+// === END VSP_RUNS_TOGGLE_UI_V1 ===
+
+})();
+
+})();

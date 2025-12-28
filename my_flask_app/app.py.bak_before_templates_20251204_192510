@@ -1,0 +1,22 @@
+from flask import Flask, render_template
+
+from api_vsp_dashboard_v3 import bp as vsp_dashboard_v3_bp
+from api_vsp_datasource_v2 import bp as vsp_datasource_v2_bp
+from api_vsp_runs_v2 import bp as vsp_runs_v2_bp
+
+app = Flask(__name__)
+
+app.register_blueprint(vsp_dashboard_v3_bp)
+app.register_blueprint(vsp_datasource_v2_bp)
+app.register_blueprint(vsp_runs_v2_bp)
+
+@app.route("/")
+def root():
+    return render_template("vsp_dashboard_2025.html")
+
+@app.route("/security_bundle")
+def security_bundle():
+    return render_template("vsp_dashboard_2025.html")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8910, debug=True)

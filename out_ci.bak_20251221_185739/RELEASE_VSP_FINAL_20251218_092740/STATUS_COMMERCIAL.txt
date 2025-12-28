@@ -1,0 +1,8 @@
+FINAL STATUS
+- smoke 5 tabs: PASS
+- stability: PASS (N=300)
+- console: expected CLEAN (no red)
+- report tgz: present
+- audit bundle: present
+- ISO evidence: expected under report/__meta/iso (if iso pack ran)
+RUN_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956

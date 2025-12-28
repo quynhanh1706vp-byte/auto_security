@@ -1,0 +1,77 @@
+<section id="tab-datasource" class="tab-pane">
+  <div class="vsp-tab-header">
+    <h2>Data Source – Findings Detail</h2>
+    <div class="vsp-tab-subtitle">
+      View unified findings (after Rule Overrides) with full context: file, language, package, CVE, snippet & fix guide.
+    </div>
+  </div>
+
+  <div class="vsp-ds-topbar">
+    <div class="vsp-ds-kpi">
+      <span class="kpi-label">Total findings</span>
+      <span class="kpi-value" id="vsp-ds-total">0</span>
+    </div>
+  </div>
+
+  <div id="vsp-datasource-wrapper" class="vsp-ds-wrapper">
+    <table class="vsp-ds-table">
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Tool</th>
+          <th>File / Language</th>
+          <th>Asset</th>
+          <th>CVE / CVSS</th>
+          <th>Message</th>
+          <th>Override</th>
+        </tr>
+      </thead>
+      <tbody id="vsp-datasource-tbody">
+        <!-- rows by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Drawer chi tiết -->
+  <div id="vsp-finding-drawer" class="vsp-fd-drawer">
+    <div class="vsp-fd-content">
+      <div class="vsp-fd-header">
+        <div class="vsp-fd-title-row">
+          <span id="vsp-fd-severity" class="vsp-fd-sev-badge"></span>
+          <h3 id="vsp-fd-title" class="vsp-fd-title">(title)</h3>
+        </div>
+        <div class="vsp-fd-meta-row">
+          <span class="meta-chip">Tool: <span id="vsp-fd-tool"></span></span>
+          <span class="meta-chip">Run: <span id="vsp-fd-runid"></span></span>
+        </div>
+        <button class="vsp-fd-close" onclick="vspCloseFindingDrawer()">✕</button>
+      </div>
+
+      <div class="vsp-fd-body">
+        <div class="vsp-fd-col">
+          <h4>Location</h4>
+          <div><b>File:</b> <span id="vsp-fd-file"></span></div>
+          <div><b>Line:</b> <span id="vsp-fd-line"></span></div>
+          <div><b>Language:</b> <span id="vsp-fd-language"></span></div>
+
+          <h4>Asset</h4>
+          <div id="vsp-fd-asset"></div>
+
+          <h4>Vulnerability</h4>
+          <div id="vsp-fd-vuln"></div>
+
+          <h4>Compliance</h4>
+          <div id="vsp-fd-compliance"></div>
+        </div>
+
+        <div class="vsp-fd-col vsp-fd-col-wide">
+          <h4>Evidence</h4>
+          <div id="vsp-fd-snippet"></div>
+
+          <h4>Fix Guide</h4>
+          <div id="vsp-fd-fix"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,159 @@
+// ======================= VSP_RUNS_V1 – RUNS & REPORTS =======================
+// Dùng /api/vsp/runs_index_v3 để:
+// - Tính KPI: total runs, last 10 runs, avg findings/run, tools/run
+// - Đổ bảng "Run history"
+
+(function () {
+  "use strict";
+
+  function qs(sel) {
+    return document.querySelector(sel);
+  }
+
+  function selectRunsTbody() {
+    return qs("[data-vsp-runs-tbody]") ||
+           qs("#vsp-runs-tbody") ||
+           (function () {
+              var tbl = qs("#vsp-runs-table");
+              return tbl ? tbl.querySelector("tbody") : null;
+            })();
+  }
+
+  function formatDate(value) {
+    if (!value) return "–";
+    try {
+      var d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      return d.toISOString().slice(0, 19).replace("T", " ");
+    } catch (e) {
+      return String(value);
+    }
+  }
+
+  function bindRunsKpis(runs) {
+    var totalRuns = Array.isArray(runs) ? runs.length : 0;
+    var last10 = runs.slice(0, 10);
+    var okCount = 0;
+    var failCount = 0;
+    var totalFindings = 0;
+    var totalTools = 0;
+    var toolsRuns = 0;
+
+    last10.forEach(function (run) {
+      if (run.status === "OK" || run.status === "SUCCESS") okCount++;
+      else if (run.status === "FAIL" || run.status === "ERROR") failCount++;
+
+      if (typeof run.total_findings === "number") {
+        totalFindings += run.total_findings;
+      }
+      if (run.by_tool && typeof run.by_tool === "object") {
+        totalTools += Object.keys(run.by_tool).length;
+        toolsRuns++;
+      }
+    });
+
+    var avgFindings = last10.length ? Math.round(totalFindings / last10.length) : 0;
+    var avgTools = toolsRuns ? (totalTools / toolsRuns).toFixed(1) : "0.0";
+
+    var elTotal = qs("[data-vsp-runs-total]");
+    var elLast  = qs("[data-vsp-runs-last10]");
+    var elAvg   = qs("[data-vsp-runs-avg]");
+    var elTools = qs("[data-vsp-runs-tools-per-run]");
+
+    if (elTotal) elTotal.textContent = String(totalRuns);
+    if (elLast)  elLast.textContent  = okCount + " / " + failCount;
+    if (elAvg)   elAvg.textContent   = String(avgFindings);
+    if (elTools) elTools.textContent = avgTools;
+  }
+
+  function renderRunsTable(runs) {
+    var tbody = selectRunsTbody();
+    if (!tbody) {
+      console.warn("[VSP][RUNS] Không tìm thấy tbody run history.");
+      return;
+    }
+
+    tbody.innerHTML = "";
+    if (!Array.isArray(runs) || !runs.length) {
+      var trEmpty = document.createElement("tr");
+      var tdEmpty = document.createElement("td");
+      tdEmpty.colSpan = 10;
+      tdEmpty.textContent = "No runs available.";
+      trEmpty.appendChild(tdEmpty);
+      tbody.appendChild(trEmpty);
+      return;
+    }
+
+    runs.forEach(function (run) {
+      var tr = document.createElement("tr");
+
+      function td(text) {
+        var cell = document.createElement("td");
+        cell.textContent = text;
+        return cell;
+      }
+
+      var runId  = run.run_id || run.id || "–";
+      var ts     = formatDate(run.started_at || run.timestamp || run.ts);
+      var profile= run.profile || run.mode || "EXT+";
+      var src    = run.src_path || run.root_dir || "–";
+      var url    = run.target_url || "–";
+      var crit   = run.by_severity && run.by_severity.CRITICAL || 0;
+      var high   = run.by_severity && run.by_severity.HIGH || 0;
+      var med    = run.by_severity && run.by_severity.MEDIUM || 0;
+      var low    = run.by_severity && run.by_severity.LOW || 0;
+      var info   = run.by_severity && run.by_severity.INFO || 0;
+      var trace  = run.by_severity && run.by_severity.TRACE || 0;
+      var total  = typeof run.total_findings === "number"
+                  ? run.total_findings
+                  : crit + high + med + low + info + trace;
+      var tools  = run.by_tool ? Object.keys(run.by_tool).join(",") : (run.tools || "–");
+
+      tr.appendChild(td(runId));
+      tr.appendChild(td(ts));
+      tr.appendChild(td(profile));
+      tr.appendChild(td(src));
+      tr.appendChild(td(url));
+      tr.appendChild(td(String(crit)));
+      tr.appendChild(td(String(high)));
+      tr.appendChild(td(String(med)));
+      tr.appendChild(td(String(low)));
+      tr.appendChild(td(String(info)));
+      tr.appendChild(td(String(trace)));
+      tr.appendChild(td(String(total)));
+      tr.appendChild(td(tools));
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function loadRuns() {
+    var url = "/api/vsp/runs_index_v3?limit=50";
+    console.log("[VSP][RUNS] Fetching runs from", url);
+    fetch(url)
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        console.log("[VSP][RUNS] Loaded runs:", data);
+        if (!Array.isArray(data)) {
+          console.warn("[VSP][RUNS] Response không phải array:", data);
+          return;
+        }
+        bindRunsKpis(data);
+        renderRunsTable(data);
+      })
+      .catch(function (err) {
+        console.error("[VSP][RUNS] Error loading runs_index_v3:", err);
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      loadRuns();
+    } catch (err) {
+      console.error("[VSP][RUNS] DOMContentLoaded error:", err);
+    }
+  });
+})();

@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <!-- Console patch & logic 5 tab -->
+  <script src="/static/js/vsp_console_patch_v1.js" defer></script>
+
+  <meta charset="UTF-8">
+  <title>VersaSecure Platform – VSP 2025</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Font Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- THEME 2025 – INLINE CSS -->
+  <style>
+    :root {
+      --vsp-bg: #050814;
+      --vsp-surface: #0b1020;
+      --vsp-surface-soft: #131832;
+      --vsp-border-subtle: rgba(255, 255, 255, 0.06);
+      --vsp-border-strong: rgba(255, 255, 255, 0.14);
+      --vsp-text: #e5e7eb;
+      --vsp-text-soft: #9ca3af;
+      --vsp-text-muted: #6b7280;
+
+      --vsp-accent-green: #22c55e;
+      --vsp-accent-green-soft: rgba(34, 197, 94, 0.15);
+      --vsp-accent-blue: #38bdf8;
+      --vsp-accent-blue-soft: rgba(56, 189, 248, 0.12);
+      --vsp-accent-amber: #fbbf24;
+      --vsp-accent-red: #ef4444;
+
+      --vsp-sev-critical: #f97373;
+      --vsp-sev-high: #fb923c;
+      --vsp-sev-medium: #facc15;
+      --vsp-sev-low: #22c55e;
+      --vsp-sev-info: #38bdf8;
+      --vsp-sev-trace: #a855f7;
+
+      --vsp-radius-lg: 18px;
+      --vsp-radius-md: 12px;
+      --vsp-radius-pill: 999px;
+
+      --vsp-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.9);
+      --vsp-shadow-subtle: 0 8px 18px rgba(15, 23, 42, 0.7);
+
+      --vsp-sidebar-width: 260px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    body.vsp-body {
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.12), transparent 60%),
+        var(--vsp-bg);
+      color: var(--vsp-text);
+    }
+
+    .vsp-shell {
+      display: flex;
+      min-height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR */
+
+    .vsp-sidebar {
+      width: var(--vsp-sidebar-width);
+      padding: 18px 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border-right: 1px solid var(--vsp-border-subtle);
+      background:
+        linear-gradient(160deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.98)),
+        radial-gradient(circle at top, rgba(56, 189, 248, 0.25), transparent 60%);
+      box-shadow: var(--vsp-shadow-subtle);
+    }
+
+    .vsp-sidebar__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 2px 4px;
+    }
+
+    .vsp-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 30% 0, #38bdf8, #22c55e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 17px;
+      color: #0b1020;
+      box-shadow: 0 10px 24px rgba(34, 197, 94, 0.6);
+    }
+
+    .vsp-brand-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .vsp-brand-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .vsp-brand-sub {
+      font-size: 11px;
+      color: var(--vsp-text-soft);
+    }
+
+    .vsp-env-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--vsp-radius-pill);
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--vsp-text-soft);
+    }
+
+    .vsp-env-label {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.15);
+      font-weight: 500;
+    }
+
+    .vsp-env-value {
+      font-weight: 500;
+      color: var(--vsp-text);
+    }
+
+    .vsp-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .vsp-nav-item {
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--vsp-text-soft);
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.16s ease-out;
+    }
+
+    .vsp-nav-item:hover {
+      border-color: var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--vsp-text);
+    }
+
+    .vsp-nav-item.is-active {
+      border-color: rgba(34, 197, 94, 0.65);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(56, 189, 248, 0.16));
+      color: #ecfdf5;
+    }
+
+    .vsp-nav-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 15px;
+    }
+
+    .vsp-sidebar__footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-version-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .vsp-version-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .vsp-small-meta {
+      opacity: 0.8;
+    }
+
+    /* MAIN */
+
+    .vsp-main {
+      flex: 1;
+      padding: 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+
+    .vsp-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .vsp-header-title {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .vsp-header-sub {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--vsp-text-soft);
+    }
+
+    .vsp-header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .vsp-header-kpi {
+      padding: 6px 12px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--vsp-border-subtle);
+      min-width: 94px;
+    }
+
+    .vsp-header-kpi-label {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-header-kpi-value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .vsp-header-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .vsp-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--vsp-border-subtle);
+      font-size: 11px;
+      color: var(--vsp-text-soft);
+    }
+
+    .vsp-chip--soft {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.35);
+      color: #bbf7d0;
+    }
+
+    .vsp-tabs {
+      flex: 1;
+      border-radius: var(--vsp-radius-lg);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 60%),
+        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.14), transparent 60%),
+        rgba(7, 11, 24, 0.96);
+      border: 1px solid var(--vsp-border-subtle);
+      box-shadow: var(--vsp-shadow-soft);
+      padding: 12px 12px 14px;
+      overflow: auto;
+    }
+
+    .vsp-tab-pane {
+      display: none;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .vsp-tab-pane.is-active {
+      display: block;
+    }
+
+    .vsp-section {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .vsp-section--last {
+      padding-bottom: 2px;
+    }
+
+    .vsp-section-header {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .vsp-section-header--row {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .vsp-section-header h2 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .vsp-section-header p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--vsp-text-soft);
+    }
+
+    .vsp-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .vsp-charts-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      grid-auto-rows: minmax(220px, auto);
+      gap: 10px;
+    }
+
+    .vsp-panel {
+      border-radius: var(--vsp-radius-md);
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid var(--vsp-border-subtle);
+      padding: 10px 12px;
+    }
+
+    .vsp-panel--subtle {
+      background: rgba(15, 23, 42, 0.9);
+      border-style: dashed;
+      border-color: rgba(148, 163, 184, 0.45);
+    }
+
+    .vsp-panel-title {
+      margin: 0 0 4px;
+      font-size: 13px;
+    }
+
+    .vsp-toolbar {
+      display: flex;
+      gap: 6px;
+    }
+
+    .vsp-btn {
+      border-radius: 999px;
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 5px 12px;
+      font-size: 12px;
+      color: var(--vsp-text-soft);
+      cursor: pointer;
+      transition: all 0.15s ease-out;
+    }
+
+    .vsp-btn:hover {
+      border-color: rgba(148, 163, 184, 0.75);
+      color: var(--vsp-text);
+    }
+
+    .vsp-btn--primary {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(56, 189, 248, 0.9));
+      border-color: transparent;
+      color: #020617;
+      font-weight: 600;
+    }
+
+    .vsp-btn--primary:hover {
+      filter: brightness(1.05);
+    }
+
+    .vsp-btn--ghost {
+      background: transparent;
+    }
+
+    .vsp-table-wrapper {
+      border-radius: var(--vsp-radius-md);
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.96);
+      overflow: hidden;
+    }
+
+    .vsp-table-wrapper--dense {
+      max-height: calc(100vh - 260px);
+      overflow: auto;
+    }
+
+    .vsp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .vsp-table thead {
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    .vsp-table th,
+    .vsp-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+    }
+
+    .vsp-table th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--vsp-text-soft);
+      border-bottom-color: var(--vsp-border-subtle);
+    }
+
+    .vsp-table tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.88);
+    }
+
+    .vsp-table tbody tr:hover {
+      background: rgba(55, 65, 81, 0.75);
+    }
+
+    .vsp-table--compact th,
+    .vsp-table--compact td {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .vsp-mini-kpi-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .vsp-ds-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2.5fr) minmax(260px, 0.9fr);
+      gap: 10px;
+      height: calc(100vh - 260px);
+    }
+
+    .vsp-ds-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .vsp-ds-right {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .vsp-filter-bar {
+      border-radius: var(--vsp-radius-md);
+      border: 1px solid var(--vsp-border-subtle);
+      background: rgba(15, 23, 42, 0.96);
+      padding: 6px 10px;
+      min-height: 40px;
+    }
+
+    .vsp-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .vsp-rules-layout {
+      display: grid;
+      grid-template-columns: 2fr 1.2fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .vsp-shell {
+        flex-direction: column;
+      }
+
+      .vsp-sidebar {
+        width: 100%;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .vsp-main {
+        padding-top: 10px;
+      }
+
+      .vsp-ds-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .vsp-settings-grid,
+      .vsp-rules-layout,
+      .vsp-kpi-grid,
+      .vsp-charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  
+    /* [VSP_DASH_KPI_CARDS_CSS_V1] KPI cards + simple chart */
+    .vsp-kpi-card {
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.8);
+    }
+    .vsp-kpi-card__label {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .vsp-kpi-card__value {
+      font-size: 18px;
+      font-weight: 600;
+    
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;}
+    .vsp-kpi-card__sub {
+      font-size: 11px;
+      color: var(--vsp-text-soft);
+    }
+    .vsp-kpi-pill {
+      align-self: flex-start;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      margin-top: 2px;
+    }
+    .vsp-kpi-pill--critical { background: rgba(239, 68, 68, 0.18); color: #fee2e2; }
+    .vsp-kpi-pill--high     { background: rgba(249, 115, 22, 0.18); color: #ffedd5; }
+    .vsp-kpi-pill--medium   { background: rgba(250, 204, 21, 0.18); color: #fef3c7; }
+    .vsp-kpi-pill--low      { background: rgba(34, 197, 94, 0.18); color: #bbf7d0; }
+    .vsp-kpi-pill--info     { background: rgba(56, 189, 248, 0.18); color: #e0f2fe; }
+    .vsp-kpi-pill--trace    { background: rgba(168, 85, 247, 0.18); color: #ede9fe; }
+
+    .vsp-chart-rows {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .vsp-chart-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+    .vsp-chart-row-label {
+      width: 64px;
+      color: var(--vsp-text-soft);
+    }
+    .vsp-chart-row-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      overflow: hidden;
+    }
+    .vsp-chart-row-bar-inner {
+      height: 100%;
+      border-radius: 999px;
+    }
+    .vsp-chart-row-value {
+      width: 70px;
+      text-align: right;
+    }
+    .vsp-chart-sev-critical { background: var(--vsp-sev-critical); }
+    .vsp-chart-sev-high     { background: var(--vsp-sev-high); }
+    .vsp-chart-sev-medium   { background: var(--vsp-sev-medium); }
+    .vsp-chart-sev-low      { background: var(--vsp-sev-low); }
+    .vsp-chart-sev-info     { background: var(--vsp-sev-info); }
+    .vsp-chart-sev-trace    { background: var(--vsp-sev-trace); }
+
+    .vsp-top-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+    .vsp-top-label {
+      font-size: 11px;
+      color: var(--vsp-text-soft);
+    }
+    .vsp-top-value {
+      font-size: 13px;
+      font-weight: 500;
+      max-width: 320px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* [VSP_DASH_CHARTS_CSS_V4] Ensure charts grid & panels visible */
+    #vsp-dashboard-charts-root,
+    .vsp-charts-grid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .vsp-panel {
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 140px;
+    }
+
+    .vsp-panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--vsp-text-soft);
+      margin-bottom: 6px;
+    }
+
+    .vsp-chart-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .vsp-chart-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .vsp-chart-row-label {
+      width: 80px;
+      color: var(--vsp-text-soft);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .vsp-chart-row-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      overflow: hidden;
+    }
+
+    .vsp-chart-row-bar-inner {
+      height: 100%;
+      border-radius: 999px;
+    }
+
+    .vsp-chart-row-value {
+      width: 70px;
+      text-align: right;
+      color: var(--vsp-text-soft);
+    }
+
+    /* màu bar cho chart 3 & 4 */
+    .vsp-chart-sev-high    { background: var(--vsp-sev-high); }
+    .vsp-chart-sev-medium  { background: var(--vsp-sev-medium); }
+
+    /* [VSP_TABS_OVERRIDE_V1] đảm bảo nội dung tab (KPI + Charts + bảng) luôn hiển thị đầy đủ, cho body scroll */
+    .vsp-tabs {
+      flex: 0 0 auto;
+      height: auto;
+      max-height: none;
+      overflow: visible;
+    }
+
+    /* [VSP_TABS_OVERRIDE_V2] Mở khoá chiều cao tab, cho body scroll */
+    .vsp-tabs {
+      flex: 0 0 auto !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+
+    /* Debug: luôn thấy vùng Charts */
+    #vsp-dashboard-charts-root {
+      min-height: 260px;
+      margin-top: 12px;
+      border-radius: 16px;
+      /* border: 1px dashed rgba(56, 189, 248, 0.4);  // có thể bỏ nếu chướng mắt */
+    }
+
+    /* [VSP_TABPANE_OVERRIDE_V1] tránh cắt nội dung Dashboard (KPI + Charts + bảng) */
+    .vsp-tab-pane {
+      height: auto !important;
+      overflow: visible !important;
+    }
+    .vsp-section {
+      height: auto !important;
+    }
+</style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_global_2025.css') }}">
+</head>
+<body class="vsp-body">
+  <div class="vsp-shell">
+    <!-- SIDEBAR -->
+    <aside class="vsp-sidebar">
+      <div class="vsp-sidebar__brand">
+        <div class="vsp-logo">VSP</div>
+        <div class="vsp-brand-meta">
+          <div class="vsp-brand-title">VersaSecure Platform</div>
+          <div class="vsp-brand-sub">Security Posture 2025</div>
+        </div>
+      </div>
+
+      <div class="vsp-env-pill">
+        <span class="vsp-env-label">ENV</span>
+        <span class="vsp-env-value" id="vsp-env-name">STAGING · FULL_EXT</span>
+      </div>
+
+      <nav class="vsp-nav">
+        <button class="vsp-nav-item is-active" data-vsp-tab="#vsp-tab-dashboard">
+          <span class="vsp-nav-icon">📊</span>
+          <span>Dashboard</span>
+        </button>
+        <button class="vsp-nav-item" data-vsp-tab="#vsp-tab-runs">
+          <span class="vsp-nav-icon">📁</span>
+          <span>Runs &amp; Reports</span>
+        </button>
+        <button class="vsp-nav-item" data-vsp-tab="#vsp-tab-datasource">
+          <span class="vsp-nav-icon">🧬</span>
+          <span>Data Source</span>
+        </button>
+        <button class="vsp-nav-item" data-vsp-tab="#vsp-tab-settings">
+          <span class="vsp-nav-icon">⚙️</span>
+          <span>Settings</span>
+        </button>
+        <button class="vsp-nav-item" data-vsp-tab="#vsp-tab-rules">
+          <span class="vsp-nav-icon">🧩</span>
+          <span>Rule Overrides</span>
+        </button>
+      </nav>
+
+      <div class="vsp-sidebar__footer">
+        <div class="vsp-version-pill">
+          <span>VSP 2025</span>
+          <span class="vsp-version-dot"></span>
+          <span id="vsp-build-label">FULL_EXT</span>
+        </div>
+        <div class="vsp-small-meta">
+          BE: 8961 · UI: 8910
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="vsp-main">
+      <!-- HEADER -->
+      <header class="vsp-header">
+        <div class="vsp-header-left">
+          <h1 class="vsp-header-title">Security Posture Overview</h1>
+          <p class="vsp-header-sub">
+            CIO-level view · auto refresh from <code>/api/vsp/dashboard_v3</code>
+          </p>
+        </div>
+        <div class="vsp-header-right">
+          <div class="vsp-header-kpi">
+            <div class="vsp-header-kpi-label">Total Findings</div>
+            <div class="vsp-header-kpi-value" id="vsp-header-total-findings">–</div>
+          </div>
+          <div class="vsp-header-kpi">
+            <div class="vsp-header-kpi-label">Score</div>
+            <div class="vsp-header-kpi-value" id="vsp-header-score">–</div>
+          </div>
+          <div class="vsp-header-meta">
+            <div class="vsp-chip" id="vsp-latest-run-id">RUN: –</div>
+            <div class="vsp-chip vsp-chip--soft" id="vsp-latest-run-type">FULL_EXT</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- TABS WRAPPER: 5 pane tương ứng 5 tab -->
+      <section class="vsp-tabs">
+        <!-- TAB 1: DASHBOARD -->
+        <div id="vsp-tab-dashboard" class="vsp-tab-pane is-active">
+          <!-- KPI ZONE -->
+          <section class="vsp-section">
+            <div class="vsp-section-header">
+              <h2>KPI Zone</h2>
+              <p>6 severity bucket + 4 advanced KPI</p>
+    <!-- [VSP_DASH_CHARTS_HEADER_V1] -->
+    <div class="vsp-section-header" id="vsp-dashboard-charts-header">
+      <h2>Charts</h2>
+      <p>Severity, trend, tool risk, top CWE</p>
+    </div>
+    <div id="vsp-dashboard-charts-root" class="vsp-charts-grid">
+      <!-- Charts sẽ được render bởi vsp_dashboard_charts_v1.js -->
+    </div>
+    
+            </div>
+            <div id="vsp-dashboard-kpi-root" class="vsp-kpi-grid">
+              <!-- vsp_dashboard_kpi_v1.js sẽ fill nội dung -->
+            </div>
+          </section>
+
+          <!-- CHART ZONE -->
+          <section class="vsp-section">
+            <div class="vsp-section-header">
+              <h2>Charts</h2>
+              <p>Severity, trend, tool risk, top CWE</p>
+            </div>
+            <div id="vsp-dashboard-charts-root" class="vsp-charts-grid">
+              <!-- vsp_dashboard_charts_v1.js sẽ render chart -->
+            </div>
+          </section>
+
+          <!-- FINDINGS ZONE -->
+          <section class="vsp-section vsp-section--last">
+            <div class="vsp-section-header">
+              <h2>Findings Snapshot</h2>
+              <p>Sample from Data Source for quick triage</p>
+            </div>
+            <div id="vsp-dashboard-findings-root" class="vsp-panel">
+              <!-- mini-table / top risky items -->
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 2: RUNS & REPORTS -->
+        <div id="vsp-tab-runs" class="vsp-tab-pane">
+          <section class="vsp-section">
+            <div class="vsp-section-header vsp-section-header--row">
+              <div>
+                <h2>Runs &amp; Reports</h2>
+                <p>Lịch sử FULL_EXT, CI, DEV test · nguồn /api/vsp/runs_index_v3</p>
+              </div>
+              <div class="vsp-toolbar">
+                <button id="vsp-btn-run-full-ext" class="vsp-btn vsp-btn--primary">
+                  Run FULL_EXT
+                </button>
+                <button id="vsp-btn-run-ci" class="vsp-btn vsp-btn--ghost">
+                  Trigger CI Gate
+                </button>
+                <button id="vsp-btn-export-runs" class="vsp-btn vsp-btn--ghost">
+                  Export HTML / ZIP
+                </button>
+              </div>
+            </div>
+
+            <div id="vsp-runs-kpi-root" class="vsp-mini-kpi-row">
+              <!-- vsp_runs_tab_kpi_inject_v1.js -->
+            </div>
+
+            <div class="vsp-table-wrapper">
+              <table id="vsp-runs-table" class="vsp-table">
+                <thead>
+                  <tr>
+                    <th>Run ID</th>
+                    <th>Type</th>
+                    <th>Total Findings</th>
+                    <th>Critical / High</th>
+                    <th>Started At</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- vsp_runs_v1/v2.js sẽ fill -->
+                </tbody>
+              </table>
+            </div>
+
+            <div id="vsp-run-detail-root" class="vsp-panel vsp-panel--subtle">
+              <!-- chi tiết 1 run khi click -->
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 3: DATA SOURCE -->
+        <div id="vsp-tab-datasource" class="vsp-tab-pane">
+          <section class="vsp-section">
+            <div class="vsp-section-header vsp-section-header--row">
+              <div>
+                <h2>Unified Data Source</h2>
+                <p>findings_unified.json · /api/vsp/datasource_v2</p>
+              </div>
+              <div class="vsp-toolbar">
+                <button id="vsp-btn-ds-export-csv" class="vsp-btn vsp-btn--ghost">
+                  Export CSV
+                </button>
+                <button id="vsp-btn-ds-export-json" class="vsp-btn vsp-btn--ghost">
+                  Export JSON
+                </button>
+              </div>
+            </div>
+
+            <div class="vsp-ds-layout">
+              <div class="vsp-ds-left">
+                <div id="vsp-ds-filter-bar" class="vsp-filter-bar">
+                  <!-- vsp_datasource_ext_columns_v1.js có thể gắn filter -->
+                </div>
+                <div class="vsp-table-wrapper vsp-table-wrapper--dense">
+                  <table id="vsp-ds-table" class="vsp-table vsp-table--compact">
+                    <thead>
+                      <tr>
+                        <th>Severity</th>
+                        <th>Tool</th>
+                        <th>Rule</th>
+                        <th>CWE</th>
+                        <th>Location</th>
+                        <th>Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- /api/vsp/datasource_v2 sẽ fill -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <aside class="vsp-ds-right">
+                <div id="vsp-ds-analytics-root" class="vsp-panel">
+                  <!-- mini analytics: by tool, by CWE -->
+                </div>
+              </aside>
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 4: SETTINGS -->
+        <div id="vsp-tab-settings" class="vsp-tab-pane">
+          <section class="vsp-section">
+            <div class="vsp-section-header">
+              <h2>Settings</h2>
+              <p>Config cho SECURITY_BUNDLE · /api/vsp/settings_ui_v1</p>
+            </div>
+
+            <div id="vsp-settings-root" class="vsp-settings-grid">
+              <!-- vsp_settings_tab_v1.js sẽ dựng form -->
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 5: RULE OVERRIDES -->
+        <div id="vsp-tab-rules" class="vsp-tab-pane">
+          <section class="vsp-section">
+            <div class="vsp-section-header">
+              <h2>Rule Overrides</h2>
+              <p>Mute / downgrade rule theo context · /api/vsp/rule_overrides_ui_v1</p>
+            </div>
+
+            <div id="vsp-rules-root" class="vsp-rules-layout">
+              <div class="vsp-panel">
+                <h3 class="vsp-panel-title">Active Overrides</h3>
+                <div id="vsp-rules-list">
+                  <!-- danh sách override -->
+                </div>
+              </div>
+              <div class="vsp-panel vsp-panel--subtle">
+                <h3 class="vsp-panel-title">Policy &amp; Workflow</h3>
+                <p>
+                  Quy ước: mọi override đều trace được về ticket / quyết định của
+                  Security Board. File gốc: <code>vsp_rule_overrides_v1.json</code>.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // [VSP_DASH_BIND_HEADER] Nối header với /api/vsp/dashboard_v3
+    (async function() {
+      try {
+        const res = await fetch('/api/vsp/dashboard_v3');
+        if (!res.ok) {
+            console.warn('[VSP_DASH_BIND_HEADER] HTTP', res.status);
+            return;
+        }
+        const data = await res.json();
+
+        // Total findings
+        const t = document.getElementById('vsp-header-total-findings');
+        if (t && data.total_findings != null) {
+          try {
+            const n = Number(data.total_findings);
+            t.textContent = Number.isFinite(n) ? n.toLocaleString() : String(data.total_findings);
+          } catch (e) {
+            t.textContent = String(data.total_findings);
+          }
+        }
+
+        // Security posture score
+        const s = document.getElementById('vsp-header-score');
+        if (s && data.security_posture_score != null) {
+          s.textContent = data.security_posture_score;
+        }
+
+        // Latest run id
+        const r = document.getElementById('vsp-latest-run-id');
+        if (r && data.latest_run_id) {
+          r.textContent = 'RUN: ' + data.latest_run_id;
+        }
+      } catch (e) {
+        console.warn('[VSP_DASH_BIND_HEADER] Error', e);
+      }
+    })();
+  </script>
+
+
+  <script>
+    // [VSP_DASH_KPI_SIMPLE_V1] Render KPI + chart từ /api/vsp/dashboard_v3
+    (async function() {
+      const LOG = "[VSP_DASH_KPI_SIMPLE_V1]";
+      try {
+        const res = await fetch("/api/vsp/dashboard_v3");
+        if (!res.ok) {
+          console.warn(LOG, "HTTP", res.status);
+          return;
+        }
+        const data = await res.json();
+        const by = (data && data.by_severity) || {};
+        const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+        const labels = {
+          CRITICAL: "Critical",
+          HIGH: "High",
+          MEDIUM: "Medium",
+          LOW: "Low",
+          INFO: "Info",
+          TRACE: "Trace"
+        };
+
+        // --- KPI cards ---
+        const kRoot = document.getElementById("vsp-dashboard-kpi-root");
+        if (kRoot) {
+          const pillMap = {
+            CRITICAL: "critical",
+            HIGH: "high",
+            MEDIUM: "medium",
+            LOW: "low",
+            INFO: "info",
+            TRACE: "trace"
+          };
+
+          function fmt(v) {
+            const n = Number(v);
+            if (Number.isFinite(n)) return n.toLocaleString();
+            return String(v ?? "0");
+          }
+
+          order.forEach(function(sev) {
+            const val = by[sev] || 0;
+            const card = document.createElement("div");
+            card.className = "vsp-kpi-card";
+            card.innerHTML =
+              '<div class="vsp-kpi-card__label">' + labels[sev] + "</div>" +
+              '<div class="vsp-kpi-card__value">' + fmt(val) + "</div>" +
+              '<div class="vsp-kpi-card__sub">Findings</div>' +
+              '<div class="vsp-kpi-pill vsp-kpi-pill--' + pillMap[sev] + '">' + sev + "</div>";
+            kRoot.appendChild(card);
+          });
+
+          // KPI nâng cao
+          const adv = [
+            { label: "Security Score", value: data.security_posture_score ?? "-", sub: "/ 100" },
+            { label: "Top risky tool", value: data.top_risky_tool || "-", sub: "" },
+            { label: "Top CWE", value: data.top_impacted_cwe || "-", sub: "" },
+            { label: "Top vulnerable module", value: data.top_vulnerable_module || "-", sub: "" }
+          ];
+          adv.forEach(function(item) {
+            const card = document.createElement("div");
+            card.className = "vsp-kpi-card";
+            card.innerHTML =
+              '<div class="vsp-kpi-card__label">' + item.label + "</div>" +
+              '<div class="vsp-kpi-card__value">' + (item.value ?? "-") + "</div>" +
+              '<div class="vsp-kpi-card__sub">' + (item.sub || "") + "</div>";
+            kRoot.appendChild(card);
+          });
+        }
+
+        // --- Chart zone ---
+        const cRoot = document.getElementById("vsp-dashboard-charts-root");
+        if (cRoot) {
+          var max = 0;
+          order.forEach(function(sev) {
+            var v = by[sev] || 0;
+            if (v > max) max = v;
+          });
+          function width(v) {
+            if (!max) return 0;
+            return Math.max(4, (v / max) * 100);
+          }
+
+          const left = document.createElement("div");
+          left.className = "vsp-panel";
+          left.innerHTML = '<div class="vsp-panel-title">Severity distribution</div>';
+          const wrap = document.createElement("div");
+          wrap.className = "vsp-chart-rows";
+
+          order.forEach(function(sev) {
+            const v = by[sev] || 0;
+            const row = document.createElement("div");
+            row.className = "vsp-chart-row";
+
+            const label = document.createElement("div");
+            label.className = "vsp-chart-row-label";
+            label.textContent = sev;
+
+            const bar = document.createElement("div");
+            bar.className = "vsp-chart-row-bar";
+            const inner = document.createElement("div");
+            inner.className = "vsp-chart-row-bar-inner vsp-chart-sev-" + sev.toLowerCase();
+            inner.style.width = width(v) + "%";
+            bar.appendChild(inner);
+
+            const val = document.createElement("div");
+            val.className = "vsp-chart-row-value";
+            const n = Number(v);
+            val.textContent = Number.isFinite(n) ? n.toLocaleString() : String(v);
+
+            row.appendChild(label);
+            row.appendChild(bar);
+            row.appendChild(val);
+            wrap.appendChild(row);
+          });
+
+          left.appendChild(wrap);
+
+          const right = document.createElement("div");
+          right.className = "vsp-panel";
+          right.innerHTML =
+            '<div class="vsp-panel-title">Top risk indicators</div>' +
+            '<div class="vsp-top-meta">' +
+            '  <div>' +
+            '    <div class="vsp-top-label">Top risky tool</div>' +
+            '    <div class="vsp-top-value">' + (data.top_risky_tool || "-") + "</div>" +
+            "  </div>" +
+            '  <div>' +
+            '    <div class="vsp-top-label">Top CWE</div>' +
+            '    <div class="vsp-top-value">' + (data.top_impacted_cwe || "-") + "</div>" +
+            "  </div>" +
+            '  <div>' +
+            '    <div class="vsp-top-label">Top vulnerable module</div>' +
+            '    <div class="vsp-top-value">' + (data.top_vulnerable_module || "-") + "</div>" +
+            "  </div>" +
+            '  <div>' +
+            '    <div class="vsp-top-label">Latest FULL_EXT run</div>' +
+            '    <div class="vsp-top-value">' + (data.latest_run_id || "-") + "</div>" +
+            "  </div>" +
+            "</div>";
+
+          cRoot.appendChild(left);
+          cRoot.appendChild(right);
+        }
+
+        // --- Findings snapshot ---
+        const fRoot = document.getElementById("vsp-dashboard-findings-root");
+        if (fRoot) {
+          var total = data.total_findings;
+          try {
+            const n = Number(total);
+            if (Number.isFinite(n)) total = n.toLocaleString();
+          } catch (e) {}
+          fRoot.innerHTML =
+            '<div class="vsp-panel-title">Snapshot</div>' +
+            '<p style="font-size:12px;color:var(--vsp-text-soft);margin:4px 0 0;">' +
+            'Tổng: <strong>' + (total ?? "-") + "</strong> findings, " +
+            "score <strong>" + (data.security_posture_score ?? "-") + "</strong> / 100. " +
+            "Chi tiết xem trong tab <strong>Data Source</strong> và <strong>Runs &amp; Reports</strong>." +
+            "</p>";
+        }
+      } catch (e) {
+        console.warn(LOG, "Error", e);
+      }
+    })();
+  </script>
+
+
+  <script>
+    // [VSP_DASH_KPI_FIX_OBJECTS_V1] Fix [object Object] cho Top CWE / Module
+    (async function() {
+      const LOG = "[VSP_DASH_KPI_FIX_OBJECTS_V1]";
+      try {
+        const res = await fetch("/api/vsp/dashboard_v3");
+        if (!res.ok) {
+          console.warn(LOG, "HTTP", res.status);
+          return;
+        }
+        const data = await res.json();
+
+        function fmtPrimitiveOrObject(v, type) {
+          if (v == null) return "-";
+          if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+            return String(v);
+          }
+          // Nếu là object: ưu tiên các trường thường gặp
+          try {
+            if (type === "cwe") {
+              if (v.code) return v.code;
+              if (v.cwe) return v.cwe;
+              if (v.id) return v.id;
+              if (v.name) return v.name;
+            } else if (type === "module") {
+              if (v.file) return v.file;
+              if (v.path) {
+                try { return v.path.split('/').filter(Boolean).slice(-1)[0] || v.path; } catch(e) { return v.path; }
+              }
+
+              if (v.name) return v.name;
+              if (v.module) return v.module;
+              if (v.package) return v.package;
+              if (v.id) return v.id;
+            }
+          } catch (e) {}
+          try {
+            return JSON.stringify(v);
+          } catch (e) {
+            return "[object]";
+          }
+        }
+
+        const topCweVal  = fmtPrimitiveOrObject(data.top_impacted_cwe, "cwe");
+        const topModVal  = fmtPrimitiveOrObject(data.top_vulnerable_module, "module");
+
+        // Tìm 2 card KPI có label tương ứng và sửa value
+        const cards = document.querySelectorAll(".vsp-kpi-card");
+        cards.forEach(function(card) {
+          const labelEl = card.querySelector(".vsp-kpi-card__label");
+          const valueEl = card.querySelector(".vsp-kpi-card__value");
+          if (!labelEl || !valueEl) return;
+          const label = (labelEl.textContent || "").trim().toLowerCase();
+          if (label === "top cwe") {
+            valueEl.textContent = topCweVal;
+          } else if (label === "top vulnerable module") {
+            valueEl.textContent = topModVal;
+          }
+        });
+      } catch (e) {
+        console.warn(LOG, "Error", e);
+      }
+    })();
+  </script>
+
+
+  <script>
+    // [VSP_DASH_CHARTS_SIMPLE_V1] Vẽ 2 panel Chart zone từ /api/vsp/dashboard_v3
+    (async function () {
+      const LOG = "[VSP_DASH_CHARTS_SIMPLE_V1]";
+      try {
+        const res = await fetch("/api/vsp/dashboard_v3");
+        if (!res.ok) {
+          console.warn(LOG, "HTTP", res.status);
+          return;
+        }
+        const data = await res.json();
+        const by = (data && data.by_severity) || {};
+        const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+
+        function fmt(v) {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n.toLocaleString();
+          return String(v ?? "0");
+        }
+
+        const root = document.getElementById("vsp-dashboard-charts-root");
+        if (!root) {
+          console.warn(LOG, "Không thấy #vsp-dashboard-charts-root");
+          return;
+        }
+        // Xoá mọi thứ cũ (nếu có) để đảm bảo layout sạch
+        root.innerHTML = "";
+
+        // ==== Panel trái: Severity distribution ====
+        var total = 0;
+        order.forEach(function(sev) { total += Number(by[sev] || 0); });
+        function widthPercent(v) {
+          if (!total) return 0;
+          return Math.max(4, (v / total) * 100);
+        }
+
+        const left = document.createElement("div");
+        left.className = "vsp-panel";
+        left.innerHTML = '<div class="vsp-panel-title">Severity distribution</div>';
+
+        const rowsWrap = document.createElement("div");
+        rowsWrap.className = "vsp-chart-rows";
+
+        order.forEach(function(sev) {
+          const v = Number(by[sev] || 0);
+          const row = document.createElement("div");
+          row.className = "vsp-chart-row";
+
+          const label = document.createElement("div");
+          label.className = "vsp-chart-row-label";
+          label.textContent = sev;
+
+          const bar = document.createElement("div");
+          bar.className = "vsp-chart-row-bar";
+          const inner = document.createElement("div");
+          inner.className = "vsp-chart-row-bar-inner vsp-chart-sev-" + sev.toLowerCase();
+          inner.style.width = widthPercent(v) + "%";
+          bar.appendChild(inner);
+
+          const val = document.createElement("div");
+          val.className = "vsp-chart-row-value";
+          val.textContent = fmt(v);
+
+          row.appendChild(label);
+          row.appendChild(bar);
+          row.appendChild(val);
+          rowsWrap.appendChild(row);
+        });
+
+        left.appendChild(rowsWrap);
+
+        // ==== Panel phải: Top risk indicators ====
+        const right = document.createElement("div");
+        right.className = "vsp-panel";
+        right.innerHTML =
+          '<div class="vsp-panel-title">Top risk indicators</div>' +
+          '<div class="vsp-top-meta">' +
+          '  <div>' +
+          '    <div class="vsp-top-label">Top risky tool</div>' +
+          '    <div class="vsp-top-value">' + (data.top_risky_tool || "-") + "</div>" +
+          "  </div>" +
+          '  <div>' +
+          '    <div class="vsp-top-label">Top CWE</div>' +
+          '    <div class="vsp-top-value">' + (data.top_impacted_cwe && (data.top_impacted_cwe.code || data.top_impacted_cwe.cwe || data.top_impacted_cwe.id || data.top_impacted_cwe) || "-") + "</div>" +
+          "  </div>" +
+          '  <div>' +
+          '    <div class="vsp-top-label">Top vulnerable module</div>' +
+          '    <div class="vsp-top-value">' + (data.top_vulnerable_module && (data.top_vulnerable_module.name || data.top_vulnerable_module.module || data.top_vulnerable_module.package || data.top_vulnerable_module.file || data.top_vulnerable_module.path || data.top_vulnerable_module) || "-") + "</div>" +
+          "  </div>" +
+          '  <div>' +
+          '    <div class="vsp-top-label">Latest FULL_EXT run</div>' +
+          '    <div class="vsp-top-value">' + (data.latest_run_id || "-") + "</div>" +
+          "  </div>" +
+          "</div>";
+
+        // Gắn 2 panel vào grid
+        root.appendChild(left);
+        root.appendChild(right);
+      } catch (e) {
+        console.warn(LOG, "Error", e);
+      }
+    })();
+  </script>
+\n
+  <script>
+    // [VSP_DASH_CHARTS_TOOLS_CWE_V1] Charts 3 & 4: by tool + top CWE từ /api/vsp/datasource_v2
+    (async function () {
+      const LOG = "[VSP_DASH_CHARTS_TOOLS_CWE_V1]";
+      try {
+        const res = await fetch("/api/vsp/datasource_v2?limit=5000");
+        if (!res.ok) {
+          console.warn(LOG, "HTTP", res.status);
+          return;
+        }
+        const data = await res.json();
+        const items = Array.isArray(data)
+          ? data
+          : (Array.isArray(data.items) ? data.items : []);
+
+        if (!items.length) {
+          console.warn(LOG, "Không có items trong datasource.");
+          return;
+        }
+
+        // Đếm theo tool & CWE
+        const byTool = {};
+        const byCwe  = {};
+
+        items.forEach(function (it) {
+          try {
+            const tool = it.tool || it.tool_name || "unknown";
+            const cweRaw = it.cwe || it.cwe_id || it.cwe_code || it.cwe_name;
+            const cwe = cweRaw || "N/A";
+
+            byTool[tool] = (byTool[tool] || 0) + 1;
+            byCwe[cwe]   = (byCwe[cwe]   || 0) + 1;
+          } catch (e) {
+            // skip lỗi nhỏ
+          }
+        });
+
+        function topN(obj, n) {
+          return Object.entries(obj)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, n);
+        }
+
+        const topTools = topN(byTool, 5);
+        const topCwes  = topN(byCwe, 5);
+
+        const chartsRoot = document.getElementById("vsp-dashboard-charts-root");
+        if (!chartsRoot) {
+          console.warn(LOG, "Không thấy #vsp-dashboard-charts-root");
+          return;
+        }
+
+        function fmt(v) {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n.toLocaleString();
+          return String(v ?? "0");
+        }
+
+        function buildBarPanel(title, entries, cssClass) {
+          const panel = document.createElement("div");
+          panel.className = "vsp-panel";
+          panel.innerHTML = '<div class="vsp-panel-title">' + title + '</div>';
+
+          const wrap = document.createElement("div");
+          wrap.className = "vsp-chart-rows";
+
+          let max = 0;
+          entries.forEach(function ([k, v]) {
+            if (v > max) max = v;
+          });
+          function w(v) {
+            if (!max) return 0;
+            return Math.max(8, (v / max) * 100);
+          }
+
+          entries.forEach(function ([k, v]) {
+            const row = document.createElement("div");
+            row.className = "vsp-chart-row";
+
+            const label = document.createElement("div");
+            label.className = "vsp-chart-row-label";
+            label.textContent = k;
+
+            const bar = document.createElement("div");
+            bar.className = "vsp-chart-row-bar";
+            const inner = document.createElement("div");
+            inner.className = "vsp-chart-row-bar-inner " + (cssClass || "");
+            inner.style.width = w(v) + "%";
+            bar.appendChild(inner);
+
+            const val = document.createElement("div");
+            val.className = "vsp-chart-row-value";
+            val.textContent = fmt(v);
+
+            row.appendChild(label);
+            row.appendChild(bar);
+            row.appendChild(val);
+            wrap.appendChild(row);
+          });
+
+          panel.appendChild(wrap);
+          return panel;
+        }
+
+        // Panel 3: Findings by tool
+        if (topTools.length) {
+          const pTools = buildBarPanel("Findings by tool", topTools, "vsp-chart-sev-high");
+          chartsRoot.appendChild(pTools);
+        }
+
+        // Panel 4: Top CWE exposure
+        if (topCwes.length) {
+          const pCwe = buildBarPanel("Top CWE exposure", topCwes, "vsp-chart-sev-medium");
+          chartsRoot.appendChild(pCwe);
+        }
+
+      } catch (e) {
+        console.warn(LOG, "Error", e);
+      }
+    })();
+  </script>
+\n
+  <script>
+    // [VSP_DASH_CHARTS_V4] 4 chart: severity, top risk, by tool, top CWE
+    (function () {
+      const LOG = "[VSP_DASH_CHARTS_V4]";
+
+      async function loadCharts() {
+        try {
+          const [dashRes, dsRes] = await Promise.all([
+            fetch("/api/vsp/dashboard_v3"),
+            fetch("/api/vsp/datasource_v2?limit=5000")
+          ]);
+
+          if (!dashRes.ok) {
+            console.warn(LOG, "dashboard_v3 HTTP", dashRes.status);
+            return;
+          }
+          if (!dsRes.ok) {
+            console.warn(LOG, "datasource_v2 HTTP", dsRes.status);
+            return;
+          }
+
+          const dash = await dashRes.json();
+          const dsRaw = await dsRes.json();
+
+          const bySev = (dash && dash.by_severity) || {};
+          const sevOrder = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+
+          const items = Array.isArray(dsRaw)
+            ? dsRaw
+            : (Array.isArray(dsRaw.items) ? dsRaw.items : []);
+
+          const chartsRoot = document.getElementById("vsp-dashboard-charts-root");
+          if (!chartsRoot) {
+            console.warn(LOG, "Không thấy #vsp-dashboard-charts-root");
+            return;
+          }
+          chartsRoot.innerHTML = ""; // clear mọi thứ cũ
+
+          function fmt(v) {
+            const n = Number(v);
+            if (Number.isFinite(n)) return n.toLocaleString();
+            return String(v ?? "0");
+          }
+
+          // ===== Chart 1: Severity distribution =====
+          let totalSev = 0;
+          sevOrder.forEach(sev => { totalSev += Number(bySev[sev] || 0); });
+
+          function widthPercent(v, total) {
+            if (!total) return 0;
+            return Math.max(6, (v / total) * 100);
+          }
+
+          const panelSev = document.createElement("div");
+          panelSev.className = "vsp-panel";
+          panelSev.innerHTML = '<div class="vsp-panel-title">Severity distribution</div>';
+
+          const sevWrap = document.createElement("div");
+          sevWrap.className = "vsp-chart-rows";
+
+          sevOrder.forEach(sev => {
+            const v = Number(bySev[sev] || 0);
+            const row = document.createElement("div");
+            row.className = "vsp-chart-row";
+
+            const label = document.createElement("div");
+            label.className = "vsp-chart-row-label";
+            label.textContent = sev;
+
+            const bar = document.createElement("div");
+            bar.className = "vsp-chart-row-bar";
+            const inner = document.createElement("div");
+            inner.className = "vsp-chart-row-bar-inner vsp-chart-sev-" + sev.toLowerCase();
+            inner.style.width = widthPercent(v, totalSev) + "%";
+            bar.appendChild(inner);
+
+            const val = document.createElement("div");
+            val.className = "vsp-chart-row-value";
+            val.textContent = fmt(v);
+
+            row.appendChild(label);
+            row.appendChild(bar);
+            row.appendChild(val);
+            sevWrap.appendChild(row);
+          });
+
+          panelSev.appendChild(sevWrap);
+
+          // ===== Chuẩn hoá top CWE / module =====
+          function normalizeTop(val, type) {
+            if (val == null) return "-";
+            if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+              return String(val);
+            }
+            try {
+              if (type === "cwe") {
+                return val.code || val.cwe || val.id || val.name || JSON.stringify(val);
+              }
+              if (type === "module") {
+                const path = val.file || val.path || val.module || val.package || val.name;
+                if (!path) return JSON.stringify(val);
+                try {
+                  const parts = String(path).split("/").filter(Boolean);
+                  return parts[parts.length - 1] || path;
+                } catch (e) { return path; }
+              }
+            } catch (e) {
+              return "[object]";
+            }
+          }
+
+          const topTool  = dash.top_risky_tool || "-";
+          const topCwe   = normalizeTop(dash.top_impacted_cwe, "cwe");
+          const topMod   = normalizeTop(dash.top_vulnerable_module, "module");
+          const latestId = dash.latest_run_id || "-";
+
+          // ===== Chart 2: Top risk indicators =====
+          const panelTop = document.createElement("div");
+          panelTop.className = "vsp-panel";
+          panelTop.innerHTML =
+            '<div class="vsp-panel-title">Top risk indicators</div>' +
+            '<div class="vsp-top-meta">' +
+            '  <div>' +
+            '    <div class="vsp-top-label">Top risky tool</div>' +
+            '    <div class="vsp-top-value">' + topTool + '</div>' +
+            '  </div>' +
+            '  <div>' +
+            '    <div class="vsp-top-label">Top CWE</div>' +
+            '    <div class="vsp-top-value">' + topCwe + '</div>' +
+            '  </div>' +
+            '  <div>' +
+            '    <div class="vsp-top-label">Top vulnerable module</div>' +
+            '    <div class="vsp-top-value">' + topMod + '</div>' +
+            '  </div>' +
+            '  <div>' +
+            '    <div class="vsp-top-label">Latest FULL_EXT run</div>' +
+            '    <div class="vsp-top-value">' + latestId + '</div>' +
+            '  </div>' +
+            '</div>';
+
+          // ===== Build topN by tool / CWE từ datasource =====
+          const byTool = {};
+          const byCwe  = {};
+
+          items.forEach(it => {
+            try {
+              const tool = it.tool || it.tool_name || "unknown";
+              const cweRaw = it.cwe || it.cwe_id || it.cwe_code || it.cwe_name;
+              const cwe = cweRaw || "N/A";
+              byTool[tool] = (byTool[tool] || 0) + 1;
+              byCwe[cwe]   = (byCwe[cwe]   || 0) + 1;
+            } catch (e) {}
+          });
+
+          function topN(obj, n) {
+            return Object.entries(obj)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, n);
+          }
+
+          const topTools = topN(byTool, 5);
+          const topCwes  = topN(byCwe, 5);
+
+          function buildBarPanel(title, entries, extraClass) {
+            const panel = document.createElement("div");
+            panel.className = "vsp-panel";
+            panel.innerHTML = '<div class="vsp-panel-title">' + title + '</div>';
+
+            const wrap = document.createElement("div");
+            wrap.className = "vsp-chart-rows";
+
+            let max = 0;
+            entries.forEach(([k, v]) => { if (v > max) max = v; });
+
+            function w(v) {
+              if (!max) return 0;
+              return Math.max(8, (v / max) * 100);
+            }
+
+            entries.forEach(([k, v]) => {
+              const row = document.createElement("div");
+              row.className = "vsp-chart-row";
+
+              const label = document.createElement("div");
+              label.className = "vsp-chart-row-label";
+              label.textContent = k;
+
+              const bar = document.createElement("div");
+              bar.className = "vsp-chart-row-bar";
+              const inner = document.createElement("div");
+              inner.className = "vsp-chart-row-bar-inner " + (extraClass || "");
+              inner.style.width = w(v) + "%";
+              bar.appendChild(inner);
+
+              const val = document.createElement("div");
+              val.className = "vsp-chart-row-value";
+              val.textContent = fmt(v);
+
+              row.appendChild(label);
+              row.appendChild(bar);
+              row.appendChild(val);
+              wrap.appendChild(row);
+            });
+
+            panel.appendChild(wrap);
+            return panel;
+          }
+
+          let panelTool = null;
+          if (topTools.length) {
+            panelTool = buildBarPanel("Findings by tool", topTools, "vsp-chart-sev-high");
+          }
+
+          let panelCwe = null;
+          if (topCwes.length) {
+            panelCwe = buildBarPanel("Top CWE exposure", topCwes, "vsp-chart-sev-medium");
+          }
+
+          chartsRoot.appendChild(panelSev);
+          chartsRoot.appendChild(panelTop);
+          if (panelTool) chartsRoot.appendChild(panelTool);
+          if (panelCwe) chartsRoot.appendChild(panelCwe);
+
+          console.log(LOG, "Rendered 4 charts (sev/top/tool/cwe).");
+        } catch (e) {
+          console.warn(LOG, "Error", e);
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", loadCharts);
+      } else {
+        loadCharts();
+      }
+    })();
+  </script>
+</body>
+</html>

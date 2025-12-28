@@ -1,0 +1,40 @@
+<!-- ====== SETTINGS – GIẢI THÍCH & CI/CD GATE ====== -->
+
+<!-- 1) Giải thích ngắn cho LEVEL / MODES (đặt ngay dưới tiêu đề SETTINGS – TOOL CONFIG) -->
+<div style="font-size:12px;color:#9ca3af;margin-bottom:10px;">
+  <b>LEVEL</b>: <code>fast</code> = rule cơ bản, <code>aggr</code> = rule sâu / coverage cao hơn (nhiều cảnh báo hơn).<br>
+  <b>MODES</b>: <code>Offline</code> = chạy trong bundle (không cần internet),
+  <code>Online</code> = được phép dùng internet,
+  <code>CI/CD</code> = bật khi chạy trong pipeline (GitLab/GitHub/Jenkins...).
+</div>
+
+<!-- 2) Hộp mô tả CI/CD quality gate (đặt dưới bảng tool) -->
+<div style="margin-top:16px;padding:12px 14px;border-radius:12px;
+            border:1px solid #1f2937;background:#020617;font-size:12px;color:#e5e7eb;">
+  <div style="font-size:13px;color:#9ca3af;margin-bottom:4px;">
+    CI/CD QUALITY GATE (áp dụng khi MODE = CI/CD)
+  </div>
+  <div style="line-height:1.5;">
+    Khi chạy trong pipeline CI/CD, bundle dùng ngưỡng mặc định:
+    <ul style="margin:4px 0 0 18px;padding:0;">
+      <li>❌ <b>FAIL</b> nếu <code>CRITICAL ≥ 1</code></li>
+      <li>❌ <b>FAIL</b> nếu <code>HIGH ≥ 10</code></li>
+      <li>❌ <b>FAIL</b> nếu <code>MEDIUM ≥ 50</code></li>
+      <li>❌ <b>FAIL</b> nếu <code>CRIT + HIGH + MED &gt; 100</code></li>
+      <li>✅ Các trường hợp khác: <b>PASS</b></li>
+    </ul>
+    <div style="margin-top:6px;">
+      Có thể kiểm tra tay cùng logic gate này bằng lệnh:<br>
+      <code>bin/check_gate.sh "" cicd</code>
+      (tự lấy RUN mới nhất có <code>summary_unified.json</code>).
+    </div>
+  </div>
+</div>
+
+<!-- 3) Gợi ý map sang ENV / script (footer nhỏ dưới cùng SETTINGS) -->
+<div style="font-size:11px;color:#6b7280;margin-top:8px;">
+  Gợi ý: có thể map cấu hình tool sang env / script, ví dụ
+  <code>ENABLE_GITLEAKS, ENABLE_SEMGREP, ENABLE_TRIVY_VULN...</code><br>
+  và đọc trong <code>run_all_tools_v2.sh</code> tùy theo mode Offline/Online/CI/CD.
+</div>
+<!-- ====== HẾT SNIPPET SETTINGS ====== -->

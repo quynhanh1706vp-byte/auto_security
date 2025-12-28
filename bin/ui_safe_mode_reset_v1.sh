@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+TS="$(date +%Y%m%d_%H%M%S)"
+
+TPL="templates/vsp_dashboard_2025.html"
+JS="static/js/vsp_app_entry_safe_v1.js"
+
+[ -f "$TPL" ] || { echo "[ERR] missing $TPL"; exit 2; }
+mkdir -p out_ci
+
+cp -f "$TPL" "$TPL.bak_safe_${TS}" && echo "[BACKUP] $TPL.bak_safe_${TS}"
+
+cat > "$JS" <<'JSFILE'
+/* VSP_SAFE_APP_ENTRY_V1: disable legacy chaos, provide stable minimal commercial UI */
+(function(){
+  'use strict';
+  if (window.__VSP_SAFE_APP_V1__) return;
+  window.__VSP_SAFE_APP_V1__ = true;
+
+  const $ = (s, r=document)=>r.querySelector(s);
+  const h = ()=> (location.hash||'#dashboard').toLowerCase();
+  const is = (x)=> h().startsWith('#'+x);
+
+  async function jget(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if(!r.ok) throw new Error(url+' -> '+r.status);
+    return r.json();
+  }
+
+  function esc(x){ return String(x??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+  function mount(){
+    // hide everything else to avoid layout fights
+    try{
+      Array.from(document.body.children).forEach(ch=>{
+        if(ch && ch.id !== 'vspSafeApp') ch.style.display = 'none';
+      });
+    }catch(_){}
+
+    const host = document.createElement('div');
+    host.id = 'vspSafeApp';
+    host.style.cssText = "min-height:100vh;background:#0b1020;color:#e7eaf0;font-family:system-ui,Segoe UI,Roboto,Arial;";
+
+    host.innerHTML = `
+      <div style="padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:800;font-size:16px;letter-spacing:.2px">VersaSecure Platform — SAFE MODE</div>
+          <div style="opacity:.75;font-size:12px;margin-top:2px">UI ổn định trước, rồi build lại thương mại full sau (không còn nhảy/đúp panel).</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="safeReload" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(17,20,28,.9);color:#e7eaf0;cursor:pointer">Hard Reload</button>
+          <button id="safeExit" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(40,120,255,.22);color:#e7eaf0;cursor:pointer">Exit SAFE MODE</button>
+        </div>
+      </div>
+
+      <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap">
+        <a href="#dashboard" data-tab="dashboard" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Dashboard</a>
+        <a href="#runs" data-tab="runs" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Runs & Reports</a>
+        <a href="#datasource" data-tab="datasource" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Data Source</a>
+        <a href="#settings" data-tab="settings" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Settings</a>
+        <a href="#rules" data-tab="rules" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Rule Overrides</a>
+      </div>
+
+      <div id="safeMain" style="padding:0 18px 22px"></div>
+    `;
+
+    document.body.appendChild(host);
+
+    $('#safeReload', host).onclick = ()=>{ try{ location.reload(true); }catch(_){ location.reload(); } };
+    $('#safeExit', host).onclick = ()=>{ alert("SAFE MODE đang bật. Chạy script restore để quay lại full UI."); };
+
+    render();
+    window.addEventListener('hashchange', render, true);
+  }
+
+  async function render(){
+    const main = $('#safeMain');
+    if(!main) return;
+    const tab = is('runs')?'runs':is('datasource')?'datasource':is('settings')?'settings':is('rules')?'rules':'dashboard';
+
+    // active tab style
+    document.querySelectorAll('#vspSafeApp a[data-tab]').forEach(a=>{
+      a.style.background = (a.getAttribute('data-tab')===tab) ? 'rgba(40,120,255,.18)' : 'transparent';
+    });
+
+    main.innerHTML = `<div style="opacity:.8;padding:10px 0">Loading…</div>`;
+
+    try{
+      if(tab==='dashboard'){
+        const d = await jget('/api/vsp/dashboard_v3');
+        main.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;max-width:1100px">
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">Current run_id</div>
+              <div style="font-weight:800;font-size:14px;margin-top:6px">${esc(d.run_id||d.rid||'N/A')}</div>
+            </div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">Total</div>
+              <div style="font-weight:900;font-size:20px;margin-top:6px">${esc(d.total||d.total_findings||'—')}</div>
+            </div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">Critical</div>
+              <div style="font-weight:900;font-size:20px;margin-top:6px">${esc(d.critical||'—')}</div>
+            </div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">High</div>
+              <div style="font-weight:900;font-size:20px;margin-top:6px">${esc(d.high||'—')}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;max-width:1100px">
+            <div style="opacity:.75;font-size:12px;margin-bottom:8px">Quick links</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <a style="color:#9cc4ff" href="/api/vsp/dashboard_v3" target="_blank">/api/vsp/dashboard_v3</a>
+              <a style="color:#9cc4ff" href="/api/vsp/runs_index_v3_fs_resolved?limit=20&hide_empty=0&filter=1" target="_blank">runs_index_v3</a>
+            </div>
+          </div>
+        `;
+      }
+
+      if(tab==='runs'){
+        const r = await jget('/api/vsp/runs_index_v3_fs_resolved?limit=30&hide_empty=0&filter=1');
+        const items = Array.isArray(r.items)?r.items:[];
+        const rows = items.map(it=>{
+          const rid = it.run_id||it.rid||'';
+          return `<tr>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">${esc(it.time||it.started||'')}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);font-family:ui-monospace,monospace">${esc(rid)}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">${esc(it.target||'')}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">${esc(it.status||it.verdict||'')}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">
+              <a style="color:#9cc4ff" href="/api/vsp/run_status_v2/${esc(rid)}" target="_blank">status</a>
+              &nbsp;|&nbsp;
+              <a style="color:#9cc4ff" href="/api/vsp/artifacts_index_v1/${esc(rid)}" target="_blank">artifacts</a>
+            </td>
+          </tr>`;
+        }).join('');
+
+        main.innerHTML = `
+          <div style="opacity:.8;font-size:12px;margin-bottom:8px">Runs (SAFE MODE table)</div>
+          <div style="border:1px solid rgba(255,255,255,.10);border-radius:12px;overflow:auto;max-width:1200px">
+            <table style="border-collapse:collapse;width:100%;min-width:880px">
+              <thead>
+                <tr style="text-align:left;opacity:.8;font-size:12px">
+                  <th style="padding:10px">Time</th>
+                  <th style="padding:10px">Run ID</th>
+                  <th style="padding:10px">Target</th>
+                  <th style="padding:10px">Status</th>
+                  <th style="padding:10px">Links</th>
+                </tr>
+              </thead>
+              <tbody>${rows || `<tr><td colspan="5" style="padding:12px;opacity:.75">No items</td></tr>`}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if(tab==='datasource'){
+        main.innerHTML = `
+          <div style="max-width:1100px">
+            <div style="opacity:.8;font-size:12px;margin-bottom:8px">Data Source (SAFE MODE)</div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.85">Mở raw API để kiểm tra dữ liệu:</div>
+              <ul style="margin:8px 0 0 18px;opacity:.9">
+                <li><a style="color:#9cc4ff" href="/api/vsp/dashboard_v3" target="_blank">/api/vsp/dashboard_v3</a></li>
+                <li><a style="color:#9cc4ff" href="/api/vsp/runs_index_v3_fs_resolved?limit=50&hide_empty=0&filter=1" target="_blank">/api/vsp/runs_index_v3_fs_resolved</a></li>
+              </ul>
+            </div>
+          </div>
+        `;
+      }
+
+      if(tab==='settings'){
+        main.innerHTML = `
+          <div style="max-width:1100px">
+            <div style="opacity:.8;font-size:12px;margin-bottom:8px">Settings (SAFE MODE)</div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;opacity:.9">
+              SAFE MODE chỉ giữ UI ổn định. Khi muốn quay lại full UI, chạy script restore.
+            </div>
+          </div>
+        `;
+      }
+
+      if(tab==='rules'){
+        main.innerHTML = `
+          <div style="max-width:1100px">
+            <div style="opacity:.8;font-size:12px;margin-bottom:8px">Rule Overrides (SAFE MODE)</div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;opacity:.9">
+              SAFE MODE không chạy editor legacy để tránh crash/syntax error. (Quay lại full UI sau khi restore.)
+            </div>
+          </div>
+        `;
+      }
+
+    }catch(e){
+      main.innerHTML = `<div style="padding:12px;border:1px solid rgba(255,80,80,.30);border-radius:12px;max-width:1100px">
+        <div style="font-weight:800;margin-bottom:6px">SAFE MODE error</div>
+        <div style="opacity:.85;font-family:ui-monospace,monospace;white-space:pre-wrap">${esc(e && (e.stack||e.message||String(e)))}</div>
+      </div>`;
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', mount, {once:true});
+  }else{
+    mount();
+  }
+})();
+JSFILE
+
+# Patch template: disable ALL static/js scripts (they are the chaos source), then add SAFE entry
+python3 - <<PY
+from pathlib import Path
+import re
+tpl=Path("$TPL")
+s=tpl.read_text(encoding="utf-8", errors="ignore")
+
+# comment out any script tag that loads static/js/*.js
+def repl(m):
+    tag=m.group(0)
+    if "vsp_app_entry_safe_v1.js" in tag:
+        return tag
+    return "<!-- SAFE_MODE disabled: " + tag.replace("--","- -") + " -->"
+
+s=re.sub(r'<script[^>]+src=["\'](?:/)?static/js/[^"\']+["\'][^>]*>\s*</script>', repl, s, flags=re.I)
+
+# ensure SAFE entry exists before </body>
+if "vsp_app_entry_safe_v1.js" not in s:
+    s=s.replace("</body>", f'<script src="/static/js/vsp_app_entry_safe_v1.js?v={TS}"></script>\n</body>')
+
+tpl.write_text(s, encoding="utf-8")
+print("[OK] patched template -> SAFE MODE (legacy static/js disabled)")
+PY
+
+node --check "$JS" >/dev/null && echo "[OK] node --check safe entry" || { echo "[ERR] safe entry syntax failed"; exit 3; }
+
+echo "[DONE] SAFE MODE enabled. Restart UI then Ctrl+0 + Ctrl+Shift+R."

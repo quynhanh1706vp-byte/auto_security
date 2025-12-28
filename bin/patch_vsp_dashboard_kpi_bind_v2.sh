@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UI_ROOT="$(cd "$BIN_DIR/.." && pwd)"
+JS="$UI_ROOT/static/js/vsp_dashboard_kpi_v1.js"
+
+if [ ! -f "$JS" ]; then
+  echo "[ERR] Không tìm thấy $JS"
+  exit 1
+fi
+
+backup="$JS.bak_bind_v2_$(date +%Y%m%d_%H%M%S)"
+cp "$JS" "$backup"
+echo "[BACKUP] $JS -> $backup"
+
+cat > "$JS" << 'JS'
+/**
+ * VSP Dashboard KPI binder V2
+ * Đọc /api/vsp/dashboard_v3 và nhét số vào các card KPI dựa trên label text.
+ */
+(function () {
+  const LOG_PREFIX = "[VSP][KPI]";
+
+  function formatNumber(n) {
+    if (typeof n !== "number") {
+      n = Number(n || 0);
+    }
+    try {
+      return n.toLocaleString("en-US");
+    } catch (e) {
+      return String(n);
+    }
+  }
+
+  function setText(el, value) {
+    if (!el) return;
+    el.textContent = value;
+  }
+
+  function bindKpiCards(data) {
+    const sev = (data && data.severity_cards) || {};
+    const total = data && typeof data.total_findings === "number"
+      ? data.total_findings
+      : 0;
+    const score =
+      data && typeof data.security_posture_score === "number"
+        ? data.security_posture_score
+        : null;
+
+    const topTool = data && data.top_risky_tool;
+    const topCwe = data && data.top_impacted_cwe;
+    const topModule = data && data.top_vulnerable_module;
+
+    const cards = document.querySelectorAll(".vsp-kpi-card, [data-vsp-kpi-card]");
+    cards.forEach((card) => {
+      const labelEl =
+        card.querySelector(".vsp-kpi-label") ||
+        card.querySelector(".vsp-kpi-title");
+      const valueEl =
+        card.querySelector(".vsp-kpi-value") ||
+        card.querySelector(".vsp-kpi-number");
+
+      if (!labelEl || !valueEl) return;
+
+      const label = labelEl.textContent.trim().toUpperCase();
+
+      // TOTAL FINDINGS
+      if (label.startsWith("TOTAL FINDINGS")) {
+        setText(valueEl, formatNumber(total));
+        return;
+      }
+
+      // INFO + TRACE (gộp 2 bucket)
+      if (label.startsWith("INFO + TRACE") || label === "INFO / TRACE") {
+        const n =
+          (sev.INFO ? Number(sev.INFO) : 0) +
+          (sev.TRACE ? Number(sev.TRACE) : 0);
+        setText(valueEl, formatNumber(n));
+        return;
+      }
+
+      // SECURITY POSTURE SCORE
+      if (label.startsWith("SECURITY POSTURE SCORE")) {
+        if (score === null) {
+          setText(valueEl, "N/A");
+        } else {
+          setText(valueEl, score + " / 100");
+        }
+        return;
+      }
+
+      // TOP RISKY TOOL
+      if (label.startsWith("TOP RISKY TOOL")) {
+        if (topTool && topTool.label) {
+          const n = topTool.crit_high || topTool.count || 0;
+          setText(valueEl, topTool.label + " (" + n + ")");
+        } else {
+          setText(valueEl, "N/A");
+        }
+        return;
+      }
+
+      // TOP IMPACTED CWE
+      if (label.startsWith("TOP IMPACTED CWE")) {
+        if (topCwe && topCwe.label) {
+          const n = topCwe.count || 0;
+          setText(valueEl, topCwe.label + " (" + n + ")");
+        } else {
+          setText(valueEl, "N/A");
+        }
+        return;
+      }
+
+      // TOP VULNERABLE MODULE
+      if (label.startsWith("TOP VULNERABLE MODULE")) {
+        if (topModule && topModule.label) {
+          const n = topModule.count || 0;
+          setText(valueEl, topModule.label + " (" + n + ")");
+        } else {
+          setText(valueEl, "N/A");
+        }
+        return;
+      }
+
+      // 6 bucket severity
+      if (label === "CRITICAL") {
+        setText(valueEl, formatNumber(sev.CRITICAL || 0));
+        return;
+      }
+      if (label === "HIGH") {
+        setText(valueEl, formatNumber(sev.HIGH || 0));
+        return;
+      }
+      if (label === "MEDIUM") {
+        setText(valueEl, formatNumber(sev.MEDIUM || 0));
+        return;
+      }
+      if (label === "LOW") {
+        setText(valueEl, formatNumber(sev.LOW || 0));
+        return;
+      }
+    });
+  }
+
+  async function loadDashboardKpi() {
+    try {
+      const res = await fetch("/api/vsp/dashboard_v3");
+      if (!res.ok) {
+        console.error(LOG_PREFIX, "HTTP", res.status);
+        return;
+      }
+      const data = await res.json();
+      console.log(LOG_PREFIX, "Dashboard data (KPI view):", data);
+      bindKpiCards(data);
+    } catch (err) {
+      console.error(LOG_PREFIX, "Error loading dashboard KPI:", err);
+    }
+  }
+
+  // Auto run khi trang load
+  document.addEventListener("DOMContentLoaded", function () {
+    loadDashboardKpi();
+  });
+
+  // Cho phép reload từ console nếu cần
+  window.vspReloadDashboardKPI = loadDashboardKpi;
+})();
+JS
+
+echo "[DONE] patch_vsp_dashboard_kpi_bind_v2.sh hoàn tất."

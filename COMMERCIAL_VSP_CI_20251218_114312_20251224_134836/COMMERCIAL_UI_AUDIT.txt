@@ -1,0 +1,254 @@
+== [A] fetch HTML per tab + extract JS ==
+--- TAB /vsp5
+/static/js/vsp_bundle_tabs5_v1.js?v=20251224
+/static/js/vsp_dashboard_consistency_patch_v1.js?v=1766558917
+/static/js/vsp_dashboard_luxe_v1.js?v=20251224
+/static/js/vsp_rid_persist_patch_v1.js?v=1766558917
+/static/js/vsp_rid_switch_refresh_all_v1.js?v=1766558917
+/static/js/vsp_tabs4_autorid_v1.js?v=20251224
+/static/js/vsp_topbar_commercial_v1.js?v=20251224
+--- TAB /runs
+/static/js/vsp_bundle_tabs5_v1.js?v=20251224
+/static/js/vsp_runs_kpi_compact_v3.js?v=1766558902
+/static/js/vsp_runs_quick_actions_v1.js?v=1766558902
+/static/js/vsp_runs_reports_overlay_v1.js?v=1766558902
+/static/js/vsp_scan_panel_v1.js?v=1766558902
+/static/js/vsp_tabs4_autorid_v1.js?v=20251224
+/static/js/vsp_topbar_commercial_v1.js?v=20251224
+--- TAB /releases
+--- TAB /data_source
+/static/js/vsp_bundle_tabs5_v1.js?v=20251224
+/static/js/vsp_dashboard_luxe_v1.js?v=20251224
+/static/js/vsp_data_source_pagination_v1.js?v=1766558902
+/static/js/vsp_data_source_tab_v3.js?v=1766558902
+/static/js/vsp_tabs3_common_v3.js?v=1766558902
+/static/js/vsp_tabs4_autorid_v1.js?v=20251224
+--- TAB /settings
+/static/js/vsp_bundle_tabs5_v1.js?v=20251224
+/static/js/vsp_dashboard_luxe_v1.js?v=20251224
+/static/js/vsp_settings_commercial_v1.js?v=1766558902
+/static/js/vsp_settings_control_center_v1.js?v=1766558902
+/static/js/vsp_settings_tab_v3.js?v=1766558902
+/static/js/vsp_tabs3_common_v3.js?v=1766558902
+/static/js/vsp_tabs4_autorid_v1.js?v=20251224
+/static/js/vsp_ui_shell_v1.js?v=1766558902
+--- TAB /rule_overrides
+/static/js/vsp_bundle_tabs5_v1.js?v=20251224
+/static/js/vsp_dashboard_luxe_v1.js?v=20251224
+/static/js/vsp_rule_overrides_tab_v3.js?v=1766558902
+/static/js/vsp_tabs3_common_v3.js?v=1766558902
+/static/js/vsp_tabs4_autorid_v1.js?v=20251224
+
+== [B] download JS assets ==
+
+== [SCAN] FORBIDDEN: FE calls run_file_allow (should be tab-scoped API) ==
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:603:        const gate=await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:398:      return await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}&limit=1`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:442:        `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(gatePath)}&limit=2000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:448:        `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(findPath)}&limit=2000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:666:      const res=await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(p)}&limit=1`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:709:    const ridZipUrl = ridZipPath ? (`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(ridZipPath)}&limit=200000`) : null;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:755:      const url=`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(htmlPath)}&limit=200000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:760:      const url=`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(pdfPath)}&limit=200000`;
+
+== [SCAN] FORBIDDEN: FE mentions internal files ==
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:410:      "findings_unified.json",
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:411:      "reports/findings_unified.json",
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:412:      "report/findings_unified.json"
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:437:    if(!fj){ findPath="findings_unified.json"; fj=await rf(findPath); }
+
+== [SCAN] FORBIDDEN: internal filesystem path leaked ==
+(none)
+
+== [SCAN] DEBUG strings leaked (review) ==
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:11:    window.__vspGetRidFromUrl = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:14:    window.__vspGetRidFromLS = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:17:    window.__vspHasUserRid = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:18:      const u = window.__vspGetRidFromUrl();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:19:      const l = window.__vspGetRidFromLS();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:22:    window.__vspResolveRidFast = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:23:      const u = window.__vspGetRidFromUrl();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:25:      const l = window.__vspGetRidFromLS();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:29:    window.__vspBlockHotRidEndpoints = function(url){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:34:        if ((p === "/api/vsp/rid_latest" || p === "/api/vsp/rid_latest_gate_root") && window.__vspHasUserRid()){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:101:    hit = tryCall(window.__vspDashboardReloadRid, rid) || hit;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:102:    hit = tryCall(window.__vspReloadAllPanels, rid) || hit;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:171:    if (!sel.__vspAllPanelsBound){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:172:      sel.__vspAllPanelsBound = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:192:async function __vspFetchJsonGuardV1N6(url){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:193:  if (window.__vspBlockHotRidEndpoints && window.__vspBlockHotRidEndpoints(url)){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:196:    const rid = (window.__vspResolveRidFast && window.__vspResolveRidFast()) || "";
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:7:function __vspAssetV(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:25:    window.__vspGetRidFromUrl = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:28:    window.__vspGetRidFromLS = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:31:    window.__vspHasUserRid = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:32:      const u = window.__vspGetRidFromUrl();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:33:      const l = window.__vspGetRidFromLS();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:36:    window.__vspResolveRidFast = function(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:37:      const u = window.__vspGetRidFromUrl();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:39:      const l = window.__vspGetRidFromLS();
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:43:    window.__vspBlockHotRidEndpoints = function(url){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:48:        if ((p === "/api/vsp/rid_latest" || p === "/api/vsp/rid_latest_gate_root") && window.__vspHasUserRid()){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:360:        clearTimeout(window.__vspTabs4ToastT);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:361:        window.__vspTabs4ToastT = setTimeout(()=>{ try{ el.style.display="none"; }catch(e){} }, 2600);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:426:        const last = window.__vspTabs4LastReloadTs || 0;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:428:        window.__vspTabs4LastReloadTs = now;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:478:  const debug = (() => {
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:480:      if (/[?&]debug=1\b/.test(location.search)) return true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:481:      const v = localStorage.getItem('vsp_debug');
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:489:    debug: console.debug ? console.debug.bind(console) : ()=>{},
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:495:  if (!debug) {
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:499:      console.debug = () => {};
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:614:async function __vspFetchJsonGuardV1N6(url){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:615:  if (window.__vspBlockHotRidEndpoints && window.__vspBlockHotRidEndpoints(url)){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:618:    const rid = (window.__vspResolveRidFast && window.__vspResolveRidFast()) || "";
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:6:  if (window.__vsp_runs_overlay_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:7:  window.__vsp_runs_overlay_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:250:    if (window.__vsp_p1_runs_overall_badge_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:251:    window.__vsp_p1_runs_overall_badge_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:302:    if (typeof origFetch === "function" && !origFetch.__vsp_p1_runs_overall_badge_v1){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:311:            window.__vsp_runs_cache_v1 = window.__vsp_runs_cache_v1 || {};
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:313:              if (it && it.rid) window.__vsp_runs_cache_v1[it.rid] = it;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:320:      window.fetch.__vsp_p1_runs_overall_badge_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:321:      window.fetch.__vsp_p1_runs_overall_badge_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:354:          const it = (rid && window.__vsp_runs_cache_v1 && window.__vsp_runs_cache_v1[rid]) ? window.__vsp_runs_cache_v1[rid] : null;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:550:  if (window.__vsp_runs_kpi_compact_v3) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:558:  if (window.__vsp_runs_kpi_bind_v2 || document.getElementById("vsp_runs_kpi_panel_v2")) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:637:    if(btn && !btn.__vsp_hooked){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:638:      btn.__vsp_hooked = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:642:    if(sel && !sel.__vsp_hooked){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:643:      sel.__vsp_hooked = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:664:  if (window.__vsp_runs_kpi_bind_v2) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:665:  window.__vsp_runs_kpi_bind_v2 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_reports_overlay_v1.js_v_1766558902:730:window.__vsp_runs_kpi_fetch_v2pref = async (days)=>{
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_control_center_v1.js_v_1766558902:12:    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_control_center_v1.js_v_1766558902:13:    window.__vsp_runfileallow_fetch_guard_v3c = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_control_center_v1.js_v_1766558902:81:if (window.__vsp_settings_cc_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_control_center_v1.js_v_1766558902:82:  window.__vsp_settings_cc_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:7:function __vspAssetV(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:51:    window.__vspEnsureCountsTotalV1P4C = async function(payload){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:82:    window.__vspCioNormalizeCountsV1P4 = function(obj){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:125:    window.__vspCioNormalizePayloadV1P4 = function(payload){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:141:          if (c && typeof c === "object") window.__vspCioNormalizeCountsV1P4(c);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:202:   - No debug/internal file leaks
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_tab_v3.js_v_1766558902:38:    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_tab_v3.js_v_1766558902:39:    window.__vsp_runfileallow_fetch_guard_v3c = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_topbar_commercial_v1.js_v_20251224:7:function __vspAssetV(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_topbar_commercial_v1.js_v_20251224:18:  if (window.__vsp_topbar_commercial_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_topbar_commercial_v1.js_v_20251224:19:  window.__vsp_topbar_commercial_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_topbar_commercial_v1.js_v_20251224:113:      setText("vspLatestRid", "—"); try{ var el=document.getElementById("vspLatestRid"); if(el){ el.title="Select a valid RID"; el.style.cursor="pointer"; el.onclick=function(){ try{ window.__vsp_openRidPicker?.(); }catch(e){} }; } }catch(e){}
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:7:function __vspAssetV(){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:162:     __vspReqTop(10)  // top endpoints in last 10 seconds
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:163:     __vspReqClear()
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:206:    window.__vspReqClear = function(){ try{ window.__VSP_REQ_LOG = []; }catch(e){} };
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:208:    window.__vspReqTop = function(seconds){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:234:   window.__vspSF(url, ttlMs): single-flight + TTL JSON cache for hot endpoints.
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:243:    window.__vspSF = async function(url, ttlMs){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:13:    if (window.__vsp_noise_panel_alltabs_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:14:    window.__vsp_noise_panel_alltabs_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:68:        this.__vsp_url = (typeof url === "string") ? url : "";
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:77:                record("xhr", {status: st, url: this.__vsp_url || ""});
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:148:    window.__vsp_noise = {render, toggle, clear};
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:165:    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:166:    window.__vsp_runfileallow_fetch_guard_v3c = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:234:if (window.__vsp_ui_shell_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:235:  window.__vsp_ui_shell_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:3:  if (window.__vsp_runs_kpi_compact_v3_safe_v4) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:4:  window.__vsp_runs_kpi_compact_v3_safe_v4 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_scan_panel_v1.js_v_1766558902:3:  if (window.__vsp_scan_panel_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_scan_panel_v1.js_v_1766558902:4:  window.__vsp_scan_panel_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_commercial_v1.js_v_1766558902:12:    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_commercial_v1.js_v_1766558902:13:    window.__vsp_runfileallow_fetch_guard_v3c = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_commercial_v1.js_v_1766558902:81:if (window.__vsp_settings_commercial_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_commercial_v1.js_v_1766558902:82:  window.__vsp_settings_commercial_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:66:    window.__vspCioNormalizeCountsV1P4 = function(obj){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:109:    window.__vspCioNormalizePayloadV1P4 = function(payload){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:125:          if (c && typeof c === "object") window.__vspCioNormalizeCountsV1P4(c);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:185:   2) Remove debug/internal strings: Unified data source..., file paths
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:212:    // scrub visible debug strings in DOM (safe, idempotent)
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:242:    const old = window.__vspRenderKpiCard;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:243:    window.__vspRenderKpiCard = function(el, label, value, opts){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:258:    window.__vspCioKpiSet = function(sel, v, mode){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:9:   - Robust RID resolver: data-rid, data-run-id, closest JSON blob, window.__vsp_runs cache.
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:12:const __vsp_auditpack_v2 = {installed:true};
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:76:    if(window.__vsp_runs_last && Array.isArray(window.__vsp_runs_last) && window.__vsp_runs_last.length){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:77:      const one = window.__vsp_runs_last[0];
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:131:    if(!window.__vsp_auditpack_v2_injected_once){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:132:      window.__vsp_auditpack_v2_injected_once=true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:143:      if(window.__vsp_auditpack_v2_t) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:144:      window.__vsp_auditpack_v2_t = setTimeout(()=>{
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:145:        window.__vsp_auditpack_v2_t = null;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:211:    if (window.__vsp_relcard_interceptor_v1) return;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:212:    window.__vsp_relcard_interceptor_v1 = true;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:255:  if (window.__vsp_p1_runs_quick_actions_v1h) return;
+(none)
+
+== [SCAN] LEGACY API usage (prefer stateless v3 per tab) ==
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:247:    const latest = await fetchJSON("/api/vsp/rid_latest_gate_root_v2");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:277:    const health = await fetchJSON("/api/vsp/ui_health_v2?rid=" + encodeURIComponent(lastRID||""));
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:330: * - Poll /api/vsp/rid_latest_gate_root_v2 periodically
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:337:    const RID_API = "/api/vsp/rid_latest_gate_root_v2";
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:350:      const j = await fetchJson("/api/vsp/run_gate_summary_v1?rid=" + encodeURIComponent(rid));
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:365:      const tj = await fetchJson("/api/vsp/top_findings_v1?rid=" + encodeURIComponent(rid) + "&limit=8");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:597:      const trendRes=await jget('/api/vsp/trend_v1?path=run_gate_summary.json');
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:598:      const topRes=await jget('/api/vsp/top_findings_v1?limit=10');
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:79:        if (path === "/api/vsp/run_gate_summary_v1") return 12000;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:81:        if (path === "/api/vsp/trend_v1?path=run_gate_summary.json") return 15000;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:82:        if (path === "/api/vsp/top_findings_v1") return 15000;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:389:        return (url.pathname === "/api/vsp/dashboard_v3" || url.pathname === "/api/vsp/run_gate_summary_v1");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:696:            var url = "/api/vsp/run_gate_summary_v1?rid=" + encodeURIComponent(rid);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_scan_panel_v1.js_v_1766558902:52:    const url = urlOverride || `/api/vsp/run_status_v1/${encodeURIComponent(reqId)}`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_scan_panel_v1.js_v_1766558902:89:    log(`POST /api/vsp/run_v1 => ${JSON.stringify(payload)}`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_scan_panel_v1.js_v_1766558902:90:    const r = await postJSON("/api/vsp/run_v1", payload);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs3_common_v3.js_v_1766558902:145:        const url = `/api/vsp/run_gate_summary_v1?rid=${encodeURIComponent(rid)}`;
+
+== [SCAN] High-churn endpoints (check spam/caching) ==
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:34:        if ((p === "/api/vsp/rid_latest" || p === "/api/vsp/rid_latest_gate_root") && window.__vspHasUserRid()){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_rid_switch_refresh_all_v1.js_v_1766558917:83:    const r = await fetch(`/api/vsp/dash_kpis?rid=${encodeURIComponent(rid)}`, {cache:'no-store'});
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:48:        if ((p === "/api/vsp/rid_latest" || p === "/api/vsp/rid_latest_gate_root") && window.__vspHasUserRid()){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:247:    const latest = await fetchJSON("/api/vsp/rid_latest_gate_root_v2");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:330: * - Poll /api/vsp/rid_latest_gate_root_v2 periodically
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs4_autorid_v1.js_v_20251224:337:    const RID_API = "/api/vsp/rid_latest_gate_root_v2";
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_settings_control_center_v1.js_v_1766558902:124:      const runs=await getJSON("/api/vsp/runs?limit=1");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:274:      const j = await fetchJson("/api/vsp/rid_latest");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:595:      const ridRes=await jget('/api/vsp/rid_latest');
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:603:        const gate=await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_topbar_commercial_v1.js_v_20251224:108:      const runs = await getJson("/api/vsp/runs?limit=1", 7000);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:18:   Targets: /api/vsp/rid_latest, /api/vsp/rid_latest_gate_root, /api/vsp/release_latest
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:73:        if (path === "/api/vsp/rid_latest") return 30000;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:74:        if (path === "/api/vsp/rid_latest_gate_root") return 30000;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:297:          p === "/api/vsp/rid_latest" ||
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:298:          p === "/api/vsp/rid_latest_gate_root" ||
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_bundle_tabs5_v1.js_v_20251224:684:          var r1 = await timeoutFetch("/api/vsp/rid_latest", 3500);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_ui_shell_v1.js_v_1766558902:315:      const r=await getJSON("/api/vsp/runs?limit=1");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:268:      const res=await jget(`/api/vsp/runs?limit=${encodeURIComponent(lim)}&offset=0`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:398:      return await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(path)}&limit=1`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:442:        `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(gatePath)}&limit=2000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:448:        `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(findPath)}&limit=2000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:666:      const res=await jget(`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(p)}&limit=1`);
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:709:    const ridZipUrl = ridZipPath ? (`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(ridZipPath)}&limit=200000`) : null;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:755:      const url=`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(htmlPath)}&limit=200000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_kpi_compact_v3.js_v_1766558902:760:      const url=`/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=${encodeURIComponent(pdfPath)}&limit=200000`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:10:      const r = await fetch('/api/vsp/rid_latest', {credentials:'same-origin'});
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:691:/* VSP_P1_RUNS_LIVE_POLLING_V1 (safe: poll /api/vsp/runs?limit=1 only; triggers existing Refresh; pauses when hidden) */
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:744:    tgl.title = "Live polling: ON/OFF (poll /api/vsp/runs?limit=1; auto refresh when RID changes)";
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:776:    const url = `/api/vsp/runs?limit=1&offset=0&_=${now()}`;
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:2261:   Uses /api/vsp/runs?limit=1 to resolve latest RID.
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_runs_quick_actions_v1.js_v_1766558902:2270:      const r = await fetch('/api/vsp/runs?limit=1', {cache:'no-store'});
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs3_common_v3.js_v_1766558902:160:        const r = await fetch("/api/vsp/runs?limit=1");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs3_common_v3.js_v_1766558902:390:   - optional follow-latest mode (poll /api/vsp/runs?limit=1)
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_tabs3_common_v3.js_v_1766558902:437:        const r = await fetch("/api/vsp/runs?limit=1");
+
+== [SCAN] CIO UX: N/A present in UI rendering (should be 0/— + tooltip) ==
+(none)
+
+== [SCAN] CIO UX: "not available" strings present ==
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:167:          if (t.trim() === "—" || t.trim() === "not available"){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_luxe_v1.js_v_20251224:173:            const tt = t.replace(/\bN\/A\b/g, "0").replace(/not available/gi,"0");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:151:          if (t.trim() === "—" || t.trim() === "not available"){
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:157:            const tt = t.replace(/\bN\/A\b/g, "0").replace(/not available/gi,"0");
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:184:   1) CIO KPI: never show "—"/"not available" -> show 0 or "—" + tooltip
+/tmp/vsp_ui_audit_xSy12d/js/_static_js_vsp_dashboard_consistency_patch_v1.js_v_1766558917:196:      return t === "n/a" || t === "na" || t === "not available" || t === "none" || t === "null" || t === "undefined";
+
+[OK] Audit workspace: /tmp/vsp_ui_audit_xSy12d
+[TIP] Keep it: cp -a /tmp/vsp_ui_audit_xSy12d /home/test/Data/SECURITY_BUNDLE/ui/out_audit_20251224_134837

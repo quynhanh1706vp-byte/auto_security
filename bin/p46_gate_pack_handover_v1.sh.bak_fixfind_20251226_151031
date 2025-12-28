@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+RID="${RID:-}"
+
+OUT="out_ci"
+REL_ROOT="$OUT/releases"
+mkdir -p "$OUT" "$REL_ROOT"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need date; need curl; need python3; need awk; need sed; need grep; need ls; need head; need sha256sum
+
+TS="$(date +%Y%m%d_%H%M%S)"
+LOG_TXT="$OUT/p46_gate_pack_${TS}.txt"
+LOG_JSON="$OUT/p46_gate_pack_${TS}.json"
+VERDICT_JSON="$OUT/p46_verdict_${TS}.json"
+
+ok(){ echo "[OK] $*" | tee -a "$LOG_TXT"; }
+warn(){ echo "[WARN] $*" | tee -a "$LOG_TXT" >&2; }
+err(){ echo "[ERR] $*" | tee -a "$LOG_TXT" >&2; exit 2; }
+
+pick_latest_audit(){
+  # Prefer commercial_ui_audit_v3b.sh if present; else highest v*.
+  if [ -f "bin/commercial_ui_audit_v3b.sh" ]; then
+    echo "bin/commercial_ui_audit_v3b.sh"
+    return 0
+  fi
+  local p
+  p="$(ls -1 bin/commercial_ui_audit_v*.sh 2>/dev/null | grep -v '\.disabled_' | tail -n 1 || true)"
+  [ -n "$p" ] || return 1
+  echo "$p"
+}
+
+pick_pack_script(){
+  # Prefer newer "commercial release pack" scripts if they exist.
+  local cands=(
+    "bin/p39_pack_commercial_release_v1b.sh"
+    "bin/p2_release_pack_ui_commercial_v1.sh"
+    "bin/p1_release_proofnote_v2_fixed.sh"
+  )
+  local s
+  for s in "${cands[@]}"; do
+    if [ -f "$s" ] && [[ "$(basename "$s")" != *.disabled_* ]]; then
+      echo "$s"
+      return 0
+    fi
+  done
+  return 1
+}
+
+pick_latest_release_dir(){
+  # Find newest RELEASE_* folder
+  local d
+  d="$(ls -1dt "$REL_ROOT"/RELEASE_* 2>/dev/null | head -n 1 || true)"
+  [ -n "$d" ] || return 1
+  echo "$d"
+}
+
+resolve_rid_if_missing(){
+  if [ -n "$RID" ]; then
+    ok "RID provided: $RID"
+    return 0
+  fi
+
+  ok "RID not set -> try auto-pick latest from /api/vsp/runs"
+  local tmp="$OUT/p46_runs_${TS}.json"
+  if ! curl -fsS "$BASE/api/vsp/runs?limit=1&offset=0" -o "$tmp"; then
+    warn "could not fetch $BASE/api/vsp/runs; leaving RID empty"
+    RID=""
+    return 0
+  fi
+
+  RID="$(python3 - "$tmp" <<'PY'
+import json, sys
+p=sys.argv[1]
+j=json.load(open(p,"r",encoding="utf-8"))
+runs=j.get("runs") or []
+if not runs:
+    print("")
+    raise SystemExit(0)
+r=runs[0]
+for k in ["rid","run_id","id","name"]:
+    if isinstance(r, dict) and r.get(k):
+        print(r.get(k))
+        raise SystemExit(0)
+print("")
+PY
+)"
+  if [ -n "$RID" ]; then ok "Auto-picked RID: $RID"; else warn "RID still empty (ok for gate, pack may still work)"; fi
+}
+
+write_verdict(){
+  local pass="$1"
+  local release_dir="${2:-}"
+  python3 - <<PY > "$VERDICT_JSON"
+import json
+print(json.dumps({
+  "ok": bool($pass),
+  "ts": "$TS",
+  "base": "$BASE",
+  "rid": "$RID",
+  "release_dir": "$release_dir",
+  "logs": {
+    "txt": "$LOG_TXT",
+    "json": "$LOG_JSON"
+  }
+}, indent=2))
+PY
+  ok "verdict: $VERDICT_JSON"
+}
+
+echo "== [P46] gate -> pack -> handover ==" | tee "$LOG_TXT"
+echo "[INFO] BASE=$BASE RID=${RID:-"(empty)"}" | tee -a "$LOG_TXT"
+
+resolve_rid_if_missing
+
+# Step 1: P43 syntax gate (FAST)
+if [ ! -f "bin/p43_bin_syntax_gate.sh" ]; then
+  err "missing bin/p43_bin_syntax_gate.sh"
+fi
+ok "== [1] P43 syntax gate (FAST) =="
+set +e
+P43_FAST=1 bash bin/p43_bin_syntax_gate.sh >>"$LOG_TXT" 2>&1
+rc1=$?
+set -e
+[ "$rc1" -eq 0 ] || { warn "P43 FAST failed rc=$rc1"; write_verdict 0 ""; err "STOP (syntax gate fail)"; }
+ok "P43 FAST PASS"
+
+# Step 2: UI audit
+AUDIT="$(pick_latest_audit || true)"
+[ -n "${AUDIT:-}" ] || err "missing commercial_ui_audit_v*.sh"
+ok "== [2] UI audit: $AUDIT =="
+set +e
+VSP_UI_BASE="$BASE" bash "$AUDIT" >>"$LOG_TXT" 2>&1
+rc2=$?
+set -e
+[ "$rc2" -eq 0 ] || { warn "UI audit failed rc=$rc2"; write_verdict 0 ""; err "STOP (audit fail)"; }
+ok "UI audit PASS"
+
+# Step 3: Pack release (P41 family)
+PACK="$(pick_pack_script || true)"
+[ -n "${PACK:-}" ] || err "missing pack script (expected one of: p39 / p2_release_pack_ui / p1_release_proofnote_v2_fixed)"
+
+ok "== [3] pack release: $PACK =="
+before="$(pick_latest_release_dir || true)"
+set +e
+VSP_UI_BASE="$BASE" RID="$RID" bash "$PACK" >>"$LOG_TXT" 2>&1
+rc3=$?
+set -e
+[ "$rc3" -eq 0 ] || { warn "pack release failed rc=$rc3"; write_verdict 0 ""; err "STOP (pack fail)"; }
+
+after="$(pick_latest_release_dir || true)"
+if [ -z "${after:-}" ] || [ "$after" = "${before:-}" ]; then
+  warn "could not detect new release dir reliably; using newest anyway"
+fi
+REL_DIR="$(pick_latest_release_dir || true)"
+[ -n "${REL_DIR:-}" ] || err "release dir not found under $REL_ROOT"
+ok "Release dir: $REL_DIR"
+
+# Step 4: Create HANDOVER.md inside release
+HAND="$REL_DIR/HANDOVER.md"
+ok "== [4] write HANDOVER.md =="
+
+PYVER="$(python3 -c 'import sys; print(sys.version.replace("\n"," "))' 2>/dev/null || echo "python3")"
+HOST="$(hostname 2>/dev/null || echo "unknown-host")"
+GITHASH="$(git rev-parse --short HEAD 2>/dev/null || echo "no-git")"
+
+cat > "$HAND" <<EOF
+# VSP UI — HANDOVER (Commercial)
+
+- Status: **PASS** (P43 FAST + UI audit + pack)
+- Version time: **$TS**
+- VERSION suggestion: \`VSP_UI_${TS}\`
+- BASE: \`$BASE\`
+- RID: \`${RID:-"(empty)"}\`
+- Host: \`$HOST\`
+- Git: \`$GITHASH\`
+- Python: \`$PYVER\`
+
+## 1) Reproduce (1 command)
+\`\`\`bash
+cd /home/test/Data/SECURITY_BUNDLE/ui && VSP_UI_BASE="$BASE" RID="${RID:-}" bash bin/p46_gate_pack_handover_v1.sh
+\`\`\`
+
+## 2) What was executed
+- Syntax gate: \`P43_FAST=1 bash bin/p43_bin_syntax_gate.sh\`
+- Audit: \`VSP_UI_BASE="$BASE" bash $(basename "$AUDIT")\`
+- Pack: \`VSP_UI_BASE="$BASE" RID="$RID" bash $(basename "$PACK")\`
+
+## 3) Evidence
+- Gate log: \`$LOG_TXT\`
+- Verdict: \`$VERDICT_JSON\`
+- Release folder: \`$REL_DIR\`
+
+## 4) Rollback (service + overrides)
+> If you have a previous release tarball, restore it + restart service.
+- Restart service:
+\`\`\`bash
+sudo systemctl restart vsp-ui-8910.service
+\`\`\`
+- Restore overrides (if applicable): copy back your last known-good overrides file(s) from previous release bundle.
+
+## 5) Remaining risks / next
+- If CSP enforce is enabled later: test thoroughly first (keep CSP-Report-Only as default).
+- Confirm logrotate + systemd hardening is applied (P47).
+EOF
+
+ok "Wrote: $HAND"
+
+# Step 5: Basic tamper-evidence file for release dir (SHA256SUMS)
+ok "== [5] SHA256SUMS (release folder) =="
+(
+  cd "$REL_DIR"
+  # avoid hashing very large unknown artifacts? Keep default: hash everything under release.
+  find . -type f -maxdepth 6 ! -name "SHA256SUMS.txt" -print0 \
+    | sort -z \
+    | xargs -0 sha256sum > SHA256SUMS.txt
+)
+ok "Wrote: $REL_DIR/SHA256SUMS.txt"
+
+# Emit json summary
+python3 - <<PY > "$LOG_JSON"
+import json
+print(json.dumps({
+  "ok": True,
+  "ts": "$TS",
+  "base": "$BASE",
+  "rid": "$RID",
+  "steps": {
+    "p43_fast": {"rc": $rc1},
+    "audit": {"script": "$AUDIT", "rc": $rc2},
+    "pack": {"script": "$PACK", "rc": $rc3}
+  },
+  "release_dir": "$REL_DIR",
+  "handover": "$HAND"
+}, indent=2))
+PY
+
+write_verdict 1 "$REL_DIR"
+ok "DONE: PASS"

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VersaSecure Platform 2025</title>
+
+  <!-- CORE THEME -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_core.css') }}">
+
+  <!-- TAB-SPECIFIC CSS (có thể thêm sau) -->
+  {# chừa sẵn nếu bạn muốn tách file theo tab #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_dashboard.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_runs.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_datasource.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_settings.css') }}"> #}
+  {# <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_overrides.css') }}"> #}
+
+  <!-- VSP bottom padding fix v1 -->
+  <style id="vsp-dashboard-bottom-fix-v1">
+    /* Thêm khoảng trống dưới để không cắt bo góc / mất dòng cuối của bảng */
+    body {
+      padding-bottom: 40px !important;
+    }
+  </style>
+
+
+  <!-- VSP scroll + bottom fix v1 -->
+  <style id="vsp-scroll-fix-v1">
+    /* Cho phép cuộn dọc, tránh cắt hàng cuối cùng / bo góc dưới */
+    html, body {
+      height: auto !important;
+      min-height: 100vh;
+      overflow-y: auto !important;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <!-- ===================================== -->
+  <!--               SIDEBAR                 -->
+  <!-- ===================================== -->
+  <aside id="vsp-sidebar">
+    <div class="logo-area">
+      <div class="logo-circle">V</div>
+      <div class="logo-text">
+        <div class="logo-title">VersaSecure</div>
+        <div class="logo-sub">Security Bundle 2025</div>
+      </div>
+    </div>
+
+    <ul class="menu">
+      <li data-tab="dashboard" class="active"><span>Dashboard</span></li>
+      <li data-tab="runs"><span>Runs &amp; Reports</span></li>
+      <li data-tab="datasource"><span>Data Source</span></li>
+      <li data-tab="settings"><span>Settings</span></li>
+      <li data-tab="overrides"><span>Rule Overrides</span></li>
+    </ul>
+  </aside>
+
+
+  <!-- ===================================== -->
+  <!--               MAIN AREA               -->
+  <!-- ===================================== -->
+  <main id="vsp-main">
+
+    <!-- HEADER -->
+    <header id="vsp-header">
+      <div class="header-left">
+        <h1 id="vsp-header-title">Dashboard</h1>
+        <div id="vsp-header-subtitle">CIO-Level Security Overview</div>
+      </div>
+      <div class="header-right">
+        <div id="vsp-profile-mini">
+          <div class="profile-line profile-env">ENV: <span id="mini-env">staging</span></div>
+          <div class="profile-line profile-src">SRC: <span id="mini-src">/home/test/Data/khach6</span></div>
+          <div class="profile-line profile-profile">PROFILE: <span id="mini-profile">EXT+</span></div>
+        </div>
+        <button id="btn-global-refresh">Refresh</button>
+      </div>
+    </header>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 1 — DASHBOARD -->
+    <!-- ===================================== -->
+    <section id="tab-dashboard" class="tab active">
+
+      <!-- KPI row (10 KPI) -->
+      <div class="dash-row dash-kpi-row">
+        <div class="kpi-card" id="kpi-total"></div>
+        <div class="kpi-card" id="kpi-critical"></div>
+        <div class="kpi-card" id="kpi-high"></div>
+        <div class="kpi-card" id="kpi-medium"></div>
+        <div class="kpi-card" id="kpi-low"></div>
+        <div class="kpi-card" id="kpi-infotrace"></div>
+        <div class="kpi-card" id="kpi-score"></div>
+        <div class="kpi-card" id="kpi-tool"></div>
+        <div class="kpi-card" id="kpi-cwe"></div>
+        <div class="kpi-card" id="kpi-module"></div>
+      </div>
+
+      <!-- Chart row -->
+      <div class="dash-row dash-chart-row">
+        <div class="chart-card">
+          <h3>Severity Distribution</h3>
+          <canvas id="chart-donut"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Trend Over Time</h3>
+          <canvas id="chart-trend"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Findings by Tool</h3>
+          <canvas id="chart-bytool"></canvas>
+        </div>
+      </div>
+
+      <!-- TOP RISKS -->
+      <div class="dash-row dash-top-row">
+        <div class="top-card">
+          <h3>Top Findings</h3>
+          <div class="vsp-table-scroll vsp-table-scroll-top-findings">
+<table id="table-top-findings" id="top-findings" class="vsp-table compact"></table>
+</div>
+        </div>
+
+        <div class="top-card">
+          <h3>Top CVE</h3>
+          <table id="top-cve" class="vsp-table compact"></table>
+        </div>
+
+        <div class="top-card">
+          <h3>Top Modules</h3>
+          <table id="table-top-modules" id="top-mod" class="vsp-table compact"></table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 2 — RUNS & REPORTS -->
+    <!-- ===================================== -->
+    <section id="tab-runs" class="tab">
+
+      <div class="runs-filters">
+        <select id="run-filter-profile"></select>
+        <select id="run-filter-status"></select>
+        <input id="run-search" placeholder="Search run ID / note...">
+      </div>
+
+      <div class="runs-table-wrap">
+        <table id="tbl-runs" class="vsp-table">
+          <thead>
+            <tr>
+              <th>Run ID</th>
+              <th>Time</th>
+              <th>Profile</th>
+              <th>Source</th>
+              <th>Findings</th>
+              <th>Status</th>
+              <th>Reports</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 3 — DATA SOURCE -->
+    <!-- ===================================== -->
+    <section id="tab-datasource" class="tab">
+
+      <div class="ds-filters">
+        <select id="ds-sev"></select>
+        <select id="ds-tool"></select>
+        <input id="ds-file" placeholder="Path contains...">
+        <input id="ds-text" placeholder="Message / CWE / CVE / tags...">
+        <button id="ds-reset">Reset</button>
+      </div>
+
+      <div class="ds-mini-charts">
+        <div class="mini-card">
+          <h3>Severity (current filter)</h3>
+          <canvas id="ds-chart-sev"></canvas>
+        </div>
+        <div class="mini-card">
+          <h3>Top Tools</h3>
+          <canvas id="ds-chart-tool"></canvas>
+        </div>
+      </div>
+
+      <div class="ds-table-wrap">
+        <table id="tbl-ds" class="vsp-table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Tool</th>
+              <th>Rule</th>
+              <th>File</th>
+              <th>Line</th>
+              <th>Message</th>
+              <th>CWE / CVE</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="ds-export">
+        <button data-format="json">Export JSON</button>
+        <button data-format="csv">Export CSV</button>
+        <button data-format="sarif">Export SARIF</button>
+        <button data-format="zip">Export ZIP</button>
+      </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 4 — SETTINGS -->
+    <!-- ===================================== -->
+    <section id="tab-settings" class="tab">
+
+      <div class="set-row">
+        <div id="set-profile" class="set-card"></div>
+        <div id="set-src" class="set-card"></div>
+        <div id="set-run-dir" class="set-card"></div>
+        <div id="set-last-run" class="set-card"></div>
+      </div>
+
+      <div class="set-grid">
+        <div class="set-panel">
+          <h2>Enabled Tools</h2>
+          <table id="tbl-tools" class="vsp-table"></table>
+        </div>
+
+        <div class="set-panel">
+          <h2>Profiles &amp; Integrations</h2>
+
+          <div class="cfg-block">
+            <label>Scanner Profile</label>
+            <select id="set-sel-profile">
+              <option>FAST</option>
+              <option>EXT+</option>
+              <option>AGGR</option>
+              <option>FULL</option>
+            </select>
+            <button id="btn-save-profile">Save Profile</button>
+          </div>
+
+          <div class="cfg-block">
+            <label>Webhook URL</label>
+            <input id="set-webhook">
+
+            <label>Slack Webhook</label>
+            <input id="set-slack">
+
+            <label>SARIF Endpoint</label>
+            <input id="set-sarif">
+
+            <button id="btn-save-integr">Save Integrations</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ===================================== -->
+    <!-- TAB 5 — RULE OVERRIDES -->
+    <!-- ===================================== -->
+    <section id="tab-overrides" class="tab">
+
+      <div class="ro-filters">
+        <select id="ro-tool"></select>
+        <select id="ro-severity"></select>
+        <input id="ro-search" placeholder="Rule ID / pattern...">
+      </div>
+
+      <div class="ro-main">
+        <div class="ro-table">
+          <table id="tbl-overrides" class="vsp-table">
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Rule ID</th>
+                <th>Match</th>
+                <th>Action</th>
+                <th>New Severity</th>
+                <th>Allowlist</th>
+                <th>Enabled</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="ro-impact">
+          <h3>Impact Preview</h3>
+          <p id="ro-impact-txt">Overrides impact will appear here.</p>
+          <canvas id="ro-chart"></canvas>
+          <div class="ro-actions">
+            <button id="ro-recalc">Recalculate Impact</button>
+            <button id="ro-export">Export Overrides JSON</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- JS CORE -->
+  <script src="{{ url_for('static', filename='js/vsp_core_runtime.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vsp_api.js') }}"></script>
+
+  <!-- PER TAB JS (skeleton, sẽ fill dần) -->
+  <script src="{{ url_for('static', filename='js/dashboard_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/runs_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/datasource_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings_render.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/overrides_render.js') }}"></script>
+
+    <script src="/static/js/vsp_charts_full.js"></script>
+</body>
+</html>

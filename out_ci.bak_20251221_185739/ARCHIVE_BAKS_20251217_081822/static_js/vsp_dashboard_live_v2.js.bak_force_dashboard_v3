@@ -1,0 +1,124 @@
+(function () {
+  'use strict';
+
+  const API_DASHBOARD_V2 = '/api/vsp/dashboard_v2';
+
+  // Tìm card KPI theo title (text trong card)
+  function findKpiCardByTitle(titleText) {
+    var all = document.querySelectorAll('*');
+    var titleEl = null;
+
+    for (var i = 0; i < all.length; i++) {
+      var txt = (all[i].textContent || '').trim();
+      if (txt === titleText) {
+        titleEl = all[i];
+        break;
+      }
+    }
+    if (!titleEl) return null;
+
+    var card = titleEl;
+    for (var depth = 0; depth < 5 && card; depth++) {
+      if (card.classList && card.classList.contains('vsp-kpi-card')) {
+        return card;
+      }
+      card = card.parentElement;
+    }
+    return titleEl.parentElement || titleEl;
+  }
+
+  function ensureChild(el, selector, className) {
+    var found = el.querySelector(selector);
+    if (!found) {
+      found = document.createElement('div');
+      found.className = className;
+      el.appendChild(found);
+    }
+    return found;
+  }
+
+  function setKpiValue(title, main, sub) {
+    var card = findKpiCardByTitle(title);
+    if (!card) {
+      console.warn('[VSP][KPI] Không tìm thấy card với title:', title);
+      return;
+    }
+
+    var mainEl = ensureChild(card, '.vsp-kpi-value', 'vsp-kpi-value');
+    mainEl.textContent = main;
+
+    if (sub !== undefined) {
+      var subEl = ensureChild(card, '.vsp-kpi-sub', 'vsp-kpi-sub');
+      subEl.textContent = sub;
+    }
+  }
+
+  function renderEnv(runId, summary) {
+    // Block ENV / SRC / PROFILE ở góc phải header nếu có
+    var envEl = document.querySelector('#vsp-env-label');
+    if (!envEl) return;
+
+    var profile = (summary && summary.profile) || 'EXT+';
+    envEl.textContent = 'Run: ' + (runId || '-') + ' · Profile: ' + profile;
+  }
+
+  function renderKpi(payload) {
+    if (!payload) return;
+
+    var total = Number(payload.total_findings || 0);
+
+    var summary = payload.summary || {};
+    var sev = summary.by_severity || payload.severity || {};
+
+    var crit  = Number(sev.CRITICAL || 0);
+    var high  = Number(sev.HIGH     || 0);
+    var med   = Number(sev.MEDIUM   || 0);
+    var low   = Number(sev.LOW      || 0);
+    var info  = Number(sev.INFO     || 0);
+    var trace = Number(sev.TRACE    || 0);
+    var infoTrace = info + trace;
+
+    // 6 KPI severity
+    setKpiValue('Total Findings', total.toLocaleString(), '');
+    setKpiValue('Critical',       crit.toLocaleString(), '');
+    setKpiValue('High',           high.toLocaleString(), '');
+    setKpiValue('Medium',         med.toLocaleString(), '');
+    setKpiValue('Low',            low.toLocaleString(), '');
+    setKpiValue('Info / Trace',   infoTrace.toLocaleString(), '');
+
+    // 4 KPI nâng cao (tạm chưa có đầy đủ trên BE)
+    var score   = summary.security_score;
+    var topTool = summary.top_risky_tool || '-';
+    var topCwe  = summary.top_cwe        || '-';
+    var topMod  = summary.top_module     || '-';
+
+    if (typeof score === 'number') {
+      setKpiValue('Security Score', String(score), '/100');
+    } else {
+      setKpiValue('Security Score', '-', '/100');
+    }
+
+    setKpiValue('Top Risky Tool', topTool, '');
+    setKpiValue('Top CWE',        topCwe,  '');
+    setKpiValue('Top Module',     topMod,  '');
+
+    renderEnv(payload.run_id, summary);
+  }
+
+  function initDashboardLive() {
+    fetch(API_DASHBOARD_V2)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || data.ok === false) {
+          console.warn('[VSP][DASHBOARD_V2] API not ok:', data);
+          return;
+        }
+        renderKpi(data);
+      })
+      .catch(function (err) {
+        console.error('[VSP][DASHBOARD_V2] fetch error:', err);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', initDashboardLive);
+})();

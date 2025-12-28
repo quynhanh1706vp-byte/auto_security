@@ -1,0 +1,120 @@
+import datetime  # SB_RUN_BACKEND_V1
+import uuid  # SB_RUN_BACKEND_V1
+import os  # SB_RUN_BACKEND_V1
+import subprocess  # SB_RUN_BACKEND_V1
+from pathlib import Path
+import json
+
+from flask import Flask, render_template, send_from_directory, redirect, url_for, jsonify, request, jsonify
+
+app = Flask(__name__)
+
+APP_ROOT = Path(__file__).resolve().parent
+# /home/test/Data/SECURITY_BUNDLE
+SB_ROOT = APP_ROOT.parent.parent
+RUN_INDEX_FILE = APP_ROOT / "static" / "data" / "summary_runs.json"
+
+
+def load_runs_index():
+    """Đọc summary_runs.json -> list run (dùng cho tab Runs & Reports)."""
+    if not RUN_INDEX_FILE.is_file():
+        print(f"[WARN] Không tìm thấy {RUN_INDEX_FILE}")
+        return []
+    try:
+        runs = json.loads(RUN_INDEX_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[WARN] Lỗi đọc {RUN_INDEX_FILE}: {e}")
+        return []
+
+    # Nếu có field timestamp thì sort DESC cho chắc
+    try:
+        runs.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+    except Exception:
+        pass
+    return runs
+
+
+@app.route("/")
+def index():
+    """Redirect về dashboard SECURITY_BUNDLE."""
+    return redirect(url_for("security_bundle_dashboard"))
+
+
+@app.route("/security_bundle", methods=["GET"])
+def security_bundle():
+    # VSP UI – dùng index.html mới 5 TAB (Dashboard, Runs, Data, Settings, Rules)
+    return render_template("index.html")
+
+@app.route("/report/<path:path>")
+def serve_report_file(path: str):
+    """
+    Serve file report (HTML / PDF).
+    'path' là path tương đối tính từ SB_ROOT (vd: out/RUN_xxx/report/security_resilient.html).
+    """
+    full = SB_ROOT / path
+    if not full.is_file():
+        return f"Report not found: {full}", 404
+    return send_from_directory(full.parent, full.name)
+
+
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok", "app": "SECURITY_BUNDLE_UI"}), 200
+
+
+if __name__ == "__main__":
+    # Chạy UI trên port 8910 như trước giờ bạn dùng
+    app.run(host="0.0.0.0", port=8910, debug=True)
+
+
+# SB_RUN_BACKEND_V1
+@app.route("/api/security_bundle/run_ext_v1", methods=["POST"])
+def api_security_bundle_run_ext_v1():
+    try:
+        data = request.get_json(silent=True, force=True) or {}
+    except Exception:
+        data = {}
+
+    src_path = data.get("src_path") or "/home/tests/Data/CODE_20110225_P"
+    target_url = data.get("target_url") or "https://app.example.com"
+    profile = data.get("profile") or "EXT"
+
+    root = Path(__file__).resolve().parents[2]  # .../SECURITY_BUNDLE
+    out_dir = root / "out"
+    out_dir.mkdir(exist_ok=True)
+
+    run_id = datetime.datetime.now().strftime("RUN_%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:6]
+    run_dir = out_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    env = os.environ.copy()
+    env.setdefault("SRC", src_path)
+    env.setdefault("PROFILE", profile)
+    env.setdefault("TARGET_URL", target_url)
+
+    # Ưu tiên dùng run_all_full_ext.sh nếu có, fallback sang run_all_tools_v2.sh
+    candidate = None
+    for name in ("run_all_full_ext.sh", "run_all_tools_v2.sh", "wrap_run_all_tools_v2.sh"):
+        p = root / "bin" / name
+        if p.exists():
+            candidate = p
+            break
+
+    if candidate is None:
+        return jsonify(
+            status="error",
+            message="Không tìm thấy script run_all_full_ext.sh / run_all_tools_v2.sh trong bin/"
+        ), 500
+
+    cmd = [str(candidate), src_path, str(run_dir)]
+    subprocess.Popen(cmd, cwd=str(root), env=env)
+
+    return jsonify(
+        status="ok",
+        message=f"SECURITY_BUNDLE EXT+ scan started (run_id={run_id})",
+        run_id=run_id,
+        src_path=src_path,
+        target_url=target_url,
+        profile=profile,
+    )
+

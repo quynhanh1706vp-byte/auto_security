@@ -1,0 +1,438 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need node; need date
+
+SET_JS="static/js/settings_render.js"
+OVR_JS="static/js/vsp_c_rule_overrides_v1.js"
+
+[ -f "$SET_JS" ] || { echo "[ERR] missing $SET_JS"; exit 2; }
+[ -f "$OVR_JS" ] || { echo "[ERR] missing $OVR_JS"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$SET_JS" "$SET_JS.bak_p402_${TS}"
+cp -f "$OVR_JS" "$OVR_JS.bak_p402_${TS}"
+echo "[OK] backups:"
+echo " - $SET_JS.bak_p402_${TS}"
+echo " - $OVR_JS.bak_p402_${TS}"
+
+# ---- rewrite settings_render.js (P402: hide legacy blocks first) ----
+cat > "$SET_JS" <<'JS'
+/* VSP_SETTINGS_REWRITE_P402 - stable + hide legacy panels */
+(function(){
+  "use strict";
+  const log = (...a)=>console.log("[settings:p402]", ...a);
+  const warn = (...a)=>console.warn("[settings:p402]", ...a);
+
+  function el(tag, attrs, html){
+    const e = document.createElement(tag);
+    if (attrs) for (const [k,v] of Object.entries(attrs)) {
+      if (k === "class") e.className = v;
+      else if (k === "style") e.setAttribute("style", v);
+      else e.setAttribute(k, v);
+    }
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  // Hide legacy panels that are still rendered by old tab code/template
+  function hideLegacy(){
+    const needles = [
+      "Gate summary (live)",
+      "Settings (live links",
+      "Settings (live links + tool legend)",
+      "Tools (8):",
+      "Exports:"
+    ];
+    const body = document.body;
+    if (!body) return;
+
+    const all = Array.from(body.querySelectorAll("div,section,article,main"));
+    for (const n of all){
+      const t = (n.textContent || "").trim();
+      if (!t) continue;
+      if (needles.some(x => t.includes(x))) {
+        // hide the nearest reasonable block container
+        let p = n;
+        for (let i=0;i<10 && p && p !== body; i++){
+          const h = (p.getBoundingClientRect && p.getBoundingClientRect().height) ? p.getBoundingClientRect().height : 0;
+          if (h >= 120) break;
+          p = p.parentElement;
+        }
+        (p || n).setAttribute("data-vsp-legacy-hidden", "1");
+        (p || n).style.display = "none";
+      }
+    }
+  }
+
+  function findMount(){
+    // prefer a main-like container; fallback to body but DO NOT nuke whole body
+    return document.querySelector("#vsp_tab_content")
+      || document.querySelector("#content")
+      || document.querySelector("main")
+      || document.querySelector("body");
+  }
+
+  async function fetchWithTimeout(url, opts){
+    const ms = (opts && opts.timeoutMs) ? opts.timeoutMs : 4500;
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), ms);
+    const t0 = performance.now();
+    try{
+      const r = await fetch(url, { signal: ctl.signal, cache:"no-store", credentials:"same-origin" });
+      const text = await r.text();
+      let data = null;
+      try{ data = JSON.parse(text); }catch(_){}
+      return { ok:r.ok, status:r.status, ms:(performance.now()-t0), text, data };
+    }finally{ clearTimeout(t); }
+  }
+
+  function candidateProbeUrls(){
+    const env = (window.VSP_SETTINGS_PROBES || "").trim();
+    if (env) return env.split(",").map(s=>s.trim()).filter(Boolean);
+    return [
+      "/api/vsp/health",
+      "/api/vsp/healthz",
+      "/api/vsp/probes_v1",
+      "/api/vsp/top_findings_v2?limit=5",
+      "/api/vsp/runs_v3?limit=5&include_ci=1",
+      "/api/vsp/datasource_v3?limit=5",
+      "/api/vsp/exports_v1",
+      "/api/vsp/run_status_v1",
+    ];
+  }
+
+  function cssOnce(){
+    if (document.getElementById("vsp_settings_css_p402")) return;
+    const css = `
+      .vsp-p402-wrap{ padding:16px; }
+      .vsp-p402-h1{ font-size:18px; margin:0 0 12px 0; }
+      .vsp-p402-grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:12px; }
+      .vsp-p402-card{ border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); border-radius:14px; padding:12px; }
+      .vsp-p402-card h2{ font-size:13px; margin:0 0 10px 0; opacity:.9; }
+      .vsp-p402-table{ width:100%; border-collapse:collapse; font-size:12px; }
+      .vsp-p402-table td,.vsp-p402-table th{ border-bottom:1px solid rgba(255,255,255,.08); padding:6px 6px; text-align:left; }
+      .vsp-p402-badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid rgba(255,255,255,.15); }
+      .ok{ background:rgba(0,255,0,.08); }
+      .bad{ background:rgba(255,0,0,.08); }
+      .mid{ background:rgba(255,255,0,.08); }
+      .muted{ opacity:.75; }
+      @media (max-width: 1100px){ .vsp-p402-grid{ grid-template-columns:1fr; } }
+    `;
+    document.head.appendChild(el("style",{id:"vsp_settings_css_p402"},css));
+  }
+
+  function badgeFor(status, ok){
+    const cls = ok ? "ok" : (status>=500 ? "bad" : "mid");
+    return `<span class="vsp-p402-badge ${cls}">${ok ? "OK" : "ERR"} ${status}</span>`;
+  }
+
+  async function ensureViewerLoaded(){
+    if (window.VSP && window.VSP.jsonViewer) return true;
+    return await new Promise((resolve)=>{
+      const s = document.createElement("script");
+      s.src = "/static/js/vsp_json_viewer_v1.js?v=" + Date.now();
+      s.onload = ()=>resolve(true);
+      s.onerror = ()=>resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+
+  async function main(){
+    hideLegacy();
+    cssOnce();
+
+    const mount = findMount();
+    if (!mount) return;
+
+    const root = el("div",{class:"vsp-p402-wrap"});
+    root.appendChild(el("div",{class:"vsp-p402-h1"}, "Settings (Commercial) • P402 (legacy hidden)"));
+
+    const grid = el("div",{class:"vsp-p402-grid"});
+    const cardProbes = el("div",{class:"vsp-p402-card"});
+    const cardJson   = el("div",{class:"vsp-p402-card"});
+
+    cardProbes.appendChild(el("h2",null,"Endpoint probes"));
+    const table = el("table",{class:"vsp-p402-table"});
+    table.innerHTML = `<thead><tr><th>Endpoint</th><th>Status</th><th>Time</th></tr></thead><tbody></tbody>`;
+    const tbody = table.querySelector("tbody");
+    cardProbes.appendChild(table);
+    cardProbes.appendChild(el("div",{class:"muted",style:"margin-top:8px;font-size:12px;"},
+      "Hard refresh Ctrl+Shift+R if cached."
+    ));
+
+    cardJson.appendChild(el("h2",null,"Raw JSON (stable collapsible)"));
+    const jsonBox = el("div");
+    cardJson.appendChild(jsonBox);
+
+    grid.appendChild(cardProbes);
+    grid.appendChild(cardJson);
+    root.appendChild(grid);
+
+    // do NOT wipe whole mount (avoid breaking nav); just append to top
+    mount.prepend(root);
+
+    const urls = candidateProbeUrls();
+    const results = [];
+    for (const u of urls){
+      const r = await fetchWithTimeout(u, { timeoutMs: 4500 });
+      results.push({ url:u, ...r });
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        `<td><code>${u}</code></td>
+         <td>${badgeFor(r.status, r.ok)}</td>
+         <td>${Math.round(r.ms)} ms</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const viewerOk = await ensureViewerLoaded();
+    if (!viewerOk || !(window.VSP && window.VSP.jsonViewer)) {
+      warn("jsonViewer missing; fallback to <pre>");
+      jsonBox.innerHTML = `<pre style="white-space:pre-wrap;word-break:break-word;opacity:.9">${results.map(x=>x.text||"").join("\n\n")}</pre>`;
+      return;
+    }
+
+    window.VSP.jsonViewer.render(jsonBox, {
+      tab:"settings",
+      ts: new Date().toISOString(),
+      origin: location.origin,
+      path: location.pathname,
+      probes: results.map(r=>({
+        url:r.url, ok:r.ok, status:r.status, ms:Math.round(r.ms),
+        data: (r.data !== null ? r.data : undefined),
+        text: (r.data === null ? (r.text||"").slice(0, 1200) : undefined),
+      }))
+    }, { title:"Settings.probes", maxDepth: 7 });
+
+    log("rendered");
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();
+JS
+
+# ---- rewrite rule overrides js (P402: hide legacy blocks first) ----
+cat > "$OVR_JS" <<'JS'
+/* VSP_RULE_OVERRIDES_REWRITE_P402 - stable + hide legacy panels */
+(function(){
+  "use strict";
+  const log = (...a)=>console.log("[ovr:p402]", ...a);
+  const warn = (...a)=>console.warn("[ovr:p402]", ...a);
+
+  function el(tag, attrs, html){
+    const e = document.createElement(tag);
+    if (attrs) for (const [k,v] of Object.entries(attrs)) {
+      if (k === "class") e.className = v;
+      else if (k === "style") e.setAttribute("style", v);
+      else e.setAttribute(k, v);
+    }
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function hideLegacy(){
+    const needles = [
+      "Rule Overrides (live from",
+      "Open  JSON",
+      "Open JSON"
+    ];
+    const body = document.body;
+    if (!body) return;
+
+    const all = Array.from(body.querySelectorAll("div,section,article,main"));
+    for (const n of all){
+      const t = (n.textContent || "").trim();
+      if (!t) continue;
+      if (needles.some(x => t.includes(x))) {
+        let p = n;
+        for (let i=0;i<10 && p && p !== body; i++){
+          const h = (p.getBoundingClientRect && p.getBoundingClientRect().height) ? p.getBoundingClientRect().height : 0;
+          if (h >= 120) break;
+          p = p.parentElement;
+        }
+        (p || n).setAttribute("data-vsp-legacy-hidden", "1");
+        (p || n).style.display = "none";
+      }
+    }
+  }
+
+  function cssOnce(){
+    if (document.getElementById("vsp_ovr_css_p402")) return;
+    const css = `
+      .ovr-p402{ padding:16px; }
+      .ovr-h1{ font-size:18px; margin:0 0 12px 0; }
+      .ovr-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+      .ovr-card{ border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); border-radius:14px; padding:12px; min-height:120px; }
+      .ovr-card h2{ font-size:13px; margin:0 0 10px 0; opacity:.9; }
+      .ovr-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px 0; }
+      .ovr-btn{ cursor:pointer; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.06); color:#eaeaea; padding:6px 10px; border-radius:10px; font-size:12px; }
+      .ovr-btn:hover{ background:rgba(255,255,255,.10); }
+      .ovr-badge{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid rgba(255,255,255,.15); }
+      .ok{ background:rgba(0,255,0,.08); }
+      .bad{ background:rgba(255,0,0,.08); }
+      textarea.ovr-ta{ width:100%; min-height:240px; resize:vertical; border-radius:12px; padding:10px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.25); color:#eaeaea; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; line-height:1.4; }
+      .ovr-msg{ margin-top:8px; font-size:12px; opacity:.8; }
+      @media (max-width: 1100px){ .ovr-grid{ grid-template-columns:1fr; } }
+    `;
+    document.head.appendChild(el("style",{id:"vsp_ovr_css_p402"},css));
+  }
+
+  function findMount(){
+    return document.querySelector("#vsp_tab_content")
+      || document.querySelector("#content")
+      || document.querySelector("main")
+      || document.querySelector("body");
+  }
+
+  async function ensureViewerLoaded(){
+    if (window.VSP && window.VSP.jsonViewer) return true;
+    return await new Promise((resolve)=>{
+      const s = document.createElement("script");
+      s.src = "/static/js/vsp_json_viewer_v1.js?v=" + Date.now();
+      s.onload = ()=>resolve(true);
+      s.onerror = ()=>resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+
+  async function fetchJson(url, opts){
+    const ms = (opts && opts.timeoutMs) ? opts.timeoutMs : 4500;
+    const method = (opts && opts.method) ? opts.method : "GET";
+    const body = (opts && opts.body) ? opts.body : null;
+
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), ms);
+    const t0 = performance.now();
+    try{
+      const r = await fetch(url, {
+        method,
+        cache:"no-store",
+        credentials:"same-origin",
+        headers: body ? { "Content-Type":"application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: ctl.signal
+      });
+      const text = await r.text();
+      let data = null;
+      try{ data = JSON.parse(text); }catch(_){}
+      return { ok:r.ok, status:r.status, ms:(performance.now()-t0), text, data };
+    }finally{ clearTimeout(t); }
+  }
+
+  async function detectEndpoint(){
+    const fixed = (window.VSP_OVR_ENDPOINT || "").trim();
+    if (fixed) return fixed;
+
+    const cands = [
+      "/api/vsp/rule_overrides_v1",
+      "/api/vsp/overrides_v1",
+      "/api/vsp/rule_overrides",
+      "/api/vsp/overrides",
+    ];
+    for (const u of cands){
+      const r = await fetchJson(u, { timeoutMs: 3500 });
+      if (r.ok && r.data !== null) return u;
+    }
+    return cands[0];
+  }
+
+  function badge(ok){
+    return `<span class="ovr-badge ${ok ? "ok":"bad"}">${ok ? "OK":"ERR"}</span>`;
+  }
+
+  async function main(){
+    hideLegacy();
+    cssOnce();
+    const mount = findMount();
+    if (!mount) return;
+
+    const root = el("div",{class:"ovr-p402"});
+    root.appendChild(el("div",{class:"ovr-h1"}, "Rule Overrides • P402 (legacy hidden)"));
+
+    const grid = el("div",{class:"ovr-grid"});
+    const cardLeft = el("div",{class:"ovr-card"});
+    const cardRight = el("div",{class:"ovr-card"});
+
+    cardLeft.appendChild(el("h2",null,"Live view (stable JSON)"));
+    const jsonBox = el("div");
+    cardLeft.appendChild(jsonBox);
+
+    cardRight.appendChild(el("h2",null,"Editor (validate + save if backend supports POST)"));
+    const row = el("div",{class:"ovr-row"});
+    const btnReload = el("button",{class:"ovr-btn",type:"button"},"Reload");
+    const btnValidate = el("button",{class:"ovr-btn",type:"button"},"Validate JSON");
+    const btnSave = el("button",{class:"ovr-btn",type:"button"},"Save");
+    const epSpan = el("span",{class:"ovr-msg"},"");
+    row.appendChild(btnReload); row.appendChild(btnValidate); row.appendChild(btnSave); row.appendChild(epSpan);
+
+    const ta = el("textarea",{class:"ovr-ta",spellcheck:"false"});
+    const msg = el("div",{class:"ovr-msg"},"");
+
+    cardRight.appendChild(row);
+    cardRight.appendChild(ta);
+    cardRight.appendChild(msg);
+
+    grid.appendChild(cardLeft);
+    grid.appendChild(cardRight);
+    root.appendChild(grid);
+
+    mount.prepend(root);
+
+    const viewerOk = await ensureViewerLoaded();
+    const endpoint = await detectEndpoint();
+    epSpan.innerHTML = `endpoint: <code>${endpoint}</code>`;
+
+    async function reload(){
+      msg.textContent = "Loading…";
+      const r = await fetchJson(endpoint, { timeoutMs: 4500 });
+      msg.innerHTML = `${badge(r.ok)} status=${r.status} • ${Math.round(r.ms)}ms`;
+      const payload = (r.data !== null) ? r.data : { error:"non-json response", status:r.status, text:(r.text||"").slice(0,1600) };
+      try{ ta.value = JSON.stringify(payload, null, 2); }catch(_){ ta.value = String(r.text||""); }
+
+      if (viewerOk && window.VSP && window.VSP.jsonViewer){
+        window.VSP.jsonViewer.render(jsonBox, { endpoint, payload }, { title:"RuleOverrides", maxDepth: 8 });
+      } else {
+        warn("jsonViewer missing; fallback <pre>");
+        jsonBox.innerHTML = `<pre style="white-space:pre-wrap;word-break:break-word;opacity:.9">${(r.text||"").slice(0,3000)}</pre>`;
+      }
+    }
+
+    btnReload.addEventListener("click", reload);
+
+    btnValidate.addEventListener("click", ()=>{
+      try{ JSON.parse(ta.value); msg.innerHTML = `${badge(true)} JSON valid`; }
+      catch(e){ msg.innerHTML = `${badge(false)} JSON invalid: ${String(e && e.message ? e.message : e)}`; }
+    });
+
+    btnSave.addEventListener("click", async ()=>{
+      let obj;
+      try{ obj = JSON.parse(ta.value); }
+      catch(_){ msg.innerHTML = `${badge(false)} Cannot save: JSON invalid`; return; }
+
+      msg.textContent = "Saving…";
+      const r = await fetchJson(endpoint, { method:"POST", body: obj, timeoutMs: 7000 });
+      msg.innerHTML = `${badge(r.ok)} POST status=${r.status} • ${Math.round(r.ms)}ms`;
+      if (r.ok) await reload();
+    });
+
+    await reload();
+    log("rendered");
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();
+JS
+
+echo "== [CHECK] node --check =="
+node --check "$SET_JS"
+node --check "$OVR_JS"
+
+echo ""
+echo "[OK] P402 installed (legacy hidden by JS)."
+echo "[NEXT] Hard refresh Ctrl+Shift+R:"
+echo "  http://127.0.0.1:8910/c/settings"
+echo "  http://127.0.0.1:8910/c/rule_overrides"

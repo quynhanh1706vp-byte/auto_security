@@ -1,0 +1,18 @@
+== [A] fetch HTML per tab + extract JS ==
+--- TAB /vsp5
+/static/js/vsp_bundle_tabs5_v1.js?v=1766475247
+/static/js/vsp_dashboard_consistency_patch_v1.js?v=1766475247
+/static/js/vsp_dashboard_luxe_v1.js?v=1766475247
+/static/js/vsp_rid_persist_patch_v1.js?v=1766475247
+/static/js/vsp_rid_switch_refresh_all_v1.js?v=1766475247
+/static/js/vsp_tabs4_autorid_v1.js?v=1766475247
+/static/js/vsp_topbar_commercial_v1.js?v=1766475247
+--- TAB /runs
+/static/js/vsp_bundle_tabs5_v1.js?v=1766471225
+/static/js/vsp_runs_kpi_compact_v3.js?v=1766471225
+/static/js/vsp_runs_quick_actions_v1.js?v=1766471225
+/static/js/vsp_runs_reports_overlay_v1.js?v=1766471225
+/static/js/vsp_scan_panel_v1.js?v=1766471225
+/static/js/vsp_tabs4_autorid_v1.js?v=1766471225
+/static/js/vsp_topbar_commercial_v1.js?v=1766471225
+--- TAB /releases

@@ -1,0 +1,227 @@
+(function(){
+
+  // VSP_ROUTE_GUARD_RUNS_ONLY_V1
+  function __vsp_is_runs_only_v1(){
+    try {
+      const h = (location.hash||"").toLowerCase();
+      return h.startsWith("#runs") || h.includes("#runs/");
+    } catch(_) { return false; }
+  }
+  if(!__vsp_is_runs_only_v1()){
+    try{ console.info("[VSP_ROUTE_GUARD_RUNS_ONLY_V1] skip", "vsp_runs_kpi_reports_v1.js", "hash=", location.hash); } catch(_){}
+    return;
+  }
+
+  // === VSP_DISABLE_RUNS_KPI_V1_BY_MASTER ===
+  if (window.VSP_COMMERCIAL_RUNS_MASTER) return;
+  // === END VSP_DISABLE_RUNS_KPI_V1_BY_MASTER ===
+})();
+(function () {
+  console.log('[VSP_RUNS_KPI_V1] loaded');
+
+  function ensureStyle() {
+    if (document.getElementById('vsp-runs-kpi-style')) return;
+    var s = document.createElement('style');
+    s.id = 'vsp-runs-kpi-style';
+    s.textContent = `
+      .vsp-runs-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .vsp-runs-kpi-card {
+        background: rgba(15,23,42,0.9);
+        border-radius: 0.75rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(148,163,184,0.25);
+      }
+      .vsp-runs-kpi-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #9ca3af;
+        margin-bottom: 0.25rem;
+      }
+      .vsp-runs-kpi-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #e5e7eb;
+      }
+      .vsp-runs-kpi-sub {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.15rem;
+      }
+      th.vsp-runs-report-header {
+        text-align: right;
+      }
+      td.vsp-runs-report-cell {
+        text-align: right;
+        white-space: nowrap;
+        font-size: 0.75rem;
+      }
+      td.vsp-runs-report-cell a {
+        color: #38bdf8;
+        text-decoration: none;
+        margin-left: 0.25rem;
+      }
+      td.vsp-runs-report-cell a:hover {
+        text-decoration: underline;
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function computeKpi(data) {
+    var items = Array.isArray(data.items) ? data.items : [];
+    var kpi = data.kpi || {};
+    var totalRuns = kpi.total_runs || data.total || items.length;
+
+    var lastN = kpi.last_n || Math.min(items.length, 10);
+    var lastItems = items.slice(0, lastN);
+
+    var done = 0, fail = 0;
+    lastItems.forEach(function (r) {
+      var st = (r.status || '').toUpperCase();
+      if (st === 'DONE' || st === 'SUCCESS' || st === 'OK') done++;
+      else if (st && st !== 'RUNNING') fail++;
+    });
+
+    var avgFindings = kpi.avg_findings_per_run_last_n;
+    if (avgFindings == null && items.length) {
+      var sum = items.reduce(function (acc, r) {
+        return acc + (r.total_findings || r.total || 0);
+      }, 0);
+      avgFindings = sum / items.length;
+    }
+
+    var toolSet = new Set();
+    var totalToolEntries = 0;
+    items.forEach(function (r) {
+      var tools = r.tools_enabled || r.tools || r.tool_list;
+      if (Array.isArray(tools)) {
+        totalToolEntries += tools.length;
+        tools.forEach(function (t) { toolSet.add(t); });
+      }
+    });
+    var avgToolsPerRun = items.length ? (totalToolEntries / items.length) : 0;
+
+    return {
+      totalRuns: totalRuns,
+      lastN: lastN,
+      doneLastN: done,
+      failLastN: fail,
+      avgFindings: avgFindings || 0,
+      distinctTools: Array.from(toolSet),
+      avgToolsPerRun: avgToolsPerRun
+    };
+  }
+
+  function renderKpi(pane, k) {
+    ensureStyle();
+    if (!pane) return;
+
+    var existing = document.getElementById('vsp-runs-kpi-row');
+    if (existing) existing.remove();
+
+    var wrap = document.createElement('div');
+    wrap.id = 'vsp-runs-kpi-row';
+    wrap.className = 'vsp-runs-kpi-grid';
+
+    function card(label, value, sub) {
+      return (
+        '<div class="vsp-runs-kpi-card">' +
+          '<div class="vsp-runs-kpi-label">' + label + '</div>' +
+          '<div class="vsp-runs-kpi-value">' + value + '</div>' +
+          (sub ? '<div class="vsp-runs-kpi-sub">' + sub + '</div>' : '') +
+        '</div>'
+      );
+    }
+
+    var toolsLabel = k.distinctTools.length
+      ? k.distinctTools.join(', ')
+      : '—';
+
+    wrap.innerHTML =
+      card('Total runs', k.totalRuns, 'Tổng số lần scan đã chạy') +
+      card('Last ' + k.lastN + ' runs',
+           k.doneLastN + ' DONE / ' + k.failLastN + ' FAIL',
+           'Trạng thái các run gần nhất') +
+      card('Avg findings / run',
+           Math.round(k.avgFindings).toLocaleString('en-US'),
+           'Dựa trên ' + k.lastN + ' run gần nhất') +
+      card('Tools per run',
+           k.avgToolsPerRun ? k.avgToolsPerRun.toFixed(1) : '—',
+           toolsLabel);
+
+    // chèn vào đầu pane (trước bảng)
+    pane.insertBefore(wrap, pane.firstChild);
+  }
+
+  function enhanceReports(pane, data) {
+    var table = pane.querySelector('table');
+    if (!table) return;
+
+    var theadRow = table.querySelector('thead tr');
+    if (theadRow && !theadRow.querySelector('.vsp-runs-report-header')) {
+      var th = document.createElement('th');
+      th.textContent = 'Reports';
+      th.className = 'vsp-runs-report-header';
+      theadRow.appendChild(th);
+    }
+
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    var items = Array.isArray(data.items) ? data.items : [];
+    var rows = Array.from(tbody.rows);
+
+    rows.forEach(function (tr, idx) {
+      var item = items[idx] || {};
+      var runId = item.run_id || (tr.cells[0] && tr.cells[0].textContent.trim());
+      if (!runId) return;
+
+      var td = document.createElement('td');
+      td.className = 'vsp-runs-report-cell';
+      td.innerHTML =
+        '<a href="/api/vsp/run_export_v3?run_id=' + encodeURIComponent(runId) + '&fmt=html" target="_blank">HTML</a>' +
+        '<a href="/api/vsp/run_export_v3?run_id=' + encodeURIComponent(runId) + '&fmt=pdf" target="_blank">PDF</a>' +
+        '<a href="/api/vsp/run_export_v3?run_id=' + encodeURIComponent(runId) + '&fmt=zip" target="_blank">ZIP</a>';
+      tr.appendChild(td);
+    });
+  }
+
+  function hydrateRunsKpi() {
+    var pane = document.getElementById('vsp-runs-main');
+    if (!pane) {
+      console.warn('[VSP_RUNS_KPI_V1] Không thấy #vsp-runs-main');
+      return;
+    }
+
+    fetch('/api/vsp/runs_v3?limit=40')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var k = computeKpi(data);
+        renderKpi(pane, k);
+        enhanceReports(pane, data);
+        console.log('[VSP_RUNS_KPI_V1] hydrated', k);
+      })
+      .catch(function (err) {
+        console.error('[VSP_RUNS_KPI_V1] error', err);
+      });
+  }
+
+  function onReady(fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn);
+    } else {
+      fn();
+    }
+  }
+
+  onReady(function () {
+    // chạy 1 lần; nếu sau này router thay đổi DOM, có thể gọi lại
+    setTimeout(hydrateRunsKpi, 800);
+  });
+})();

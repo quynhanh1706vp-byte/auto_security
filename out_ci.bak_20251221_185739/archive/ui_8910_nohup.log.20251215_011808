@@ -1,0 +1,16 @@
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUN_API] skip blueprint already registered: vsp_run_api_v1
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUNV1_V16] installed /healthz
+[VSP_RUNV1_V16] healed url_map._rules_by_endpoint endpoints= 34
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1.run_v1 orig= run_v1
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1_fallback._fallback_run_v1 orig= _fallback_run_v1
+[VSP_RUNV1_V16] installed wrappers: 2
+[VSP_RUNV1_NORMALIZE_REQID_AND_BOOTSTRAP_STATE_V1] wrote /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251215_001335_86715d.json
+[BOOTSTRAP_V7] wrote state: /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251215_001335_86715d.json
+[VSP_RUNV1_NORMALIZE_REQID_AND_BOOTSTRAP_STATE_V1] wrote /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251215_001554_55c932.json
+[BOOTSTRAP_V7] wrote state: /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251215_001554_55c932.json
+[VSP_RUNV1_NORMALIZE_REQID_AND_BOOTSTRAP_STATE_V1] wrote /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251215_005247_b7f051.json
+[BOOTSTRAP_V7] wrote state: /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251215_005247_b7f051.json

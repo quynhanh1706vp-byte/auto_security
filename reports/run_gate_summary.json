@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "generated_by": "ENSURE_MIN_REPORTS_V2",
+  "run_dir": "/home/test/Data/SECURITY_BUNDLE/ui",
+  "overall": "UNKNOWN",
+  "has": {
+    "index_html": false,
+    "summary_txt": true,
+    "findings_unified_json": true
+  }
+}

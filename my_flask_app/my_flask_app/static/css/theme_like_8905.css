@@ -1,0 +1,21 @@
+/* Ví dụ: nền, màu sidebar, màu card… giống 8905 */
+body {
+  background: #050814;
+  color: #f5f7ff;
+}
+
+.sb-sidebar {
+  background: radial-gradient(circle at top left, #051b1a 0, #020613 50%, #01030a 100%);
+}
+
+.sb-logo {
+  color: #24e07a;
+}
+
+/* Các card KPI, Severity buckets v.v… dùng cùng palette với 8905 */
+.sb-card,
+.severity-card {
+  background: linear-gradient(145deg, rgba(10,16,40,0.95), rgba(9,10,26,0.98));
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03);
+}

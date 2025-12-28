@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "run_id": "RUN_VSP_FULL_EXT_20251203_145619",
+  "summary": {
+    "by_severity": {
+      "CRITICAL": 18,
+      "HIGH": 3203,
+      "MEDIUM": 335,
+      "LOW": 211,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "by_tool": {
+      "bandit": 43,
+      "gitleaks": 2791,
+      "grype": 385,
+      "kics": 2,
+      "semgrep": 546
+    },
+    "total_findings": 3767
+  }
+}

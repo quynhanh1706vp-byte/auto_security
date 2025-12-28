@@ -1,0 +1,270 @@
+// VersaSecure Platform - Charts v3 (DEBUG)
+// - Dashboard: dùng /api/vsp/dashboard_v3_real + /api/vsp/runs_v2
+// - Data Source: dùng /api/vsp/datasource_v2
+// Luôn log chi tiết để debug.
+
+(function () {
+  function log() {
+    if (console && console.log) {
+      console.log.apply(console, ["[VSP][CHARTS_FULL]"].concat(Array.prototype.slice.call(arguments)));
+    }
+  }
+  function logErr() {
+    if (console && console.error) {
+      console.error.apply(console, ["[VSP][CHARTS_FULL]"].concat(Array.prototype.slice.call(arguments)));
+    }
+  }
+
+  function fetchJSON(url) {
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
+      return res.json();
+    });
+  }
+
+  function getChartInstance(ctx) {
+    if (window.Chart && typeof Chart.getChart === "function") {
+      return Chart.getChart(ctx);
+    }
+    if (window.Chart && Chart.instances) {
+      for (var id in Chart.instances) {
+        if (Object.prototype.hasOwnProperty.call(Chart.instances, id)) {
+          var inst = Chart.instances[id];
+          if (inst && inst.ctx === ctx) return inst;
+        }
+      }
+    }
+    return null;
+  }
+
+  function findCanvasByTitleContains(titleText) {
+    // Tìm mọi element có text chứa titleText rồi kiếm canvas gần đó
+    var found = [];
+    var all = document.querySelectorAll("*");
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (!el || !el.textContent) continue;
+      var t = el.textContent.trim();
+      if (t.indexOf(titleText) !== -1) {
+        var container = el;
+        for (var up = 0; up < 4; up++) {
+          if (!container) break;
+          var canvas = container.querySelector("canvas");
+          if (canvas) {
+            found.push({ title: t, canvas: canvas });
+            break;
+          }
+          container = container.parentElement;
+        }
+      }
+    }
+    return found;
+  }
+
+  function buildSeverityDonut(canvas, buckets) {
+    if (!window.Chart || !canvas) return;
+    var ctx = canvas.getContext("2d");
+    var existing = getChartInstance(ctx);
+    if (existing) {
+      log("Destroy old severity chart on", canvas);
+      existing.destroy();
+    }
+
+    var labels = ["Critical", "High", "Medium", "Low", "Info", "Trace"];
+    var order  = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+    var data   = order.map(function (k) { return Number(buckets[k] || 0); });
+
+    log("Render severity donut with data:", data);
+
+    new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: [
+            "#ff4b5c",
+            "#ff9f40",
+            "#ffcd56",
+            "#4bc0c0",
+            "#36a2eb",
+            "#9ca3af"
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "right",
+            labels: { color: "#e5e7eb", boxWidth: 12 }
+          }
+        }
+      }
+    });
+  }
+
+  function buildToolBar(canvas, byTool) {
+    if (!window.Chart || !canvas || !byTool) return;
+
+    var ctx = canvas.getContext("2d");
+    var existing = getChartInstance(ctx);
+    if (existing) {
+      log("Destroy old tool chart on", canvas);
+      existing.destroy();
+    }
+
+    var labels = Object.keys(byTool);
+    var data   = labels.map(function (k) { return Number(byTool[k] || 0); });
+
+    log("Render tool bar with data:", byTool);
+
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Findings by tool",
+          data: data
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#e5e7eb" } }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af" },
+            grid:  { color: "rgba(148,163,184,0.15)" }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: "#9ca3af" },
+            grid:  { color: "rgba(148,163,184,0.2)" }
+          }
+        }
+      }
+    });
+  }
+
+  // ---------------- DASHBOARD ----------------
+
+  function initDashboardCharts() {
+    try {
+      // Tìm canvas dưới tiêu đề "Severity Distribution" / "Findings by Tool"
+      var sevFound  = findCanvasByTitleContains("Severity Distribution");
+      var toolFound = findCanvasByTitleContains("Findings by Tool");
+
+      log("Dashboard canvases:", {
+        sevCount: sevFound.length,
+        toolCount: toolFound.length
+      });
+
+      if (!sevFound.length && !toolFound.length) return;
+
+      Promise.all([
+        fetchJSON("/api/vsp/dashboard_v3_real"),
+        fetchJSON("/api/vsp/runs_v2")
+      ]).then(function (res) {
+        var dash = res[0] || {};
+        var runs = (res[1] && res[1].runs) || [];
+
+        // Severity buckets
+        if (sevFound.length) {
+          var sev = dash.by_severity || dash.severity || {};
+          var buckets = {
+            CRITICAL: Number(sev.CRITICAL || 0),
+            HIGH:     Number(sev.HIGH     || 0),
+            MEDIUM:   Number(sev.MEDIUM   || 0),
+            LOW:      Number(sev.LOW      || 0),
+            INFO:     Number(sev.INFO     || 0),
+            TRACE:    Number(sev.TRACE    || 0)
+          };
+          buildSeverityDonut(sevFound[0].canvas, buckets);
+        }
+
+        // By tool
+        if (toolFound.length) {
+          var byTool = (dash.by_tool && typeof dash.by_tool === "object")
+            ? dash.by_tool
+            : null;
+
+          if (!byTool && runs.length > 0) {
+            var r0 = runs[0];
+            if (r0.by_tool && typeof r0.by_tool === "object") byTool = r0.by_tool;
+            else if (r0.summary && r0.summary.by_tool) byTool = r0.summary.by_tool;
+          }
+          if (byTool) buildToolBar(toolFound[0].canvas, byTool);
+        }
+
+        log("Dashboard charts OK.");
+      }).catch(function (err) {
+        logErr("Dashboard charts error:", err);
+      });
+    } catch (e) {
+      logErr("Dashboard exception:", e);
+    }
+  }
+
+  // ---------------- DATA SOURCE ----------------
+
+  function initDatasourceCharts() {
+    try {
+      var sevFound  = findCanvasByTitleContains("By severity");
+      var toolFound = findCanvasByTitleContains("By tool");
+
+      log("DataSource canvases:", {
+        sevCount: sevFound.length,
+        toolCount: toolFound.length
+      });
+
+      if (!sevFound.length && !toolFound.length) return;
+
+      fetchJSON("/api/vsp/datasource_v2?severity=ALL&limit=5000")
+        .then(function (payload) {
+          var items = (payload && payload.items) || [];
+
+          var bySeverity = {};
+          var byTool = {};
+
+          items.forEach(function (it) {
+            var sev  = (it.severity || "INFO").toUpperCase();
+            var tool = it.tool || "Unknown";
+
+            bySeverity[sev] = (bySeverity[sev] || 0) + 1;
+            byTool[tool]    = (byTool[tool] || 0) + 1;
+          });
+
+          log("Datasource agg:", { bySeverity: bySeverity, byTool: byTool });
+
+          if (sevFound.length)  buildSeverityDonut(sevFound[0].canvas, bySeverity);
+          if (toolFound.length) buildToolBar(toolFound[0].canvas, byTool);
+
+          log("DataSource charts OK. items=", items.length);
+        })
+        .catch(function (err) {
+          logErr("DataSource charts error:", err);
+        });
+    } catch (e) {
+      logErr("DataSource exception:", e);
+    }
+  }
+
+  // ---------------- INIT ----------------
+
+  window.addEventListener("load", function () {
+    // Đợi các script sample cũ chạy xong, rồi mình override
+    setTimeout(function () {
+      initDashboardCharts();
+      initDatasourceCharts();
+    }, 800);
+  });
+
+  window.VSP_CHARTS_FULL = {
+    initDashboardCharts: initDashboardCharts,
+    initDatasourceCharts: initDatasourceCharts
+  };
+})();

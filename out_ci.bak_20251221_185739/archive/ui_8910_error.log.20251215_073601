@@ -1,0 +1,25 @@
+[2025-12-15 05:32:52 +0700] [139198] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 05:32:52 +0700] [139198] [INFO] Listening at: http://127.0.0.1:8910 (139198)
+[2025-12-15 05:32:52 +0700] [139198] [INFO] Using worker: gthread
+[2025-12-15 05:32:52 +0700] [139200] [INFO] Booting worker with pid: 139200
+[2025-12-15 05:33:02,600] ERROR in app: Exception on /api/vsp/rule_overrides_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 2066, in vsp_rule_overrides_v1_api
+    root = _VSP_Path2(__file__).resolve().parent.parent  # .../SECURITY_BUNDLE
+           ^^^^^^^^^^
+NameError: name '_VSP_Path2' is not defined. Did you mean: '_vsp_Path'?
+[2025-12-15 07:36:01 +0700] [139198] [INFO] Handling signal: term
+[2025-12-15 07:36:01 +0700] [139200] [INFO] Worker exiting (pid: 139200)
+[2025-12-15 07:36:01 +0700] [139198] [INFO] Shutting down: Master

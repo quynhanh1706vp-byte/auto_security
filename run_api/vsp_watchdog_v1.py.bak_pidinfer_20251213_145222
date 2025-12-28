@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+import argparse, json, os, re, signal, time, subprocess
+from pathlib import Path
+
+STAGE_RE = re.compile(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]\s*([^\]]+?)\s*\]+", re.IGNORECASE)
+
+def _now(): return int(time.time())
+
+def _read_json(p: Path):
+    try: return json.loads(p.read_text(encoding="utf-8", errors="ignore"))
+    except Exception: return {}
+
+def _write_json(p: Path, obj: dict):
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(p)
+
+def _tail(p: Path, maxb=400_000):
+    if not p.exists(): return ""
+    b = p.read_bytes()
+    if len(b) > maxb: b = b[-maxb:]
+    return b.decode("utf-8", errors="ignore")
+
+def _last_marker(txt: str):
+    last = None
+    for m in STAGE_RE.finditer(txt): last = m
+    if not last: return (0,0,"")
+    return (int(last.group(1)), int(last.group(2)), last.group(3).strip())
+
+def _guess_ci_dir(target: str, start_ts: int):
+    roots = []
+    if target:
+        roots += [
+            Path(target)/"out_ci",
+            Path(target)/"ci"/"VSP_CI_OUTER"/"out_ci",
+            Path(target)/"ci"/"out_ci",
+        ]
+    cand=[]
+    for r in roots:
+        if not r.exists(): continue
+        for d in r.glob("VSP_CI_*"):
+            try:
+                mt=int(d.stat().st_mtime)
+                if mt >= start_ts - 1200:
+                    cand.append((mt, str(d)))
+            except Exception:
+                pass
+    if not cand: return ""
+    cand.sort()
+    return cand[-1][1]
+
+def _pick_runner_log_smart(ci_dir: str) -> str:
+    if not ci_dir: return ""
+    d = Path(ci_dir)
+    if not d.exists(): return ""
+
+    # 1) fast common names
+    common = [
+        d/"runner.log", d/"run.log", d/"vsp_ci.log", d/"ci.log", d/"out.log",
+        d/"SUMMARY.txt", d/"SUMMARY.txt",
+        d/"kics"/"kics.log", d/"codeql"/"codeql.log",
+    ]
+    for p in common:
+        if p.exists() and p.stat().st_size > 0:
+            return str(p)
+
+    # 2) scan newest file depth<=3, prefer ones containing marker
+    best = None  # (has_marker, mtime, size, path)
+    for p in d.rglob("*"):
+        try:
+            if p.is_dir(): 
+                continue
+            rel_depth = len(p.relative_to(d).parts)
+            if rel_depth > 3:
+                continue
+            sz = p.stat().st_size
+            if sz <= 0 or sz > 80_000_000:
+                continue
+            name = p.name.lower()
+            if not (name.endswith(".log") or name.endswith(".txt") or "log" in name or "summary" in name):
+                continue
+            mt = int(p.stat().st_mtime)
+            txt = _tail(p, maxb=120_000)
+            has_marker = 1 if STAGE_RE.search(txt) else 0
+            cand = (has_marker, mt, sz, str(p))
+            if best is None or cand > best:
+                best = cand
+        except Exception:
+            continue
+    return best[3] if best else ""
+
+def _is_alive(pid: int):
+    try:
+        os.kill(pid, 0); return True
+    except Exception:
+        return False
+
+def _kill(pid: int):
+    if pid <= 0: return
+    try:
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(2)
+        os.kill(pid, signal.SIGKILL)
+    except Exception:
+        pass
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--state", required=True)
+    ap.add_argument("--tick", type=int, default=2)
+    args = ap.parse_args()
+    sp = Path(args.state)
+
+    while True:
+        st = _read_json(sp)
+        if not st:
+            time.sleep(args.tick); continue
+        if st.get("final") is True:
+            return
+
+        now = _now()
+        start_ts = int(st.get("start_ts") or now)
+        stall = int(st.get("stall_timeout_sec") or 600)
+        total = int(st.get("total_timeout_sec") or 7200)
+
+        pid = int(st.get("pid") or 0)
+        target = str(st.get("target") or "")
+        last_sig = str(st.get("stage_sig") or "0/0||0")
+        last_chg = int(st.get("last_sig_change_ts") or start_ts)
+
+        if not st.get("ci_run_dir"):
+            st["ci_run_dir"] = _guess_ci_dir(target, start_ts) or ""
+        if st.get("ci_run_dir") and not st.get("runner_log"):
+            st["runner_log"] = _pick_runner_log_smart(st["ci_run_dir"]) or ""
+
+        if st.get("runner_log"):
+            txt = _tail(Path(st["runner_log"]))
+            i,t,name = _last_marker(txt)
+            sig = f"{i}/{t}||{i if i>0 else 0}"
+            st["stage_index"]=i; st["stage_total"]=t; st["stage_name"]=name; st["stage_sig"]=sig
+            if t>0:
+                st["progress_pct"]=int(((max(i,1)-1)/t)*100)
+            if sig != last_sig:
+                st["last_sig_change_ts"]=now
+                last_chg = now
+
+        if now - start_ts > total:
+            st["killed"]=True; st["kill_reason"]="TOTAL"
+        elif now - last_chg > stall:
+            st["killed"]=True; st["kill_reason"]="STALL"
+
+        if st.get("killed") and not st.get("final"):
+            st["status"]="KILLED"
+            _kill(pid)
+            st["final"]=True; st["final_ts"]=now
+            _write_json(sp, st)
+            return
+
+        if pid>0 and not _is_alive(pid):
+            st["status"]="FINISHED"
+            st["final"]=True; st["final_ts"]=now
+            _write_json(sp, st)
+            return
+
+        st["status"]="RUNNING"
+        st["last_poll_ts"]=now
+        _write_json(sp, st)
+        time.sleep(args.tick)
+
+if __name__ == "__main__":
+    main()

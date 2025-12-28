@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="/home/test/Data/SECURITY_BUNDLE"
+cd "$ROOT"
+
+RUNNER="${1:-bin/run_all_tools_v2.sh}"
+[ -f "$RUNNER" ] || { echo "[ERR] missing runner: $RUNNER"; exit 2; }
+
+if grep -q "VSP_POLICY_POSTPROCESS_V1" "$RUNNER"; then
+  echo "[OK] already patched: $RUNNER"
+  exit 0
+fi
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$RUNNER" "$RUNNER.bak_policy_post_${TS}"
+echo "[BACKUP] $RUNNER.bak_policy_post_${TS}"
+
+python3 - <<PY
+from pathlib import Path
+import re
+
+p=Path("$RUNNER")
+s=p.read_text(encoding="utf-8", errors="ignore").splitlines(True)
+
+block = r'''
+# ===== [POLICY_POST] =====  # VSP_POLICY_POSTPROCESS_V1
+echo "===== [POLICY_POST] policy_group + quality demote (commercial v2) ====="
+python3 -u /home/test/Data/SECURITY_BUNDLE/bin/vsp_postprocess_policy_groups_v1.py "$RUN_DIR" || true
+if [ -s "$RUN_DIR/findings_unified_commercial_v2.json" ]; then
+  cp -f "$RUN_DIR/findings_unified_commercial_v2.json" "$RUN_DIR/findings_unified_current.json" || true
+  echo "[POLICY_POST] wrote findings_unified_current.json (for UI)"
+fi
+'''
+
+# insert right after unify call; best-effort patterns
+pat = re.compile(r'vsp_unify_findings|unify_findings|findings_unified_commercial\.json', re.I)
+idx=None
+for i,l in enumerate(s):
+  if pat.search(l):
+    # insert AFTER the first matching line
+    idx=i+1
+    break
+if idx is None:
+  idx=len(s)
+
+out = s[:idx] + [block if block.endswith("\n") else block+"\n"] + s[idx:]
+p.write_text("".join(out), encoding="utf-8")
+print("[OK] inserted POLICY_POST at line~", idx+1)
+PY
+
+bash -n "$RUNNER"
+echo "[OK] bash -n OK"
+echo "[DONE] patched $RUNNER"

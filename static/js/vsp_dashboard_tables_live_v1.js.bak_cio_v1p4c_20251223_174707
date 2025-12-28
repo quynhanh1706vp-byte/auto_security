@@ -1,0 +1,197 @@
+(function () {
+  'use strict';
+
+  const API_TABLES       = '/api/vsp/dashboard_v3_tables';
+  const API_TOP_FINDINGS = '/api/vsp/datasource?severity=HIGH&limit=10';
+
+  function findTbodyByTitle(titleText) {
+    var all = document.querySelectorAll('*');
+    var titleEl = null;
+
+    for (var i = 0; i < all.length; i++) {
+      var txt = (all[i].textContent || '').trim();
+      if (txt === titleText) {
+        titleEl = all[i];
+        break;
+      }
+    }
+    if (!titleEl) return null;
+
+    var card = titleEl;
+    for (var depth = 0; depth < 6 && card; depth++) {
+      var tbody = card.querySelector('tbody');
+      if (tbody) return tbody;
+      card = card.parentElement;
+    }
+    return null;
+  }
+
+  // -------- Top Findings (chi tiết từ datasource HIGH) ----------
+  function renderTopFindings(items) {
+    var tbody = findTbodyByTitle('Top Findings');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (!Array.isArray(items) || items.length === 0) {
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 5;
+      td.textContent = 'No data from latest FULL EXT run.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    items.forEach(function (f) {
+      var tr = document.createElement('tr');
+
+      var sev  = (f.severity || f.sev || '').toString().toUpperCase();
+      var tool = f.tool || f.source || '';
+      var rule = f.rule_id || f.rule || f.check_id || '';
+      var file = f.file || f.path || f.relpath || '';
+      var msg  = f.message || f.detail || f.title || '';
+
+      function cell(text) {
+        var td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      }
+
+      cell(sev);
+      cell(tool);
+      cell(rule);
+      cell(file);
+      cell(msg);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function loadTopFindings() {
+    fetch(API_TOP_FINDINGS)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || data.ok === false) {
+          console.warn('[VSP][TABLE] datasource HIGH not ok:', data);
+          return;
+        }
+        renderTopFindings(data.items || []);
+      })
+      .catch(function (err) {
+        console.error('[VSP][TABLE] fetch Top Findings error:', err);
+      });
+  }
+
+  // -------- Top CVE / CWE ----------
+  function renderTopCve(list) {
+    var tbody = findTbodyByTitle('Top CVE');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (!Array.isArray(list) || list.length === 0) {
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 2;
+      td.textContent = 'No data from latest FULL EXT run.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(function (row) {
+      var tr = document.createElement('tr');
+
+      var id = row.cve || row.cwe || row.id || '-';
+      var count = row.count || 0;
+
+      var td1 = document.createElement('td');
+      td1.textContent = id;
+      tr.appendChild(td1);
+
+      var td2 = document.createElement('td');
+      td2.textContent = String(count);
+      tr.appendChild(td2);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  // -------- Top Modules ----------
+  function renderTopModules(list, topDirs) {
+    var tbody = findTbodyByTitle('Top Modules');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    // Nếu BE chưa có summary.top_modules → tự build từ top_dirs
+    if (!Array.isArray(list) || list.length === 0) {
+      list = [];
+      if (Array.isArray(topDirs)) {
+        topDirs.forEach(function (d) {
+          list.push({
+            name: d.path || '',
+            total: d.total || 0,
+            crit_high: (d.CRIT || 0) + (d.HIGH || 0)
+          });
+        });
+      }
+    }
+
+    if (!Array.isArray(list) || list.length === 0) {
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 3;
+      td.textContent = 'No data from latest FULL EXT run.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(function (row) {
+      var tr = document.createElement('tr');
+
+      var name = row.name || row.module || row.package || '-';
+      var total = row.total || 0;
+      var ch = row.crit_high || row.CRIT_HIGH || 0;
+
+      function cell(text) {
+        var td = document.createElement('td');
+        td.textContent = String(text);
+        tr.appendChild(td);
+      }
+
+      cell(name);
+      cell(total);
+      cell(ch);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function loadTables() {
+    fetch(API_TABLES)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || data.ok === false) {
+          console.warn('[VSP][TABLE] /api/vsp/dashboard_v3_tables not ok:', data);
+          return;
+        }
+        var topCweList = data.top_cve_list || data.top_cwe_list || [];
+        var topModules = data.top_modules || [];
+        var topDirs    = data.top_dirs || [];
+
+        renderTopCve(topCweList);
+        renderTopModules(topModules, topDirs);
+      })
+      .catch(function (err) {
+        console.error('[VSP][TABLE] fetch dashboard_tables error:', err);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    loadTopFindings();
+    loadTables();
+  });
+})();

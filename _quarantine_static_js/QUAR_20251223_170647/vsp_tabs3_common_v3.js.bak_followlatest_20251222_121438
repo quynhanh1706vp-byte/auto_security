@@ -1,0 +1,185 @@
+(() => {
+  
+
+
+
+/* VSP_RUNFILEALLOW_FETCH_GUARD_V3C
+   - prevent 404 spam when rid missing/invalid
+   - auto add default path when missing
+   - covers fetch + XMLHttpRequest
+*/
+(()=> {
+  try {
+    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+    window.__vsp_runfileallow_fetch_guard_v3c = true;
+
+    function _isLikelyRid(rid){
+      if(!rid || typeof rid !== "string") return false;
+      if(rid.length < 6) return false;
+      if(rid.includes("{") || rid.includes("}")) return false;
+      return /^[A-Za-z0-9_\-]+$/.test(rid);
+    }
+
+    function _fix(url0){
+      try{
+        if(!url0 || typeof url0 !== "string") return {action:"pass"};
+        if(!url0.includes("/api/vsp/run_file_allow")) return {action:"pass"};
+        const u = new URL(url0, window.location.origin);
+        const rid = u.searchParams.get("rid") || "";
+        const path = u.searchParams.get("path") || "";
+        if(!_isLikelyRid(rid)) return {action:"skip"};
+        if(!path){
+          u.searchParams.set("path","run_gate_summary.json");
+          return {action:"rewrite", url: u.toString().replace(window.location.origin,"")};
+        }
+        return {action:"pass"};
+      }catch(e){
+        return {action:"pass"};
+      }
+    }
+
+    // fetch
+    const _origFetch = window.fetch ? window.fetch.bind(window) : null;
+    if (_origFetch){
+      window.fetch = function(input, init){
+        try{
+          const url0 = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+          const fx = _fix(url0);
+          if (fx.action === "skip"){
+            const body = JSON.stringify({ok:false, skipped:true, reason:"no rid"});
+            return Promise.resolve(new Response(body, {status:200, headers:{"Content-Type":"application/json; charset=utf-8"}}));
+          }
+          if (fx.action === "rewrite"){
+            if (typeof input === "string") input = fx.url;
+            else input = new Request(fx.url, input);
+          }
+        }catch(e){}
+        return _origFetch(input, init);
+      };
+    }
+
+    // XHR
+    const XHR = window.XMLHttpRequest;
+    if (XHR && XHR.prototype && XHR.prototype.open){
+      const _open = XHR.prototype.open;
+      XHR.prototype.open = function(method, url, async, user, password){
+        try{
+          const url0 = (typeof url === "string") ? url : "";
+          const fx = _fix(url0);
+          if (fx.action === "skip"){
+            const body = encodeURIComponent(JSON.stringify({ok:false, skipped:true, reason:"no rid"}));
+            url = "data:application/json;charset=utf-8," + body;
+          } else if (fx.action === "rewrite"){
+            url = fx.url;
+          }
+        }catch(e){}
+        return _open.call(this, method, url, async, user, password);
+      };
+    }
+  } catch(e) {}
+})();
+
+/* VSP_RUNFILEALLOW_FETCH_GUARD_V1
+   - prevent 404 spam when rid missing/invalid
+   - auto add default path when missing
+*/
+(()=> {
+  try {
+    if (window.__vsp_runfileallow_fetch_guard_v1) return;
+    window.__vsp_runfileallow_fetch_guard_v1 = true;
+
+    const _origFetch = window.fetch ? window.fetch.bind(window) : null;
+    if (!_origFetch) return;
+
+    function _isLikelyRid(rid){
+      if(!rid || typeof rid !== "string") return false;
+      if(rid.length < 6) return false;
+      if(rid.includes("{") || rid.includes("}")) return false;
+      return /^[A-Za-z0-9_\-]+$/.test(rid);
+    }
+
+    window.fetch = function(input, init){
+      try {
+        const url0 = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+        if (url0 && url0.includes("/api/vsp/run_file_allow")) {
+          const u = new URL(url0, window.location.origin);
+          const rid = u.searchParams.get("rid") || "";
+          const path = u.searchParams.get("path") || "";
+
+          if (!_isLikelyRid(rid)) {
+            const body = JSON.stringify({ok:false, skipped:true, reason:"no rid"});
+            return Promise.resolve(new Response(body, {
+              status: 200,
+              headers: {"Content-Type":"application/json; charset=utf-8"}
+            }));
+          }
+
+          if (!path) {
+            u.searchParams.set("path", "run_gate_summary.json");
+            const fixed = u.toString().replace(window.location.origin, "");
+            if (typeof input === "string") input = fixed;
+            else input = new Request(fixed, input);
+          }
+        }
+      } catch (e) {}
+      return _origFetch(input, init);
+    };
+  } catch(e) {}
+})();
+
+if (window.__vsp_tabs3_v3) return;
+  const $ = (s, r=document) => r.querySelector(s);
+  const esc = (x)=> (x==null?'':String(x)).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  async function api(url, opt){
+    const r = await fetch(url, opt);
+    const t = await r.text();
+    let j; try{ j=JSON.parse(t); }catch(e){ j={ok:false, err:"non-json", raw:t.slice(0,800)}; }
+    if(!r.ok) throw Object.assign(new Error("HTTP "+r.status), {status:r.status, body:j});
+    return j;
+  }
+  function ensure(){
+    if(document.getElementById("vsp_tabs3_v3_style")) return;
+    const st=document.createElement("style");
+    st.id="vsp_tabs3_v3_style";
+    st.textContent=`
+      .vsp-nav{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+      .vsp-nav-left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+      .vsp-link{color:#cbd5e1;text-decoration:none;padding:6px 10px;border:1px solid rgba(148,163,184,.18);border-radius:999px;background:#0b1324}
+      .vsp-link:hover{border-color:rgba(148,163,184,.45)}
+      .vsp-active{border-color:rgba(99,102,241,.65)}
+      .vsp-card{background:#0f1b2d;border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:14px}
+      .vsp-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+      .vsp-btn{background:#111c30;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:10px;padding:7px 10px;cursor:pointer}
+      .vsp-btn:hover{border-color:rgba(148,163,184,.45)}
+      .vsp-in{background:#0b1324;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:10px;padding:7px 10px;outline:none}
+      .vsp-muted{color:#94a3b8}
+      .vsp-badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(148,163,184,.22);font-size:12px}
+      table.vsp-t{width:100%;border-collapse:separate;border-spacing:0 8px}
+      table.vsp-t th{font-weight:600;text-align:left;color:#cbd5e1;font-size:12px;padding:0 10px}
+      table.vsp-t td{background:#0b1324;border-top:1px solid rgba(148,163,184,.18);border-bottom:1px solid rgba(148,163,184,.18);padding:10px;font-size:13px;vertical-align:top}
+      table.vsp-t tr td:first-child{border-left:1px solid rgba(148,163,184,.18);border-top-left-radius:12px;border-bottom-left-radius:12px}
+      table.vsp-t tr td:last-child{border-right:1px solid rgba(148,163,184,.18);border-top-right-radius:12px;border-bottom-right-radius:12px}
+      .vsp-code{width:100%;min-height:320px;resize:vertical;font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;background:#0b1324;border:1px solid rgba(148,163,184,.22);color:#e5e7eb;border-radius:12px;padding:12px}
+      .vsp-ok{color:#86efac}.vsp-err{color:#fca5a5}
+    `;
+    document.head.appendChild(st);
+  }
+  function mountNav(active){
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    const nav = document.createElement("div");
+    nav.className = "vsp-nav";
+    nav.innerHTML = `
+      <div class="vsp-nav-left">
+        <a class="vsp-link ${active==='dashboard'?'vsp-active':''}" href="/vsp5">Dashboard</a>
+        <a class="vsp-link ${active==='runs'?'vsp-active':''}" href="/runs">Runs & Reports</a>
+        <a class="vsp-link ${active==='data_source'?'vsp-active':''}" href="/data_source">Data Source</a>
+        <a class="vsp-link ${active==='settings'?'vsp-active':''}" href="/settings">Settings</a>
+        <a class="vsp-link ${active==='rule_overrides'?'vsp-active':''}" href="/rule_overrides">Rule Overrides</a>
+      </div>
+      <div class="vsp-muted" style="font-size:12px">VSP UI</div>
+    `;
+    root.prepend(nav);
+  }
+  window.__vsp_tabs3_v3 = { $, esc, api, ensure, mountNav };
+})();

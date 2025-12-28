@@ -1,0 +1,41 @@
+/* VSP_THEME_OVERRIDE_P1_V2 */
+:root{
+  --vsp-bg0:#070a12; --vsp-bg1:#0b1020;
+  --vsp-card:rgba(14,21,40,.88);
+  --vsp-text:#e8eefc; --vsp-muted:#a8b3d6;
+  --vsp-line:rgba(255,255,255,.08);
+  --vsp-accent:#6ea8ff;
+}
+html,body{
+  background: radial-gradient(1200px 700px at 30% 10%, rgba(110,168,255,.12), transparent 60%),
+              radial-gradient(900px 600px at 70% 15%, rgba(138,125,255,.10), transparent 55%),
+              linear-gradient(180deg, var(--vsp-bg1), var(--vsp-bg0));
+  color: var(--vsp-text);
+}
+a{ color: var(--vsp-accent) !important; }
+a:hover{ text-decoration: underline; }
+.card,.panel,.box,.vsp-card,.vsp-panel{
+  background: linear-gradient(180deg, var(--vsp-card), rgba(9,14,30,.88)) !important;
+  border: 1px solid var(--vsp-line) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35) !important;
+}
+button,.btn{
+  border: 1px solid rgba(255,255,255,.10) !important;
+  background: rgba(255,255,255,.06) !important;
+  color: var(--vsp-text) !important;
+}
+button:hover,.btn:hover{ background: rgba(255,255,255,.10) !important; }
+input,textarea,select{
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: var(--vsp-text) !important;
+}
+.vsp-degraded-banner{
+  margin: 10px 0 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,204,102,.35);
+  background: rgba(255,204,102,.10);
+  color: var(--vsp-text);
+  border-radius: 10px;
+  font-size: 13px;
+}

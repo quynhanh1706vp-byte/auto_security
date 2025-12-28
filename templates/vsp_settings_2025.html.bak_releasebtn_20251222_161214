@@ -1,0 +1,17 @@
+<!doctype html><html lang="vi"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>VSP • Settings</title>
+<link rel="stylesheet" href="/static/css/vsp_dark_commercial_p1_2.css"/>
+<style>html,body{background:#070e1a;color:#e5e7eb;margin:0;}</style>
+
+<!-- VSP_P1_UI_4TABS_COMMERCIAL_UPGRADE_V1 -->
+<link rel="stylesheet" href="/static/css/vsp_ui_shell_v1.css"/>
+</head><body>
+<div id="vsp_tab_root" data-vsp-tab="settings" style="padding:16px"><div style="color:#94a3b8;font-size:12px">Loading...</div></div>
+<script src="/static/js/vsp_tabs3_common_v3.js?v=1"></script>
+<script src="/static/js/vsp_settings_tab_v3.js?v=1"></script>
+<script src="/static/js/vsp_ui_shell_v1.js?v={{ asset_v }}"></script>
+<script src="/static/js/vsp_settings_control_center_v1.js?v={{ asset_v }}"></script>
+<script src="/static/js/vsp_dashboard_luxe_v1.js?v={{ asset_v }}"></script>
+<script src="/static/js/vsp_settings_commercial_v1.js?v={{ asset_v|default('') }}"></script>
+</body></html>

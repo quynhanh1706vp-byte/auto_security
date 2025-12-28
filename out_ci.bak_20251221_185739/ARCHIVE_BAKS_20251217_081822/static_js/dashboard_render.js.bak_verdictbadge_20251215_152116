@@ -1,0 +1,234 @@
+"use strict";
+
+/**
+ * VSP DASHBOARD RENDER
+ * - Không đụng tới logic KPI / Donut / Top Findings / Top Modules / Critical-High by Tool
+ * - Chỉ bổ sung:
+ *    + Trend – Findings over time  (dùng renderTrendFindingsOverTime)
+ *    + Top CWE Exposure            (dùng renderTopCWEExposure)
+ * - Dùng data:
+ *    + /api/vsp/runs_index_v3    → lịch sử các RUN
+ *    + /api/vsp/dashboard     → thống kê chung, trong đó có top_cwe / cwe_stats (sau này BE build)
+ */
+
+(function () {
+  // --- Helpers chung -------------------------------------------------------
+
+  function onReady(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn);
+    } else {
+      fn();
+    }
+  }
+
+  function textEquals(el, expected) {
+    if (!el) return false;
+    var txt = (el.textContent || "").trim();
+    return txt.toLowerCase() === String(expected || "").trim().toLowerCase();
+  }
+
+  /**
+   * Tìm card theo tiêu đề (phần text "TREND – FINDINGS OVER TIME", "TOP CWE EXPOSURE", ...)
+   * để không phụ thuộc ID cứng, tránh phá các tab khác.
+   */
+  function findCardByTitle(titleText) {
+    var candidates = document.querySelectorAll(
+      ".chart-title-main, .vsp-card-title, .card-title"
+    );
+    for (var i = 0; i < candidates.length; i++) {
+      var h = candidates[i];
+      if (textEquals(h, titleText)) {
+        // Card = phần container lớn hơn bọc quanh title
+        // Lùi lên 1–2 cấp là đủ bắt được card block.
+        return h.closest(".vsp-card, .dashboard-card, .card") || h.parentElement;
+      }
+    }
+    return null;
+  }
+
+  function setEmptyMessage(card, message) {
+    if (!card) return;
+    card.innerHTML = [
+      '<div class="chart-header">',
+      '  <div class="chart-title-main">',
+      card.getAttribute("data-vsp-title") || "",
+      "  </div>",
+      "</div>",
+      '<div class="chart-empty-msg">',
+      message,
+      "</div>",
+    ].join("\n");
+  }
+
+  // --- Trend – Findings over time -----------------------------------------
+
+  function hydrateTrendFindingsOverTime() {
+    // Tìm đúng card theo text tiêu đề như trong UI
+    var card = findCardByTitle("TREND – FINDINGS OVER TIME");
+    if (!card) {
+      // Không phải trang Dashboard, hoặc HTML khác → bỏ qua
+      return;
+    }
+
+    if (typeof window.renderTrendFindingsOverTime !== "function") {
+      if (window.console && console.warn) {
+        console.warn(
+          "[VSP][DASHBOARD] Không thấy hàm renderTrendFindingsOverTime – kiểm tra vsp_charts_full.js đã load chưa."
+        );
+      }
+      return;
+    }
+
+    fetch("/api/vsp/runs_index_v3", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (rows) {
+        if (!Array.isArray(rows) || rows.length === 0) {
+          // Không có lịch sử RUN nào
+          card.innerHTML = "";
+          var msg = document.createElement("div");
+          msg.className = "chart-empty-msg";
+          msg.textContent = "No historical runs yet.";
+          card.appendChild(msg);
+          return;
+        }
+
+        // Lấy tối đa 10 RUN gần nhất (BE thường đã sort rồi, nhưng mình vẫn slice cho chắc)
+        var data = rows.slice(0, 10);
+
+        try {
+          window.renderTrendFindingsOverTime(card, data);
+        } catch (e) {
+          if (window.console && console.error) {
+            console.error("[VSP][DASHBOARD] Lỗi renderTrendFindingsOverTime:", e);
+          }
+          card.innerHTML = "";
+          var err = document.createElement("div");
+          err.className = "chart-empty-msg";
+          err.textContent = "Cannot render trend chart.";
+          card.appendChild(err);
+        }
+      })
+      .catch(function (err) {
+        if (window.console && console.error) {
+          console.error("[VSP][DASHBOARD] Lỗi gọi /api/vsp/runs_index_v3:", err);
+        }
+        card.innerHTML = "";
+        var msg = document.createElement("div");
+        msg.className = "chart-empty-msg";
+        msg.textContent = "Cannot load historical runs.";
+        card.appendChild(msg);
+      });
+  }
+
+  // --- Top CWE Exposure ----------------------------------------------------
+
+  function extractCweBuckets(dashboardJson) {
+    if (!dashboardJson || typeof dashboardJson !== "object") return [];
+
+    // Ưu tiên dạng mảng sẵn: [{ id: 'CWE-79', count: 12 }, ...]
+    if (Array.isArray(dashboardJson.top_cwe)) {
+      return dashboardJson.top_cwe;
+    }
+    if (Array.isArray(dashboardJson.cwe_stats)) {
+      return dashboardJson.cwe_stats;
+    }
+
+    // Nếu BE trả về object kiểu { "CWE-79": 12, "CWE-89": 5, ... }
+    var obj = dashboardJson.cwe_stats;
+    if (obj && typeof obj === "object") {
+      var out = [];
+      Object.keys(obj).forEach(function (key) {
+        out.push({
+          id: key,
+          count: obj[key],
+        });
+      });
+      // sort giảm dần
+      out.sort(function (a, b) {
+        return (b.count || 0) - (a.count || 0);
+      });
+      return out;
+    }
+
+    return [];
+  }
+
+  function hydrateTopCWEExposure() {
+    var card = findCardByTitle("TOP CWE EXPOSURE");
+    if (!card) {
+      // Trang hiện tại có thể không có block này → bỏ qua
+      return;
+    }
+
+    if (typeof window.renderTopCWEExposure !== "function") {
+      if (window.console && console.warn) {
+        console.warn(
+          "[VSP][DASHBOARD] Không thấy hàm renderTopCWEExposure – kiểm tra vsp_charts_full.js đã load chưa."
+        );
+      }
+      return;
+    }
+
+    fetch("/api/vsp/dashboard_v3", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (payload) {
+        var buckets = extractCweBuckets(payload);
+
+        if (!buckets || buckets.length === 0) {
+          // BE chưa build cwe_stats/top_cwe → hiển thị message nhẹ nhàng
+          card.innerHTML = "";
+          var msg = document.createElement("div");
+          msg.className = "chart-empty-msg";
+          msg.textContent = "No CWE stats in this run.";
+          card.appendChild(msg);
+          return;
+        }
+
+        try {
+          window.renderTopCWEExposure(card, buckets);
+        } catch (e) {
+          if (window.console && console.error) {
+            console.error("[VSP][DASHBOARD] Lỗi renderTopCWEExposure:", e);
+          }
+          card.innerHTML = "";
+          var err = document.createElement("div");
+          err.className = "chart-empty-msg";
+          err.textContent = "Cannot render CWE exposure.";
+          card.appendChild(err);
+        }
+      })
+      .catch(function (err) {
+        if (window.console && console.error) {
+          console.error("[VSP][DASHBOARD] Lỗi gọi /api/vsp/dashboard:", err);
+        }
+        card.innerHTML = "";
+        var msg = document.createElement("div");
+        msg.className = "chart-empty-msg";
+        msg.textContent = "Cannot load CWE stats.";
+        card.appendChild(msg);
+      });
+  }
+
+  // --- Khởi động trên trang Dashboard --------------------------------------
+
+  onReady(function () {
+    // Chỉ chạy nếu trên layout có các block tương ứng.
+    hydrateTrendFindingsOverTime();
+    hydrateTopCWEExposure();
+  });
+})();

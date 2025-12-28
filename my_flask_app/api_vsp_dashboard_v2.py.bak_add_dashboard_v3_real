@@ -1,0 +1,357 @@
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from flask import Blueprint, jsonify
+
+# Blueprint chính cho dashboard (v2 + v3 + score_v1)
+bp = Blueprint("vsp_dashboard_v2", __name__, url_prefix="/api/vsp")
+
+SEVERITY_LEVELS = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]
+
+
+@dataclass
+class RunInfo:
+    run_id: str
+    path: Path
+    findings_path: Path
+    mtime: float
+
+
+def _find_root() -> Path:
+    """
+    Tìm thư mục gốc SECURITY_BUNDLE: đi lên đến khi thấy 'out'.
+    """
+    p = Path(__file__).resolve()
+    for parent in p.parents:
+        if (parent / "out").is_dir():
+            return parent
+    return p.parent
+
+
+def _list_runs(limit: Optional[int] = None) -> List[RunInfo]:
+    """
+    Lấy danh sách RUN_VSP* có report/findings_unified.json, sort theo mtime giảm dần.
+    """
+    root = _find_root()
+    out_dir = root / "out"
+    if not out_dir.is_dir():
+        return []
+
+    runs: List[RunInfo] = []
+    for child in out_dir.iterdir():
+        if not child.is_dir():
+            continue
+        if not child.name.startswith("RUN_VSP"):
+            continue
+        findings_path = child / "report" / "findings_unified.json"
+        if not findings_path.is_file():
+            continue
+        mtime = findings_path.stat().st_mtime
+        runs.append(
+            RunInfo(
+                run_id=child.name,
+                path=child,
+                findings_path=findings_path,
+                mtime=mtime,
+            )
+        )
+
+    runs.sort(key=lambda r: r.mtime, reverse=True)
+    if limit is not None:
+        runs = runs[:limit]
+    return runs
+
+
+def _load_findings(path: Path) -> List[Dict[str, Any]]:
+    """
+    Đọc JSON findings_unified (list) từ file; nếu không đúng format thì trả list rỗng.
+    """
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and isinstance(data.get("findings"), list):
+            return data["findings"]
+        return []
+    except Exception:
+        return []
+
+
+def _norm_sev(raw: Optional[str]) -> str:
+    if not raw:
+        return "INFO"
+    s = str(raw).strip().upper()
+    if s in SEVERITY_LEVELS:
+        return s
+    if s in ("BLOCKER", "ERROR"):
+        return "CRITICAL"
+    if s in ("WARN", "WARNING"):
+        return "HIGH"
+    if s in ("NOTICE", "MINOR"):
+        return "LOW"
+    return "INFO"
+
+
+def _extract_module(path_str: str) -> Optional[str]:
+    p = Path(path_str)
+    parts = list(p.parts)
+    if ".scan_unpacked" in parts:
+        idx = parts.index(".scan_unpacked")
+        # .scan_unpacked / PROJECT / code / MODULE / ...
+        if len(parts) > idx + 3 and parts[idx + 2] == "code":
+            return parts[idx + 3]
+        if len(parts) > idx + 2:
+            return parts[idx + 2]
+    if len(parts) >= 2:
+        return parts[-2]
+    return None
+
+
+def _security_score(by_sev: Dict[str, int], total: int) -> int:
+    """
+    Security Score 0–100:
+      CRITICAL = 10, HIGH = 5, MEDIUM = 2, LOW = 1, INFO/TRACE = 0.
+    Không có findings => 100.
+    """
+    if total <= 0:
+        return 100
+
+    crit = by_sev.get("CRITICAL", 0)
+    high = by_sev.get("HIGH", 0)
+    med = by_sev.get("MEDIUM", 0)
+    low = by_sev.get("LOW", 0)
+
+    weighted = 10 * crit + 5 * high + 2 * med + 1 * low
+    worst = max(float(total) * 10.0, 1.0)
+    penalty_pct = min(100.0, (weighted / worst) * 100.0)
+    score = int(round(100.0 - penalty_pct))
+    return max(0, min(100, score))
+
+
+def _summarize(findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    by_sev: Dict[str, int] = {k: 0 for k in SEVERITY_LEVELS}
+    by_tool: Dict[str, int] = {}
+    cwe_count: Dict[str, int] = {}
+    module_count: Dict[str, int] = {}
+
+    for item in findings:
+        sev = item.get("severity_effective") or item.get("severity_raw") or item.get("severity")
+        sev_norm = _norm_sev(sev)
+        by_sev[sev_norm] = by_sev.get(sev_norm, 0) + 1
+
+        tool = (item.get("tool") or "unknown").strip() or "unknown"
+        by_tool[tool] = by_tool.get(tool, 0) + 1
+
+        cwe = (
+            item.get("cwe")
+            or item.get("cwe_id")
+            or item.get("cwe_id_normalized")
+            or ""
+        )
+        cwe = str(cwe).strip()
+        if cwe:
+            cwe_count[cwe] = cwe_count.get(cwe, 0) + 1
+
+        file_path = str(
+            item.get("file") or item.get("location") or item.get("path") or ""
+        ).strip()
+        if file_path:
+            module = _extract_module(file_path)
+            if module:
+                module_count[module] = module_count.get(module, 0) + 1
+
+    total = sum(by_sev.values())
+    score = _security_score(by_sev, total)
+
+    top_risky_tool = None
+    if by_tool:
+        def risk_key(tool_name: str):
+            crit_high = 0
+            for it in findings:
+                t = (it.get("tool") or "unknown").strip() or "unknown"
+                if t != tool_name:
+                    continue
+                sev = it.get("severity_effective") or it.get("severity_raw") or it.get("severity")
+                if _norm_sev(sev) in ("CRITICAL", "HIGH"):
+                    crit_high += 1
+            return (crit_high, by_tool.get(tool_name, 0))
+
+        top_risky_tool = max(by_tool.keys(), key=risk_key)
+
+    top_cwe = max(cwe_count, key=cwe_count.get) if cwe_count else None
+    top_module = max(module_count, key=module_count.get) if module_count else None
+
+    return {
+        "total_findings": total,
+        "by_severity": by_sev,
+        "by_tool": by_tool,
+        "security_score": score,
+        "top_risky_tool": top_risky_tool,
+        "top_cwe": top_cwe,
+        "top_module": top_module,
+    }
+
+
+def _trend(runs: List[RunInfo], max_points: int = 10) -> List[Dict[str, Any]]:
+    points: List[Dict[str, Any]] = []
+    for run in runs[:max_points]:
+        findings = _load_findings(run.findings_path)
+        total = len(findings)
+        ts = datetime.fromtimestamp(run.mtime)
+        points.append(
+            {
+                "run_id": run.run_id,
+                "label": ts.strftime("%Y-%m-%d %H:%M"),
+                "ts": ts.isoformat(),
+                "total": total,
+            }
+        )
+    return points
+
+
+def _top_findings(findings: List[Dict[str, Any]], limit: int = 5) -> List[Dict[str, Any]]:
+    scored: List[Dict[str, Any]] = []
+    for item in findings:
+        sev = item.get("severity_effective") or item.get("severity_raw") or item.get("severity")
+        sev_norm = _norm_sev(sev)
+        if sev_norm not in ("CRITICAL", "HIGH"):
+            continue
+        scored.append(item)
+
+    def sev_score(it: Dict[str, Any]) -> int:
+        s = _norm_sev(it.get("severity_effective") or it.get("severity_raw") or it.get("severity"))
+        return 2 if s == "CRITICAL" else 1
+
+    scored.sort(key=sev_score, reverse=True)
+
+    items: List[Dict[str, Any]] = []
+    for it in scored[:limit]:
+        items.append(
+            {
+                "severity": _norm_sev(
+                    it.get("severity_effective") or it.get("severity_raw") or it.get("severity")
+                ),
+                "tool": (it.get("tool") or "unknown").strip() or "unknown",
+                "rule_id": it.get("rule_id") or it.get("check_id") or "",
+                "message": it.get("message") or it.get("title") or it.get("description") or "",
+                "location": it.get("file") or it.get("location") or it.get("path") or "",
+                "cwe": it.get("cwe") or it.get("cwe_id") or it.get("cwe_id_normalized") or "",
+            }
+        )
+    return items
+
+
+# ---------------------------------------------------------------------
+# /api/vsp/dashboard_v2 – giữ API cơ bản cho JS v1
+# ---------------------------------------------------------------------
+@bp.route("/api/vsp/dashboard_v3", methods=["GET"])
+def api_vsp_dashboard_v3():
+    """
+    TEST OVERRIDE: VSP 2025 – Dashboard v3
+    """
+    from flask import jsonify
+
+    data = {
+        "ok": True,
+        "run_id": "RUN_VSP_FULL_EXT_FAKE_TEST_99999999_000000",
+        "total_findings": 9999,
+        "by_severity": {
+            "CRITICAL": 9,
+            "HIGH": 99,
+            "MEDIUM": 999,
+            "LOW": 0,
+            "INFO": 0,
+            "TRACE": 0
+        },
+        "top_risky_tool": "override_test_tool"
+    }
+
+    return jsonify(data)
+@bp.route("/dashboard_v3", methods=["GET"])
+def dashboard_v3():
+    """
+    ONE-SHOT API cho Dashboard commercial:
+      - Chọn RUN_VSP* mới nhất có report/findings_unified.json
+      - Tổng findings, by_severity, by_tool
+      - Security score
+      - Top risky tool / top CWE / top module
+      - Trend (10 runs)
+      - Top findings (CRITICAL/HIGH, tối đa 5)
+    """
+    runs = _list_runs()
+    if not runs:
+        return jsonify(
+            {
+                "ok": False,
+                "message": "No VSP run with report/findings_unified.json found.",
+            }
+        )
+
+    latest = runs[0]
+    findings = _load_findings(latest.findings_path)
+    summary = _summarize(findings)
+    trend = _trend(runs, max_points=10)
+    top_findings = _top_findings(findings, limit=5)
+
+    resp = {
+        "ok": True,
+        "run_id": latest.run_id,
+        "run_dir": str(latest.path),
+        "total_findings": summary["total_findings"],
+        "by_severity": summary["by_severity"],
+        "by_tool": summary["by_tool"],
+        "security_score": summary["security_score"],
+        "top_risky_tool": summary["top_risky_tool"],
+        "top_cwe": summary["top_cwe"],
+        "top_module": summary["top_module"],
+        "trend": trend,
+        "top_findings": top_findings,
+    }
+    return jsonify(resp)
+
+
+# ---------------------------------------------------------------------
+# /api/vsp/score_v1 – Security Score nhẹ
+# ---------------------------------------------------------------------
+@bp.route("/score_v1", methods=["GET"])
+def score_v1():
+    """
+    API nhẹ: Security Score + by_severity cho run mới nhất.
+    """
+    runs = _list_runs()
+    if not runs:
+        return jsonify(
+            {
+                "ok": False,
+                "message": "No VSP run with report/findings_unified.json found.",
+            }
+        )
+
+    latest = runs[0]
+    findings = _load_findings(latest.findings_path)
+
+    by_sev: Dict[str, int] = {k: 0 for k in SEVERITY_LEVELS}
+    for item in findings:
+        sev = item.get("severity_effective") or item.get("severity_raw") or item.get("severity")
+        sev_norm = _norm_sev(sev)
+        by_sev[sev_norm] = by_sev.get(sev_norm, 0) + 1
+
+    total = sum(by_sev.values())
+    score = _security_score(by_sev, total)
+
+    resp = {
+        "ok": True,
+        "run_id": latest.run_id,
+        "run_dir": str(latest.path),
+        "total_findings": total,
+        "by_severity": by_sev,
+        "security_score": score,
+    }
+    return jsonify(resp)

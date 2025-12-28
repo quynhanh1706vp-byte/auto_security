@@ -1,0 +1,5 @@
+VSP COMMERCIAL RELEASE — FINAL STATUS
+- UI smoke 5 tabs: PASS
+- UI stability: PASS (N=300)
+- Report: present + ISO evidence included
+- Audit bundle: present + COMMERCIAL snapshot included

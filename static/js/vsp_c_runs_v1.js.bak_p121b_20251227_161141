@@ -1,0 +1,189 @@
+/* P121 - generated */
+
+(function(){
+  "use strict";
+  const W = window;
+  const log = (...a)=>console.log("[VSPC]", ...a);
+  const warn = (...a)=>console.warn("[VSPC]", ...a);
+
+  function qs(sel, root=document){ return root.querySelector(sel); }
+  function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+
+  function text(el, s){ if(!el) return; el.textContent = (s==null?"":String(s)); }
+
+  function sanitizeRid(r){
+    r = (r==null?"":String(r)).trim();
+    // allow typical RID chars only
+    r = r.replace(/[^\w\-:.]/g, "");
+    if (r.length>160) r = r.slice(0,160);
+    return r;
+  }
+
+  function getParam(name){
+    try { return new URLSearchParams(location.search).get(name) || ""; }
+    catch(e){ return ""; }
+  }
+
+  function getRid(){
+    const u = sanitizeRid(getParam("rid"));
+    const ls = sanitizeRid(localStorage.getItem("VSP_C_RID")||"");
+    return u || ls || "";
+  }
+  function setRid(rid){
+    rid = sanitizeRid(rid);
+    if (rid) localStorage.setItem("VSP_C_RID", rid);
+    return rid;
+  }
+
+  async function fetchJSON(url, opt={}){
+    const to = opt.timeout_ms || 8000;
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), to);
+    try{
+      const r = await fetch(url, {signal: ctl.signal, cache:"no-store", credentials:"same-origin"});
+      const ct = (r.headers.get("content-type")||"").toLowerCase();
+      const body = await r.text();
+      let j = null;
+      if (ct.includes("application/json")) {
+        try { j = JSON.parse(body); } catch(e){ j=null; }
+      } else {
+        try { j = JSON.parse(body); } catch(e){ j=null; }
+      }
+      return {ok:r.ok, status:r.status, json:j, text:body, url};
+    } finally { clearTimeout(t); }
+  }
+
+  async function firstOK(urls){
+    for (const u of urls){
+      const res = await fetchJSON(u, {timeout_ms: 9000});
+      if (res.ok && res.json) return res;
+    }
+    return null;
+  }
+
+  // expose minimal bus (optional)
+  W.VSP_C = W.VSP_C || {};
+  W.VSP_C.p121 = {qs,qsa,text,log,warn,sanitizeRid,getParam,getRid,setRid,fetchJSON,firstOK};
+})();
+
+(function(){
+  'use strict';
+  const H = window.VSP_C && window.VSP_C.p121;
+  if(!H){ console.warn('[VSPC] missing helpers'); return; }
+  const {qs,qsa,text,log,warn,getRid,setRid,firstOK,sanitizeRid} = H;
+
+  function findRunsTable(){
+    const tables = qsa('table');
+    for(const t of tables){
+      const th = t.querySelectorAll('th');
+      const head = Array.from(th).map(x=>x.textContent.trim().toLowerCase()).join('|');
+      if(head.includes('rid') && head.includes('action')) return t;
+      // fallback: the panel table usually has 3 cols and 'runs' text nearby
+    }
+    return qs('#runs_table') || qs('table');
+  }
+
+  function renderRows(tbody, items){
+    tbody.innerHTML = '';
+    for(const it of items){
+      const rid = sanitizeRid(it.rid || it.run_id || it.id || '');
+      const label = (it.label || it.ts || it.time || it.when || '').toString();
+      const verdict = (it.verdict || it.status || '').toString();
+      const tr = document.createElement('tr');
+
+      const tdRid = document.createElement('td');
+      tdRid.textContent = rid || '(none)';
+      tdRid.style.whiteSpace='nowrap';
+
+      const tdLabel = document.createElement('td');
+      tdLabel.textContent = label || '';
+
+      const tdAct = document.createElement('td');
+      tdAct.style.whiteSpace='nowrap';
+      const dash = document.createElement('a');
+      dash.href = '/c/dashboard?rid=' + encodeURIComponent(rid);
+      dash.textContent = 'Dashboard';
+      dash.style.marginRight='10px';
+
+      const csv = document.createElement('a');
+      csv.href = '/api/vsp/export_findings_csv_v1?rid=' + encodeURIComponent(rid);
+      csv.textContent = 'CSV';
+      csv.style.marginRight='10px';
+
+      const rep = document.createElement('a');
+      rep.href = '/api/vsp/export_reports_tgz_v1?rid=' + encodeURIComponent(rid);
+      rep.textContent = 'Reports.tgz';
+      rep.style.marginRight='10px';
+
+      const pick = document.createElement('button');
+      pick.textContent = 'Use RID';
+      pick.style.marginLeft='6px';
+      pick.onclick = ()=>{ setRid(rid); location.href = '/c/runs?rid=' + encodeURIComponent(rid); };
+
+      tdAct.appendChild(dash);
+      tdAct.appendChild(csv);
+      tdAct.appendChild(rep);
+      if (verdict) {
+        const sp = document.createElement('span');
+        sp.textContent = verdict;
+        sp.style.opacity='0.75';
+        sp.style.marginLeft='8px';
+        tdAct.appendChild(sp);
+      }
+      if (rid) tdAct.appendChild(pick);
+
+      tr.appendChild(tdRid);
+      tr.appendChild(tdLabel);
+      tr.appendChild(tdAct);
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function main(){
+    const rid = getRid();
+    if (rid) log('runs rid=', rid);
+
+    const tbl = findRunsTable();
+    if(!tbl){ warn('runs: table not found'); return; }
+    let tb = tbl.querySelector('tbody');
+    if(!tb){ tb = document.createElement('tbody'); tbl.appendChild(tb); }
+
+    // find filter input
+    const inp = qsa('input').find(x=>(x.placeholder||'').toLowerCase().includes('filter')) || null;
+
+    tb.innerHTML = '<tr><td colspan="3" style="opacity:.7">Loading...</td></tr>';
+
+    const res = await firstOK([
+      '/api/ui/runs_v3?limit=200&include_ci=1',
+      '/api/vsp/runs_v3?limit=200&include_ci=1',
+      '/api/vsp/runs_v2?limit=200'
+    ]);
+
+    if(!res){
+      tb.innerHTML = '<tr><td colspan="3" style="color:#ffb">Cannot load runs API</td></tr>';
+      return;
+    }
+
+    const items = (res.json.items || res.json.data || res.json.runs || []);
+    const norm = items.map(x=>({
+      rid: x.rid || x.run_id || x.id,
+      label: x.label || x.ts || x.when || x.created_at || '',
+      verdict: x.verdict || x.overall || x.status || ''
+    }));
+
+    let view = norm;
+    renderRows(tb, view);
+
+    if(inp){
+      inp.addEventListener('input', ()=>{
+        const q = (inp.value||'').toLowerCase().trim();
+        if(!q){ view = norm; renderRows(tb, view); return; }
+        view = norm.filter(x=>(x.rid||'').toLowerCase().includes(q) || (x.label||'').toLowerCase().includes(q));
+        renderRows(tb, view);
+      });
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', ()=>{ main().catch(e=>console.error(e)); });
+})();
+

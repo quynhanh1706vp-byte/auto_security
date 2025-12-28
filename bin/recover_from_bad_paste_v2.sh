@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+latest_glob () {
+  local pat="$1"
+  if compgen -G "$pat" > /dev/null; then
+    ls -1t $pat 2>/dev/null | head -n 1
+  else
+    echo ""
+  fi
+}
+
+echo "== 1) stop services =="
+sudo systemctl stop vsp-ui-8910 2>/dev/null || true
+sudo systemctl stop vsp-ui-8911-dev 2>/dev/null || true
+
+echo "== 2) restore vsp_demo_app.py from latest backup =="
+B="$(latest_glob "vsp_demo_app.py.bak_*")"
+if [ -z "$B" ]; then
+  # fallback (nếu backup tên khác)
+  B="$(latest_glob "vsp_demo_app.py.bak*")"
+fi
+if [ -z "$B" ]; then
+  echo "[ERR] no backups found. Show what exists:"
+  ls -la vsp_demo_app.py* 2>/dev/null || true
+  exit 1
+fi
+cp -f "$B" vsp_demo_app.py
+echo "[OK] restored vsp_demo_app.py <= $B"
+
+echo "== 3) restore template from latest backup (if any) =="
+TB="$(latest_glob "templates/vsp_dashboard_2025.html.bak_*")"
+if [ -z "$TB" ]; then
+  TB="$(latest_glob "templates/vsp_dashboard_2025.html.bak*")"
+fi
+if [ -n "$TB" ]; then
+  cp -f "$TB" templates/vsp_dashboard_2025.html
+  echo "[OK] restored template <= $TB"
+else
+  echo "[WARN] no template backup found; keep current"
+fi
+
+echo "== 4) remove possibly broken degraded hook(s) =="
+rm -f static/js/vsp_degraded_panel_hook_v3.js 2>/dev/null || true
+rm -f static/js/vsp_degraded_panel_hook_v2.js 2>/dev/null || true
+
+echo "== 5) syntax check =="
+/home/test/Data/SECURITY_BUNDLE/.venv/bin/python3 -m py_compile vsp_demo_app.py && echo "[OK] py_compile vsp_demo_app.py"
+
+echo "== 6) start services back =="
+sudo systemctl start vsp-ui-8910
+sudo systemctl start vsp-ui-8911-dev
+
+sleep 1
+echo "== 7) healthz =="
+curl -sS -o /dev/null -w "healthz_8910 HTTP=%{http_code}\n" http://127.0.0.1:8910/healthz || true
+curl -sS -o /dev/null -w "healthz_8911 HTTP=%{http_code}\n" http://127.0.0.1:8911/healthz || true
+
+echo "== 8) if still down, show journal tail =="
+if ! curl -sS http://127.0.0.1:8910/healthz >/dev/null 2>&1; then
+  sudo journalctl -u vsp-ui-8910 -n 120 --no-pager || true
+fi
+if ! curl -sS http://127.0.0.1:8911/healthz >/dev/null 2>&1; then
+  sudo journalctl -u vsp-ui-8911-dev -n 120 --no-pager || true
+fi

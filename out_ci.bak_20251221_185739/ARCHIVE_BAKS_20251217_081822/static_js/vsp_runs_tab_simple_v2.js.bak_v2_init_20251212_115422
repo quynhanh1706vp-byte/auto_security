@@ -1,0 +1,134 @@
+(function () {
+  var API_URL = "/api/vsp/runs_index_v3?limit=40";
+
+  function gateClass(gate) {
+    if (!gate) return "vsp-badge vsp-badge-gate-na";
+    var g = String(gate).toUpperCase();
+    if (g === "GREEN" || g === "PASS") return "vsp-badge vsp-badge-gate-green";
+    if (g === "AMBER" || g === "WARN" || g === "WARNING") return "vsp-badge vsp-badge-gate-amber";
+    if (g === "RED" || g === "FAIL") return "vsp-badge vsp-badge-gate-red";
+    return "vsp-badge vsp-badge-gate-na";
+  }
+
+  function gateLabel(gate) {
+    if (!gate) return "N/A";
+    return String(gate).toUpperCase();
+  }
+
+  function statusClass(status) {
+    var s = (status || "").toString().toUpperCase();
+    if (s === "DONE" || s === "FINISHED") return "vsp-badge vsp-badge-status-done";
+    if (s === "RUNNING" || s === "IN_PROGRESS") return "vsp-badge vsp-badge-status-running";
+    return "vsp-badge vsp-badge-status-done";
+  }
+
+  function statusLabel(status) {
+    return status || "DONE";
+  }
+
+  function renderRuns(items) {
+    var tbody = document.getElementById("vsp-runs-tbody");
+    if (!tbody) return;
+
+    if (!items || !items.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="vsp-table-empty">Không có run nào trong runs_index_v3.</td></tr>';
+      return;
+    }
+
+    var html = "";
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i] || {};
+      var runId = it.run_id || "";
+      var type = it.type || "UNKNOWN";
+      var started = it.started || "";
+      var total = (typeof it.total_findings === "number") ? it.total_findings : (it.total_findings || "");
+      var gate = it.ci_gate_status || it.gate_status || it.ci_status || "N/A";
+      var status = it.status || "DONE";
+
+      html += '<tr>' +
+        '<td class="vsp-col-run-id" title="' + runId + '">' + runId + '</td>' +
+        '<td>' + type + '</td>' +
+        '<td>' + started + '</td>' +
+        '<td>' + total + '</td>' +
+        '<td><span class="' + gateClass(gate) + '">' + gateLabel(gate) + '</span></td>' +
+        '<td><span class="' + statusClass(status) + '">' + statusLabel(status) + '</span></td>' +
+        '</tr>';
+    }
+
+    tbody.innerHTML = html;
+  }
+
+  function loadRuns() {
+    var tbody = document.getElementById("vsp-runs-tbody");
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="6" class="vsp-table-empty">Đang tải dữ liệu runs...</td></tr>';
+    }
+
+    fetch(API_URL, { cache: "no-store" })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        console.log("[VSP_RUNS_TAB_V2] runs_index_v3 loaded.", data);
+        var items = (data && data.items) || [];
+        renderRuns(items);
+      })
+      .catch(function (err) {
+        console.error("[VSP_RUNS_TAB_V2] Failed to load runs_index_v3:", err);
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="6" class="vsp-table-empty">Lỗi tải dữ liệu runs_index_v3.</td></tr>';
+        }
+      });
+  }
+
+  function hydratePane() {
+    var pane = document.getElementById("vsp-tab-runs");
+    if (!pane) {
+      console.warn("[VSP_RUNS_TAB_V2] Không thấy #vsp-tab-runs");
+      return;
+    }
+
+    pane.innerHTML =
+      '<div class="vsp-section-header">' +
+        '<div>' +
+          '<h2 class="vsp-section-title">Runs &amp; Reports</h2>' +
+          '<p class="vsp-section-subtitle">Lịch sử scan mới nhất từ SECURITY_BUNDLE (runs_index_v3)</p>' +
+        '</div>' +
+        '<div class="vsp-section-actions">' +
+          '<button class="vsp-btn" id="vsp-runs-refresh-btn">Refresh</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="vsp-card vsp-card-table">' +
+        '<div class="vsp-table-wrapper">' +
+          '<table class="vsp-table vsp-table-runs">' +
+            '<thead>' +
+              '<tr>' +
+                '<th style="width: 32%;">RUN ID</th>' +
+                '<th style="width: 10%;">TYPE</th>' +
+                '<th style="width: 20%;">STARTED</th>' +
+                '<th style="width: 12%;">TOTAL FINDINGS</th>' +
+                '<th style="width: 13%;">CI/CD GATE</th>' +
+                '<th style="width: 13%;">STATUS</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody id="vsp-runs-tbody">' +
+              '<tr><td colspan="6" class="vsp-table-empty">Đang tải dữ liệu runs...</td></tr>' +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+
+    var btn = document.getElementById("vsp-runs-refresh-btn");
+    if (btn) {
+      btn.addEventListener("click", function () {
+        loadRuns();
+      });
+    }
+
+    loadRuns();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", hydratePane);
+  } else {
+    hydratePane();
+  }
+})();

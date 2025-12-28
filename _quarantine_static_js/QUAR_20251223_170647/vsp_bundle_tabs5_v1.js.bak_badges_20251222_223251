@@ -1,0 +1,114 @@
+/* VSP_P2_BUNDLE_TABS5_V1
+ * Router-bundle: load page modules by route, keep templates minimal:
+ * Only include: vsp_tabs4_autorid_v1.js + this file.
+ */
+(function(){
+  "use strict";
+
+  function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
+  function warn(){ try{ console.warn.apply(console, arguments); }catch(e){} }
+
+  function getAssetV(){
+    // Try to reuse existing ?v=<digits> from any script tag.
+    var scripts = document.getElementsByTagName("script");
+    for (var i=0;i<scripts.length;i++){
+      var src = scripts[i].getAttribute("src") || "";
+      var m = src.match(/[?&]v=([0-9]{6,})/);
+      if (m) return m[1];
+    }
+    return "";
+  }
+
+  function withV(url){
+    var v = getAssetV();
+    if(!v) return url;
+    return url + (url.indexOf("?")>=0 ? "&" : "?") + "v=" + encodeURIComponent(v);
+  }
+
+  function loadScript(url){
+    return new Promise(function(resolve, reject){
+      var s = document.createElement("script");
+      s.defer = true;
+      s.src = withV(url);
+      s.onload = function(){ resolve(url); };
+      s.onerror = function(){ reject(new Error("load fail: "+url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function exists(url){
+    // Avoid noisy 404s: HEAD first (fallback GET if HEAD not allowed)
+    var u = withV(url);
+    return fetch(u, { method: "HEAD", credentials: "same-origin", cache: "no-store" })
+      .then(function(r){
+        if(r && r.ok) return true;
+        if(r && (r.status === 405 || r.status === 403)) {
+          return fetch(u, { method: "GET", credentials: "same-origin", cache: "no-store" })
+            .then(function(r2){ return !!(r2 && r2.ok); })
+            .catch(function(){ return false; });
+        }
+        return false;
+      })
+      .catch(function(){ return false; });
+  }
+
+  function loadIfExists(url){
+    return exists(url).then(function(ok){
+      if(!ok) return false;
+      return loadScript(url).then(function(){ return true; }).catch(function(){ return false; });
+    });
+  }
+
+  function pickRoute(){
+    var p = (location.pathname || "/").toLowerCase();
+    // normalize
+    if (p === "/" || p === "/index") return "/vsp5";
+    return p;
+  }
+
+  // Candidate modules: router will only load ones that exist.
+  var ROUTES = {
+    "/vsp5": [
+      "/static/js/vsp_dash_only_v1.js",
+      "/static/js/vsp_dashboard_kpi_force_any_v1.js",
+      "/static/js/vsp_dashboard_gate_story_v1.js",
+      "/static/js/vsp_dashboard_charts_pretty_v3.js"
+    ],
+    "/runs": [
+      "/static/js/vsp_runs_reports_overlay_v1.js",
+      "/static/js/vsp_runs_quick_actions_v1.js",
+      "/static/js/vsp_runs_tab_resolved_v1.js"
+    ],
+    "/settings": [
+      "/static/js/vsp_settings_tab_v1.js"
+    ],
+    "/data_source": [
+      "/static/js/vsp_data_source_lazy_v1.js"
+    ],
+    "/rule_overrides": [
+      "/static/js/vsp_rule_overrides_v1.js"
+    ]
+  };
+
+  var route = pickRoute();
+  var list = ROUTES[route] || [];
+  if(!list.length){
+    warn("[BundleTabs5] no modules mapped for route:", route);
+    return;
+  }
+
+  log("[BundleTabs5] route=", route, "candidates=", list.length);
+
+  // Load sequentially to keep deterministic order
+  (function seq(i){
+    if(i >= list.length){
+      log("[BundleTabs5] done route=", route);
+      return;
+    }
+    loadIfExists(list[i]).then(function(loaded){
+      if(loaded) log("[BundleTabs5] loaded:", list[i]);
+      seq(i+1);
+    });
+  })(0);
+
+})();

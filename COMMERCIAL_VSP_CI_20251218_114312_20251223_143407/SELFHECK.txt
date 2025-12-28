@@ -1,0 +1,14 @@
+== [1] pages 200 ==
+[OK] all pages 200
+== [2] release_latest contract ==
+OK release_latest rid= VSP_CI_20251218_114312
+[OK] release_latest keys present
+== [3] releases presence (HTML-first) ==
+[OK] releases found on /releases (n=2)
+== [3b] optional /api/vsp/releases ==
+[OK] /api/vsp/releases reachable
+== [4] download + audit for RID ==
+[OK] download OK rid=VSP_CI_20251218_114312 size=30447
+OK audit rid= VSP_CI_20251218_114312
+[OK] audit OK rid=VSP_CI_20251218_114312
+[PASS] COMMERCIAL SELF-CHECK OK (RID=VSP_CI_20251218_114312 BASE=http://127.0.0.1:8910)

@@ -1,0 +1,22 @@
+VSP COMMERCIAL GATE - 2025-12-23T13:51:45+07:00
+
+GOLDEN_RID: VSP_CI_20251218_114312
+BASE_URL: http://127.0.0.1:8910
+
+P0 (Core/UI) : PASS
+- Dashboard loads, KPIs OK
+- run_file_allow OK
+- rid_latest OK
+- no fatal console errors
+
+P2 (Release UX) : PASS
+- P2.1 /runs has Releases button -> /releases (click PASS)
+- P2.2 /releases list shows items + Download/Audit/Open OK
+- P2.3 release_latest returns download_url + audit_url (not "not available")
+
+Artifacts:
+- VSP_RELEASE_VSP_CI_20251218_114312.zip (downloaded) OK
+- /api/vsp/release_audit?rid=VSP_CI_20251218_114312 OK
+
+Notes:
+- Browser "allow pasting" warning is not app error.

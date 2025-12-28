@@ -1,0 +1,71 @@
+(function(){
+  const U = window.__VSPC;
+  const t = document.getElementById("ro-text");
+  const st = document.getElementById("ro-status");
+  const meta = document.getElementById("ro-meta");
+  const LS="vsp_rule_overrides_v1";
+
+  function setStatus(s){ st.textContent = s; }
+
+  async function tryGet(){
+    try{
+      const r = await fetch("/api/vsp/rule_overrides_v1", {cache:"no-store", credentials:"same-origin"});
+      if (!r.ok) throw new Error(String(r.status));
+      return {ok:true, text: await r.text(), src:"backend"};
+    }catch(e){
+      return {ok:true, text: localStorage.getItem(LS) || "{}", src:"local"};
+    }
+  }
+
+  async function trySave(txt){
+    // validate JSON first
+    try{ JSON.parse(txt); }catch(e){ setStatus("JSON invalid"); throw e; }
+
+    try{
+      const r = await fetch("/api/vsp/rule_overrides_v1", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: txt,
+        credentials:"same-origin"
+      });
+      if (r.ok){
+        localStorage.setItem(LS, txt);
+        return {ok:true, src:"backend"};
+      }
+      throw new Error(String(r.status));
+    }catch(e){
+      localStorage.setItem(LS, txt);
+      return {ok:true, src:"local"};
+    }
+  }
+
+  async function load(){
+    const g = await tryGet();
+    t.value = g.text || "{}";
+    meta.textContent = "source=" + g.src;
+    setStatus("loaded");
+  }
+
+  async function save(){
+    setStatus("saving…");
+    const r = await trySave(t.value || "{}");
+    meta.textContent = "source=" + r.src;
+    setStatus("saved");
+  }
+
+  function exportTxt(){
+    const blob = new Blob([t.value||"{}"], {type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="rule_overrides.json";
+    a.click();
+    setStatus("exported");
+  }
+
+  document.getElementById("ro-load").addEventListener("click", ()=>load(), {passive:true});
+  document.getElementById("ro-save").addEventListener("click", ()=>save(), {passive:true});
+  document.getElementById("ro-export").addEventListener("click", ()=>exportTxt(), {passive:true});
+
+  document.addEventListener("DOMContentLoaded", load, {once:true});
+  U.onRefresh(load);
+})();

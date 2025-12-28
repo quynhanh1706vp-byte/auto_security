@@ -1,0 +1,124 @@
+(function () {
+  'use strict';
+
+  const API_URL = '/api/vsp/dashboard_v2';
+
+  function getCanvasForChart(name) {
+    // Tìm container có data-chart
+    var container = document.querySelector('[data-chart="' + name + '"]');
+    if (!container) {
+      console.warn('[VSP][CHART] Không tìm thấy container data-chart=' + name);
+      return null;
+    }
+
+    var canvas = container.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      container.appendChild(canvas);
+    }
+    return canvas;
+  }
+
+  function renderSeverityDonut(bySev) {
+    if (typeof Chart === 'undefined') {
+      console.warn('[VSP][CHART] Chart.js not loaded');
+      return;
+    }
+
+    var canvas = getCanvasForChart('severity_donut');
+    if (!canvas) return;
+
+    var buckets = ['CRITICAL','HIGH','MEDIUM','LOW','INFO','TRACE'];
+    var data = buckets.map(function (k) {
+      return Number(bySev && bySev[k] || 0);
+    });
+
+    var ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: buckets,
+        datasets: [{
+          data: data
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  function renderFindingsByTool(byTool) {
+    if (typeof Chart === 'undefined') {
+      console.warn('[VSP][CHART] Chart.js not loaded');
+      return;
+    }
+
+    var canvas = getCanvasForChart('findings_by_tool');
+    if (!canvas) return;
+
+    var order = ['gitleaks','semgrep','bandit','trivy_fs','grype','kics','codeql','syft'];
+    var labels = [];
+    var data = [];
+
+    order.forEach(function (key) {
+      if (!byTool || byTool[key] === undefined) return;
+      labels.push(key);
+      data.push(Number(byTool[key] || 0));
+    });
+
+    var ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { autoSkip: false } }
+        }
+      }
+    });
+  }
+
+  // Trend Over Time – placeholder: chờ /api/vsp/runs, giờ chỉ hiển thị "No data"
+  function renderTrendPlaceholder() {
+    var container = document.querySelector('[data-chart="trend_over_time"]');
+    if (!container) return;
+    container.innerHTML = '<div class="vsp-chart-empty">Trend chart requires /api/vsp/runs data.</div>';
+  }
+
+  function loadCharts() {
+    fetch(API_URL)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || data.ok === false) {
+          console.warn('[VSP][CHART] /api/vsp/dashboard_v2 not ok:', data);
+          return;
+        }
+        var summary = data.summary || {};
+        var bySev  = summary.by_severity || data.severity || {};
+        var byTool = summary.by_tool     || data.by_tool   || {};
+
+        renderSeverityDonut(bySev);
+        renderFindingsByTool(byTool);
+        renderTrendPlaceholder();
+      })
+      .catch(function (err) {
+        console.error('[VSP][CHART] fetch error:', err);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadCharts);
+})();

@@ -1,0 +1,334 @@
+/* vsp_runs_tab_8tools_v1.js
+ * Commercial Runs UI (8 tools) - binds to status_v2.run_gate_summary.by_tool (preferred).
+ * Columns:
+ *  Overall | Gate | Tools A (SEMGREP/TRIVY/KICS/GITLEAKS) | Tools B (CODEQL/BANDIT/SYFT/GRYPE) | Degraded | Export
+ */
+(function(){
+  const RUNS_INDEX_URL = "/api/vsp/runs_index_v3_fs_resolved?limit=50&hide_empty=0&filter=1";
+  const STATUS_V2_URL  = (rid) => `/api/vsp/run_status_v2/${encodeURIComponent(rid)}`;
+  const EXPORT_URL     = (rid, fmt) => `/api/vsp/run_export_v3/${encodeURIComponent(rid)}?fmt=${encodeURIComponent(fmt)}`;
+
+  const TOOLS_A = ["SEMGREP","TRIVY","KICS","GITLEAKS"];
+  const TOOLS_B = ["CODEQL","BANDIT","SYFT","GRYPE"];
+
+  const VERDICT_ORDER = ["RED","AMBER","GREEN","NOT_RUN","DISABLED","DEGRADED","UNKNOWN"];
+  function normVerdict(v){
+    if(!v) return "NOT_RUN";
+    const s = String(v).toUpperCase();
+    if (["CRITICAL","HIGH"].includes(s)) return "RED";
+    if (["MEDIUM"].includes(s)) return "AMBER";
+    if (["LOW","INFO","TRACE"].includes(s)) return "GREEN";
+    if (["PASS","OK","SUCCESS","GREEN"].includes(s)) return "GREEN";
+    if (["FAIL","ERROR","RED"].includes(s)) return "RED";
+    if (["WARN","WARNING","AMBER","YELLOW"].includes(s)) return "AMBER";
+    if (["NOT_RUN","NOTRUN","SKIP","SKIPPED"].includes(s)) return "NOT_RUN";
+    if (["DISABLED"].includes(s)) return "DISABLED";
+    if (["DEGRADED"].includes(s)) return "DEGRADED";
+    return s;
+  }
+
+  function pickToolFromByTool(status, tool){
+    const byTool = status?.run_gate_summary?.by_tool || status?.gate_by_tool || status?.gate?.by_tool || {};
+    const o = byTool?.[tool] || byTool?.[tool.toLowerCase()] || null;
+    const verdict = normVerdict(o?.verdict || o?.overall || o?.status || null);
+    const total = (o?.total ?? o?.findings_total ?? o?.count ?? o?.n ?? null);
+    return { verdict, total };
+  }
+
+  function pickToolFallbackFields(status, tool){
+    const k = tool.toLowerCase();
+    const verdict = normVerdict(status?.[`${k}_verdict`] || status?.[`${k}Verdict`] || null);
+    const total = (status?.[`${k}_total`] ?? status?.[`${k}Total`] ?? null);
+    return { verdict, total };
+  }
+
+  function toolBadge(status, tool){
+    let r = pickToolFromByTool(status, tool);
+    if (!r || (!r.verdict || r.verdict==="NOT_RUN")) {
+      const f = pickToolFallbackFields(status, tool);
+      // prefer by_tool verdict even if total missing; but if by_tool not present, fallback fields help
+      if (f && f.verdict) r = (r?.verdict && r.verdict!=="NOT_RUN") ? r : f;
+    }
+    const v = normVerdict(r?.verdict);
+    const total = (r?.total === null || r?.total === undefined) ? "" : ` (${r.total})`;
+    return `<span class="vsp-badge vsp-badge-${v}" title="${tool}: ${v}${total}">${tool}:${v}${total}</span>`;
+  }
+
+  function overallBadge(status){
+    const v = normVerdict(status?.overall_verdict || status?.run_gate_summary?.overall || status?.run_gate_summary?.overall_verdict);
+    return `<span class="vsp-badge vsp-badge-${v}" title="overall">${v}</span>`;
+  }
+
+  function degradedCell(status){
+    const n = (status?.degraded_tools && Array.isArray(status.degraded_tools)) ? status.degraded_tools.length : (status?.degraded_n ?? 0);
+    const v = (n > 0) ? "AMBER" : "GREEN";
+    return `<span class="vsp-badge vsp-badge-${v}" title="degraded_tools">${n}</span>`;
+  }
+
+  function exportCell(rid){
+    // UI probes HEAD; if 404 -> disable with tooltip "no report yet"
+    const htmlId = `exp_html_${rid}`;
+    const pdfId  = `exp_pdf_${rid}`;
+    const zipId  = `exp_zip_${rid}`;
+
+    const btn = (id, fmt, label) => `<button class="vsp-exp-btn" id="${id}" data-rid="${rid}" data-fmt="${fmt}" disabled title="probe...">${label}</button>`;
+    return `<div class="vsp-exp-wrap">
+      ${btn(htmlId,"html","HTML")}
+      ${btn(pdfId,"pdf","PDF")}
+      ${btn(zipId,"zip","ZIP")}
+    </div>`;
+  }
+
+  async function headProbe(rid, fmt){
+    try{
+      const r = await fetch(EXPORT_URL(rid, fmt), { method: "HEAD", cache: "no-store" });
+      return r.ok;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function ensureStyles(){
+    if (document.getElementById("vspRuns8ToolsStyles")) return;
+    const css = document.createElement("style");
+    css.id = "vspRuns8ToolsStyles";
+    css.textContent = `
+      .vsp-runs8-wrap{ padding:12px; }
+      .vsp-runs8-title{ font-weight:700; font-size:14px; margin:6px 0 10px; opacity:0.95; }
+      .vsp-runs8-table{ width:100%; border-collapse:collapse; font-size:12px; }
+      .vsp-runs8-table th,.vsp-runs8-table td{ border-bottom:1px solid rgba(255,255,255,0.08); padding:10px 8px; vertical-align:top; }
+      .vsp-runs8-table th{ text-transform:uppercase; font-size:11px; letter-spacing:.06em; opacity:.8; }
+      .vsp-badge{ display:inline-block; padding:3px 7px; border-radius:10px; margin:2px 4px 2px 0; border:1px solid rgba(255,255,255,0.18); }
+      .vsp-badge-RED{ background: rgba(220,38,38,0.18); }
+      .vsp-badge-AMBER{ background: rgba(245,158,11,0.18); }
+      .vsp-badge-GREEN{ background: rgba(34,197,94,0.18); }
+      .vsp-badge-NOT_RUN{ background: rgba(148,163,184,0.12); }
+      .vsp-badge-DISABLED{ background: rgba(100,116,139,0.12); }
+      .vsp-badge-DEGRADED{ background: rgba(56,189,248,0.12); }
+      .vsp-badge-UNKNOWN{ background: rgba(148,163,184,0.12); }
+      .vsp-exp-wrap{ display:flex; gap:6px; flex-wrap:wrap; }
+      .vsp-exp-btn{ font-size:11px; padding:5px 8px; border-radius:10px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: inherit; cursor:pointer; }
+      .vsp-exp-btn[disabled]{ opacity:0.45; cursor:not-allowed; }
+      .vsp-row-click{ cursor:pointer; }
+      .vsp-drawer{ position:fixed; top:0; right:0; height:100%; width:min(560px, 92vw); background: rgba(2,6,23,0.98); border-left:1px solid rgba(255,255,255,0.10); padding:14px; z-index:99999; overflow:auto; display:none; }
+      .vsp-drawer h3{ margin:0 0 8px; font-size:14px; }
+      .vsp-drawer .close{ float:right; cursor:pointer; opacity:0.8; }
+      .vsp-drawer pre{ background: rgba(255,255,255,0.06); padding:10px; border-radius:12px; overflow:auto; }
+      .vsp-link{ opacity:0.9; text-decoration:underline; }
+    `;
+    document.head.appendChild(css);
+  }
+
+  function findMount(){
+    const ids = [
+      "vsp_runs_table", "runs_table", "vsp_runs_mount", "tab_runs",
+      "runsTab", "runs", "vsp4_runs", "vspRuns"
+    ];
+    for(const id of ids){
+      const el = document.getElementById(id);
+      if(el) return el;
+    }
+    const q = document.querySelector("[data-vsp-runs-mount]") || document.querySelector(".vsp-runs-mount");
+    if(q) return q;
+
+    // fallback: create a mount inside main container
+    const main = document.querySelector("#app") || document.body;
+    const wrap = document.createElement("div");
+    wrap.id = "vsp_runs_mount";
+    main.appendChild(wrap);
+    return wrap;
+  }
+
+  function mkTableShell(){
+    return `
+      <div class="vsp-runs8-wrap">
+        <div class="vsp-runs8-title">Runs & Reports (8 tools)</div>
+        <table class="vsp-runs8-table">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Overall</th>
+              <th>Gate</th>
+              <th>Tools A</th>
+              <th>Tools B</th>
+              <th>Degraded</th>
+              <th>Export</th>
+            </tr>
+          </thead>
+          <tbody id="vspRuns8Tbody">
+            <tr><td colspan="7">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="vsp-drawer" id="vspRuns8Drawer">
+        <span class="close" id="vspRuns8DrawerClose">✕</span>
+        <h3 id="vspRuns8DrawerTitle">Run details</h3>
+        <div id="vspRuns8DrawerBody"></div>
+      </div>
+    `;
+  }
+
+  function openDrawer(title, bodyHtml){
+    const d = document.getElementById("vspRuns8Drawer");
+    const t = document.getElementById("vspRuns8DrawerTitle");
+    const b = document.getElementById("vspRuns8DrawerBody");
+    if(!d || !t || !b) return;
+    t.textContent = title;
+    b.innerHTML = bodyHtml;
+    d.style.display = "block";
+  }
+  function closeDrawer(){
+    const d = document.getElementById("vspRuns8Drawer");
+    if(d) d.style.display = "none";
+  }
+
+  async function fetchJson(url){
+    const r = await fetch(url, { cache: "no-store" });
+    const j = await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return j;
+  }
+
+  // Simple concurrency limiter
+  async function mapLimit(arr, limit, fn){
+    const ret = new Array(arr.length);
+    let i = 0;
+    const workers = new Array(Math.min(limit, arr.length)).fill(0).map(async ()=>{
+      while(i < arr.length){
+        const idx = i++;
+        try{ ret[idx] = await fn(arr[idx], idx); }
+        catch(e){ ret[idx] = null; }
+      }
+    });
+    await Promise.all(workers);
+    return ret;
+  }
+
+  async function renderRuns8(){
+    ensureStyles();
+    const mount = findMount();
+    mount.innerHTML = mkTableShell();
+
+    const tbody = document.getElementById("vspRuns8Tbody");
+    const closeBtn = document.getElementById("vspRuns8DrawerClose");
+    if(closeBtn) closeBtn.onclick = closeDrawer;
+
+    let runs;
+    try{
+      runs = await fetchJson(RUNS_INDEX_URL);
+    }catch(e){
+      tbody.innerHTML = `<tr><td colspan="7">Failed to load runs_index: ${String(e)}</td></tr>`;
+      return;
+    }
+
+    const items = runs?.items || runs?.runs || [];
+    if(!items.length){
+      tbody.innerHTML = `<tr><td colspan="7">No runs found.</td></tr>`;
+      return;
+    }
+
+    // Render rows with placeholders first
+    tbody.innerHTML = items.map((it, idx)=>{
+      const rid = it.run_id || it.rid || it.id || it.name || `run_${idx}`;
+      return `<tr id="vspRuns8Row_${idx}">
+        <td><span class="vsp-link" title="${rid}">${rid}</span></td>
+        <td id="vspRuns8Overall_${idx}">…</td>
+        <td id="vspRuns8Gate_${idx}">…</td>
+        <td id="vspRuns8A_${idx}">…</td>
+        <td id="vspRuns8B_${idx}">…</td>
+        <td id="vspRuns8Deg_${idx}">…</td>
+        <td id="vspRuns8Exp_${idx}">${exportCell(rid)}</td>
+      </tr>`;
+    }).join("");
+
+    // Load status_v2 per run (limit concurrency)
+    const statuses = await mapLimit(items, 6, async (it)=>{
+      const rid = it.run_id || it.rid || it.id || it.name;
+      const st = await fetchJson(STATUS_V2_URL(rid));
+      return { rid, st };
+    });
+
+    statuses.forEach((o, idx)=>{
+      const rid = items[idx].run_id || items[idx].rid || items[idx].id || items[idx].name;
+      const st = o?.st || null;
+
+      const cellO = document.getElementById(`vspRuns8Overall_${idx}`);
+      const cellG = document.getElementById(`vspRuns8Gate_${idx}`);
+      const cellA = document.getElementById(`vspRuns8A_${idx}`);
+      const cellB = document.getElementById(`vspRuns8B_${idx}`);
+      const cellD = document.getElementById(`vspRuns8Deg_${idx}`);
+
+      if(!st){
+        if(cellO) cellO.innerHTML = `<span class="vsp-badge vsp-badge-UNKNOWN">ERR</span>`;
+        if(cellG) cellG.textContent = "status_v2 failed";
+        if(cellA) cellA.textContent = "-";
+        if(cellB) cellB.textContent = "-";
+        if(cellD) cellD.textContent = "-";
+        return;
+      }
+
+      const gateV = normVerdict(st?.run_gate_summary?.overall || st?.run_gate_summary?.overall_verdict || st?.overall_verdict);
+      if(cellO) cellO.innerHTML = overallBadge(st);
+      if(cellG) cellG.innerHTML = `<span class="vsp-badge vsp-badge-${gateV}">${gateV}</span>`;
+
+      if(cellA) cellA.innerHTML = TOOLS_A.map(t=>toolBadge(st,t)).join("");
+      if(cellB) cellB.innerHTML = TOOLS_B.map(t=>toolBadge(st,t)).join("");
+      if(cellD) cellD.innerHTML = degradedCell(st);
+
+      // Row click -> drawer
+      const row = document.getElementById(`vspRuns8Row_${idx}`);
+      if(row){
+        row.classList.add("vsp-row-click");
+        row.onclick = ()=>{
+          const byTool = st?.run_gate_summary?.by_tool || {};
+          const degraded = st?.degraded_tools || [];
+          const body =
+            `<div style="margin:8px 0 10px">
+               <div><b>RID:</b> ${rid}</div>
+               <div><b>CI:</b> ${st?.ci_run_dir || st?.ci || "-"}</div>
+               <div style="margin-top:8px"><b>Links</b></div>
+               <div><a class="vsp-link" href="${STATUS_V2_URL(rid)}" target="_blank">status_v2</a></div>
+               <div><a class="vsp-link" href="/api/vsp/run_artifacts_index_v1/${encodeURIComponent(rid)}" target="_blank">artifacts_index</a></div>
+               <div style="margin-top:8px"><b>Export</b></div>
+               <div><a class="vsp-link" href="${EXPORT_URL(rid,"html")}" target="_blank">HTML</a> | <a class="vsp-link" href="${EXPORT_URL(rid,"pdf")}" target="_blank">PDF</a> | <a class="vsp-link" href="${EXPORT_URL(rid,"zip")}" target="_blank">ZIP</a></div>
+             </div>
+             <div style="margin-top:10px"><b>by_tool (from run_gate_summary.by_tool)</b></div>
+             <pre>${JSON.stringify(byTool, null, 2)}</pre>
+             <div style="margin-top:10px"><b>degraded_tools</b></div>
+             <pre>${JSON.stringify(degraded, null, 2)}</pre>`;
+          openDrawer(`Run details`, body);
+        };
+      }
+
+      // Probe export buttons (HEAD) - do not throw, just enable/disable + tooltip
+      const fmts = ["html","pdf","zip"];
+      fmts.forEach(async (fmt)=>{
+        const id = fmt==="html" ? `exp_html_${rid}` : fmt==="pdf" ? `exp_pdf_${rid}` : `exp_zip_${rid}`;
+        const btn = document.getElementById(id);
+        if(!btn) return;
+        const ok = await headProbe(rid, fmt);
+        btn.disabled = !ok;
+        btn.title = ok ? "open export" : "no report yet";
+        btn.onclick = ()=>{
+          if(btn.disabled) return;
+          window.open(EXPORT_URL(rid, fmt), "_blank");
+        };
+      });
+    });
+  }
+
+  // Only render on Runs tab-ish (hash contains runs), but also safe to render if unknown
+  function shouldRender(){
+    const h = String(location.hash || "");
+    if(!h) return true;
+    return h.toLowerCase().includes("runs");
+  }
+
+  function boot(){
+    if(!shouldRender()) return;
+    renderRuns8().catch(e=>console.error("[runs8] render failed", e));
+  }
+
+  window.addEventListener("hashchange", boot);
+  window.addEventListener("DOMContentLoaded", boot);
+})();

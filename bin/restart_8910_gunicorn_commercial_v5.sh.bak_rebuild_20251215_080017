@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+mkdir -p out_ci out_ci/archive LOCK="out_ci/ui_8910.lock"
+PIDFILE="out_ci/ui_8910.pid" ACCESS="out_ci/ui_8910_access.log"
+ERROR="out_ci/ui_8910_error.log"
+NOHUP="out_ci/ui_8910_nohup.log" TS="$(date +%Y%m%d_%H%M%S)" PY="/home/test/Data/SECURITY_BUNDLE/.venv/bin/python3"
+[ -x "$PY" ] || { echo "[ERR] missing venv python: $PY"; exit 1; } exec 9>"$LOCK"
+flock -n 9 || { echo "[ERR] restart already running (lock: $LOCK)"; exit 1; } echo "[INFO] PY=$PY"
+echo "[INFO] TS=$TS" rotate_one () { local f="$1" [ -f "$f" ] || return 0 local base="$(basename "$f")" mv -f "$f" "out_ci/archive/${base}.${TS}" 2>/dev/null || true
+} echo "== rotate logs =="
+rotate_one "$ACCESS"
+rotate_one "$ERROR"
+rotate_one "$NOHUP"
+: > "$ACCESS"
+: > "$ERROR"
+: > "$NOHUP" echo "== stop existing by pidfile (master) =="
+if [ -s "$PIDFILE" ]; then OLD="$(cat "$PIDFILE" 2>/dev/null || true)" if [ -n "${OLD:-}" ] && kill -0 "$OLD" 2>/dev/null; then echo "[INFO] stopping old master pid=$OLD" kill -TERM "$OLD" 2>/dev/null || true for _ in 1 2 3 4 5; do sleep 0.4 kill -0 "$OLD" 2>/dev/null || break done kill -KILL "$OLD" 2>/dev/null || true fi rm -f "$PIDFILE" || true
+fi echo "== kill listeners on 8910 (ss) =="
+PIDS="$(ss -ltnp 2>/dev/null | awk '/:8910/ {print $NF}' | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | sort -u)"
+for p in $PIDS; do kill -KILL "$p" 2>/dev/null || true; done
+sleep 0.5 echo "== kill stray gunicorn wsgi_vsp_ui_gateway_exportpdf_only:application/vsp_demo_app binds 8910 (pattern) =="
+pgrep -f "gunicorn wsgi_vsp_ui_gateway_exportpdf_only:application.*127\.0\.0\.1:8910" 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
+pgrep -f "gunicorn wsgi_vsp_ui_gateway_exportpdf_only:application.*--bind[ =]127\.0\.0\.1:8910" 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
+# any python gunicorn wsgi_vsp_ui_gateway_exportpdf_only:application running vsp_demo_app on any bind (defensive)
+pgrep -f" 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
+sleep 0.5 echo "== import check =="
+"$PY" -c "import vsp_demo_app; print('OK import, app=', hasattr(vsp_demo_app,'app'))" echo "== start gunicorn wsgi_vsp_ui_gateway_exportpdf_only:application 8910 =="
+nohup "$PY" -m gunicorn wsgi_vsp_ui_gateway_exportpdf_only:application -w 1 -k gthread --threads 4 \ --timeout 60 --graceful-timeout 15 \ --chdir /home/test/Data/SECURITY_BUNDLE/ui \ --pythonpath /home/test/Data/SECURITY_BUNDLE/ui \ --bind 127.0.0.1:8910 \ --pid "$PIDFILE" \ --access-logfile "/home/test/Data/SECURITY_BUNDLE/ui/$ACCESS" \ --error-logfile "/home/test/Data/SECURITY_BUNDLE/ui/$ERROR" \ \ >> "/home/test/Data/SECURITY_BUNDLE/ui/$NOHUP" 2>&1 & sleep 1
+ss -ltnp | grep ':8910' >/dev/null || { echo "[ERR] 8910 not listening" echo "== last nohup =="; tail -n 120 "$NOHUP" || true echo "== last error =="; tail -n 120 "$ERROR" || true exit 1
+} echo "[OK] 8910 up master_pid=$(cat "$PIDFILE" 2>/dev/null || echo '?')"

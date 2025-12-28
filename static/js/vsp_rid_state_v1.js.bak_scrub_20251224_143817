@@ -1,0 +1,127 @@
+/* VSP_DISABLE_LEGACY_DASH_ON_VSP5_V1 */
+try{ if (String(location.pathname||"").includes("/vsp5")) { /* no legacy dash on vsp5 */ } }catch(_){ }
+/* VSP_RID_STATE_V10 (commercial stable) */
+(function(){
+  'use strict';
+
+  const LOGP = '[VSP_RID_STATE_V10]';
+  const LS_SELECTED = 'vsp_rid_selected_v1';
+  const LS_LATEST   = 'vsp_rid_latest_gate_root_v1';
+  const LS_LATEST_FALLBACK = 'vsp_rid_latest_v1';
+  const RID_KEYS_QS = ['rid','run_id','runid'];
+
+  function safeLSGet(k){
+    try { return localStorage.getItem(k); } catch(e){ return null; }
+  }
+  function safeLSSet(k,v){
+    try { localStorage.setItem(k, v); } catch(e){}
+  }
+
+  function qsRid(){
+    try{
+      const u = new URL(window.location.href);
+      for(const k of RID_KEYS_QS){
+        const v = u.searchParams.get(k);
+        if(v && String(v).trim()) return String(v).trim();
+      }
+    } catch(e){}
+    return null;
+  }
+
+  function getRid(){
+    return qsRid() || safeLSGet(LS_SELECTED) || safeLSGet(LS_LATEST) || null;
+  }
+
+  function updateBadge(rid){
+    const txt = `RID: ${rid || '(none)'}`;
+
+    // common ids
+    const ids = ['vsp-rid-badge','rid-badge','vsp_rid_badge','vspRidBadge'];
+    for(const id of ids){
+      const el = document.getElementById(id);
+      if(el){ el.textContent = txt; return; }
+    }
+
+    // common classes / data attributes
+    const el2 = document.querySelector('[data-vsp-rid-badge], .vsp-rid-badge, .rid-badge');
+    if(el2){ el2.textContent = txt; return; }
+
+    // fallback: any small element whose text starts with "RID:"
+    const all = document.querySelectorAll('body *');
+    for(const el of all){
+      const t = (el.textContent || '').trim();
+      if(t.startsWith('RID:') && t.length < 80){
+        el.textContent = txt;
+        return;
+      }
+    }
+  }
+
+  function setRid(rid, why){
+    const v = (rid && String(rid).trim()) ? String(rid).trim() : null;
+    if(!v) return null;
+    safeLSSet(LS_SELECTED, v);
+    safeLSSet(LS_LATEST, v);
+    updateBadge(v);
+
+    try{
+      window.dispatchEvent(new CustomEvent('VSP_RID_CHANGED', { detail: { rid: v, why: why || 'set' } }));
+    } catch(e){}
+    return v;
+  }
+
+  async function pickLatestFromRunsIndex(){
+    const url = '/api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1';
+    const r = await fetch(url, { cache: 'no-store' });
+    if(!r.ok) throw new Error('runs_index not ok: ' + r.status);
+    const j = await r.json();
+    const it = (j && j.items && j.items[0]) ? j.items[0] : null;
+    const rid = it && (it.run_id || it.rid || it.id);
+    if(rid && String(rid).trim()) return String(rid).trim();
+    return null;
+  }
+
+  async function pickLatest(){
+    // 1) optional override: MUST return string RID or null
+    try{
+      const ov = window.VSP_RID_PICKLATEST_OVERRIDE_V1;
+      if(typeof ov === 'function'){
+        const v = await ov();
+        if(typeof v === 'string' && v.trim()){
+          console.log(LOGP, 'picked by override');
+          return setRid(v.trim(), 'override');
+        }
+      }
+    } catch(e){
+      console.warn(LOGP, 'override failed', e);
+    }
+
+    // 2) default: runs_index
+    try{
+      const rid = await pickLatestFromRunsIndex();
+      if(rid){
+        console.log(LOGP, 'picked by runs_index', rid);
+        return setRid(rid, 'runs_index');
+      }
+    } catch(e){
+      console.warn(LOGP, 'runs_index pickLatest failed', e);
+    }
+
+    return null;
+  }
+
+  async function ensure(){
+    const cur = getRid();
+    updateBadge(cur);
+    if(cur) return cur;
+    return await pickLatest();
+  }
+
+  // compatibility exports
+  window.VSP_RID_GET = getRid;
+  window.VSP_RID_SET = (rid)=>setRid(rid,'manual');
+  window.VSP_RID_PICKLATEST = pickLatest;
+
+  document.addEventListener('DOMContentLoaded', ()=>{ ensure(); });
+  console.log(LOGP, 'installed');
+})();

@@ -1,0 +1,10 @@
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUN_API] skip blueprint already registered: vsp_run_api_v1
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUNV1_V16] installed /healthz
+[VSP_RUNV1_V16] healed url_map._rules_by_endpoint endpoints= 33
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1.run_v1 orig= run_v1
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1_fallback._fallback_run_v1 orig= _fallback_run_v1
+[VSP_RUNV1_V16] installed wrappers: 2

@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "rid": "VSP_CI_20251218_114312",
+  "created_ts": 1766470394,
+  "package_path": "/home/test/Data/SECURITY_BUNDLE/ui/releases/VSP_RELEASE_VSP_CI_20251218_114312_20251223_131128.zip",
+  "package_sha256": "be1524f9ae5234c4cdcba2769ade221749e62b53fcfe9f946d6f7eafffca8884",
+  "notes": "P1 release package for commercial UI",
+  "download_url": "/api/vsp/release_download?rid=VSP_CI_20251218_114312",
+  "audit_url": "/api/vsp/release_audit?rid=VSP_CI_20251218_114312"
+}

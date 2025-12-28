@@ -1,0 +1,118 @@
+[INFO] API_BASE=http://127.0.0.1:8910
+[INFO] RID=btl86-connector_RUN_20251127_095755_000599
+== GATE-1: core endpoints P1 (fast verify) ==
+== VSP UI P1 FAST VERIFY V2 (with retry) ==
+[BASE]=http://127.0.0.1:8910
+== /vsp5 ==
+[HTTP] code=200
+== wait /api/vsp/runs returns JSON ==
+RID=btl86-connector_RUN_20251127_095755_000599
+== required reports via run_file HEAD (must be 200) ==
+reports/index.html -> 200
+reports/run_gate_summary.json -> 200
+reports/findings_unified.json -> 200
+reports/SUMMARY.txt -> 200
+reports/SHA256SUMS.txt -> 200
+== PASS: P1 core endpoints OK ==
+== GATE-2: 5 tabs + content P1 ==
+[BASE] http://127.0.0.1:8910
+[OK] 200 /
+[OK] 200 /vsp5
+[OK] 200 /data_source
+[OK] 200 /settings
+[OK] 200 /rule_overrides
+[OK] latest RID=btl86-connector_RUN_20251127_095755_000599
+[OK] boot included /
+[OK] boot included /data_source
+[OK] boot included /settings
+[OK] boot included /rule_overrides
+== RESULT ==
+OK=5 WARN=0
+== GATE-3: boss demo (3-click + sha) + export bundle verify ==
+[INFO] API_BASE=http://127.0.0.1:8910
+[INFO] RID=btl86-connector_RUN_20251127_095755_000599
+== (A) 3-click demo + sha verify ==
+[INFO] API_BASE=http://127.0.0.1:8910
+[INFO] RID=btl86-connector_RUN_20251127_095755_000599
+== (1) HEAD TGZ reports ==
+[OK] export_tgz HEAD 200 + Content-Disposition
+== (2) HEAD CSV ==
+[OK] export_csv HEAD 200 + Content-Disposition
+== (3) SHA verify (remote vs local) ==
+[OK] sha match OK (reports/run_gate_summary.json)
+== RESULT ==
+PASS (RID=btl86-connector_RUN_20251127_095755_000599)
+== (B) Export bundle by RID ==
+[INFO] API_BASE=http://127.0.0.1:8910
+[INFO] RID=btl86-connector_RUN_20251127_095755_000599
+[INFO] WORK=/tmp/tmp.VUif4FXmoJ
+== (1) Fetch REQUIRED files ==
+[OK] fetched: reports/index.html
+[OK] fetched: reports/run_gate_summary.json
+[OK] fetched: reports/findings_unified.json
+[OK] fetched: reports/SUMMARY.txt
+[OK] fetched: reports/SHA256SUMS.txt
+== (2) Fetch OPTIONAL files (ignore if missing) ==
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.csv
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.sarif
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.sarif.json
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.sarif.gz
+[OK] fetched via export_csv -> reports/findings_unified.csv
+[DONE] bundle: /home/test/Data/SECURITY_BUNDLE/ui/out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090624.tgz
+[HINT] verify: tar -tzf /home/test/Data/SECURITY_BUNDLE/ui/out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090624.tgz | head
+[HINT] sha:    (cd /home/test/Data/SECURITY_BUNDLE/ui/out_ci/bundles && sha256sum btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090624.tgz)
+[INFO] BUNDLE=out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090624.tgz
+== (C) Inspect bundle top ==
+bundle_manifest.json
+BUNDLE_SHA256SUMS.txt
+reports/
+reports/SHA256SUMS.txt
+reports/index.html
+reports/run_gate_summary.json
+reports/SUMMARY.txt
+reports/findings_unified.csv
+reports/findings_unified.json
+== (D) Verify BUNDLE_SHA256SUMS inside bundle ==
+./bundle_manifest.json: OK
+./reports/SHA256SUMS.txt: OK
+./reports/SUMMARY.txt: OK
+./reports/findings_unified.csv: OK
+./reports/findings_unified.json: OK
+./reports/index.html: OK
+./reports/run_gate_summary.json: OK
+== RESULT ==
+PASS (RID=btl86-connector_RUN_20251127_095755_000599)
+BUNDLE=out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090624.tgz
+== PACK-1: export bundle by RID ==
+[INFO] API_BASE=http://127.0.0.1:8910
+[INFO] RID=btl86-connector_RUN_20251127_095755_000599
+[INFO] WORK=/tmp/tmp.8HYT9kAVRq
+== (1) Fetch REQUIRED files ==
+[OK] fetched: reports/index.html
+[OK] fetched: reports/run_gate_summary.json
+[OK] fetched: reports/findings_unified.json
+[OK] fetched: reports/SUMMARY.txt
+[OK] fetched: reports/SHA256SUMS.txt
+== (2) Fetch OPTIONAL files (ignore if missing) ==
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.csv
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.sarif
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.sarif.json
+curl: (22) The requested URL returned error: 404
+[SKIP] optional missing: reports/findings_unified.sarif.gz
+[OK] fetched via export_csv -> reports/findings_unified.csv
+[DONE] bundle: /home/test/Data/SECURITY_BUNDLE/ui/out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090625.tgz
+[HINT] verify: tar -tzf /home/test/Data/SECURITY_BUNDLE/ui/out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090625.tgz | head
+[HINT] sha:    (cd /home/test/Data/SECURITY_BUNDLE/ui/out_ci/bundles && sha256sum btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090625.tgz)
+[INFO] BUNDLE=out_ci/bundles/btl86-connector_RUN_20251127_095755_000599.bundle.20251219_090625.tgz
+== RESULT ==
+PASS (RID=btl86-connector_RUN_20251127_095755_000599)
+RELEASE_DIR=/home/test/Data/SECURITY_BUNDLE/ui/out_ci/releases/REL_20251219_090623
+RELEASE_TGZ=/home/test/Data/SECURITY_BUNDLE/ui/out_ci/releases/VSP_UI_RELEASE_btl86-connector_RUN_20251127_095755_000599.20251219_090623.tgz
+RELEASE_SHA=/home/test/Data/SECURITY_BUNDLE/ui/out_ci/releases/VSP_UI_RELEASE_btl86-connector_RUN_20251127_095755_000599.20251219_090623.tgz.sha256

@@ -1,0 +1,10 @@
+<!doctype html><html lang="vi"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>VSP • Settings</title>
+<link rel="stylesheet" href="/static/css/vsp_dark_commercial_p1_2.css"/>
+<style>html,body{background:#070e1a;color:#e5e7eb;margin:0;}</style>
+</head><body>
+<div id="vsp_tab_root" data-vsp-tab="settings" style="padding:16px"><div style="color:#94a3b8;font-size:12px">Loading...</div></div>
+<script src="/static/js/vsp_tabs3_common_v3.js?v=1"></script>
+<script src="/static/js/vsp_settings_tab_v3.js?v=1"></script>
+</body></html>

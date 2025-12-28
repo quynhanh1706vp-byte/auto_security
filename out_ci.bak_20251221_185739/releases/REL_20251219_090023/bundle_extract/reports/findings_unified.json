@@ -1,0 +1,15 @@
+{
+  "run_id": "btl86-connector_RUN_20251127_095755_000599",
+  "generated_at": "2025-12-18T19:55:00",
+  "counts": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0,
+    "INFO": 0,
+    "TRACE": 0
+  },
+  "findings": [],
+  "tools": {},
+  "note": "Backfilled minimal unified findings (empty) for UI/demo continuity."
+}

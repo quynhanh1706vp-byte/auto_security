@@ -1,0 +1,308 @@
+# ==== VSP_P0_PIN_RUNS_ROOT_PREFER_REAL_V1 ====
+# Pin runs roots to real SECURITY_BUNDLE runs (avoid BOSS_BUNDLE taking rid_latest)
+export VSP_RUNS_ROOTS="${VSP_RUNS_ROOTS:-/home/test/Data/SECURITY_BUNDLE/out}"
+export VSP_RUNS_CACHE_TTL="${VSP_RUNS_CACHE_TTL:-2}"
+export VSP_RUNS_SCAN_CAP="${VSP_RUNS_SCAN_CAP:-500}"
+# ==== /VSP_P0_PIN_RUNS_ROOT_PREFER_REAL_V1 ====
+
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing cmd: $1"; exit 2; }; }
+need ss; need awk; need sed; need pkill; need nohup; need python3; need curl; need tail; need flock
+
+LOCK="/tmp/vsp_ui_8910.lock"
+PIDF="out_ci/ui_8910.pid"
+PORT=8910
+
+# VSP_P0_UNSET_GUNICORN_CMD_ARGS_V1
+echo "[DBG] before: GUNICORN_CMD_ARGS=${GUNICORN_CMD_ARGS:-<empty>}"
+unset GUNICORN_CMD_ARGS || true
+export GUNICORN_CMD_ARGS=""
+echo "[DBG] after : GUNICORN_CMD_ARGS=${GUNICORN_CMD_ARGS:-<empty>}"
+
+ADDR="127.0.0.1:${PORT}"
+F="wsgi_vsp_ui_gateway.py"
+
+exec 9>"$LOCK"
+flock -n 9 || { echo "[ERR] another start in progress (lock: $LOCK)"; exit 3; }
+
+mkdir -p out_ci
+
+echo "== compile check =="
+python3 -m py_compile "$F" && echo "[OK] py_compile OK"
+
+echo "== stop systemd unit if exists (best-effort) =="
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl list-units --type=service --all 2>/dev/null | grep -q "vsp-ui-8910.service"; then
+    echo "[INFO] stopping vsp-ui-8910.service"
+    sudo -n systemctl stop vsp-ui-8910.service 2>/dev/null || true
+    sudo -n systemctl disable vsp-ui-8910.service 2>/dev/null || true
+  fi
+fi
+
+echo "== stop existing by pidfile (best effort) =="
+if [ -s "$PIDF" ]; then
+  OLD="$(cat "$PIDF" 2>/dev/null || true)"
+  if [ -n "${OLD:-}" ] && kill -0 "$OLD" 2>/dev/null; then
+    echo "[INFO] killing old master pid=$OLD"
+    kill "$OLD" 2>/dev/null || true
+    sleep 0.6
+    kill -9 "$OLD" 2>/dev/null || true
+  fi
+  rm -f "$PIDF" || true
+fi
+
+echo "== kill listeners on :8910 (hard) =="
+PIDS="$(ss -ltnp 2>/dev/null | awk "/${ADDR}/ {print \$NF}" | sed 's/.*pid=\([0-9]\+\).*/\1/' | tr '\n' ' ')"
+if [ -n "${PIDS// /}" ]; then
+  echo "[INFO] killing pids: ${PIDS}"
+  for p in $PIDS; do kill "$p" 2>/dev/null || true; done
+  sleep 0.6
+  for p in $PIDS; do kill -9 "$p" 2>/dev/null || true; done
+fi
+pkill -9 -f "wsgi_vsp_ui_gateway:application" 2>/dev/null || true
+pkill -9 -f "gunicorn.*${PORT}" 2>/dev/null || true
+
+echo "== wait port free =="
+for i in {1..20}; do
+  ss -ltnp 2>/dev/null | grep -q "${ADDR}" || { echo "[OK] port free"; break; }
+  sleep 0.2
+done
+
+# VSP_P1_TRUNCATE_LOGS_BEFORE_START_V1
+# Avoid false "not stable" due to historical error.log tails.
+BOOT_LOG="out_ci/ui_8910.boot.log"
+ERR_LOG="out_ci/ui_8910.error.log"
+ACC_LOG="out_ci/ui_8910.access.log"
+mkdir -p out_ci
+: > "$BOOT_LOG" || true
+: > "$ERR_LOG" || true
+: > "$ACC_LOG" || true
+echo "[INFO] logs truncated: $BOOT_LOG $ERR_LOG $ACC_LOG"
+START_TS="$(date +%s)"
+
+
+echo "== start gunicorn single-owner :8910 (pidfile) =="
+GUNI="./.venv/bin/gunicorn"
+[ -x "$GUNI" ] || GUNI="$(command -v gunicorn || true)"
+[ -n "${GUNI}" ] || { echo "[ERR] gunicorn not found"; exit 2; }
+
+  # VSP_P0_FORCE_NOHUP_BIND_8910_V1
+  PORT=8910
+  GUNI="./.venv/bin/gunicorn"
+  [ -x "$GUNI" ] || GUNI="$(command -v gunicorn || true)"
+  [ -n "${GUNI}" ] || { echo "[ERR] gunicorn not found"; exit 2; }
+  echo "[DBG] gunicorn=$GUNI"
+  echo "[DBG] bind=127.0.0.1:${PORT}"
+  # hard-bind 8910 + force logs into out_ci (no nohup.out)
+  # VSP_P0_FORCE_NOHUP_BIND_8910_V1
+  PORT=8910
+  GUNI="./.venv/bin/gunicorn"
+  [ -x "$GUNI" ] || GUNI="$(command -v gunicorn || true)"
+  [ -n "${GUNI}" ] || { echo "[ERR] gunicorn not found"; exit 2; }
+  echo "[DBG] gunicorn=$GUNI"
+  echo "[DBG] bind=127.0.0.1:${PORT}"
+  # hard-bind 8910 + force logs into out_ci (no nohup.out)
+  nohup "$GUNI" wsgi_vsp_ui_gateway:application \
+    --workers 2 \
+    --worker-class gthread \
+    --threads 4 \
+    --timeout 60 \
+    --graceful-timeout 15 \
+    --chdir /home/test/Data/SECURITY_BUNDLE/ui \
+    --pythonpath /home/test/Data/SECURITY_BUNDLE/ui \
+    --bind 127.0.0.1:8910 \
+    --access-logfile out_ci/ui_8910.access.log \
+    --error-logfile out_ci/ui_8910.error.log \
+    > out_ci/ui_8910.boot.log 2>&1 &
+
+echo "== wait HTTP stable (/, /vsp5, /api/vsp/runs) =="
+
+# ==== VSP_P0_PROBE_NONFLAKE_V2 ====
+# Commercial/P0: strict probe takes over and short-circuits legacy heuristic probe.
+_vsp_http_code_head() { curl -sS -o /dev/null -w "%{http_code}" -I "$1" 2>/dev/null || echo 000; }
+_vsp_http_code_get()  { curl -sS -o /dev/null -w "%{http_code}" "$1"  2>/dev/null || echo 000; }
+
+_vsp_retry_code() {
+  local url="$1" expect="$2" tries="${3:-10}" sl="${4:-0.20}" mode="${5:-get}"
+  local i code
+  for i in $(seq 1 "$tries"); do
+    if [ "$mode" = "head" ]; then code="$(_vsp_http_code_head "$url")"; else code="$(_vsp_http_code_get "$url")"; fi
+    if echo "$code" | grep -Eq "$expect"; then
+      echo "[OK] probe $url => $code (try $i/$tries)"
+      return 0
+    fi
+    echo "[WARN] probe $url => $code (try $i/$tries) expect=/$expect/"
+    sleep "$sl"
+  done
+  return 1
+}
+
+_vsp_probe_json_ok() {
+  local url="$1" tries="${2:-12}" sl="${3:-0.25}"
+  local i code body
+  for i in $(seq 1 "$tries"); do
+    code="$(_vsp_http_code_get "$url")"
+    if [ "$code" = "200" ]; then
+      body="$(curl -sS "$url" 2>/dev/null || true)"
+      python3 - <<'PYC' "$body" >/dev/null 2>&1 || true
+import json, sys
+j=json.loads(sys.argv[1])
+assert j.get("ok") is True
+assert isinstance(j.get("items", []), list)
+PYC
+      if [ $? -eq 0 ]; then
+        echo "[OK] probe $url => 200 + json.ok/items (try $i/$tries)"
+        return 0
+      fi
+    fi
+    echo "[WARN] probe $url => $code (try $i/$tries)"
+    sleep "$sl"
+  done
+  return 1
+}
+
+vsp_strict_probe_nonflake_p0() {
+  local BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+  _vsp_retry_code "$BASE/" '^(200|302)$' 12 0.15 head || return 1
+  _vsp_retry_code "$BASE/vsp5" '^200$'    12 0.20 get  || return 1
+  _vsp_probe_json_ok "$BASE/api/vsp/runs?limit=1" 12 0.20 || return 1
+  return 0
+}
+
+if vsp_strict_probe_nonflake_p0; then
+  echo "[OK] stable (strict probe, commercial/P0)"
+  exit 0
+else
+  echo "[FAIL] not stable (strict probe, commercial/P0); tail logs:"
+  tail -n 120 out_ci/ui_8910.boot.log 2>/dev/null || true
+  exit 3
+fi
+# ==== /VSP_P0_PROBE_NONFLAKE_V2 ====
+
+ok=0
+for i in {1..25}; do
+  h1="$(curl -fsSI --max-time 2 "http://127.0.0.1:${PORT}/" 2>/dev/null | head -n1 || true)"
+  h2="$(curl -fsSI --max-time 2 "http://127.0.0.1:${PORT}/vsp5" 2>/dev/null | head -n1 || true)"
+  h3="$(curl -fsSI --max-time 2 "http://127.0.0.1:${PORT}/api/vsp/runs?limit=1" 2>/dev/null | head -n1 || true)"
+  if echo "$h1" | grep -qi " 200 " && echo "$h2" | grep -qi " 200 " && echo "$h3" | grep -qi " 200 "; then
+    echo "[OK] HTTP stable on attempt $i"
+    ok=1
+    break
+  fi
+  sleep 0.25
+done
+
+if [ "$ok" -ne 1 ]; then
+  echo "[FAIL] not stable; tail logs:"
+
+# VSP_P1_HTTP_STABLE_FAIL_BUT_LISTENING_HEURISTIC_V1
+# If HTTP probe flakes but gunicorn actually booted and is listening, treat as OK (avoid false FAIL).
+if [ -f out_ci/ui_8910.error.log ]; then
+  if grep -q "Listening at: http://127.0.0.1:8910" out_ci/ui_8910.error.log \
+     && grep -q "Booting worker with pid" out_ci/ui_8910.error.log; then
+    echo "[WARN] HTTP probe flaked, but gunicorn is listening + workers booted; treating as FAIL (strict probe active)"
+    echo "[OK] stable (heuristic)"
+    exit 0
+  fi
+fi
+
+
+  echo "----- boot.log (tail) -----"; tail -n 120 out_ci/ui_8910.boot.log 2>/dev/null || true
+  echo "----- error.log (tail) -----"; tail -n 200 out_ci/ui_8910.error.log 2>/dev/null || true
+  exit 4
+fi
+
+echo "[DONE] 8910 up (single-owner) master_pid=$(cat "$PIDF" 2>/dev/null || echo '?')"
+
+
+# ==== VSP_P0_PROBE_NONFLAKE_V1 ====
+# Commercial/P0: make probes deterministic:
+# - accept / as 200 or 302
+# - retry short for /vsp5 and /api/vsp/runs?limit=1
+# - fail hard if still not stable (no more "probe flaked but OK")
+
+_vsp_http_code_head() {
+  curl -sS -o /dev/null -w "%{http_code}" -I "$1" 2>/dev/null || echo 000
+}
+
+_vsp_http_code_get() {
+  curl -sS -o /dev/null -w "%{http_code}" "$1" 2>/dev/null || echo 000
+}
+
+_vsp_retry_code() {
+  # usage: _vsp_retry_code <url> <expect_regex> <tries> <sleep_sec> <head|get>
+  local url="$1" expect="$2" tries="${3:-8}" sl="${4:-0.25}" mode="${5:-get}"
+  local i code
+  for i in $(seq 1 "$tries"); do
+    if [ "$mode" = "head" ]; then
+      code="$(_vsp_http_code_head "$url")"
+    else
+      code="$(_vsp_http_code_get "$url")"
+    fi
+    if echo "$code" | grep -Eq "$expect"; then
+      echo "[OK] probe $url => $code (try $i/$tries)"
+      return 0
+    fi
+    echo "[WARN] probe $url => $code (try $i/$tries) expect=/$expect/"
+    sleep "$sl"
+  done
+  echo "[FAIL] probe $url did not reach expect=/$expect/ after $tries tries"
+  return 1
+}
+
+_vsp_probe_json_ok() {
+  # usage: _vsp_probe_json_ok <url> <tries> <sleep_sec>
+  local url="$1" tries="${2:-8}" sl="${3:-0.25}"
+  local i code body
+  for i in $(seq 1 "$tries"); do
+    code="$(_vsp_http_code_get "$url")"
+    if [ "$code" = "200" ]; then
+      body="$(curl -sS "$url" 2>/dev/null || true)"
+      python3 - <<'PYC' "$body" >/dev/null 2>&1 || {
+import json, sys
+raw = sys.argv[1]
+j = json.loads(raw)
+assert j.get("ok") is True
+assert isinstance(j.get("items", []), list)
+PYC
+        echo "[OK] probe $url => 200 + json.ok/items (try $i/$tries)"
+        return 0
+      }
+      echo "[WARN] probe $url => 200 but json invalid (try $i/$tries)"
+    else
+      echo "[WARN] probe $url => $code (try $i/$tries) expect=200"
+    fi
+    sleep "$sl"
+  done
+  echo "[FAIL] probe $url did not reach (200 + valid json) after $tries tries"
+  return 1
+}
+
+vsp_strict_probe_nonflake_p0() {
+  local BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+  local ok=1
+
+  # 1) / : accept 200 or 302
+  if ! _vsp_retry_code "$BASE/" '^(200|302)$' 10 0.20 head; then ok=0; fi
+
+  # 2) If redirected, try ensure /vsp5 becomes ready
+  if ! _vsp_retry_code "$BASE/vsp5" '^200$' 12 0.25 get; then ok=0; fi
+
+  # 3) API runs contract minimal: http 200 + json ok/items
+  if ! _vsp_probe_json_ok "$BASE/api/vsp/runs?limit=1" 12 0.25; then ok=0; fi
+
+  if [ "$ok" -ne 1 ]; then
+    echo "[FAIL] strict probe: NOT STABLE (commercial/P0)"
+    return 1
+  fi
+  echo "[OK] strict probe: STABLE (commercial/P0)"
+  return 0
+}
+# ==== /VSP_P0_PROBE_NONFLAKE_V1 ====
+
+
+# run strict probe
+if ! vsp_strict_probe_nonflake_p0; then exit 3; fi

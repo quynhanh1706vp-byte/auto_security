@@ -1,0 +1,139 @@
+/* VSP Data Source tab v3 (real data) */
+(function(){
+  if (window.__VSP_DS_V3_REALDATA) return;
+  window.__VSP_DS_V3_REALDATA = true;
+
+  const root = document.getElementById("vsp_tab_root");
+  if (!root) return;
+
+  const api = async (url, opt={}) => {
+    const r = await fetch(url, Object.assign({credentials:"same-origin"}, opt));
+    const j = await r.json().catch(()=>({ok:false,error:"bad_json"}));
+    if (!j || j.ok !== true) throw new Error((j && (j.error||j.reason)) || ("API_FAIL "+url));
+    return j;
+  };
+
+  const el = (t, a={}, c=[])=>{
+    const n=document.createElement(t);
+    for (const k in a){
+      if (k==="style") Object.assign(n.style, a[k]);
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), a[k]);
+      else n.setAttribute(k, a[k]);
+    }
+    (Array.isArray(c)?c:[c]).forEach(x=>{
+      if (x==null) return;
+      if (typeof x==="string") n.appendChild(document.createTextNode(x));
+      else n.appendChild(x);
+    });
+    return n;
+  };
+
+  let state = { rid:"", limit:50, offset:0, q:"" };
+
+  root.innerHTML = "";
+  const header = el("div", {style:{display:"flex",gap:"10px",alignItems:"center",flexWrap:"wrap",margin:"6px 0 12px 0"}}, []);
+  const sel = el("select", {style:{padding:"6px 8px",minWidth:"360px"}}, []);
+  const qin = el("input", {placeholder:"search in findings", style:{padding:"6px 8px",minWidth:"260px"}});
+  const btn = el("button", {style:{padding:"6px 10px",cursor:"pointer"}, onclick:()=>loadFindings(true)}, ["Reload"]);
+  const stat = el("div", {style:{margin:"8px 0",opacity:"0.9"}}, ["Loading..."]);
+  const table = el("div", {style:{marginTop:"8px"}}, []);
+
+  header.appendChild(el("div",{style:{fontWeight:"700"}},["Data Source"]));
+  header.appendChild(sel);
+  header.appendChild(qin);
+  header.appendChild(btn);
+
+  root.appendChild(header);
+  root.appendChild(stat);
+  root.appendChild(table);
+
+  qin.addEventListener("change", ()=>{ state.q = qin.value||""; state.offset=0; loadFindings(false); });
+
+  function renderCounts(j){
+    const c = j.counts || {};
+    return `RID=${j.rid} • TOTAL=${c.TOTAL||0} • CRITICAL=${c.CRITICAL||0} HIGH=${c.HIGH||0} MEDIUM=${c.MEDIUM||0} LOW=${c.LOW||0} INFO=${c.INFO||0} TRACE=${c.TRACE||0}`;
+  }
+
+  function renderRows(items){
+    table.innerHTML = "";
+    if (!items || !items.length){
+      table.appendChild(el("div",{style:{padding:"10px",border:"1px dashed #666",borderRadius:"8px"}},[
+        "No findings to show."
+      ]));
+      return;
+    }
+    const t = el("table",{style:{width:"100%",borderCollapse:"collapse"}});
+    const th = (x)=>el("th",{style:{textAlign:"left",borderBottom:"1px solid #555",padding:"8px"}},[x]);
+    const td = (x)=>el("td",{style:{verticalAlign:"top",borderBottom:"1px solid #333",padding:"8px"}},[x]);
+
+    t.appendChild(el("thead",{},[
+      el("tr",{},[
+        th("Severity"), th("Tool"), th("Title"), th("File"), th("Line"), th("Rule")
+      ])
+    ]));
+
+    const tb = el("tbody");
+    for (const it of items){
+      const sev = String(it.severity_norm||it.severity||it.level||"INFO");
+      const tool = String(it.tool||it.engine||it.source||"");
+      const title = String(it.title||it.message||it.desc||it.check_name||it.rule_name||"(no title)");
+      const file = String(it.file||it.path||it.filename||((it.location&&it.location.path)||""));
+      const line = String(it.line||it.start_line||((it.location&&it.location.line)||"")||"");
+      const rule = String(it.rule_id||it.rule||it.check_id||it.id||"");
+      tb.appendChild(el("tr",{},[
+        td(sev), td(tool), td(title), td(file), td(line), td(rule)
+      ]));
+    }
+    t.appendChild(tb);
+    table.appendChild(t);
+  }
+
+  async function loadRunsPick(){
+    const j = await api("/api/ui/runs_v2?limit=200&offset=0");
+    sel.innerHTML = "";
+    let picked = "";
+    for (const it of (j.items||[])){
+      const label = `${it.rid} ${it.has_findings?"[F]":""}${it.has_gate?"[G]":""} ${it.overall||""}`.trim();
+      sel.appendChild(el("option",{value:it.rid},[label]));
+      if (!picked && it.has_findings) picked = it.rid;
+    }
+    if (!picked && (j.items||[]).length) picked = j.items[0].rid;
+    state.rid = picked || "";
+    sel.value = state.rid;
+    sel.addEventListener("change", ()=>{ state.rid = sel.value; state.offset=0; loadFindings(false); });
+  }
+
+  async function loadFindings(){
+    if (!state.rid) return;
+    stat.textContent = "Loading findings...";
+    table.innerHTML = "";
+    try{
+      const url = `/api/ui/findings_v2?rid=${encodeURIComponent(state.rid)}&limit=${state.limit}&offset=${state.offset}&q=${encodeURIComponent(state.q||"")}`;
+      const j = await api(url);
+      stat.textContent = renderCounts(j);
+
+      if (j.reason){
+        table.appendChild(el("div",{style:{margin:"10px 0",padding:"10px",border:"1px dashed #666",borderRadius:"8px"}},[
+          "Reason: "+j.reason,
+          el("div",{style:{marginTop:"6px",opacity:"0.9"}},["Hint: "+(j.hint_paths||[]).join(" , ")])
+        ]));
+      }
+
+      renderRows(j.items||[]);
+      if (j.findings_path){
+        table.appendChild(el("div",{style:{marginTop:"8px",opacity:"0.8",fontSize:"12px"}},["Source: "+j.findings_path]));
+      }
+    }catch(e){
+      stat.textContent = "Error: "+(e && e.message ? e.message : String(e));
+      table.innerHTML = "";
+      table.appendChild(el("div",{style:{padding:"10px",border:"1px solid #a44",borderRadius:"8px"}},[
+        "Failed to load findings. (Check console)"
+      ]));
+    }
+  }
+
+  (async ()=>{
+    await loadRunsPick();
+    await loadFindings();
+  })();
+})();

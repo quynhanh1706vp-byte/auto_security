@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from pathlib import Path
+from flask import Flask, render_template, jsonify, request, send_file, abort
+from vsp_api_core_v3 import bp_v3 as vsp_api_core_bp
+
+# ---- PATHS / CONSTANTS ----
+
+UI_DIR = Path(__file__).resolve().parent
+ROOT = UI_DIR.parent
+OUT_DIR = ROOT / "out"
+
+# App UI demo cho VSP – dùng layout 5 tab trong vsp_index.html
+# CHỈ phục vụ HTML/CSS/JS. Không tự bịa thêm API /export linh tinh.
+app = Flask(
+app.register_blueprint(vsp_api_core_bp)
+    __name__,
+    static_folder=str(UI_DIR / "static"),
+    template_folder=str(UI_DIR / "templates"),
+)
+
+
+@app.route("/")
+def vsp_root():
+    return render_template("vsp_dashboard_2025.html")
+
+
+
+
+@app.route("/security_bundle")
+def vsp_security_bundle():
+    return render_template("vsp_dashboard_2025.html")
+
+
+
+
+@app.route("/healthz")
+def healthz():
+    """
+    Health check đơn giản để xem UI app còn sống không.
+    Không đụng gì tới pipeline scan.
+    """
+    return jsonify(
+        {
+            "ok": True,
+            "app": "vsp_demo_app",
+            "ui_dir": str(UI_DIR),
+            "out_dir": str(OUT_DIR),
+        }
+    )
+
+
+
+
+from pathlib import Path
+
+@app.route("/api/vsp/settings/get")
+def api_vsp_settings_get():
+    """Trả JSON cấu hình VSP EXT+ từ static/data/vsp_settings_profile_ext.json"""
+    base = Path(__file__).parent
+    f = base / "static" / "data" / "vsp_settings_profile_ext.json"
+    if f.exists():
+        import json
+        data = json.loads(f.read_text(encoding="utf-8"))
+    else:
+        data = {
+            "ok": True,
+            "profile": "EXT+",
+            "note": "demo settings (file vsp_settings_profile_ext.json chưa tồn tại)"
+        }
+    from flask import jsonify
+    return jsonify(data)
+
+
+@app.route("/api/vsp/overrides/list")
+def api_vsp_overrides_list():
+    """Trả list rule overrides từ static/data/vsp_overrides_demo.json"""
+    base = Path(__file__).parent
+    f = base / "static" / "data" / "vsp_overrides_demo.json"
+    if f.exists():
+        import json
+        data = json.loads(f.read_text(encoding="utf-8"))
+    else:
+        data = {
+            "items": [
+                {
+                    "id": "OVR-000",
+                    "pattern": "*",
+                    "rule": "ALL",
+                    "reason": "demo overrides (file vsp_overrides_demo.json chưa tồn tại)",
+                    "action": "NONE"
+                }
+            ]
+        }
+    from flask import jsonify
+    return jsonify(data)
+
+if __name__ == "__main__":
+    # Nếu bạn muốn đổi port, chỉnh lại số 8910.
+    app.run(host="0.0.0.0", port=8910, debug=True)

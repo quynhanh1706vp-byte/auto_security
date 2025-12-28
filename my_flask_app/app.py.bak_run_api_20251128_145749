@@ -1,0 +1,70 @@
+from pathlib import Path
+import json
+
+from flask import Flask, render_template, send_from_directory, redirect, url_for, jsonify
+
+app = Flask(__name__)
+
+APP_ROOT = Path(__file__).resolve().parent
+# /home/test/Data/SECURITY_BUNDLE
+SB_ROOT = APP_ROOT.parent.parent
+RUN_INDEX_FILE = APP_ROOT / "static" / "data" / "summary_runs.json"
+
+
+def load_runs_index():
+    """Đọc summary_runs.json -> list run (dùng cho tab Runs & Reports)."""
+    if not RUN_INDEX_FILE.is_file():
+        print(f"[WARN] Không tìm thấy {RUN_INDEX_FILE}")
+        return []
+    try:
+        runs = json.loads(RUN_INDEX_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[WARN] Lỗi đọc {RUN_INDEX_FILE}: {e}")
+        return []
+
+    # Nếu có field timestamp thì sort DESC cho chắc
+    try:
+        runs.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+    except Exception:
+        pass
+    return runs
+
+
+@app.route("/")
+def index():
+    """Redirect về dashboard SECURITY_BUNDLE."""
+    return redirect(url_for("security_bundle_dashboard"))
+
+
+@app.route("/security_bundle")
+def security_bundle_dashboard():
+    """Trang chính SECURITY_BUNDLE – dùng template 5 tab."""
+    runs = load_runs_index()
+    last_run = runs[0] if runs else None
+    return render_template(
+        "SECURITY_BUNDLE_FULL_5_PAGES.html",
+        runs=runs,
+        last_run=last_run,
+    )
+
+
+@app.route("/report/<path:path>")
+def serve_report_file(path: str):
+    """
+    Serve file report (HTML / PDF).
+    'path' là path tương đối tính từ SB_ROOT (vd: out/RUN_xxx/report/security_resilient.html).
+    """
+    full = SB_ROOT / path
+    if not full.is_file():
+        return f"Report not found: {full}", 404
+    return send_from_directory(full.parent, full.name)
+
+
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok", "app": "SECURITY_BUNDLE_UI"}), 200
+
+
+if __name__ == "__main__":
+    # Chạy UI trên port 8910 như trước giờ bạn dùng
+    app.run(host="0.0.0.0", port=8910, debug=True)

@@ -1,0 +1,726 @@
+"use strict";
+
+/**
+ * VSP_DASHBOARD_LIVE_V2 – ALL-IN-ONE (commercial layout)
+ *
+ * Hỗ trợ song song:
+ *  - ID bản chuẩn:  kpi-total, kpi-infotrace, chartSeverityDonut, chartTrend, chartTopCWE, tblTopRisk...
+ *  - ID bản anh đang chạy: kpi-total-findings, kpi-info-trace, severity_donut_chart, trend_line_chart, top_cwe_chart, top-findings-table...
+ *
+ * API dùng:
+ *  - /api/vsp/datasource?mode=dashboard
+ *  - /api/vsp/datasource?severity=...
+ *  - /api/vsp/runs_index_v3 (fallback /api/vsp/runs)
+ *  - /api/vsp/trend_v1 (nếu có)
+ *  - /api/vsp/dashboard_v3 (chỉ để lấy by_tool nếu summary không có)
+ *  - /api/vsp/settings/get
+ *  - /api/vsp/overrides/list
+ */
+
+(function () {
+  const API_SUMMARY      = "/api/vsp/datasource?mode=dashboard";
+  const API_DS_SEV       = (sev, limit) =>
+    "/api/vsp/datasource?severity=" + encodeURIComponent(sev) + "&limit=" + (limit || 1);
+  const API_RUNS_V3      = "/api/vsp/runs_index_v3";
+  const API_RUNS_V1      = "/api/vsp/runs";
+  const API_TREND_V1     = "/api/vsp/trend_v1";
+  const API_SETTINGS     = "/api/vsp/settings/get";
+  const API_OVERRIDES    = "/api/vsp/overrides/list";
+  const API_DASHBOARD_V3 = "/api/vsp/dashboard_v3";
+
+  const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+
+  function el() {
+    for (let i = 0; i < arguments.length; i++) {
+      const id = arguments[i];
+      if (!id) continue;
+      const node = document.getElementById(id);
+      if (node) return node;
+    }
+    return null;
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      const err = new Error("HTTP " + res.status + " for " + url);
+      err.status = res.status;
+      throw err;
+    }
+    return await res.json();
+  }
+
+  function safeInt(v) {
+    if (v == null) return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function setNoData(container, msg) {
+    if (!container) return;
+    container.innerHTML =
+      '<p style="font-size:12px;color:#9ca3c7;">' + msg + "</p>";
+  }
+
+  /* ================= KPI + DONUT ================= */
+
+  let donutChart = null;
+
+  function renderKpisAndDonut(dash, bySev) {
+    const sev = bySev || {};
+    const fmt = (n) => n.toLocaleString("en-US");
+
+    const crit  = safeInt(sev.CRITICAL);
+    const high  = safeInt(sev.HIGH);
+    const med   = safeInt(sev.MEDIUM);
+    const low   = safeInt(sev.LOW);
+    const info  = safeInt(sev.INFO);
+    const trace = safeInt(sev.TRACE);
+
+    const totalFromSev = crit + high + med + low + info + trace;
+    const total =
+      safeInt(dash.total_findings) ||
+      safeInt(dash.total) ||
+      totalFromSev;
+
+    const elTotal = el("kpi-total", "kpi-total-findings");
+    if (elTotal) elTotal.textContent = fmt(total);
+
+    const elCrit = el("kpi-critical", "kpi-crit");
+    if (elCrit) elCrit.textContent = fmt(crit);
+
+    const elHigh = el("kpi-high", "kpi-high-sev");
+    if (elHigh) elHigh.textContent = fmt(high);
+
+    const elMed = el("kpi-medium", "kpi-med");
+    if (elMed) elMed.textContent = fmt(med);
+
+    const elLow = el("kpi-low", "kpi-low-sev");
+    if (elLow) elLow.textContent = fmt(low);
+
+    const elInfoTrace = el("kpi-infotrace", "kpi-info-trace", "kpi-info");
+    if (elInfoTrace) elInfoTrace.textContent = fmt(info + trace);
+
+    const lastRunId = el("vsp-last-run-id");
+    if (lastRunId) lastRunId.textContent = dash.run_id || "–";
+
+    const lastRunTs = el("vsp-last-run-ts");
+    if (lastRunTs) {
+      const ts = dash.ts || dash.last_run_ts || dash.last_ts;
+      lastRunTs.textContent = ts ? ts : "Last run: –";
+    }
+
+    // Donut
+    const canvas =
+      el("chartSeverityDonut", "severity_donut_chart", "vsp-chart-severity");
+    if (canvas && typeof Chart !== "undefined") {
+      if (donutChart) donutChart.destroy();
+      donutChart = new Chart(canvas, {
+        type: "doughnut",
+        data: {
+          labels: ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"],
+          datasets: [
+            {
+              data: [crit, high, med, low, info, trace],
+              backgroundColor: [
+                "#ff4b6a",
+                "#ff9f43",
+                "#ffd166",
+                "#4ade80",
+                "#38bdf8",
+                "#a855f7",
+              ],
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "70%",
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+
+    // fallback trend 1 điểm, sẽ bị override nếu initTrend() load được nhiều điểm
+    renderTrend([{ label: dash.run_id || "Last run", total }]);
+  }
+
+  async function computeSeverityBucketsFromDatasource() {
+    const buckets = {
+      CRITICAL: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+      INFO: 0,
+      TRACE: 0,
+    };
+
+    const promises = SEVERITIES.map(async (sev) => {
+      try {
+        const resp = await fetchJson(API_DS_SEV(sev, 1));
+        const total = safeInt(resp.total || resp.total_findings || resp.count);
+        buckets[sev] = total;
+      } catch (err) {
+        console.warn("[VSP] severity", sev, "error:", err);
+      }
+    });
+
+    await Promise.all(promises);
+    return buckets;
+  }
+
+  /* ================= TREND ================= */
+
+  let trendChart = null;
+
+  function renderTrend(points) {
+    const canvas = el("chartTrend", "trend_line_chart");
+    if (!canvas || typeof Chart === "undefined") return;
+    if (!Array.isArray(points) || !points.length) return;
+
+    const labels = points.map((p) => p.label || "");
+    const totals = points.map((p) => safeInt(p.total || p.total_findings));
+
+    if (trendChart) trendChart.destroy();
+
+    trendChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Total findings",
+            data: totals,
+            tension: 0.35,
+            borderWidth: 2,
+            pointRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { maxRotation: 45, minRotation: 45 },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(148,163,210,0.25)" },
+          },
+        },
+      },
+    });
+  }
+
+  async function initTrend() {
+    // 1) trend_v1 nếu có
+    try {
+      const t = await fetchJson(API_TREND_V1);
+      const pts = Array.isArray(t.points) ? t.points : [];
+      if (pts.length) {
+        renderTrend(pts);
+        return;
+      }
+    } catch (e) {
+      console.warn("[VSP] trend_v1 error:", e);
+    }
+
+    // 2) runs_index_v3 nếu có
+    try {
+      const runs = await fetchJson(API_RUNS_V3);
+      if (Array.isArray(runs) && runs.length) {
+        const pts = runs
+          .slice(0, 10)
+          .map((r) => ({
+            label: r.run_id || "",
+            total: r.total_findings || r.total || 0,
+          }))
+          .reverse();
+        renderTrend(pts);
+        return;
+      }
+    } catch (e) {
+      console.warn("[VSP] runs_index_v3 error (trend):", e);
+    }
+    // fallback = 1 điểm đã vẽ sẵn bởi renderKpisAndDonut
+  }
+
+  /* ================= TOP CWE BAR ================= */
+
+  let topCweChart = null;
+
+  function ensureTopCweCanvas() {
+    let canvas = el("chartTopCWE", "top_cwe_chart");
+    if (canvas) return canvas;
+
+    const table = document.querySelector("#top-cwe-table");
+    if (table) {
+      table.style.display = "none";
+      const parent = table.parentElement || table.parentNode;
+      canvas = document.createElement("canvas");
+      canvas.id = "top_cwe_chart";
+      parent.appendChild(canvas);
+      return canvas;
+    }
+    return null;
+  }
+
+  function renderTopCweBar(summary) {
+    const canvas = ensureTopCweCanvas();
+    if (!canvas || typeof Chart === "undefined") return;
+
+    let list =
+      summary.top_cwe_exposure ||
+      summary.top_cwe_list ||
+      summary.top_cwe ||
+      summary.cwe_top ||
+      [];
+
+    if (!Array.isArray(list) && list && typeof list === "object") {
+      list = Object.entries(list).map(([k, v]) => ({ cwe: k, count: v }));
+    }
+    if (Array.isArray(list.items)) list = list.items;
+
+    if (!Array.isArray(list) || !list.length) {
+      console.warn("[VSP] no top_cwe_* data in summary");
+      return;
+    }
+
+    list = list.slice(0, 5);
+
+    const labels = list.map((it) => it.cwe || it.id || it.name || "CWE-???");
+    const counts = list.map((it) =>
+      safeInt(it.count || it.total || it.value)
+    );
+
+    if (topCweChart) topCweChart.destroy();
+
+    topCweChart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            data: counts,
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: "rgba(148,163,210,0.25)" },
+          },
+          y: {
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  /* ================= TOP FINDINGS ================= */
+
+  async function initTopFindings() {
+    const tbody =
+      document.querySelector("#tblTopRisk tbody") ||
+      document.querySelector("#top-findings-table tbody");
+    if (!tbody) return;
+
+    try {
+      const resp = await fetchJson(API_DS_SEV("CRITICAL", 5));
+      const items = Array.isArray(resp.items) ? resp.items : [];
+      if (!items.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="10" style="color:#9ca3c7;font-size:11px;">Không load được dữ liệu top findings.</td></tr>';
+        return;
+      }
+
+      const rows = items
+        .map((it) => {
+          const sev =
+            '<span class="vsp-severity-badge vsp-severity-critical">CRITICAL</span>';
+          const loc = it.location || it.file || it.path || "";
+          const rule = it.rule || it.rule_id || it.cwe || "";
+          const tool = it.tool || it.source || "";
+          return (
+            "<tr>" +
+            "<td>" + sev + "</td>" +
+            "<td>" + escHtml(loc) + "</td>" +
+            "<td>" + escHtml(rule) + "</td>" +
+            "<td>" + escHtml(tool) + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      tbody.innerHTML = rows;
+    } catch (e) {
+      console.warn("[VSP] initTopFindings error:", e);
+      tbody.innerHTML =
+        '<tr><td colspan="10" style="color:#9ca3c7;font-size:11px;">Không load được dữ liệu top findings.</td></tr>';
+    }
+  }
+
+  /* ================= RUNS TAB ================= */
+
+  function renderRunsTable(runs) {
+    const container = el("vsp-runs-container");
+    if (!container) return;
+
+    if (!Array.isArray(runs) || !runs.length) {
+      setNoData(container, "Không load được dữ liệu runs.");
+      return;
+    }
+
+    const rows = runs
+      .slice(0, 20)
+      .map((r) => {
+        const sev = r.by_severity || r.severity || {};
+        return (
+          "<tr>" +
+          "<td>" + escHtml(r.run_id || r.id || "") + "</td>" +
+          "<td>" + safeInt(r.total_findings || r.total) + "</td>" +
+          "<td>" + safeInt(sev.CRITICAL) + "</td>" +
+          "<td>" + safeInt(sev.HIGH) + "</td>" +
+          "<td>" + safeInt(sev.MEDIUM) + "</td>" +
+          "<td>" + safeInt(sev.LOW) + "</td>" +
+          "</tr>"
+        );
+      })
+      .join("");
+
+    container.innerHTML =
+      '<table class="vsp-table">' +
+      "<thead><tr>" +
+      "<th>Run ID</th>" +
+      "<th>Total</th>" +
+      "<th>CRI</th>" +
+      "<th>HIGH</th>" +
+      "<th>MED</th>" +
+      "<th>LOW</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>";
+  }
+
+  async function initRunsTab() {
+    const container = el("vsp-runs-container");
+    if (!container) return;
+
+    let runs = null;
+
+    try {
+      runs = await fetchJson(API_RUNS_V3);
+    } catch (e) {
+      console.warn("[VSP] runs_index_v3 error (tab):", e);
+    }
+
+    if (!Array.isArray(runs)) {
+      try {
+        runs = await fetchJson(API_RUNS_V1);
+      } catch (e) {
+        console.warn("[VSP] /api/vsp/runs (v1) error:", e);
+        setNoData(
+          container,
+          "Không load được dữ liệu runs (API /api/vsp/runs_index_v3 và /api/vsp/runs đều chưa sẵn sàng)."
+        );
+        return;
+      }
+    }
+
+    renderRunsTable(runs);
+  }
+
+  /* ================= DATA SOURCE TAB ================= */
+
+  async function initDatasourceTab(summary, bySevComputed) {
+    const container = el("vsp-datasource-container");
+    if (!container) return;
+
+    try {
+      const sev =
+        bySevComputed ||
+        summary.by_severity ||
+        summary.severity ||
+        summary.by_severity_buckets ||
+        {};
+
+      let byTool =
+        summary.by_tool ||
+        summary.by_tool_severity ||
+        summary.by_tools ||
+        summary.tools ||
+        {};
+
+      // nếu datasource không có by_tool – thử lấy từ dashboard_v3
+      if (!Object.keys(byTool).length) {
+        try {
+          const dash = await fetchJson(API_DASHBOARD_V3);
+          byTool = dash.by_tool || {};
+        } catch (e) {
+          console.warn("[VSP] dashboard_v3 by_tool fallback error:", e);
+        }
+      }
+
+      const sevRows = SEVERITIES.map((s) => {
+        return (
+          "<tr><td>" +
+          s +
+          "</td><td>" +
+          safeInt(sev[s]) +
+          "</td></tr>"
+        );
+      }).join("");
+
+      const toolKeys = Object.keys(byTool || {});
+      const toolRows = toolKeys
+        .sort()
+        .map((tool) => {
+          const raw = byTool[tool] || {};
+          const d = raw.by_severity || raw.severity || raw;
+          return (
+            "<tr>" +
+            "<td>" + escHtml(tool) + "</td>" +
+            "<td>" + safeInt(d.CRITICAL) + "</td>" +
+            "<td>" + safeInt(d.HIGH) + "</td>" +
+            "<td>" + safeInt(d.MEDIUM) + "</td>" +
+            "<td>" + safeInt(d.LOW) + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      const rightTable =
+        toolKeys.length === 0
+          ? "<p style='font-size:12px;color:#9ca3c7;'>Không có dữ liệu theo tool.</p>"
+          : '<table class="vsp-table">' +
+            "<thead><tr><th>Tool</th><th>CRI</th><th>HIGH</th><th>MED</th><th>LOW</th></tr></thead>" +
+            "<tbody>" + toolRows + "</tbody></table>";
+
+      container.innerHTML =
+        '<div style="display:grid;grid-template-columns:35% 65%;gap:12px;">' +
+        '<div>' +
+        '<h3 style="margin:0 0 6px;font-size:13px;">Tổng quan theo mức độ</h3>' +
+        '<table class="vsp-table">' +
+        "<thead><tr><th>Severity</th><th>Count</th></tr></thead>" +
+        "<tbody>" + sevRows + "</tbody></table>" +
+        "</div>" +
+        '<div>' +
+        '<h3 style="margin:0 0 6px;font-size:13px;">Theo tool</h3>' +
+        rightTable +
+        "</div>" +
+        "</div>";
+    } catch (e) {
+      console.warn("[VSP] initDatasourceTab error:", e);
+      setNoData(
+        container,
+        "Không load được datasource (API /api/vsp/datasource?mode=dashboard chưa sẵn sàng)."
+      );
+    }
+  }
+
+  /* ================= SETTINGS TAB ================= */
+
+  async function initSettingsTab() {
+    const container = el("vsp-settings-container");
+    if (!container) return;
+
+    try {
+      const cfg = await fetchJson(API_SETTINGS);
+
+      const profile = cfg.profile || cfg.name || "EXT+";
+      const desc =
+        cfg.description ||
+        "Unified DevSecOps posture across Gitleaks, Semgrep, KICS, CodeQL, Bandit, Trivy FS, Syft, Grype.";
+      const srcRoot = cfg.source_root || cfg.source || "–";
+
+      const tools = cfg.tools || {};
+      const gate  = cfg.severity_gate || cfg.gate || {};
+      const report = cfg.report || {};
+
+      const toolRows = Object.keys(tools)
+        .sort()
+        .map((k) => {
+          const t = tools[k] || {};
+          return (
+            "<tr>" +
+            "<td>" + escHtml(k) + "</td>" +
+            "<td>" + (t.enabled === false ? "Disabled" : "Enabled") + "</td>" +
+            "<td>" + escHtml(t.mode || t.profile || "full") + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      const gateRows = [
+        ["Max CRITICAL", gate.max_critical],
+        ["Max HIGH", gate.max_high],
+        ["Max MEDIUM", gate.max_medium],
+      ]
+        .map(([label, v]) => {
+          return "<tr><td>" + escHtml(label) + "</td><td>" + (v == null ? "–" : v) + "</td></tr>";
+        })
+        .join("");
+
+      const reportRows = Object.keys(report)
+        .sort()
+        .map((k) => {
+          const enabled = report[k] ? "Yes" : "No";
+          return "<tr><td>" + escHtml(k.toUpperCase()) + "</td><td>" + enabled + "</td></tr>";
+        })
+        .join("");
+
+      container.innerHTML =
+        '<div style="display:grid;grid-template-columns:32% 38% 30%;gap:16px;">' +
+
+        // Profile card
+        '<div class="vsp-card-soft">' +
+        '<h3 style="margin:0 0 8px;font-size:14px;">Profile</h3>' +
+        '<p style="margin:0 0 4px;font-size:12px;color:#e5e7eb;">' + escHtml(profile) + '</p>' +
+        '<p style="margin:0 0 8px;font-size:12px;color:#9ca3c7;">' + escHtml(desc) + '</p>' +
+        '<div style="font-size:11px;color:#9ca3c7;">' +
+        '<div><span style="opacity:0.8;">Source root:</span> ' + escHtml(srcRoot) + '</div>' +
+        "</div>" +
+        "</div>" +
+
+        // Tools card
+        '<div class="vsp-card-soft">' +
+        '<h3 style="margin:0 0 8px;font-size:14px;">Tools in EXT+ bundle</h3>' +
+        '<table class="vsp-table" style="font-size:11px;">' +
+        "<thead><tr><th>Tool</th><th>Status</th><th>Mode</th></tr></thead>" +
+        "<tbody>" + toolRows + "</tbody></table>" +
+        "</div>" +
+
+        // Gate + report card
+        '<div class="vsp-card-soft">' +
+        '<h3 style="margin:0 0 8px;font-size:14px;">Security gate & reports</h3>' +
+        '<h4 style="margin:0 0 4px;font-size:12px;">Gate thresholds</h4>' +
+        '<table class="vsp-table" style="font-size:11px;margin-bottom:8px;">' +
+        "<tbody>" + gateRows + "</tbody></table>" +
+        '<h4 style="margin:8px 0 4px;font-size:12px;">Report formats</h4>' +
+        '<table class="vsp-table" style="font-size:11px;">' +
+        "<thead><tr><th>Format</th><th>Enabled</th></tr></thead>" +
+        "<tbody>" + reportRows + "</tbody></table>" +
+        "</div>" +
+
+        "</div>";
+    } catch (e) {
+      console.warn("[VSP] initSettingsTab error:", e);
+      setNoData(
+        container,
+        "Cannot load profile settings (API /api/vsp/settings/get is not available)."
+      );
+    }
+  }
+
+  /* ================= RULE OVERRIDES TAB ================= */
+
+  async function initOverridesTab() {
+    const container = el("vsp-overrides-container");
+    if (!container) return;
+
+    try {
+      const resp = await fetchJson(API_OVERRIDES);
+      const raw = Array.isArray(resp.items) ? resp.items : resp;
+      let list;
+
+      if (Array.isArray(raw)) {
+        list = raw;
+      } else if (raw && typeof raw === "object") {
+        list = Object.keys(raw).map((k) => raw[k]);
+      } else {
+        throw new Error("invalid overrides format");
+      }
+
+      const rows = list
+        .map((it) => {
+          return (
+            "<tr>" +
+            "<td>" + escHtml(it.id || it.name || "") + "</td>" +
+            "<td>" + escHtml(it.pattern || "") + "</td>" +
+            "<td>" + escHtml(it.rule || "") + "</td>" +
+            "<td>" + escHtml(it.action || "") + "</td>" +
+            "<td>" + escHtml(it.reason || "") + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      container.innerHTML =
+        '<div class="vsp-card-soft">' +
+        '<h3 style="margin:0 0 6px;font-size:14px;">Rule overrides – governance layer</h3>' +
+        '<p style="margin:0 0 10px;font-size:12px;color:#9ca3c7;">' +
+        'These overrides are applied on top of raw findings to reflect risk decisions, ownership and noise reduction in the enterprise environment.' +
+        "</p>" +
+        '<table class="vsp-table" style="font-size:11px;">' +
+        "<thead><tr>" +
+        "<th>ID</th>" +
+        "<th>Pattern</th>" +
+        "<th>Rule</th>" +
+        "<th>Action</th>" +
+        "<th>Reason</th>" +
+        "</tr></thead>" +
+        "<tbody>" + rows + "</tbody></table>" +
+        "</div>";
+    } catch (e) {
+      console.warn("[VSP] initOverridesTab error:", e);
+      setNoData(
+        container,
+        "Cannot load overrides list (API /api/vsp/overrides/list is not available)."
+      );
+    }
+  }
+
+  /* ================= MAIN LOAD ================= */
+
+  async function loadAll() {
+    try {
+      const resp = await fetchJson(API_SUMMARY);
+      const summary = resp.summary || resp;
+
+      const dash = {
+        run_id: resp.run_id || summary.run_id,
+        ts: resp.ts || summary.ts,
+        total_findings:
+          summary.total_findings ||
+          summary.total ||
+          summary.total_findings_unified,
+      };
+
+      const bySev = await computeSeverityBucketsFromDatasource();
+
+      renderKpisAndDonut(dash, bySev);
+      await initTrend();
+      renderTopCweBar(summary);
+      await initTopFindings();
+
+      await initRunsTab();
+      await initDatasourceTab(summary, bySev);
+      await initSettingsTab();
+      await initOverridesTab();
+    } catch (e) {
+      console.error("[VSP] loadAll error:", e);
+    }
+  }
+
+  window.VSP_DASHBOARD_LIVE_V2_INIT = function () {
+    loadAll().catch((err) => console.error("[VSP] loadAll outer error:", err));
+  };
+})();

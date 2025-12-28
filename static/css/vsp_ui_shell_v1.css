@@ -1,0 +1,84 @@
+/* VSP_UI_SHELL_V1 - commercial overlay */
+:root{
+  --bg:#070e1a; --panel:rgba(255,255,255,.04); --panel2:rgba(0,0,0,.22);
+  --bd:rgba(255,255,255,.10); --bd2:rgba(255,255,255,.14);
+  --txt:#d9e2ff; --muted:rgba(217,226,255,.70);
+  --good:#2fe39a; --warn:#ffcc66; --bad:#ff5c7a; --info:#6aa6ff;
+  --shadow: 0 12px 40px rgba(0,0,0,.35);
+  --r14:14px; --r18:18px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+html,body{background:var(--bg) !important; color:var(--txt) !important; font-family:var(--sans) !important;}
+.vsp-shell-pad{padding-top:58px !important;}
+.vsp-topbar{
+  position:fixed; top:0; left:0; right:0; height:58px; z-index:9999;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:0 14px;
+  background:linear-gradient(180deg, rgba(7,14,26,.96), rgba(7,14,26,.88));
+  border-bottom:1px solid var(--bd);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+.vsp-brand{display:flex; align-items:center; gap:10px; min-width:240px;}
+.vsp-dot{width:10px;height:10px;border-radius:99px;background:var(--info);box-shadow:0 0 18px rgba(106,166,255,.45);}
+.vsp-title{font-weight:800; letter-spacing:.2px; font-size:14px;}
+.vsp-sub{font-size:12px; opacity:.72; margin-top:2px;}
+.vsp-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.vsp-pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 10px; border-radius:999px;
+  border:1px solid var(--bd); background:rgba(255,255,255,.03);
+  font-size:12px; color:var(--txt);
+}
+.vsp-pill b{font-weight:800;}
+.vsp-btn{
+  cursor:pointer; user-select:none;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:8px 12px; border-radius:12px;
+  border:1px solid var(--bd2); background:rgba(255,255,255,.04);
+  color:var(--txt); font-size:12px; font-weight:700;
+}
+.vsp-btn:hover{border-color:rgba(255,255,255,.24); transform: translateY(-1px);}
+.vsp-btn:active{transform: translateY(0px);}
+.vsp-btn-primary{background:rgba(106,166,255,.14); border-color:rgba(106,166,255,.45);}
+.vsp-btn-good{background:rgba(47,227,154,.12); border-color:rgba(47,227,154,.45);}
+.vsp-btn-warn{background:rgba(255,204,102,.12); border-color:rgba(255,204,102,.45);}
+.vsp-btn-bad{background:rgba(255,92,122,.12); border-color:rgba(255,92,122,.45);}
+
+.vsp-card{
+  border:1px solid var(--bd);
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(0,0,0,.20));
+  border-radius:var(--r18);
+  box-shadow: var(--shadow);
+}
+.vsp-card-h{padding:14px 14px 10px;}
+.vsp-card-b{padding:0 14px 14px;}
+.vsp-h1{font-size:14px; font-weight:900; letter-spacing:.2px;}
+.vsp-muted{color:var(--muted);}
+.vsp-kv{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; padding:8px 0; border-top:1px dashed rgba(255,255,255,.10);}
+.vsp-kv:first-child{border-top:none;}
+.vsp-code{font-family:var(--mono); font-size:12px; color:rgba(217,226,255,.85);}
+.vsp-pre{
+  background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--r14); padding:12px; font-size:12px; line-height:1.35; overflow:auto; max-height:260px;
+}
+.vsp-progress{height:10px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.10); border-radius:999px; overflow:hidden;}
+.vsp-progress > i{display:block; height:100%; width:0%; background:rgba(106,166,255,.55);}
+.vsp-badge{display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid var(--bd); background:rgba(255,255,255,.03);}
+.vsp-badge.good{border-color:rgba(47,227,154,.45); background:rgba(47,227,154,.10);}
+.vsp-badge.warn{border-color:rgba(255,204,102,.45); background:rgba(255,204,102,.10);}
+.vsp-badge.bad{border-color:rgba(255,92,122,.45); background:rgba(255,92,122,.10);}
+.vsp-badge.info{border-color:rgba(106,166,255,.45); background:rgba(106,166,255,.10);}
+
+.vsp-toast{
+  position:fixed; right:14px; bottom:14px; z-index:99999;
+  display:flex; flex-direction:column; gap:8px;
+}
+.vsp-toast .t{
+  min-width: 280px; max-width: 420px;
+  padding:10px 12px; border-radius:14px;
+  border:1px solid var(--bd); background:rgba(0,0,0,.50);
+  box-shadow: var(--shadow); font-size:12px;
+}
+.vsp-toast .t b{font-weight:900;}

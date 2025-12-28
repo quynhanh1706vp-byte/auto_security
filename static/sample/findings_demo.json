@@ -1,0 +1,7 @@
+[
+  {"severity":"HIGH","tool":"gitleaks","cwe":"CWE-798","title":"Hardcoded credential detected","file":"src/auth/login.py","line":42,"rule":"gitleaks.generic-api-key","fingerprint":"demo-1"},
+  {"severity":"MEDIUM","tool":"semgrep","cwe":"CWE-79","title":"Potential XSS via unsanitized input","file":"web/views/profile.html","line":118,"rule":"javascript.lang.security.audit.xss","fingerprint":"demo-2"},
+  {"severity":"LOW","tool":"kics","cwe":"CWE-200","title":"S3 bucket allows public read (IaC)","file":"iac/aws/s3.tf","line":9,"rule":"KICS.S3.PublicRead","fingerprint":"demo-3"},
+  {"severity":"INFO","tool":"trivy-fs","cwe":"CWE-937","title":"Vulnerable dependency detected","file":"package-lock.json","line":1,"rule":"TRIVY.OSPKG","fingerprint":"demo-4"},
+  {"severity":"HIGH","tool":"codeql","cwe":"CWE-22","title":"Path traversal in file download","file":"server/download.go","line":77,"rule":"go/path-injection","fingerprint":"demo-5","downgraded":true}
+]

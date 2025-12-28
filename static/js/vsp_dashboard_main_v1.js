@@ -1,0 +1,282 @@
+/* VSP_DASHBOARD_MAIN_V1 (commercial)
+ * Single source of truth for Dashboard rendering.
+ * - Uses /api/vsp/datasource?rid=...
+ * - Uses /api/vsp/top_findings_v2?limit=...
+ * - Always renders something (no blank)
+ */
+(function(){
+  "use strict";
+/* VSP_P81FIX_DASH_MAIN_SCOPE_GUARD_V2 */
+try{
+  var __p=(location&&location.pathname)||"";
+  if(!(__p==="/vsp5" || __p==="/c/dashboard")){
+    // not dashboard => do nothing
+    // IMPORTANT: do NOT execute dashboard renderer on other tabs
+    return;
+  }
+}catch(e){}
+
+
+  function nativeGE(id){ try { return Document.prototype.getElementById.call(document, id); } catch(e){ return null; } }
+  function getRID(){
+    try { return (new URL(window.location.href)).searchParams.get("rid") || ""; }
+    catch(e){ const m=(window.location.search||"").match(/[?&]rid=([^&]+)/); return m?decodeURIComponent(m[1]):""; }
+  }
+  async function fetchJSON(url){
+    const r = await fetch(url, {credentials:"same-origin"});
+    if (!r.ok) throw new Error("HTTP "+r.status+" "+url);
+    return await r.json();
+  }
+
+  function ensureHost(){
+    let host = nativeGE("vsp-dashboard-main");
+    if (host) return host;
+
+    const hdr = document.querySelector("header") || document.querySelector(".topbar") || null;
+    host = document.createElement("div");
+    host.id = "vsp-dashboard-main";
+    host.style.padding = "14px 16px";
+    host.style.margin = "10px 12px";
+    host.style.border = "1px solid rgba(255,255,255,.10)";
+    host.style.borderRadius = "14px";
+    host.style.background = "rgba(255,255,255,.03)";
+    host.style.backdropFilter = "blur(2px)";
+    host.style.color = "rgba(255,255,255,.86)";
+
+    if (hdr && hdr.parentNode) hdr.parentNode.insertBefore(host, hdr.nextSibling);
+    else document.body.insertBefore(host, document.body.firstChild);
+    return host;
+  }
+
+  function sevCounts(ds){
+    const out = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+    const k = ds && ds.kpis ? ds.kpis : null;
+    const cand = k && (k.by_sev || k.severity || k.sev || k.counts || k);
+    if (cand && typeof cand === "object") {
+      for (const key of Object.keys(out)) {
+        let v = cand[key]; if (v == null) v = cand[key.toLowerCase()];
+        if (typeof v === "number") out[key] = v;
+      }
+      return out;
+    }
+    const arr = (ds && Array.isArray(ds.findings)) ? ds.findings : [];
+    for (const f of arr) {
+      const sv = String((f && (f.severity || f.sev || f.level)) || "").toUpperCase();
+      if (out[sv] != null) out[sv] += 1;
+    }
+    return out;
+  }
+
+  function mk(tag, txt){ const el=document.createElement(tag); if (txt!=null) el.textContent=txt; return el; }
+
+  function render(ds, top){
+    const host = ensureHost();
+    // replace previous content
+    host.innerHTML = "";
+
+    const title = mk("div","Dashboard");
+    title.style.fontWeight="900";
+    title.style.fontSize="13px";
+    title.style.marginBottom="10px";
+    host.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.style.display="grid";
+    grid.style.gridTemplateColumns="repeat(6, minmax(0, 1fr))";
+    grid.style.gap="10px";
+
+    function card(name, val){
+      const c=document.createElement("div");
+      c.style.border="1px solid rgba(255,255,255,.10)";
+      c.style.borderRadius="12px";
+      c.style.background="rgba(0,0,0,.18)";
+      c.style.padding="10px 10px";
+      const a=mk("div",name);
+      a.style.fontSize="11px";
+      a.style.color="rgba(255,255,255,.62)";
+      const b=mk("div",String(val));
+      b.style.fontSize="18px";
+      b.style.fontWeight="900";
+      b.style.marginTop="6px";
+      c.appendChild(a); c.appendChild(b);
+      return c;
+    }
+
+    const total = (ds && (ds.total ?? (Array.isArray(ds.findings)?ds.findings.length:null))) ?? "-";
+    const sev = sevCounts(ds);
+
+    grid.appendChild(card("TOTAL", total));
+    grid.appendChild(card("CRITICAL", sev.CRITICAL));
+    grid.appendChild(card("HIGH", sev.HIGH));
+    grid.appendChild(card("MEDIUM", sev.MEDIUM));
+    grid.appendChild(card("LOW", sev.LOW));
+    grid.appendChild(card("INFO", sev.INFO));
+    host.appendChild(grid);
+
+    const box = document.createElement("div");
+    box.style.marginTop="12px";
+    box.style.border="1px solid rgba(255,255,255,.10)";
+    box.style.borderRadius="12px";
+    box.style.background="rgba(0,0,0,.16)";
+    box.style.padding="10px 12px";
+
+    const h2 = mk("div","Top Findings (v2)");
+    h2.style.fontWeight="800";
+    h2.style.fontSize="12px";
+    h2.style.marginBottom="8px";
+    box.appendChild(h2);
+
+    const items = top && Array.isArray(top.items) ? top.items : [];
+    if (!items.length) {
+      const em = mk("div","(no items)");
+      em.style.fontSize="11px";
+      em.style.color="rgba(255,255,255,.60)";
+      box.appendChild(em);
+    } else {
+      const list = document.createElement("div");
+      list.style.display="grid";
+      list.style.gap="6px";
+      for (const it of items.slice(0,8)) {
+        const row=document.createElement("div");
+        row.style.display="flex";
+        row.style.justifyContent="space-between";
+        row.style.gap="10px";
+        row.style.border="1px solid rgba(255,255,255,.06)";
+        row.style.borderRadius="10px";
+        row.style.padding="8px 10px";
+        row.style.background="rgba(255,255,255,.03)";
+
+        const left=document.createElement("div");
+        left.style.minWidth="0";
+        const t=(it.title||it.rule_id||it.id||it.cwe||it.category||"finding").toString();
+        const sev=(it.severity||it.sev||it.level||"").toString().toUpperCase();
+        const a=mk("div",t);
+        a.style.whiteSpace="nowrap"; a.style.overflow="hidden"; a.style.textOverflow="ellipsis";
+        a.style.fontSize="12px";
+        const b=mk("div",(it.tool?("tool="+it.tool+"  "):"") + (it.where?("where="+it.where):""));
+        b.style.fontSize="10px"; b.style.color="rgba(255,255,255,.55)"; b.style.marginTop="2px";
+        left.appendChild(a); left.appendChild(b);
+
+        const right=mk("div",sev||"-");
+        right.style.fontSize="11px"; right.style.fontWeight="800"; right.style.flex="0 0 auto";
+        row.appendChild(left); row.appendChild(right);
+        list.appendChild(row);
+      }
+      box.appendChild(list);
+    }
+    host.appendChild(box);
+
+    const meta = mk("div","rid="+(ds.rid||"-")+"  run_id="+(ds.run_id||"-"));
+    meta.style.marginTop="10px";
+    meta.style.fontSize="10px";
+    meta.style.color="rgba(255,255,255,.45)";
+    host.appendChild(meta);
+  }
+
+  async function run(){
+    const rid=getRID();
+    if (!rid) return;
+    const host = ensureHost();
+    host.innerHTML = "";
+    const loading = mk("div","Loading dashboard…");
+    loading.style.opacity="0.75";
+    host.appendChild(loading);
+
+    try{
+      const [ds, top] = await Promise.all([
+        fetchJSON("/api/vsp/datasource?rid="+encodeURIComponent(rid)),
+        fetchJSON("/api/vsp/top_findings_v2?limit=8")
+      ]);
+      render(ds, top);
+    }catch(e){
+      host.innerHTML = "";
+      const err = mk("div","[VSP] Dashboard failed: "+String(e));
+      err.style.padding="12px 14px";
+      err.style.border="1px solid rgba(255,255,255,.10)";
+      err.style.borderRadius="12px";
+      err.style.background="rgba(255,255,255,.04)";
+      err.style.opacity="0.85";
+      host.appendChild(err);
+      try{ console.warn("[VSP] dashboard_main_v1 error", e); }catch(_){}
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function(){ setTimeout(run, 50); }, {once:true});
+  } else {
+    setTimeout(run, 50);
+  }
+})();
+
+
+/* VSP_P78B_SAFE_HIDE_MAIN_V1
+ * Commercial default: hide "VSP Dashboard (SAFE)" panel unless ?debug=1 or localStorage.vsp_safe_show=1
+ * Works even if panel is injected later (MutationObserver).
+ */
+(function(){
+  function hasDebug(){
+    try{ return /(?:^|[?&])debug=1(?:&|$)/.test(String(location.search||"")); }catch(e){ return false; }
+  }
+  function wantShow(){
+    try{ return (localStorage.getItem("vsp_safe_show")==="1"); }catch(e){ return false; }
+  }
+  function shouldHide(){ return !(hasDebug() || wantShow()); }
+
+  function hideIfSafe(el){
+    try{
+      if (!el) return;
+      // Check the element and a few descendants quickly
+      var txt = (el.textContent||"");
+      if (txt && txt.indexOf("VSP Dashboard (SAFE)") >= 0){
+        // Find a reasonable floating container to hide
+        var root = el;
+        for (var k=0;k<12 && root; k++){
+          if (root.style && (root.style.position==="fixed" || root.style.position==="absolute")) break;
+          root = root.parentElement;
+        }
+        root = root || el;
+        root.setAttribute("data-vsp-panel","safe");
+        if (shouldHide()) root.style.display = "none";
+      }
+    }catch(e){}
+  }
+
+  function sweep(){
+    try{
+      if (!shouldHide()) return;
+      var nodes = document.querySelectorAll("div,section,aside");
+      for (var i=0;i<nodes.length;i++){
+        var t = (nodes[i].textContent||"");
+        if (t.indexOf("VSP Dashboard (SAFE)") >= 0){
+          hideIfSafe(nodes[i]);
+        }
+      }
+    }catch(e){}
+  }
+
+  // Initial sweep + watch DOM changes
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", function(){
+      sweep();
+    }, {once:true});
+  } else {
+    sweep();
+  }
+
+  try{
+    var mo = new MutationObserver(function(muts){
+      if (!shouldHide()) return;
+      for (var i=0;i<muts.length;i++){
+        var m = muts[i];
+        if (m.addedNodes){
+          for (var j=0;j<m.addedNodes.length;j++){
+            var n = m.addedNodes[j];
+            if (n && n.nodeType===1) hideIfSafe(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.documentElement || document.body, {childList:true, subtree:true});
+  }catch(e){}
+})();
+

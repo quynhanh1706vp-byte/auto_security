@@ -1,0 +1,17 @@
+== COMMERCIAL GATE P2 ==
+[BASE]=http://127.0.0.1:8910
+== 1) endpoints 200 ==
+[HTTP] 200 http://127.0.0.1:8910/vsp4
+[HTTP] 200 http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/dashboard_commercial_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/findings_latest_v1?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/rule_overrides_v1
+== 2) latest run_dir + verify/export ==
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+== 3) stability 10min (no non-200) ==
+== 4) log scan (no traceback/500) ==
+== 5) pack evidence ==
+[OK] out_ci/COMMERCIAL_EVIDENCE_20251218_073840.tgz
+[OK] out_ci/COMMERCIAL_EVIDENCE_20251218_073840.SHA256SUMS.txt

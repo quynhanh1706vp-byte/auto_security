@@ -1,0 +1,564 @@
+{
+  "items": [
+    {
+      "path": "app/vsp_demo_app.py",
+      "bytes": 244123,
+      "sha256": "3a76ecac5d48eccbfabdc3dac8b4304ce242a0274a1148cc285a8d2d3177f318"
+    },
+    {
+      "path": "app/wsgi_vsp_ui_gateway.py",
+      "bytes": 38081,
+      "sha256": "2b57b017cb1b7af66aba966f08b6c7a5aebb911883e9b4494fcbb24e854d992c"
+    },
+    {
+      "path": "logs/ui_8910.access.log",
+      "bytes": 5364084,
+      "sha256": "0b635fb3aebde58fb156bb7663e27a84630650820ffea89ba0dab80fa773a2c6"
+    },
+    {
+      "path": "logs/ui_8910.boot.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/ui_8910.error.log",
+      "bytes": 2012,
+      "sha256": "89f41c890f6e00463f6ec2e0b0a060e1d68004c41672017fa605d7960b4544c1"
+    },
+    {
+      "path": "proof/selfcheck.txt",
+      "bytes": 2650,
+      "sha256": "50ea68f042bff8005cae440aab2dda42bb8e52e509b9ad9d4828b41b6eb381df"
+    },
+    {
+      "path": "static/js/vsp_bundle_commercial_v1.js",
+      "bytes": 314687,
+      "sha256": "43b866a9af41cbdc6fdb6f6b14cc0dcee0a870a110ce74a32d4f856682153cf9"
+    },
+    {
+      "path": "static/js/vsp_bundle_commercial_v2.js",
+      "bytes": 1111382,
+      "sha256": "9cdb3206a160ef327753cfd29209a59ea7cd8da0206550ea47bfa65c20fe8abc"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html",
+      "bytes": 19780,
+      "sha256": "10a886f136818d5b9c68881d6725a03b7721e03dff27bce95d53be5a684c78e1"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FIX_DRILLDOWN_CALLSITE_P0_V5_20251217_142247",
+      "bytes": 19505,
+      "sha256": "6770e5e52a8f55c84a7369874314e7c489c734222a38e055f0a6db80dcabfda3"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19762,
+      "sha256": "506eced449adc3ac5e945f236adac00e67f43f0a8fa3397ef52df867cece36e2"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19762,
+      "sha256": "506eced449adc3ac5e945f236adac00e67f43f0a8fa3397ef52df867cece36e2"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19762,
+      "sha256": "506eced449adc3ac5e945f236adac00e67f43f0a8fa3397ef52df867cece36e2"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19719,
+      "sha256": "012e167e8dc1e9113b0bb11b0e5efd4a44ffa3e42f9464203db8bd1829aa0ebd"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19762,
+      "sha256": "506eced449adc3ac5e945f236adac00e67f43f0a8fa3397ef52df867cece36e2"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_VSP_UI_GLOBAL_SHIMS_COMMERCIAL_P0_V1_20251217_140158",
+      "bytes": 19365,
+      "sha256": "a76ca62f687026fbb512946e5a911c7b6e4c30923385aa9eb0f65e77c7a0cfd6"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_bundle_fix1_20251217_162358",
+      "bytes": 19554,
+      "sha256": "cf9824b9894af98a3da7cf06bfc216086ca823073017c6fec7aa736e5f3a8a66"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_bundle_fix1_20251217_162413",
+      "bytes": 18966,
+      "sha256": "b77d70cc7177f042ea450e1addac0810939a8ea79b514324a21de0eea97ff3a3"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_bundleonly_20251217_170141",
+      "bytes": 18966,
+      "sha256": "b77d70cc7177f042ea450e1addac0810939a8ea79b514324a21de0eea97ff3a3"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_bundlev2_only_20251217_175616",
+      "bytes": 19863,
+      "sha256": "535d6bd9142cfd33c4ea4753f46832bf0b8c53fd5656676c67cf00086540eaa7"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_consolefilter_20251217_171746",
+      "bytes": 19054,
+      "sha256": "9782d97db8925755057a90290f93c61938ddd2f0e19ca18f71f305ed822caeef"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815",
+      "bytes": 19741,
+      "sha256": "167a5e6a739d99eae390c240a7b3d7b911460d0eaa05995ab8af4fe9e161b05a"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111",
+      "bytes": 19741,
+      "sha256": "167a5e6a739d99eae390c240a7b3d7b911460d0eaa05995ab8af4fe9e161b05a"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19741,
+      "sha256": "167a5e6a739d99eae390c240a7b3d7b911460d0eaa05995ab8af4fe9e161b05a"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19784,
+      "sha256": "a2f1af203efc67a5efa8ed518ae53999ae0d38e1e0a041db92ff03420d7f19ff"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_ddlog_once_20251217_171122",
+      "bytes": 18964,
+      "sha256": "a1170c1dbccc50d0195e06a4d0e57b0384f4b31ec1f9d0af826e45b4a0163781"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_leakfix_20251217_153111",
+      "bytes": 19741,
+      "sha256": "167a5e6a739d99eae390c240a7b3d7b911460d0eaa05995ab8af4fe9e161b05a"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 19784,
+      "sha256": "a2f1af203efc67a5efa8ed518ae53999ae0d38e1e0a041db92ff03420d7f19ff"
+    },
+    {
+      "path": "templates/vsp_4tabs_commercial_v1.html.bak_rmP_20251217_185419",
+      "bytes": 19863,
+      "sha256": "4482a91ff251ab0441be7b804a9dd02e7512ee90ed1cd4cb558e84abc8fae032"
+    },
+    {
+      "path": "templates/vsp_5tabs_enterprise_v2.html",
+      "bytes": 32117,
+      "sha256": "d9e4d8efaf95e7300a14e33b817c0e98ab4b24a146899c342f487d1afea5e799"
+    },
+    {
+      "path": "templates/vsp_5tabs_enterprise_v2.html.bak_bundle_fix1_20251217_162358",
+      "bytes": 31300,
+      "sha256": "079a41b6a20585b7d9284de7fc5e8456e17aa94360bf30fa177e25c406d2d850"
+    },
+    {
+      "path": "templates/vsp_5tabs_enterprise_v2.html.bak_bundle_fix1_20251217_162413",
+      "bytes": 31310,
+      "sha256": "b569e6254f72228ed06c31ee004a9401819152c5ee9f6f793215246eb20c5610"
+    },
+    {
+      "path": "templates/vsp_5tabs_enterprise_v2.html.bak_bundleonly_20251217_170141",
+      "bytes": 31310,
+      "sha256": "b569e6254f72228ed06c31ee004a9401819152c5ee9f6f793215246eb20c5610"
+    },
+    {
+      "path": "templates/vsp_5tabs_enterprise_v2.html.bak_bundlev2_only_20251217_175616",
+      "bytes": 32117,
+      "sha256": "2ece97aaa1860d62760285537255bf212d2bdb7693bcffeb1329cc798cba333a"
+    },
+    {
+      "path": "templates/vsp_5tabs_enterprise_v2.html.bak_consolefilter_20251217_171746",
+      "bytes": 31308,
+      "sha256": "5d7d5707ebbf403596a2d11efb9002729780393d7a19bf601eb4c5bd07467519"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html",
+      "bytes": 34976,
+      "sha256": "df9e869f967ebabd8592b9c8732092f9dd1e8f486fb1619611de2f5865f8d140"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FIX_DRILLDOWN_CALLSITE_P0_V5_20251217_142247",
+      "bytes": 38264,
+      "sha256": "534e7dc46668aca4c86bba34f3dd8a4bc3c9dc9d46712b595fbea3921d024df1"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38521,
+      "sha256": "2f666f0edd51cc5558bdd3a293ba69d3a590f05a89197b1dca8e75301ae78942"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V1_20251217_142816.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38521,
+      "sha256": "2f666f0edd51cc5558bdd3a293ba69d3a590f05a89197b1dca8e75301ae78942"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38521,
+      "sha256": "2f666f0edd51cc5558bdd3a293ba69d3a590f05a89197b1dca8e75301ae78942"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38478,
+      "sha256": "f9ab3b095cc962c49b6c88ce80d2edd24eaff5185c9b1bd6253532e140501758"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_FORCE_ASSET_VERSION_P0_V2_20251217_142944.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38521,
+      "sha256": "2f666f0edd51cc5558bdd3a293ba69d3a590f05a89197b1dca8e75301ae78942"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_UI_COMMERCIAL_UX_P1_V1_20251217_141104",
+      "bytes": 38144,
+      "sha256": "2d6c593b0c76c9dee7468a97488abdf26807f717cbec9bf3f285b56fcc59c06b"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_VSP_UI_GLOBAL_SHIMS_COMMERCIAL_P0_V1_20251217_140158",
+      "bytes": 38004,
+      "sha256": "b5c22cd01376bd88374e13a155042e83d30581bb12a321adff3fcbb0d4054bc1"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_before_rescue_20251217_110048",
+      "bytes": 37551,
+      "sha256": "b849c0ffef750d1738aa8f8c73a8009ab8cdf21d8c95076c3679f7d77e6b16a7"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_before_rich_20251217_102323",
+      "bytes": 37470,
+      "sha256": "52e861f159d829dccc0f268412037ef69f6a09d1e179885fb0f2fa46901e9cdf"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_bundle_fix1_20251217_162358",
+      "bytes": 38378,
+      "sha256": "bb7479e06aaa9a925e975faa8f0f5128d595404aca8cbdd2be26f81cf164e6f6"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_bundle_fix1_20251217_162413",
+      "bytes": 34886,
+      "sha256": "53aefd8f82b238c45a76f1071de19e75a1a5522014c4ce5e4d9c7a6bb7855ee6"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_cachebust_gate_20251217_092427",
+      "bytes": 37464,
+      "sha256": "bef04329da67a21e5de1510d2afc00c41bf0143093caaa7fc641d7462fb3c53e"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_cb_ctrl_20251217_095107",
+      "bytes": 37515,
+      "sha256": "4685dc9b1253f517b12b38959fe993671b22ca52200df8666c7a2e18021438b3"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_commercial_layout_20251217_084714",
+      "bytes": 37161,
+      "sha256": "4847cdc4b436d0d5e28e16bd5a434cb05264fb68b6e500e5a0cf718fd2f443d4"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_dd_textleak_20251217_150815.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38469,
+      "sha256": "f0d8e16742c8b022c9d5111c19d3aebb5703a5ed80adea1927c1ad4458cfef7e"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_dd_textleak_20251217_145704.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38469,
+      "sha256": "f0d8e16742c8b022c9d5111c19d3aebb5703a5ed80adea1927c1ad4458cfef7e"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_ddleak_20251217_153835",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_ddlock_20251217_120959",
+      "bytes": 37845,
+      "sha256": "745577f19a32d692ac8f6b8c531d4e0b293ea1ee1c77cac9161ea4470eb06af8"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_ddlog_once_20251217_171122",
+      "bytes": 34886,
+      "sha256": "53aefd8f82b238c45a76f1071de19e75a1a5522014c4ce5e4d9c7a6bb7855ee6"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_disable8tools_20251217_093114",
+      "bytes": 37493,
+      "sha256": "3df9b8142c2f1fb18e7293d2a88c49937a8b8b8c8de9a628bd7a1f4648bf97da"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_disable_tools_status_20251217_093850",
+      "bytes": 37493,
+      "sha256": "3df9b8142c2f1fb18e7293d2a88c49937a8b8b8c8de9a628bd7a1f4648bf97da"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_favicon_20251217_111629",
+      "bytes": 37700,
+      "sha256": "a5208d184f09c835e1db88501b75b7bbef07dfbbd7f268e0a02116cdbba9e47f"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_freeze_20251217_101946",
+      "bytes": 37515,
+      "sha256": "796e98b5f4ae41096b1338da6830986d8863c2240b4819b356638ba4a6a71c24"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_hashnorm_20251217_105740",
+      "bytes": 37470,
+      "sha256": "52e861f159d829dccc0f268412037ef69f6a09d1e179885fb0f2fa46901e9cdf"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_hiderunsstrip_20251217_083709",
+      "bytes": 37056,
+      "sha256": "fb925c82e03965169b1af0762474b2d2e18275b77a9e9b415dd258d3cb967fa0"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_layout_ctrl_20251217_085201",
+      "bytes": 37326,
+      "sha256": "d49d9fcdaa1f4109c5d71fc364cadbabb31838d8ee33b52f19ded3c8ef3a10f9"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_leakfix_20251217_153111",
+      "bytes": 38426,
+      "sha256": "006b9b3947424a63d6c96d23d808359cd2d9f6834b223f169522d0e48f1f1867"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_leakfix_20251217_153111.bak_leakfix_20251217_153111",
+      "bytes": 38469,
+      "sha256": "f0d8e16742c8b022c9d5111c19d3aebb5703a5ed80adea1927c1ad4458cfef7e"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_loaderp0_20251217_114009",
+      "bytes": 37762,
+      "sha256": "922712c7de123b0497a143ab4da058ae33d95571cfac0b0a8880efb666d6defb"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_overallshimv2_20251217_082822",
+      "bytes": 36855,
+      "sha256": "015523f010bc7f3826b85d6e3e68689b58ca99e4cbb5c6fb6e128ee15aa27842"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_overallshimv2_20251217_082832",
+      "bytes": 36855,
+      "sha256": "015523f010bc7f3826b85d6e3e68689b58ca99e4cbb5c6fb6e128ee15aa27842"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_overallshimv3_20251217_083605",
+      "bytes": 36855,
+      "sha256": "015523f010bc7f3826b85d6e3e68689b58ca99e4cbb5c6fb6e128ee15aa27842"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_p0_v3_20251217_124413",
+      "bytes": 37930,
+      "sha256": "895606d4a0740b82b373a435606b0f1eeec172c86d67b5863948fb32699f8b24"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_panefix_20251217_114644",
+      "bytes": 37770,
+      "sha256": "68201d612fe26077a0c740fe906cf055d0b839ca026b47e29aa8d13e7a2e0c3b"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_panes_dd_20251217_122254",
+      "bytes": 37930,
+      "sha256": "895606d4a0740b82b373a435606b0f1eeec172c86d67b5863948fb32699f8b24"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_panetogglev2_20251217_121407",
+      "bytes": 37928,
+      "sha256": "7a20c993ade019d0c9710432b8e5f64a5a3f276534556aeaaef52cd8459d2d36"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_route_loader_20251217_103154",
+      "bytes": 37470,
+      "sha256": "52e861f159d829dccc0f268412037ef69f6a09d1e179885fb0f2fa46901e9cdf"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_route_loader_20251217_103643",
+      "bytes": 37470,
+      "sha256": "52e861f159d829dccc0f268412037ef69f6a09d1e179885fb0f2fa46901e9cdf"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_safe_20251217_095956",
+      "bytes": 37515,
+      "sha256": "796e98b5f4ae41096b1338da6830986d8863c2240b4819b356638ba4a6a71c24"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_safe_20251217_100423",
+      "bytes": 37515,
+      "sha256": "796e98b5f4ae41096b1338da6830986d8863c2240b4819b356638ba4a6a71c24"
+    },
+    {
+      "path": "templates/vsp_dashboard_2025.html.bak_toolpillv2_20251217_083644",
+      "bytes": 36955,
+      "sha256": "67947ef6c88352ad4af55d4df9eedc4a64954404b090115cf2351c994fe319dc"
+    },
+    {
+      "path": "templates/vsp_rule_overrides_v1.html",
+      "bytes": 4646,
+      "sha256": "18271f28120340014b74fcd6c631736e1d25d54f16e9d9fb923f0f9706548d9a"
+    },
+    {
+      "path": "templates/vsp_rule_overrides_v1.html.bak_bundle_fix1_20251217_162358",
+      "bytes": 3913,
+      "sha256": "5609cb2be6364fa9014b445f2a89448f7142b82ee699097431697b65367ef35e"
+    },
+    {
+      "path": "templates/vsp_rule_overrides_v1.html.bak_bundle_fix1_20251217_162413",
+      "bytes": 3842,
+      "sha256": "6c0094369385f1abac17dd275e9350aa9278f9f72162ae7846b69bc577ae12ce"
+    },
+    {
+      "path": "templates/vsp_rule_overrides_v1.html.bak_bundleonly_20251217_170141",
+      "bytes": 3842,
+      "sha256": "6c0094369385f1abac17dd275e9350aa9278f9f72162ae7846b69bc577ae12ce"
+    },
+    {
+      "path": "templates/vsp_rule_overrides_v1.html.bak_bundlev2_only_20251217_175616",
+      "bytes": 4646,
+      "sha256": "62ecbf8c18efd6c8e4de62b3c2e4d279ece41441334892049d0bb53bf7263685"
+    },
+    {
+      "path": "templates/vsp_rule_overrides_v1.html.bak_consolefilter_20251217_171746",
+      "bytes": 3837,
+      "sha256": "0183ab908445688fd50d2d1b441f208556385bea59976f5b9a5e25ba94e4da49"
+    }
+  ]
+}

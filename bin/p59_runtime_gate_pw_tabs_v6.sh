@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+UI="/home/test/Data/SECURITY_BUNDLE/ui"
+cd "$UI"
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+OUT="$UI/out_ci"
+TS="$(date +%Y%m%d_%H%M%S)"
+EVID="$OUT/p59_runtime_${TS}"
+mkdir -p "$EVID"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need node; need curl; need wc; need head; need sed; need cp
+
+echo "== [P59 v6] Runtime gate (Playwright, module-safe) ==" | tee "$EVID/summary.txt"
+echo "[INFO] UI=$UI" | tee -a "$EVID/summary.txt"
+echo "[INFO] BASE=$BASE" | tee -a "$EVID/summary.txt"
+echo "[INFO] EVID=$EVID" | tee -a "$EVID/summary.txt"
+
+probe(){
+  local p="$1"
+  for i in 1 2 3 4 5; do
+    local code
+    code="$(curl -sS -o /dev/null -m 4 -w "%{http_code}" "$BASE$p" 2>/dev/null || echo 000)"
+    echo "[HTTP] $p try#$i => $code" | tee -a "$EVID/summary.txt"
+    [ "$code" = "200" ] && return 0
+    sleep 1
+  done
+  echo "[ERR] tab not 200: $p" | tee -a "$EVID/summary.txt"
+  exit 3
+}
+
+probe "/vsp5"
+probe "/runs"
+probe "/data_source"
+probe "/settings"
+probe "/rule_overrides"
+
+# MUST resolve playwright in UI folder
+node -e "require('playwright'); console.log('OK_PLAYWRIGHT_REQUIRE');" >/dev/null 2>&1 \
+  && echo "[OK] playwright resolvable in UI (require)" | tee -a "$EVID/summary.txt" \
+  || { echo "[ERR] playwright not installed in UI. Run: bash bin/p56h4a_install_playwright_local_v1.sh" | tee -a "$EVID/summary.txt"; exit 4; }
+
+# pre-create evidence files
+: > "$EVID/console.jsonl"
+: > "$EVID/pageerror.jsonl"
+: > "$EVID/requestfailed.jsonl"
+
+# IMPORTANT: put runner JS INSIDE UI so require('playwright') works
+PW_RUN="$UI/.p59_pw_gate_run.js"
+cat > "$PW_RUN" <<'JS'
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8910';
+const EVID = process.env.EVID || process.cwd();
+
+function pjoin(f){ return path.join(EVID, f); }
+function now(){ return new Date().toISOString(); }
+function jline(file, obj){ fs.appendFileSync(pjoin(file), JSON.stringify(obj) + "\n"); }
+
+async function safeShot(page, file){
+  try{
+    await page.screenshot({ path: pjoin(file), fullPage: false, timeout: 5000 });
+  }catch(e){
+    jline('pw_internal.jsonl', {ts: now(), type:'screenshot_error', file, msg: String(e?.message || e)});
+  }
+}
+
+async function gotoFast(page, url){
+  await page.goto(url, { waitUntil: 'commit', timeout: 25000 });
+  await page.waitForTimeout(800);
+}
+
+(async () => {
+  const tabs = [
+    ['/vsp5', 'vsp5'],
+    ['/runs', 'runs'],
+    ['/data_source', 'data_source'],
+    ['/settings', 'settings'],
+    ['/rule_overrides', 'rule_overrides'],
+  ];
+
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 900 }, ignoreHTTPSErrors: true });
+  const page = await context.newPage();
+  page.setDefaultTimeout(20000);
+  page.setDefaultNavigationTimeout(25000);
+
+  page.on('console', (msg) => {
+    const type = msg.type();
+    if (type === 'error' || type === 'warning'){
+      jline('console.jsonl', { ts: now(), type, text: msg.text(), location: msg.location() });
+    }
+  });
+  page.on('pageerror', (err) => jline('pageerror.jsonl', { ts: now(), name: err.name, message: err.message, stack: err.stack || null }));
+  page.on('requestfailed', (req) => jline('requestfailed.jsonl', { ts: now(), url: req.url(), failure: req.failure() }));
+
+  for (const [p, tag] of tabs){
+    const url = BASE + p;
+    jline('nav.jsonl', { ts: now(), step: 'goto', url, tag });
+
+    try{ await gotoFast(page, url); }
+    catch(e){ jline('pageerror.jsonl', { ts: now(), name:'GotoError', message:String(e?.message || e), stack:e?.stack || null }); }
+
+    try{
+      const html = await page.content();
+      fs.writeFileSync(pjoin(`page_${tag}.html`), html);
+    }catch(e){
+      jline('pw_internal.jsonl', {ts: now(), type:'content_error', tag, msg:String(e?.message || e)});
+    }
+
+    await safeShot(page, `page_${tag}.png`);
+  }
+
+  await context.close();
+  await browser.close();
+
+  const countLines = (f) => {
+    try {
+      const s = fs.readFileSync(pjoin(f),'utf-8').trim();
+      if (!s) return 0;
+      return s.split('\n').filter(Boolean).length;
+    } catch { return 0; }
+  };
+
+  const consoleErr = countLines('console.jsonl');
+  const pageErr = countLines('pageerror.jsonl');
+  const reqFail = countLines('requestfailed.jsonl');
+  const ok = (consoleErr === 0 && pageErr === 0);
+
+  const verdict = { ok, ts: now(), base: BASE, evidence_dir: EVID, console_error_lines: consoleErr, pageerror_lines: pageErr, requestfailed_lines: reqFail };
+  fs.writeFileSync(pjoin('verdict.json'), JSON.stringify(verdict, null, 2));
+  process.exit(ok ? 0 : 6);
+})();
+JS
+
+echo "== [RUN] playwright ==" | tee -a "$EVID/summary.txt"
+BASE="$BASE" EVID="$EVID" node "$PW_RUN" >"$EVID/pw_gate.out" 2>"$EVID/pw_gate.err" || true
+
+# keep a copy of runner for audit
+cp -f "$PW_RUN" "$EVID/pw_gate_run.js" 2>/dev/null || true
+
+# STRICT: verdict must exist
+if [ ! -s "$EVID/verdict.json" ]; then
+  echo "[FAIL] verdict.json missing -> gate did NOT run correctly" | tee -a "$EVID/summary.txt"
+  echo "---- pw_gate.err tail ----" | tee -a "$EVID/summary.txt"
+  tail -n 120 "$EVID/pw_gate.err" 2>/dev/null | tee -a "$EVID/summary.txt" || true
+  exit 7
+fi
+
+ce=$(wc -l < "$EVID/console.jsonl" 2>/dev/null || echo 0)
+pe=$(wc -l < "$EVID/pageerror.jsonl" 2>/dev/null || echo 0)
+rf=$(wc -l < "$EVID/requestfailed.jsonl" 2>/dev/null || echo 0)
+echo "[INFO] console_error_lines=$ce pageerror_lines=$pe requestfailed_lines=$rf" | tee -a "$EVID/summary.txt"
+
+cat "$EVID/verdict.json" | tee -a "$EVID/summary.txt"
+echo "[DONE] Evidence=$EVID" | tee -a "$EVID/summary.txt"
+
+echo "---- pageerror head ----" | tee -a "$EVID/summary.txt"
+head -n 60 "$EVID/pageerror.jsonl" 2>/dev/null | tee -a "$EVID/summary.txt" || true
+echo "---- console head ----" | tee -a "$EVID/summary.txt"
+head -n 60 "$EVID/console.jsonl" 2>/dev/null | tee -a "$EVID/summary.txt" || true

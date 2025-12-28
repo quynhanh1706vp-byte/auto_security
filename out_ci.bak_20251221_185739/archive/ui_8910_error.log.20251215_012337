@@ -1,0 +1,504 @@
+[2025-12-15 01:21:59 +0700] [84263] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 01:21:59 +0700] [84263] [INFO] Listening at: http://127.0.0.1:8910 (84263)
+[2025-12-15 01:21:59 +0700] [84263] [INFO] Using worker: gthread
+[2025-12-15 01:21:59 +0700] [84265] [INFO] Booting worker with pid: 84265
+[2025-12-15 01:22:00,790] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251215_005247 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:01,900] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:01,924] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:06,830] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:06,862] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:11,952] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:11,982] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:16,922] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:16,970] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:25,354] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:25,546] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:40,260] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:47,797] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:47,822] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:55,681] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:22:55,723] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:02,962] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:03,007] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:10,829] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:10,846] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:18,430] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:26,653] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:26,670] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:34,213] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined
+[2025-12-15 01:23:34,214] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 395, in api_vsp_run_status_v2_winlast_v6
+    _vsp__inject_degraded_tools_v2(ci_dir, payload)
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 334, in _vsp__inject_degraded_tools_v2
+    dj = _vsp__read_json_if_exists_v2(Path(ci_dir) / "degraded_tools.json")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name '_vsp__read_json_if_exists_v2' is not defined

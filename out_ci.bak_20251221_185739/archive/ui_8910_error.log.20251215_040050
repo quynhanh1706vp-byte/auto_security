@@ -1,0 +1,12 @@
+[2025-12-15 02:45:19 +0700] [101693] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 02:45:19 +0700] [101693] [ERROR] Connection in use: ('127.0.0.1', 8910)
+[2025-12-15 02:45:19 +0700] [101693] [ERROR] connection to ('127.0.0.1', 8910) failed: [Errno 98] Address already in use
+[2025-12-15 02:45:20 +0700] [101693] [ERROR] Connection in use: ('127.0.0.1', 8910)
+[2025-12-15 02:45:20 +0700] [101693] [ERROR] connection to ('127.0.0.1', 8910) failed: [Errno 98] Address already in use
+[2025-12-15 02:45:21 +0700] [101693] [ERROR] Connection in use: ('127.0.0.1', 8910)
+[2025-12-15 02:45:21 +0700] [101693] [ERROR] connection to ('127.0.0.1', 8910) failed: [Errno 98] Address already in use
+[2025-12-15 02:45:22 +0700] [101693] [ERROR] Connection in use: ('127.0.0.1', 8910)
+[2025-12-15 02:45:22 +0700] [101693] [ERROR] connection to ('127.0.0.1', 8910) failed: [Errno 98] Address already in use
+[2025-12-15 02:45:23 +0700] [101693] [ERROR] Connection in use: ('127.0.0.1', 8910)
+[2025-12-15 02:45:23 +0700] [101693] [ERROR] connection to ('127.0.0.1', 8910) failed: [Errno 98] Address already in use
+[2025-12-15 02:45:24 +0700] [101693] [ERROR] Can't connect to ('127.0.0.1', 8910)

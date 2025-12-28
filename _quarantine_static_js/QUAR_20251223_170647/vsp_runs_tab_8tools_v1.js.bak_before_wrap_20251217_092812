@@ -1,0 +1,89 @@
+/* vsp_runs_tab_resolved_v1.js (drawer quicklinks v1)
+ * - Runs table (8 tools) using status_v2.run_gate_summary.by_tool
+ * - Drawer: Quick Links (artifact_open rel=...), Export buttons, by_tool table, degraded_tools, artifacts_index JSON
+ */
+(function(){
+
+  // VSP_ROUTE_GUARD_RUNS_ONLY_V1
+  function __vsp_is_runs_only_v1(){
+    try {
+      const h = (location.hash||"").toLowerCase();
+      return h.startsWith("#runs") || h.includes("#runs/");
+    } catch(_) { return false; }
+  }
+  if(!__vsp_is_runs_only_v1()){
+    try{ console.info("[VSP_ROUTE_GUARD_RUNS_ONLY_V1] skip", "vsp_runs_tab_8tools_v1.js", "hash=", location.hash); }catch(_){}
+    return;
+  }
+
+  const RUNS_INDEX_URL = "/api/vsp/runs_index_v3_fs_resolved?limit=50&hide_empty=0&filter=1";
+  const STATUS_V2_URL  = (rid) => `/api/vsp/run_status_v2/${encodeURIComponent(rid)}`;
+  const ARTIFACTS_URL  = (rid) => `/api/vsp/run_artifacts_index_v1/${encodeURIComponent(rid)}`;
+  const EXPORT_URL     = (rid, fmt) => `/api/vsp/run_export_v3/${encodeURIComponent(rid)}?fmt=${encodeURIComponent(fmt)}`;
+  const ART_OPEN_URL   = (rid, rel) => `/api/vsp/run_artifact_open_v1/${encodeURIComponent(rid)}?rel=${encodeURIComponent(rel)}`;
+
+  const TOOLS_A = ["SEMGREP","TRIVY","KICS","GITLEAKS"];
+  const TOOLS_B = ["CODEQL","BANDIT","SYFT","GRYPE"];
+  const TOOLS_ALL = [...TOOLS_A, ...TOOLS_B];
+
+  // Common commercial artifact rel paths (best-effort)
+  const COMMON_LINKS = [
+    {label:"Report HTML", rel:"reports/vsp_run_report_cio_v3.html"},
+    {label:"Report ZIP",  rel:"reports/report.zip"},
+    {label:"Runner Log",  rel:"runner.log"},
+    {label:"SUMMARY.txt", rel:"SUMMARY.txt"},
+    {label:"Findings JSON", rel:"findings_unified.json"},
+    {label:"Findings CSV",  rel:"findings_unified.csv"},
+    {label:"Findings SARIF",rel:"findings_unified.sarif"},
+    {label:"CodeQL JS SARIF", rel:"codeql/codeql_js.sarif"},
+    {label:"CodeQL PY SARIF", rel:"codeql/codeql_py.sarif"},
+    {label:"KICS raw", rel:"kics/kics.json"},
+    {label:"Semgrep raw", rel:"semgrep/semgrep.json"},
+    {label:"Trivy raw", rel:"trivy/trivy.json"},
+    {label:"Gitleaks raw", rel:"gitleaks/gitleaks.json"},
+  ];
+
+  function normVerdict(v){
+    if(!v) return "NOT_RUN";
+    const s = String(v).toUpperCase();
+    if (["PASS","OK","SUCCESS","GREEN"].includes(s)) return "GREEN";
+    if (["FAIL","ERROR","RED"].includes(s)) return "RED";
+    if (["WARN","WARNING","AMBER","YELLOW"].includes(s)) return "AMBER";
+    if (["NOT_RUN","NOTRUN","SKIP","SKIPPED"].includes(s)) return "NOT_RUN";
+    if (["DISABLED"].includes(s)) return "DISABLED";
+    if (["DEGRADED"].includes(s)) return "DEGRADED";
+    return s;
+  }
+
+  function pickTool(status, tool){
+    const byTool = status?.run_gate_summary?.by_tool || {};
+    const o = byTool?.[tool] || byTool?.[tool.toLowerCase()] || null;
+    const verdict = normVerdict(o?.verdict || o?.overall || o?.status || null);
+    const total = (o?.total ?? o?.findings_total ?? o?.count ?? o?.n ?? 0);
+    return { verdict, total };
+  }
+
+  function badgeHtml(label, verdict, extra){
+    const v = normVerdict(verdict);
+    const x = (extra === null || extra === undefined) ? "" : ` (${extra})`;
+    return `<span class="vsp-badge vsp-badge-${v}" title="${label}: ${v}${x}">${label}:${v}${x}</span>`;
+  }
+
+  async function fetchJson(url){
+    const r = await fetch(url, { cache:"no-store" });
+    const j = await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return j;
+  }
+
+  async function headOk(url){
+  try{
+    const r = await fetch(url, {method:"HEAD", cache:"no-store"});
+    // commercial: treat not-ready as false, no console noise
+    const avail = (r.headers.get("x-vsp-export-available")||"").trim();
+    if (r.status === 200 && avail === "0") return false;
+    return r.ok;
+  }catch(_e){
+    return false;
+  }
+})();

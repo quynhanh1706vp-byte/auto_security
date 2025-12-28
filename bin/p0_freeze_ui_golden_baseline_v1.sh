@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+TS="$(date +%Y%m%d_%H%M%S)"
+OUT="/home/test/Data/SECURITY_BUNDLE/ui/out_ci/GOLDEN_UI_${TS}"
+PKG="/home/test/Data/SECURITY_BUNDLE/ui/out_ci/GOLDEN_UI_${TS}.tgz"
+LATEST="/home/test/Data/SECURITY_BUNDLE/ui/out_ci/GOLDEN_UI_LATEST.tgz"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need mkdir; need cp; need tar; need sha256sum; need find; need sort
+
+mkdir -p "$OUT"/{code,js,systemd,notes}
+
+# Core backend
+cp -f vsp_demo_app.py "$OUT/code/"
+cp -f wsgi_vsp_ui_gateway.py "$OUT/code/"
+
+# Critical JS (commercial)
+for f in \
+  static/js/vsp_fill_real_data_5tabs_p1_v1.js \
+  static/js/vsp_bundle_tabs5_v1.js \
+  static/js/vsp_tabs4_autorid_v1.js \
+  static/js/vsp_cio_topbar_badge_v1.js \
+  static/js/vsp_cio_skeleton_kpi_v1.js \
+; do
+  [ -f "$f" ] && cp -f "$f" "$OUT/js/" || true
+done
+
+# systemd unit snapshot (best-effort)
+( systemctl cat vsp-ui-8910.service 2>/dev/null || true ) > "$OUT/systemd/unit_cat.txt"
+( systemctl show vsp-ui-8910.service 2>/dev/null || true ) > "$OUT/systemd/unit_show.txt"
+
+cat > "$OUT/notes/WHAT_IS_THIS.txt" <<'TXT'
+GOLDEN_UI baseline = file-level freeze for VSP UI Commercial.
+Use for rollback/compare when future patches break service.
+TXT
+
+# Manifest + checksum
+( cd "$OUT" && find . -maxdepth 3 -type f -print0 | sort -z | xargs -0 sha256sum ) > "$OUT/SHA256SUMS.txt"
+
+tar -czf "$PKG" -C "$(dirname "$OUT")" "$(basename "$OUT")"
+ln -sfn "$PKG" "$LATEST"
+
+echo "[OK] GOLDEN packed: $PKG"
+sha256sum "$PKG" > "$PKG.sha256"
+echo "[OK] GOLDEN sha256: $PKG.sha256"
+echo "[OK] GOLDEN latest: $LATEST"

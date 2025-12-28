@@ -1,0 +1,222 @@
+from flask import Flask, render_template, request, jsonify
+from pathlib import Path
+import json
+import datetime
+import subprocess
+
+# ROOT của SECURITY_BUNDLE
+ROOT = Path("/home/test/Data/SECURITY_BUNDLE")
+UI_ROOT = ROOT / "ui" / "my_flask_app"
+
+app = Flask(
+    __name__,
+    template_folder=str(UI_ROOT / "templates"),
+    static_folder=str(UI_ROOT / "static"),
+)
+
+# ---- Load findings từ RUN_CURRENT ----
+def load_findings_current():
+    run_dir = ROOT / "out" / "RUN_CURRENT"
+    findings_file = run_dir / "findings_unified_v2.json"
+    if not findings_file.exists():
+        findings_file = run_dir / "findings_unified.json"
+
+    findings = []
+    if findings_file.exists():
+        try:
+            data = json.loads(findings_file.read_text())
+            # Một số format bọc trong {"findings": [...]}
+            if isinstance(data, dict) and "findings" in data:
+                data = data["findings"]
+            if isinstance(data, list):
+                findings = data
+        except Exception:
+            findings = []
+
+    return run_dir, findings
+
+# ---- Build VSP_DATA đơn giản: total + 6 severity ----
+def build_vsp_data():
+    run_dir, findings = load_findings_current()
+    sev_keys = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]
+    sev = {k: 0 for k in sev_keys}
+    for f in findings:
+        s = str(f.get("severity", "")).upper()
+        if s in sev:
+            sev[s] += 1
+    total = sum(sev.values())
+    return {
+        "run_dir": str(run_dir),
+        "total": total,
+        "severity": sev,
+    }
+
+# ---- ROUTES ----
+
+@app.route("/")
+def root():
+    data = build_vsp_data()
+    return render_template("vsp_5tabs_full.html", vsp_data=data)
+
+@app.route("/vsp_demo")
+def vsp_demo():
+    data = build_vsp_data()
+    return render_template("vsp_5tabs_full.html", vsp_data=data)
+
+# API cho nút RUN FULL SCAN trên Dashboard
+@app.route("/api/vsp/run_full", methods=["POST"])
+def api_vsp_run_full():
+    data = request.get_json(force=True, silent=True) or {}
+    target_url = str(data.get("target_url", "")).strip()
+    src_path   = str(data.get("src_path", "")).strip()
+    profile    = str(data.get("profile", "EXT") or "EXT").upper()
+
+    if not target_url or not src_path:
+        return jsonify({"error": "Missing target_url or src_path"}), 400
+
+    now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = f"RUN_VSP_{profile}_{now}"
+    run_dir = ROOT / "out" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # TODO: nếu bạn dùng script FULL khác thì đổi tên ở đây
+    cmd = [
+        str(ROOT / "bin" / "run_all_with_grype_fix.sh"),
+        src_path,
+        str(run_dir),
+        profile.lower(),
+    ]
+
+    try:
+        res = subprocess.run(
+            cmd,
+            cwd=str(ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        (run_dir / "_vsp_run.log").write_text(res.stdout or "")
+
+        # Cập nhật symlink RUN_CURRENT -> run mới
+        cur = ROOT / "out" / "RUN_CURRENT"
+        try:
+            if cur.is_symlink() or cur.exists():
+                cur.unlink()
+        except Exception:
+            pass
+        try:
+            cur.symlink_to(run_dir.name)
+        except Exception:
+            pass
+
+        if res.returncode != 0:
+            return jsonify({
+                "run_id": run_id,
+                "status": "failed",
+                "error": f"scan exited with code {res.returncode}",
+            }), 500
+
+        return jsonify({"run_id": run_id, "status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8950, debug=True)
+
+# ===== VSP STUB API BLOCK V1 – dashboard_v3_real & runs_index =====
+try:
+    from flask import Blueprint, jsonify
+    import json
+    from pathlib import Path as _Path
+
+    bp_vsp_stub = Blueprint("bp_vsp_stub", __name__)
+
+    @bp_vsp_stub.route("/api/vsp/dashboard_v3_real", methods=["GET"])
+    def vsp_dashboard_v3_real_stub():
+        """API dashboard_v3_real stub – đọc static JSON vsp_dashboard_v3_latest.json."""
+        p = _Path(__file__).resolve().parent / "static" / "data" / "vsp_dashboard_v3_latest.json"
+        if not p.is_file():
+            return jsonify(ok=False, error="missing_static_dashboard_v3_latest"), 404
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception as e:
+            return jsonify(ok=False, error=f"invalid_json_dashboard_v3_latest:{e.__class__.__name__}"), 500
+        if isinstance(data, dict) and "ok" not in data:
+            data["ok"] = True
+        return jsonify(data)
+
+    @bp_vsp_stub.route("/api/vsp/runs_index", methods=["GET"])
+    def vsp_runs_index_stub():
+        """API runs_index stub – tạm thời trả danh sách rỗng."""
+        resp = {
+            "ok": True,
+            "items": [],
+            "total": 0,
+        }
+        return jsonify(resp)
+
+    try:
+        # Cố gắng đăng ký blueprint này với app hiện có
+        app.register_blueprint(bp_vsp_stub)
+        print("[VSP_STUB] Registered bp_vsp_stub on existing app.")
+    except Exception as e:
+        print("[VSP_STUB] Failed to register blueprint on app:", e)
+
+except Exception as e:
+    print("[VSP_STUB] Fatal error initializing stub APIs:", e)
+# ===== END VSP STUB API BLOCK V1 =====
+
+# ===================== VSP COMM_V1 – SIMPLE PROXIES =====================
+
+@app.route("/api/vsp/dashboard_v3", methods=["GET"])
+def vsp_proxy_dashboard_v3():
+    """
+    UI gateway proxy -> Core API (port 8961) for dashboard_v3.
+    Trả lại JSON y hệt core, để FE đọc được.
+    """
+    import requests
+    from flask import Response, jsonify
+
+    try:
+        core_resp = requests.get(
+            "http://localhost:8961/api/vsp/dashboard_v3",
+            timeout=10,
+        )
+    except Exception as e:
+        return jsonify(ok=False, error=f"Core dashboard_v3 unreachable: {e}"), 502
+
+    return Response(
+        core_resp.content,
+        status=core_resp.status_code,
+        mimetype=core_resp.headers.get("Content-Type", "application/json"),
+    )
+
+
+@app.route("/api/vsp/runs_index_v3", methods=["GET"])
+def vsp_proxy_runs_index_v3():
+    """
+    UI gateway proxy -> Core API (port 8961) for runs_index_v3.
+    Forward luôn query string (limit, profile, ...) nếu có.
+    """
+    import requests
+    from flask import Response, jsonify, request
+
+    try:
+        core_resp = requests.get(
+            "http://localhost:8961/api/vsp/runs_index_v3",
+            params=request.args,
+            timeout=10,
+        )
+    except Exception as e:
+        return jsonify(ok=False, error=f"Core runs_index_v3 unreachable: {e}"), 502
+
+    return Response(
+        core_resp.content,
+        status=core_resp.status_code,
+        mimetype=core_resp.headers.get("Content-Type", "application/json"),
+    )
+
+# ===================== END VSP COMM_V1 PROXIES ==========================
+

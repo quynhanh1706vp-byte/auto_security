@@ -1,0 +1,1099 @@
+from pathlib import Path
+import json
+
+ROOT = Path(__file__).resolve().parents[1]
+
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import subprocess
+
+from typing import Any, Dict, List, Optional
+
+from flask import Flask, jsonify, render_template, request
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+OUT_DIR = ROOT / "out"
+BIN_DIR = ROOT / "bin"
+
+app = Flask(
+    __name__,
+    template_folder=str(HERE / "my_flask_app" / "templates"),
+    static_folder=str(HERE / "my_flask_app" / "static"),
+)
+
+# ---------- helpers ----------
+
+def _load_json_safe(path: Path) -> Optional[Any]:
+    try:
+        if not path.is_file():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001
+        print(f"[VSP] Lỗi đọc JSON {path}: {e}")
+        return None
+
+
+def _discover_run_dirs(limit: int = 50) -> List[Path]:
+    runs: List[Path] = []
+    if not OUT_DIR.is_dir():
+        return runs
+
+    candidates: List[Path] = []
+    candidates.extend(sorted(OUT_DIR.glob("RUN_VSP_FULL_EXT_*")))
+    candidates.extend(sorted(OUT_DIR.glob("RUN_*")))
+
+    for p in candidates:
+        if p.is_dir():
+            runs.append(p)
+
+    if limit and len(runs) > limit:
+        runs = runs[-limit:]
+    return runs
+
+
+def _get_latest_run() -> Optional[Path]:
+    candidates = _discover_run_dirs(limit=50)
+    for run_dir in reversed(candidates):
+        summary = run_dir / "report" / "summary_unified.json"
+        data = _load_json_safe(summary)
+        if isinstance(data, dict) and "total_findings" in data:
+            return run_dir
+    return None
+
+
+def _build_severity(summary: Dict[str, Any]) -> Dict[str, int]:
+    raw = summary.get("by_severity") or summary.get("severity") or {}
+    sev_full: Dict[str, int] = {}
+    for key in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]:
+        sev_full[key] = int(raw.get(key, 0))
+    return sev_full
+
+
+def _build_by_tool_crit_high(summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+
+    by_tool_total = summary.get("by_tool") or {}
+    if not isinstance(by_tool_total, dict):
+        by_tool_total = {}
+
+    by_tool_sev = summary.get("by_tool_severity") or {}
+    if not isinstance(by_tool_sev, dict):
+        by_tool_sev = {}
+
+    tools = sorted(by_tool_total.keys())
+    for t in tools:
+        sev = by_tool_sev.get(t) or {}
+        crit = int(sev.get("CRITICAL", 0))
+        high = int(sev.get("HIGH", 0))
+        total = int(by_tool_total.get(t, 0))
+        if crit == 0 and high == 0 and total > 0:
+            high = total
+        result.append(
+            {
+                "tool": t,
+                "critical": crit,
+                "high": high,
+                "total": total,
+            }
+        )
+
+    result.sort(key=lambda r: (r["critical"] + r["high"]), reverse=True)
+    return result
+
+
+def _build_top_cwe(summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+    rows = summary.get("top_cwe") or summary.get("by_cwe") or []
+    if not isinstance(rows, list):
+        return []
+    result: List[Dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        cwe = r.get("cwe") or r.get("id") or "N/A"
+        count = int(r.get("count") or r.get("total") or 0)
+        result.append({"cwe": cwe, "count": count})
+    return result
+
+
+def _build_top_dirs(summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+    rows = summary.get("top_dirs") or summary.get("by_dir") or []
+    if not isinstance(rows, list):
+        return []
+    result: List[Dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        path = r.get("path") or r.get("dir") or "N/A"
+        count = int(r.get("count") or r.get("total") or 0)
+        result.append({"path": path, "count": count})
+    return result
+
+
+def _compute_security_score(sev: Dict[str, int]) -> int:
+    """
+    Tính điểm 0–100 rất đơn giản:
+      - CRITICAL * 5
+      - HIGH     * 2
+      - MEDIUM   * 1
+    Score = 100 - penalty (clamp 0–100)
+    """
+    crit = int(sev.get("CRITICAL", 0))
+    high = int(sev.get("HIGH", 0))
+    med = int(sev.get("MEDIUM", 0))
+    penalty = crit * 5 + high * 2 + med * 1
+    score = 100 - penalty
+    if score < 0:
+        score = 0
+    if score > 100:
+        score = 100
+    return int(score)
+
+
+# ---------- UI route ----------
+
+def get_latest_vsp_run():
+    """Tìm RUN_VSP_FULL_EXT_* mới nhất và đọc report/summary_unified.json.
+    Trả về (run_id, data_summary). Nếu không có thì (None, {}).
+    """
+    out_dir = ROOT / "out"
+
+    # Lấy danh sách thư mục RUN_VSP_FULL_EXT_*
+    runs = sorted(out_dir.glob("RUN_VSP_FULL_EXT_*"))
+    if not runs:
+        return None, {}
+
+    # Lấy run mới nhất (tên có timestamp)
+    run_dir = runs[-1]
+
+    summary_path = run_dir / "report" / "summary_unified.json"
+    if not summary_path.exists():
+        return run_dir.name, {}
+
+    try:
+        with summary_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        data = {}
+
+    return run_dir.name, data
+
+@app.route("/")
+@app.route("/security_bundle")
+def security_bundle_index():
+    return render_template("index.html")
+
+
+# ---------- health ----------
+
+@app.route("/api/vsp/health", methods=["GET"])
+def api_vsp_health():
+    return jsonify(
+        {
+            "ok": True,
+            "status": "ok",
+            "message": "VSP backend is alive.",
+            "root": str(ROOT),
+        }
+    )
+
+
+# ---------- RUN ----------
+
+@app.route("/api/vsp/run", methods=["POST"])
+def api_vsp_run():
+    body = request.get_json(silent=True) or {}
+    src_path = body.get("src_path") or "/home/test/Data/khach6"
+
+    script = BIN_DIR / "run_vsp_full_ext.sh"
+    if not script.is_file():
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "status": "error",
+                    "message": f"Không tìm thấy script {script}",
+                }
+            ),
+            500,
+        )
+
+    proc = subprocess.run(  # noqa: S603
+        [str(script), src_path],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+
+    if proc.returncode != 0:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "status": "error",
+                    "message": "run_vsp_full_ext.sh failed",
+                    "rc": proc.returncode,
+                    "stderr": proc.stderr[-4000:],
+                }
+            ),
+            500,
+        )
+
+    run_dir = _get_latest_run()
+    if not run_dir:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "status": "error",
+                    "message": "Không tìm thấy RUN_VSP_FULL_EXT_* với summary_unified.json",
+                }
+            ),
+            500,
+        )
+
+    summary_path = run_dir / "report" / "summary_unified.json"
+    summary = _load_json_safe(summary_path) or {}
+
+    return jsonify(
+        {
+            "ok": True,
+            "status": "ok",
+            "run_id": run_dir.name,
+            "run_dir": str(run_dir),
+            "summary": summary,
+        }
+    )
+
+
+# ---------- Dashboard ----------
+
+
+@app.route("/api/vsp/dashboard", methods=["GET"])
+def api_vsp_dashboard():
+    """
+    Dashboard V1 (FE đang dùng) nhưng đọc data mới:
+    - Chọn RUN_VSP_FULL_EXT_* mới nhất theo mtime
+    - Đọc summary_unified.json -> severity, by_tool, ... 
+    - Trả về cùng shape cũ: severity, total_findings, by_tool, run_id, profile, target
+    """
+
+
+    root = Path("/home/test/Data/SECURITY_BUNDLE")
+    out_dir = root / "out"
+
+    runs = sorted(out_dir.glob("RUN_VSP_FULL_EXT_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+    chosen_run = None
+    summary = None
+
+    for rd in runs:
+        sp = rd / "report" / "summary_unified.json"
+        if not sp.is_file():
+            continue
+        try:
+            sdata = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        chosen_run = rd
+        summary = sdata
+        break
+
+    if not chosen_run or summary is None:
+        # Trả về khung rỗng cho FE
+        return jsonify({
+            "run_id": None,
+            "total_findings": 0,
+            "severity": {
+                "CRITICAL": 0,
+                "HIGH": 0,
+                "MEDIUM": 0,
+                "LOW": 0,
+                "INFO": 0,
+                "TRACE": 0,
+            },
+            "by_tool": {},
+            "profile": None,
+            "target": None,
+        })
+
+    by_sev = summary.get("by_severity", {}) or {}
+    severity = {
+        "CRITICAL": int(by_sev.get("CRITICAL", 0) or 0),
+        "HIGH": int(by_sev.get("HIGH", 0) or 0),
+        "MEDIUM": int(by_sev.get("MEDIUM", 0) or 0),
+        "LOW": int(by_sev.get("LOW", 0) or 0),
+        "INFO": int(by_sev.get("INFO", 0) or 0),
+        "TRACE": int(by_sev.get("TRACE", 0) or 0),
+    }
+
+    total_findings = int(summary.get("total_findings", 0) or 0)
+    by_tool = summary.get("by_tool", {}) or {}
+
+    payload = {
+        "run_id": chosen_run.name,
+        "total_findings": total_findings,
+        "severity": severity,
+        "by_tool": by_tool,
+        "profile": summary.get("profile"),
+        "target": summary.get("target"),
+    }
+
+    # Nếu unify đã tính thêm các KPI nâng cao thì cho luôn ra payload
+    for key in ("security_score", "top_cwe", "top_dirs", "top_modules", "top_risky_tool"):
+        if key in summary:
+            payload[key] = summary[key]
+
+    return jsonify(payload)
+
+@app.route("/api/vsp/datasource", methods=["GET"])
+def api_vsp_datasource():
+    """
+    mode=dashboard: trả summary cho chart / widget (đã normalize field + KPI).
+    default: danh sách findings, đã normalize field cho UI.
+    """
+    run_dir = _get_latest_run()
+    if not run_dir:
+        mode = request.args.get("mode") or "detail"
+        if mode == "dashboard":
+            return jsonify({"ok": True, "run_id": None, "summary": {}})
+        return jsonify({"ok": True, "run_id": None, "total": 0, "items": []})
+
+    summary_path = run_dir / "report" / "summary_unified.json"
+    findings_path = run_dir / "report" / "findings_unified.json"
+
+    mode = request.args.get("mode") or "detail"
+
+    if mode == "dashboard":
+        summary_raw = _load_json_safe(summary_path) or {}
+        if not isinstance(summary_raw, dict):
+            summary_raw = {}
+
+        # clone + thêm field UI + KPI
+        summary = dict(summary_raw)
+        sev = _build_severity(summary_raw)
+        by_tool_ch = _build_by_tool_crit_high(summary_raw)
+        by_cwe = _build_top_cwe(summary_raw)
+        by_dir = _build_top_dirs(summary_raw)
+
+        summary["severity"] = sev
+        summary["by_tool_crit_high"] = by_tool_ch
+        summary["by_cwe_ui"] = by_cwe
+        summary["by_dir_ui"] = by_dir
+
+        summary["security_score"] = _compute_security_score(sev)
+        summary["top_risky_tool"] = by_tool_ch[0]["tool"] if by_tool_ch else "-"
+        summary["top_cwe"] = by_cwe[0]["cwe"] if by_cwe else "-"
+        summary["top_module"] = by_dir[0]["path"] if by_dir else "-"
+
+        return jsonify(
+            {
+                "ok": True,
+                "run_id": run_dir.name,
+                "summary": summary,
+            }
+        )
+
+    # --- detail mode ---
+    raw_items = _load_json_safe(findings_path) or []
+    if not isinstance(raw_items, list):
+        raw_items = []
+
+    severity = request.args.get("severity")
+    tool = request.args.get("tool")
+    search = request.args.get("search")
+
+    def _match(it: Dict[str, Any]) -> bool:
+        if severity and str(it.get("severity", "")).upper() != severity.upper():
+            return False
+        if tool and str(it.get("tool", "")).lower() != tool.lower():
+            return False
+        if search:
+            s = search.lower()
+            text = (
+                str(it.get("rule_id", ""))
+                + " "
+                + str(it.get("message", ""))
+                + " "
+                + str(it.get("file", ""))
+                + " "
+                + str(it.get("cwe", ""))
+                + " "
+                + str(it.get("cve", ""))
+            ).lower()
+            if s not in text:
+                return False
+        return True
+
+    filtered: List[Dict[str, Any]] = []
+    for it in raw_items:
+        if not isinstance(it, dict):
+            continue
+        if _match(it):
+            norm: Dict[str, Any] = dict(it)
+            sev2 = str(it.get("severity", "")).upper()
+            norm["severity"] = sev2
+            norm["sev"] = sev2
+            norm["tool"] = it.get("tool", "")
+            norm["rule"] = it.get("rule_id", "")
+            norm["file"] = it.get("file", "")
+            norm["line"] = it.get("line", 0)
+            norm["message"] = it.get("message", "")
+            norm["cwe"] = it.get("cwe", "")
+            norm["cve"] = it.get("cve", "")
+            filtered.append(norm)
+
+    limit = request.args.get("limit", type=int) or 1000
+    if limit > 5000:
+        limit = 5000
+
+    return jsonify(
+        {
+            "ok": True,
+            "run_id": run_dir.name,
+            "total": len(filtered),
+            "items": filtered[:limit],
+        }
+    )
+
+
+# ---------- Settings ----------
+
+@app.route("/api/vsp/settings", methods=["GET"])
+def api_vsp_settings():
+    run_dir = _get_latest_run()
+    summary: Dict[str, Any] = {}
+    if run_dir:
+        summary_path = run_dir / "report" / "summary_unified.json"
+        s = _load_json_safe(summary_path)
+        if isinstance(s, dict):
+            summary = s
+
+    by_tool_total = summary.get("by_tool", {}) if isinstance(summary, dict) else {}
+    if not isinstance(by_tool_total, dict):
+        by_tool_total = {}
+
+    TOOL_META = {
+        "bandit": ("Bandit", "Python SAST"),
+        "codeql": ("CodeQL", "CodeQL"),
+        "gitleaks": ("Gitleaks", "Secrets"),
+        "grype": ("Grype", "Vuln DB"),
+        "kics": ("KICS", "IaC"),
+        "semgrep": ("Semgrep", "SAST"),
+        "syft": ("Syft", "SBOM"),
+        "trivy_fs": ("Trivy FS", "FS scan"),
+    }
+
+    tools_list: List[Dict[str, Any]] = []
+    for key in ["gitleaks", "semgrep", "kics", "codeql", "bandit", "trivy_fs", "syft", "grype"]:
+        label, ttype = TOOL_META.get(key, (key, ""))  # type: ignore[misc]
+        enabled = bool(by_tool_total.get(key, 0))
+        tools_list.append(
+            {
+                "key": key,
+                "name": label,
+                "type": ttype,
+                "enabled": enabled,
+            }
+        )
+
+    resp = {
+        "ok": True,
+        "profile": "EXT",
+        "src_path": "/home/test/Data/khach6",
+        "last_run_id": run_dir.name if run_dir else None,
+        "tools": tools_list,
+    }
+    return jsonify(resp)
+
+
+# ---------- Runs ----------
+
+@app.route("/api/vsp/runs", methods=["GET"])
+def api_vsp_runs():
+    runs = _discover_run_dirs(limit=100)
+    result: List[Dict[str, Any]] = []
+
+    for run_dir in reversed(runs):
+        summary_path = run_dir / "report" / "summary_unified.json"
+        summary = _load_json_safe(summary_path)
+        if not isinstance(summary, dict):
+            summary = {}
+        total = int(summary.get("total_findings", 0))
+        tool_counts = summary.get("by_tool") or {}
+        if not isinstance(tool_counts, dict):
+            tool_counts = {}
+        tools_enabled = sorted([k for k, v in tool_counts.items() if v])
+
+        result.append(
+            {
+                "run_id": run_dir.name,
+                "total_findings": total,
+                "tools_enabled": tools_enabled,
+            }
+        )
+
+    return jsonify({"ok": True, "runs": result})
+
+
+@app.route("/api/vsp/runs_index", methods=["GET"])
+def api_vsp_runs_index():
+    return api_vsp_runs()
+
+
+# ---------- main ----------
+
+
+
+
+@app.route("/api/vsp/dashboard_v2", methods=["GET"])
+def api_vsp_dashboard_v2():
+    """
+    Dashboard V2 – bản đơn giản, ổn định:
+    - Chọn RUN_VSP_FULL_EXT_* mới nhất theo mtime
+    - Đọc summary_unified.json -> trả nguyên summary
+    - Đọc findings_unified.json -> trả findings_total
+    """
+
+
+    root = Path("/home/test/Data/SECURITY_BUNDLE")
+    out_dir = root / "out"
+
+    # Lấy tất cả RUN_VSP_FULL_EXT_* theo thời gian (mới nhất trước)
+    runs = sorted(out_dir.glob("RUN_VSP_FULL_EXT_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+    chosen_run = None
+    summary = None
+
+    for rd in runs:
+        sp = rd / "report" / "summary_unified.json"
+        if not sp.is_file():
+            continue
+        try:
+            sdata = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        # Chỉ cần load được summary là chọn, không ép >0 để luôn là run mới nhất
+        chosen_run = rd
+        summary = sdata
+        break
+
+    if not chosen_run or summary is None:
+        return jsonify({
+            "ok": False,
+            "error": "no_run",
+            "run_id": None,
+            "summary": {},
+            "findings_total": 0,
+        })
+
+    findings_total = 0
+    findings_path = chosen_run / "report" / "findings_unified.json"
+    if findings_path.is_file():
+        try:
+            data = json.loads(findings_path.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                findings_total = len(data)
+        except Exception:
+            findings_total = 0
+
+    return jsonify({
+        "ok": True,
+        "run_id": chosen_run.name,
+        "summary": summary,
+        "findings_total": int(findings_total),
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8910, debug=False)
+
+# ============================================================
+# VSP API CONTRACT V1 – ADAPTER CHO UI
+#   - Không đổi HTML/JS, chỉ đảm bảo API trả format ổn định.
+#   - Đọc summary_unified.json, findings_unified.json, runs_index.json
+#     rồi map về JSON mà FE đang dùng.
+# ============================================================
+
+
+from flask import jsonify, request
+
+VSP_ROOT = Path("/home/test/Data/SECURITY_BUNDLE")
+OUT_ROOT = VSP_ROOT / "out"
+
+
+# ---------- Helper chung ----------
+
+def _vsp_safe_get(d, path, default=None):
+    """Lấy giá trị lồng nhau an toàn: 'a.b.c'."""
+    if not isinstance(d, dict):
+        return default
+    cur = d
+    for key in path.split("."):
+        if not isinstance(cur, dict) or key not in cur:
+            return default
+        cur = cur[key]
+    return cur
+
+
+def _vsp_get_run_dirs(limit=100):
+    """Lấy danh sách RUN_VSP_FULL_EXT_* đã có (sort tăng dần)."""
+    runs = []
+    if not OUT_ROOT.is_dir():
+        return runs
+    for p in sorted(OUT_ROOT.glob("RUN_VSP_FULL_EXT_*")):
+        if p.is_dir():
+            runs.append(p)
+    return runs[-limit:]
+
+
+def _vsp_get_latest_run():
+    """Ưu tiên out/last_vsp_run.txt, fallback quét RUN_VSP_FULL_EXT_*."""
+    last_file = OUT_ROOT / "last_vsp_run.txt"
+    if last_file.is_file():
+        try:
+            p = Path(last_file.read_text(encoding="utf-8").strip())
+            summary = p / "report" / "summary_unified.json"
+            if p.is_dir() and summary.is_file():
+                return p
+        except Exception:
+            pass
+
+    for p in reversed(_vsp_get_run_dirs()):
+        summary = p / "report" / "summary_unified.json"
+        if summary.is_file():
+            return p
+    return None
+
+
+def _vsp_load_summary(run_dir=None):
+    """Đọc summary_unified.json, chịu được cả format cũ & mới."""
+    if run_dir is None:
+        run_dir = _vsp_get_latest_run()
+    if not run_dir:
+        return None, None
+
+    summary_path = Path(run_dir) / "report" / "summary_unified.json"
+    if not summary_path.is_file():
+        return Path(run_dir), None
+
+    try:
+        data = json.loads(summary_path.read_text(encoding="utf-8"))
+        return Path(run_dir), data
+    except Exception:
+        return Path(run_dir), None
+
+
+def _vsp_load_findings(run_dir=None):
+    """Đọc findings_unified.json dạng list."""
+    if run_dir is None:
+        run_dir = _vsp_get_latest_run()
+    if not run_dir:
+        return None, []
+
+    findings_path = Path(run_dir) / "report" / "findings_unified.json"
+    if not findings_path.is_file():
+        return Path(run_dir), []
+
+    try:
+        data = json.loads(findings_path.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return Path(run_dir), data
+        return Path(run_dir), []
+    except Exception:
+        return Path(run_dir), []
+
+
+def _vsp_load_runs_index():
+    """Đọc out/runs_index.json nếu có."""
+    idx_path = OUT_ROOT / "runs_index.json"
+    if not idx_path.is_file():
+        return []
+    try:
+        data = json.loads(idx_path.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return data
+        return []
+    except Exception:
+        return []
+
+
+# ---------- /api/vsp/dashboard ----------
+
+@app.route("/api/vsp/dashboard", methods=["GET"])
+def api_vsp_dashboard_v1():
+    """
+    Contract V1:
+    {
+      "ok": true,
+      "run_id": "...",
+      "total_findings": 123,
+      "severity": { "CRITICAL": 0, ... },
+      "by_tool": { "semgrep": 10, ... },
+      "security_score": 0-100,
+      "top_risky_tool": "...",
+      "top_cwe": "...",
+      "top_module": "..."
+    }
+    """
+    run_dir, summary = _vsp_load_summary()
+    if not run_dir or summary is None:
+        # Skeleton an toàn – UI vẫn render được
+        return jsonify({
+            "ok": True,
+            "run_id": None,
+            "total_findings": 0,
+            "severity": {k: 0 for k in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]},
+            "by_tool": {},
+            "security_score": 0,
+            "top_risky_tool": None,
+            "top_cwe": None,
+            "top_module": None,
+        })
+
+    # Hỗ trợ 2 kiểu:
+    #  - Mới: có block "kpi", "tools"
+    #  - Cũ: top-level total_findings, by_severity, by_tool
+    kpi = summary.get("kpi", {})
+    tools = summary.get("tools", {})
+
+    if kpi:
+        total_findings = kpi.get("total_findings", 0)
+        by_severity = kpi.get("by_severity", {})
+        security_score = kpi.get("security_score", 0)
+        top_risky_tool = kpi.get("top_risky_tool")
+        top_cwe = kpi.get("top_cwe")
+        top_module = kpi.get("top_module")
+    else:
+        total_findings = summary.get("total_findings", 0)
+        by_severity = summary.get("by_severity", {})
+        security_score = summary.get("security_score", 0)
+        top_risky_tool = summary.get("top_risky_tool")
+        top_cwe = summary.get("top_cwe")
+        top_module = summary.get("top_module")
+
+    by_tool = tools.get("by_tool") if tools else summary.get("by_tool", {})
+
+    # Đảm bảo đủ 6 severity
+    sev_default = {k: 0 for k in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]}
+    if not isinstance(by_severity, dict):
+        by_severity = sev_default
+    else:
+        tmp = sev_default.copy()
+        for k, v in by_severity.items():
+            if k in tmp:
+                tmp[k] = v
+        by_severity = tmp
+
+    return jsonify({
+        "ok": True,
+        "run_id": summary.get("run_id", run_dir.name),
+        "total_findings": total_findings,
+        "severity": by_severity,
+        "by_tool": by_tool or {},
+        "security_score": security_score or 0,
+        "top_risky_tool": top_risky_tool,
+        "top_cwe": top_cwe,
+        "top_module": top_module,
+    })
+
+
+# ---------- /api/vsp/datasource ----------
+
+@app.route("/api/vsp/datasource", methods=["GET"])
+def api_vsp_datasource_v1():
+    """
+    Contract V1:
+    - mode=dashboard:
+      {
+        "ok": true,
+        "run_id": "...",
+        "summary": {
+          "total": N,
+          "by_severity": {...},
+          "by_tool": {...}
+        }
+      }
+
+    - list (không mode):
+      {
+        "ok": true,
+        "run_id": "...",
+        "total": N,
+        "items": [ ...finding... ]
+      }
+    """
+    mode = request.args.get("mode") or ""
+
+    # Summary mode cho 4 bảng nhỏ / mini chart trong tab Data Source
+    if mode == "dashboard":
+        run_dir, summary = _vsp_load_summary()
+        if not run_dir or summary is None:
+            return jsonify({
+                "ok": True,
+                "run_id": None,
+                "summary": {
+                    "total": 0,
+                    "by_severity": {k: 0 for k in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]},
+                    "by_tool": {},
+                }
+            })
+
+        kpi = summary.get("kpi", {})
+        tools = summary.get("tools", {})
+
+        if kpi:
+            total = kpi.get("total_findings", 0)
+            by_severity = kpi.get("by_severity", {})
+        else:
+            total = summary.get("total_findings", 0)
+            by_severity = summary.get("by_severity", {})
+
+        by_tool = tools.get("by_tool") if tools else summary.get("by_tool", {})
+
+        sev_default = {k: 0 for k in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]}
+        if not isinstance(by_severity, dict):
+            by_severity = sev_default
+        else:
+            tmp = sev_default.copy()
+            for k, v in by_severity.items():
+                if k in tmp:
+                    tmp[k] = v
+            by_severity = tmp
+
+        return jsonify({
+            "ok": True,
+            "run_id": summary.get("run_id", run_dir.name),
+            "summary": {
+                "total": total,
+                "by_severity": by_severity,
+                "by_tool": by_tool or {},
+            }
+        })
+
+    # Mode list – bảng lớn Data Source
+    run_dir, findings = _vsp_load_findings()
+    if not run_dir:
+        return jsonify({
+            "ok": True,
+            "run_id": None,
+            "total": 0,
+            "items": [],
+        })
+
+    # Filter nhẹ ở BE
+    severity = request.args.get("severity")
+    tool = request.args.get("tool")
+    category = request.args.get("category")
+    q = request.args.get("q", "").strip().lower()
+
+    def _match(f):
+        if severity and str(f.get("severity")) != severity:
+            return False
+        if tool and str(f.get("tool")) != tool:
+            return False
+        if category and str(f.get("category")) != category:
+            return False
+        if q:
+            text = " ".join([
+                str(f.get("title", "")),
+                str(f.get("message", "")),
+                str(f.get("file_path", "")),
+                str(f.get("cwe_id", "")),
+                " ".join(f.get("cve_ids", []) or []),
+            ]).lower()
+            if q not in text:
+                return False
+        return True
+
+    filtered = [f for f in findings if _match(f)]
+    total = len(filtered)
+
+    try:
+        limit = int(request.args.get("limit", "200"))
+        offset = int(request.args.get("offset", "0"))
+    except ValueError:
+        limit = 200
+        offset = 0
+
+    if limit < 0:
+        limit = 200
+    if offset < 0:
+        offset = 0
+
+    items = filtered[offset:offset + limit]
+
+    return jsonify({
+        "ok": True,
+        "run_id": run_dir.name,
+        "total": total,
+        "items": items,
+    })
+
+
+# ---------- /api/vsp/settings ----------
+
+@app.route("/api/vsp/settings", methods=["GET"])
+def api_vsp_settings_v1():
+    """
+    Contract V1:
+    {
+      "ok": true,
+      "profile": "EXT",
+      "src_path": "...",
+      "last_run_id": "...",
+      "tools": {
+        "gitleaks": true/false,
+        ...
+      }
+    }
+    """
+    run_dir, summary = _vsp_load_summary()
+    if not run_dir or summary is None:
+        return jsonify({
+            "ok": True,
+            "profile": "EXT",
+            "src_path": "/home/test/Data/khach6",
+            "last_run_id": None,
+            "tools": {
+                "gitleaks": False,
+                "semgrep": False,
+                "kics": False,
+                "codeql": False,
+                "bandit": False,
+                "trivy_fs": False,
+                "syft": False,
+                "grype": False,
+            }
+        })
+
+    tools_block = summary.get("tools", {})
+    by_tool = tools_block.get("by_tool", summary.get("by_tool", {})) or {}
+
+    all_tools = [
+        "gitleaks", "semgrep", "kics", "codeql",
+        "bandit", "trivy_fs", "syft", "grype"
+    ]
+    tools_flags = {t: (by_tool.get(t, 0) > 0) for t in all_tools}
+
+    profile = summary.get("profile", "EXT")
+    src_path = summary.get("src_path", "/home/test/Data/khach6")
+
+    return jsonify({
+        "ok": True,
+        "profile": profile,
+        "src_path": src_path,
+        "last_run_id": summary.get("run_id", run_dir.name),
+        "tools": tools_flags,
+    })
+
+
+# ---------- /api/vsp/runs ----------
+
+@app.route("/api/vsp/runs", methods=["GET"])
+def api_vsp_runs_v1():
+    """
+    Contract V1: trả list history cho tab Runs & Reports + trend chart
+    [
+      {
+        "run_id": "...",
+        "ts": "2025-12-01T20:30:00Z",
+        "profile": "EXT",
+        "src_path": "...",
+        "total_findings": 123,
+        "critical": 3,
+        "high": 10,
+        "medium": 40,
+        "low": 50,
+        "info": 15,
+        "trace": 5,
+        "security_score": 78,
+        "status": "OK"
+      },
+      ...
+    ]
+    """
+    runs = _vsp_load_runs_index()
+    # Nếu chưa có runs_index.json, có thể fallback lấy từ các RUN_VSP_FULL_EXT_*
+    if not runs:
+        # Fallback đơn giản: build từ summary của các run gần nhất
+        fallback = []
+        for p in _vsp_get_run_dirs(limit=20):
+            _, summary = _vsp_load_summary(run_dir=p)
+            if summary is None:
+                continue
+
+            kpi = summary.get("kpi", {})
+            if kpi:
+                total = kpi.get("total_findings", 0)
+                by_sev = kpi.get("by_severity", {})
+                score = kpi.get("security_score", 0)
+            else:
+                total = summary.get("total_findings", 0)
+                by_sev = summary.get("by_severity", {})
+                score = summary.get("security_score", 0)
+
+            sev = {k: 0 for k in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]}
+            if isinstance(by_sev, dict):
+                for k, v in by_sev.items():
+                    if k in sev:
+                        sev[k] = v
+
+            fallback.append({
+                "run_id": summary.get("run_id", p.name),
+                "ts": summary.get("ts"),
+                "profile": summary.get("profile", "EXT"),
+                "src_path": summary.get("src_path", ""),
+                "total_findings": total,
+                "critical": sev["CRITICAL"],
+                "high": sev["HIGH"],
+                "medium": sev["MEDIUM"],
+                "low": sev["LOW"],
+                "info": sev["INFO"],
+                "trace": sev["TRACE"],
+                "security_score": score or 0,
+                "status": "OK",
+            })
+        runs = fallback
+
+    return jsonify(runs)
+
+# =============== VSP – LAST RUN LOG VIEWER =================
+from flask import Response
+
+ROOT = Path(__file__).resolve().parents[1] as VSPPath
+
+VSP_ROOT = VSPPath("/home/test/Data/SECURITY_BUNDLE")
+OUT_ROOT = VSP_ROOT / "out"
+
+@app.route("/vsp/log/latest", methods=["GET"])
+def vsp_log_latest():
+    """Trả về tail log của run VSP FULL EXT mới nhất (text/plain)."""
+    last_file = OUT_ROOT / "last_vsp_run.txt"
+    if not last_file.is_file():
+        msg = "[ERR] Không tìm thấy out/last_vsp_run.txt – hãy chạy ít nhất 1 lần scan."
+        return Response(msg + "\n", mimetype="text/plain")
+
+    try:
+        run_dir = VSPPath(last_file.read_text(encoding="utf-8").strip())
+    except Exception:
+        return Response("[ERR] Không đọc được last_vsp_run.txt\n", mimetype="text/plain")
+
+    log_path = run_dir / "run.log"
+    if not log_path.is_file():
+        msg = f"[ERR] Không thấy {log_path} – run_vsp_full_ext.sh có thể chưa ghi log."
+        return Response(msg + "\n", mimetype="text/plain")
+
+    try:
+        txt = log_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception as e:
+        return Response(f"[ERR] Không đọc được log: {e}\n", mimetype="text/plain")
+
+    lines = txt.splitlines()
+    tail = "\n".join(lines[-400:])
+    if not tail.endswith("\n"):
+        tail += "\n"
+    return Response(tail, mimetype="text/plain")
+
+
+

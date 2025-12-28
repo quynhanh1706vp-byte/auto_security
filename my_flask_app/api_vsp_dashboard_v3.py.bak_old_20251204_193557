@@ -1,0 +1,13 @@
+from flask import Blueprint, jsonify
+import json, os
+
+bp = Blueprint("vsp_dashboard_v3", __name__, url_prefix="/api/vsp")
+
+@bp.get("/dashboard_v3")
+def dashboard_v3():
+    path = "/home/test/Data/SECURITY_BUNDLE/out/RUN_LAST/dashboard_v3.json"
+    if not os.path.exists(path):
+        return jsonify({"ok": False, "error": "dashboard file missing"}), 404
+    with open(path) as f:
+        data = json.load(f)
+    return jsonify({"ok": True, **data})

@@ -1,0 +1,232 @@
+
+// __VSP_CIO_HELPER_V1
+(function(){
+  try{
+    window.__VSP_CIO = window.__VSP_CIO || {};
+    const qs = new URLSearchParams(location.search);
+    window.__VSP_CIO.debug = (qs.get("debug")==="1") || (localStorage.getItem("VSP_DEBUG")==="1");
+    window.__VSP_CIO.visible = function(){ return document.visibilityState === "visible"; };
+    window.__VSP_CIO.sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+    window.__VSP_CIO.backoff = async function(fn, opt){
+      opt = opt || {};
+      let delay = opt.delay || 800;
+      const maxDelay = opt.maxDelay || 8000;
+      const maxTries = opt.maxTries || 6;
+      for(let i=0;i<maxTries;i++){
+        if(!window.__VSP_CIO.visible()){
+          await window.__VSP_CIO.sleep(600);
+          continue;
+        }
+        try { return await fn(); }
+        catch(e){
+          if(window.__VSP_CIO.debug) console.warn("[VSP] backoff retry", i+1, e);
+          await window.__VSP_CIO.sleep(delay);
+          delay = Math.min(maxDelay, delay*2);
+        }
+      }
+      throw new Error("backoff_exhausted");
+    };
+    window.__VSP_CIO.api = {
+      ridLatest: ()=>"/api/vsp/rid_latest_v3",
+      runs: (limit,offset)=>`/api/vsp/runs_v3?limit=${limit||50}&offset=${offset||0}`,
+      gate: (rid)=>`/api/vsp/run_gate_v3?rid=${encodeURIComponent(rid||"")}`,
+      findingsPage: (rid,limit,offset)=>`/api/vsp/findings_v3?rid=${encodeURIComponent(rid||"")}&limit=${limit||100}&offset=${offset||0}`,
+      artifact: (rid,kind,download)=>`/api/vsp/artifact_v3?rid=${encodeURIComponent(rid||"")}&kind=${encodeURIComponent(kind||"")}${download?"&download=1":""}`
+    };
+  }catch(_){}
+})();
+
+
+/* VSP_FETCH_DESCRIPTOR_SAFE_P0_V1 */
+(function(){
+  try{
+    if (window.__vsp_fetch_descriptor_safe_p0_v1) return;
+if(window.__VSP_CIO && window.__VSP_CIO.debug){ window.__vsp_fetch_descriptor_safe_p0_v1 = true; }
+    function canOverrideFetch(){
+      try{
+        const d = Object.getOwnPropertyDescriptor(window, "fetch");
+        if (!d) return true;
+        // if accessor exists, allow (setter may exist)
+        if (d.get || d.set) return true;
+        // data descriptor: must be writable OR configurable to redefine
+        if (d.writable) return true;
+        if (d.configurable) return true;
+        return false;
+      }catch(_){ return false; }
+    }
+
+    // Provide a helper for other wrappers to use
+if(window.__VSP_CIO && window.__VSP_CIO.debug){ window.__vsp_can_override_fetch = canOverrideFetch; }
+    // If someone already wrapped fetch and locked it, don't crash future code.
+    // We DO NOT wrap here; we only prevent TypeError by advising wrappers to check __vsp_can_override_fetch().
+  }catch(_){}
+})();
+
+/* VSP_SAFE_APP_ENTRY_V1: disable legacy chaos, provide stable minimal commercial UI */
+(function(){
+  'use strict';
+  if (window.__VSP_SAFE_APP_V1__) return;
+  window.__VSP_SAFE_APP_V1__ = true;
+
+  const $ = (s, r=document)=>r.querySelector(s);
+  const h = ()=> (location.hash||'#dashboard').toLowerCase();
+  const is = (x)=> h().startsWith('#'+x);
+
+  async function jget(url){
+    const r = await fetch(url, {cache:'no-store'});
+    if(!r.ok) throw new Error(url+' -> '+r.status);
+    return r.json();
+  }
+
+  function esc(x){ return String(x??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+  function mount(){
+    try{
+      Array.from(document.body.children).forEach(ch=>{
+        if(ch && ch.id !== 'vspSafeApp') ch.style.display = 'none';
+      });
+    } catch(_){}
+
+    const host = document.createElement('div');
+    host.id = 'vspSafeApp';
+    host.style.cssText = "min-height:100vh;background:#0b1020;color:#e7eaf0;font-family:system-ui,Segoe UI,Roboto,Arial;";
+
+    host.innerHTML = `
+      <div style="padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:800;font-size:16px;letter-spacing:.2px">VersaSecure Platform — SAFE MODE</div>
+          <div style="opacity:.75;font-size:12px;margin-top:2px">UI ổn định trước, rồi build lại thương mại full sau (không còn nhảy/đúp panel).</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="safeReload" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(17,20,28,.9);color:#e7eaf0;cursor:pointer">Hard Reload</button>
+          <button id="safeExit" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(40,120,255,.22);color:#e7eaf0;cursor:pointer">Exit SAFE MODE</button>
+        </div>
+      </div>
+
+      <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap">
+        <a href="#dashboard" data-tab="dashboard" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Dashboard</a>
+        <a href="#runs" data-tab="runs" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Runs & Reports</a>
+        <a href="#datasource" data-tab="datasource" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Data Source</a>
+        <a href="#settings" data-tab="settings" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Settings</a>
+        <a href="#rules" data-tab="rules" style="padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.10);text-decoration:none;color:#e7eaf0">Rule Overrides</a>
+      </div>
+
+      <div id="safeMain" style="padding:0 18px 22px"></div>
+    `;
+    document.body.appendChild(host);
+
+    $('#safeReload', host).onclick = ()=>{ try{ location.reload(true); } catch(_){ location.reload(); } };
+    $('#safeExit', host).onclick = ()=>{ alert("SAFE MODE đang bật. Muốn quay lại full UI: restore template từ file .bak_safe_*"); };
+
+    render();
+    window.addEventListener('hashchange', render, true);
+  }
+
+  async function render(){
+    const main = $('#safeMain');
+    if(!main) return;
+    const tab = is('runs')?'runs':is('datasource')?'datasource':is('settings')?'settings':is('rules')?'rules':'dashboard';
+
+    document.querySelectorAll('#vspSafeApp a[data-tab]').forEach(a=>{
+      a.style.background = (a.getAttribute('data-tab')===tab) ? 'rgba(40,120,255,.18)' : 'transparent';
+    });
+
+    main.innerHTML = `<div style="opacity:.8;padding:10px 0">Loading…</div>`;
+
+    try{
+      if(tab==='dashboard'){
+        const d = await jget('/api/vsp/dashboard_v3');
+        main.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;max-width:1100px">
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">Current run_id</div>
+              <div style="font-weight:800;font-size:14px;margin-top:6px">${esc(d.run_id||d.rid||'—')}</div>
+            </div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">Total</div>
+              <div style="font-weight:900;font-size:20px;margin-top:6px">${esc(d.total||d.total_findings||'—')}</div>
+            </div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">Critical</div>
+              <div style="font-weight:900;font-size:20px;margin-top:6px">${esc(d.critical||'—')}</div>
+            </div>
+            <div style="padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+              <div style="opacity:.7;font-size:12px">High</div>
+              <div style="font-weight:900;font-size:20px;margin-top:6px">${esc(d.high||'—')}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if(tab==='runs'){
+        const r = await jget('/api/vsp/runs_v3?limit=30&hide_empty=0&filter=1');
+        const items = Array.isArray(r.items)?r.items:[];
+        const rows = items.map(it=>{
+          const rid = it.run_id||it.rid||'';
+          return `<tr>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">${esc(it.time||it.started||'')}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);font-family:ui-monospace,monospace">${esc(rid)}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">${esc(it.target||'')}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">${esc(it.status||it.verdict||'')}</td>
+            <td style="padding:8px;border-top:1px solid rgba(255,255,255,.08)">
+              <a style="color:#9cc4ff" href="/api/vsp/run_status_v2/${esc(rid)}" target="_blank">status</a>
+              &nbsp;|&nbsp;
+              <a style="color:#9cc4ff" href="/api/vsp/artifacts_index_v1/${esc(rid)}" target="_blank">artifacts</a>
+            </td>
+          </tr>`;
+        }).join('');
+
+        main.innerHTML = `
+          <div style="opacity:.8;font-size:12px;margin-bottom:8px">Runs (SAFE MODE table)</div>
+          <div style="border:1px solid rgba(255,255,255,.10);border-radius:12px;overflow:auto;max-width:1200px">
+            <table style="border-collapse:collapse;width:100%;min-width:880px">
+              <thead>
+                <tr style="text-align:left;opacity:.8;font-size:12px">
+                  <th style="padding:10px">Time</th>
+                  <th style="padding:10px">Run ID</th>
+                  <th style="padding:10px">Target</th>
+                  <th style="padding:10px">Status</th>
+                  <th style="padding:10px">Links</th>
+                </tr>
+              </thead>
+              <tbody>${rows || `<tr><td colspan="5" style="padding:12px;opacity:.75">No items</td></tr>`}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if(tab==='datasource'){
+        main.innerHTML = `<div style="max-width:1100px;padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;opacity:.9">
+          Data Source SAFE MODE: mở API raw để kiểm tra dữ liệu.
+          <div style="margin-top:8px">
+            <a style="color:#9cc4ff" href="/api/vsp/dashboard_v3" target="_blank">/api/vsp/dashboard_v3</a><br/>
+            <a style="color:#9cc4ff" href="/api/vsp/runs_v3?limit=50&hide_empty=0&filter=1" target="_blank">runs_v3</a>
+          </div>
+        </div>`;
+      }
+
+      if(tab==='settings'){
+        main.innerHTML = `<div style="max-width:1100px;padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;opacity:.9">
+          Settings SAFE MODE: UI ổn định trước. Quay lại full UI bằng restore template từ .bak_safe_*.
+        </div>`;
+      }
+
+      if(tab==='rules'){
+        main.innerHTML = `<div style="max-width:1100px;padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;opacity:.9">
+          Rule Overrides SAFE MODE: không chạy editor legacy để tránh crash/syntax.
+        </div>`;
+      }
+    } catch(e){
+      main.innerHTML = `<div style="padding:12px;border:1px solid rgba(255,80,80,.30);border-radius:12px;max-width:1100px">
+        <div style="font-weight:800;margin-bottom:6px">SAFE MODE error</div>
+        <div style="opacity:.85;font-family:ui-monospace,monospace;white-space:pre-wrap">${esc(e && (e.stack||e.message||String(e)))}</div>
+      </div>`;
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', mount, {once:true});
+  }else{
+    mount();
+  }
+})();

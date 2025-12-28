@@ -1,0 +1,14 @@
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUN_API] skip blueprint already registered: vsp_run_api_v1
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUNV1_V16] installed /healthz
+[VSP_RUNV1_V16] healed url_map._rules_by_endpoint endpoints= 34
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1.run_v1 orig= run_v1
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1_fallback._fallback_run_v1 orig= _fallback_run_v1
+[VSP_RUNV1_V16] installed wrappers: 2
+[WINLAST] override runs_index_v3_fs_resolved: True endpoint= api_vsp_runs_index_v3_fs_resolved_winlast_v1
+[VSP_RUN_STATUS_V2_VIEW_WRAPPER_V3] ok=True info=api_vsp_run_status_v2_winlast_v6
+[VSP_RUN_STATUS_V2_FORCE_FINAL_FROM_ARTIFACTS_V1] ok=True info=api_vsp_run_status_v2_winlast_v6
+[VSP_WSGI_PREEMPT_V1] installed

@@ -1,0 +1,465 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+SVC="${VSP_UI_SVC:-vsp-ui-8910.service}"
+F="static/js/vsp_c_runs_v1.js"
+TS="$(date +%Y%m%d_%H%M%S)"
+OUT="out_ci/p471b_${TS}"
+mkdir -p "$OUT"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1" | tee -a "$OUT/log.txt"; exit 2; }; }
+need python3; need date
+command -v sudo >/dev/null 2>&1 || true
+command -v systemctl >/dev/null 2>&1 || true
+
+[ -f "$F" ] || { echo "[ERR] missing $F" | tee -a "$OUT/log.txt"; exit 2; }
+
+cp -f "$F" "$OUT/$(basename "$F").bak_${TS}"
+echo "[OK] backup => $OUT/$(basename "$F").bak_${TS}" | tee -a "$OUT/log.txt"
+
+python3 - <<'PY'
+from pathlib import Path
+import re, datetime
+
+f = Path("static/js/vsp_c_runs_v1.js")
+s = f.read_text(encoding="utf-8", errors="replace")
+
+# Strip all previous patch blocks that cause “double UI / blank / observer fight”
+tags = [
+  "VSP_P467","VSP_P467B","VSP_P467C","VSP_P467D",
+  "VSP_P468","VSP_P469","VSP_P470",
+  "VSP_P466","VSP_P466A","VSP_P466A2",
+  "VSP_P471","VSP_P471B",
+]
+for t in tags:
+  pat = re.compile(
+    rf";?\s*/\*\s*=+\s*{re.escape(t)}.*?\*/.*?;?\s*/\*\s*=+\s*/{re.escape(t)}.*?\*/\s*",
+    re.DOTALL | re.IGNORECASE
+  )
+  s = pat.sub("", s)
+
+# Extra: remove any old P46x blocks by generic pattern (safe)
+s = re.sub(r";?\s*/\*\s*=+\s*VSP_P46\d+.*?\*/.*?;?\s*/\*\s*=+\s*/VSP_P46\d+.*?\*/\s*",
+           "", s, flags=re.DOTALL | re.IGNORECASE)
+
+stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+addon = r"""
+;/* ===================== VSP_P471B_C_RUNS_PRO_SINGLE_V1 ===================== */
+(function(){
+  if (window.__VSP_P471B_C_RUNS_PRO_SINGLE_V1) return;
+  window.__VSP_P471B_C_RUNS_PRO_SINGLE_V1 = true;
+
+  const BUILD = "__STAMP__";
+  const log = (...a)=>console.log("[P471B]", ...a);
+
+  function qs(sel, root=document){ try{ return root.querySelector(sel); }catch(e){ return null; } }
+  function qsa(sel, root=document){ try{ return Array.from(root.querySelectorAll(sel)); }catch(e){ return []; } }
+
+  function isCRuns(){
+    try{ return location && location.pathname && location.pathname.startsWith("/c/runs"); }
+    catch(e){ return false; }
+  }
+  function getRidFromUrl(){
+    try{ const u = new URL(location.href); return (u.searchParams.get("rid")||"").trim(); }
+    catch(e){ return ""; }
+  }
+  function setRid(rid){
+    const r=(rid||"").trim(); if(!r) return;
+    location.href = "/c/runs?rid=" + encodeURIComponent(r);
+  }
+  function fmtTs(ts){
+    if(!ts) return "";
+    try{
+      const d=new Date(ts);
+      if(String(d)==="Invalid Date") return "";
+      const pad=n=>String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }catch(e){ return ""; }
+  }
+
+  async function fetchJson(url, toMs=8000){
+    const ctl=new AbortController();
+    const t=setTimeout(()=>ctl.abort(), toMs);
+    try{
+      const r=await fetch(url,{signal:ctl.signal,credentials:"same-origin"});
+      const j=await r.json();
+      return {ok:true,status:r.status,json:j};
+    }catch(e){
+      return {ok:false,err:String(e)};
+    }finally{ clearTimeout(t); }
+  }
+
+  async function fetchRunsAny(){
+    const tries=[
+      "/api/vsp/runs?limit=250&offset=0",
+      "/api/vsp/runs?limit=250",
+      "/api/vsp/runs_v3?limit=250&include_ci=1",
+      "/api/vsp/runs_v3?limit=250",
+      "/api/ui/runs_v3?limit=250&include_ci=1",
+      "/api/ui/runs_v3?limit=250",
+    ];
+    for(const u of tries){
+      const r=await fetchJson(u,8000);
+      if(!r.ok || !r.json) continue;
+      const j=r.json;
+      let items=[];
+      if(Array.isArray(j.runs)){
+        items=j.runs.map(x=>({
+          rid:String(x.rid||x.run_id||""),
+          ts:(x.ts?Date.parse(x.ts):(x.mtime?Number(x.mtime)*1000:0)),
+          label:String(x.label||""),
+        }));
+      }else if(Array.isArray(j.items)){
+        items=j.items.map(x=>({
+          rid:String(x.rid||x.run_id||x.name||""),
+          ts:(x.ts?Date.parse(x.ts):0),
+          label:String(x.label||""),
+        }));
+      }
+      items=items.filter(x=>x.rid);
+      if(items.length){
+        items.sort((a,b)=>(b.ts||0)-(a.ts||0));
+        return {ok:true,src:u,items,total:(j.total||items.length)};
+      }
+    }
+    return {ok:false,items:[],total:0};
+  }
+
+  async function headOK(url, toMs=2500){
+    const ctl=new AbortController();
+    const t=setTimeout(()=>ctl.abort(),toMs);
+    try{
+      const r=await fetch(url,{method:"HEAD",signal:ctl.signal,credentials:"same-origin"});
+      return r && r.status>=200 && r.status<400;
+    }catch(e){ return false; }
+    finally{ clearTimeout(t); }
+  }
+
+  async function guessDownload(kind,rid){
+    const r=encodeURIComponent(rid);
+    const cands=(kind==="csv")?[
+      `/api/vsp/findings_csv?rid=${r}`,
+      `/api/vsp/download_findings_csv?rid=${r}`,
+      `/api/vsp/findings?rid=${r}&fmt=csv`,
+      `/api/vsp/export_findings_csv?rid=${r}`,
+      `/api/vsp/findings.csv?rid=${r}`,
+    ]:[
+      `/api/vsp/reports_tgz?rid=${r}`,
+      `/api/vsp/download_reports_tgz?rid=${r}`,
+      `/api/vsp/reports?rid=${r}&fmt=tgz`,
+      `/api/vsp/reports.tgz?rid=${r}`,
+    ];
+    for(const u of cands){ if(await headOK(u)) return u; }
+    return "";
+  }
+
+  function injectStyles(){
+    if(qs("#vsp_p471b_style")) return;
+    const st=document.createElement("style");
+    st.id="vsp_p471b_style";
+    st.textContent=`
+      .vsp-p471b-card{margin:12px 12px 18px;padding:14px 14px 10px;border:1px solid rgba(120,140,180,.22);border-radius:14px;background:rgba(12,16,28,.55);backdrop-filter:blur(10px)}
+      .vsp-p471b-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+      .vsp-p471b-title h2{margin:0;font-size:15px;letter-spacing:.2px}
+      .vsp-p471b-sub{opacity:.75;font-size:12px}
+      .vsp-p471b-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0 12px}
+      .vsp-p471b-input{height:32px;padding:0 10px;border-radius:10px;border:1px solid rgba(120,140,180,.22);background:rgba(8,10,18,.55);color:inherit;outline:none}
+      .vsp-p471b-btn{height:32px;padding:0 10px;border-radius:10px;border:1px solid rgba(120,140,180,.22);background:rgba(18,24,44,.55);color:inherit;cursor:pointer}
+      .vsp-p471b-btn:hover{filter:brightness(1.08)}
+      .vsp-p471b-chip{padding:4px 10px;border-radius:999px;border:1px solid rgba(120,140,180,.22);background:rgba(18,24,44,.35);font-size:12px;opacity:.9}
+      .vsp-p471b-table{width:100%;border-collapse:collapse;font-size:13px}
+      .vsp-p471b-table th,.vsp-p471b-table td{padding:10px 8px;border-bottom:1px solid rgba(120,140,180,.12);vertical-align:middle}
+      .vsp-p471b-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+      .vsp-p471b-pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(120,140,180,.22);background:rgba(18,24,44,.35);cursor:pointer;font-size:12px}
+      .vsp-p471b-pill:hover{filter:brightness(1.08)}
+      .vsp-p471b-scan-grid{display:grid;grid-template-columns:1.6fr .9fr;gap:12px}
+      .vsp-p471b-scan-row{display:flex;gap:10px;align-items:center}
+      .vsp-p471b-box{border:1px solid rgba(120,140,180,.18);border-radius:12px;background:rgba(8,10,18,.35);padding:10px;min-height:48px;overflow:auto;font-family:ui-monospace,Menlo,Monaco,Consolas,"Courier New",monospace;font-size:12px;white-space:pre-wrap}
+      @media(max-width:980px){.vsp-p471b-scan-grid{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function hideLegacySafely(){
+    const blocks=[];
+    for(const el of qsa("div,section")){
+      if(!el || (el.dataset && el.dataset.vspP471b==="1")) continue;
+      const txt=(el.innerText||"").trim();
+      if(!txt) continue;
+
+      const looksLegacyRuns = txt.includes("Filter by RID") || txt.includes("Pick a RID") || (txt.includes("Runs & Reports") && txt.includes("client-side"));
+      const looksLegacyScan = txt.includes("Scan / Start Run") || txt.includes("Kick off via /api/vsp/run_v1");
+      if(looksLegacyRuns || looksLegacyScan){
+        if(el.closest && el.closest("#vsp_p471b_root")) continue;
+        blocks.push(el);
+      }
+    }
+    let n=0;
+    for(const el of blocks){
+      if(el===document.body || el===document.documentElement) continue;
+      el.style.display="none";
+      n++;
+    }
+    log("legacy blocks hidden:", n);
+  }
+
+  function ensureMount(){
+    let root=qs("#vsp_p471b_root");
+    if(root) return root;
+    root=document.createElement("div");
+    root.id="vsp_p471b_root";
+    root.dataset.vspP471b="1";
+    const body=document.body;
+    body.insertBefore(root, body.firstElementChild || null);
+    return root;
+  }
+
+  function buildRuns(root){
+    const ridSel=getRidFromUrl();
+    const card=document.createElement("div");
+    card.className="vsp-p471b-card";
+    card.dataset.vspP471b="1";
+    card.innerHTML=`
+      <div class="vsp-p471b-title">
+        <div>
+          <h2>Runs & Reports (commercial)</h2>
+          <div class="vsp-p471b-sub">P471b • single-source • API-driven • rid=${ridSel?ridSel:"(none)"} • build=${BUILD}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <span class="vsp-p471b-chip" id="p471b_total">Total: -</span>
+          <span class="vsp-p471b-chip" id="p471b_shown">Shown: -</span>
+          <span class="vsp-p471b-chip" id="p471b_sel">Selected: ${ridSel?ridSel:"-"}</span>
+        </div>
+      </div>
+
+      <div class="vsp-p471b-toolbar">
+        <input class="vsp-p471b-input" id="p471b_q" placeholder="Search RID..." style="min-width:220px" />
+        <select class="vsp-p471b-input" id="p471b_page">
+          <option value="20">20/page</option>
+          <option value="50">50/page</option>
+          <option value="100">100/page</option>
+          <option value="200">200/page</option>
+        </select>
+        <button class="vsp-p471b-btn" id="p471b_refresh">Refresh</button>
+        <button class="vsp-p471b-btn" id="p471b_open_runs">Open Exports (/runs)</button>
+      </div>
+
+      <div style="overflow:auto">
+        <table class="vsp-p471b-table">
+          <thead><tr>
+            <th style="text-align:left;width:44%">RID</th>
+            <th style="text-align:left;width:18%">DATE</th>
+            <th style="text-align:left;width:18%">STATUS</th>
+            <th style="text-align:right;width:20%">ACTIONS</th>
+          </tr></thead>
+          <tbody id="p471b_tbody"><tr><td colspan="4" style="opacity:.75">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    `;
+    root.appendChild(card);
+  }
+
+  function buildScan(root){
+    const card=document.createElement("div");
+    card.className="vsp-p471b-card";
+    card.dataset.vspP471b="1";
+    card.innerHTML=`
+      <div class="vsp-p471b-title">
+        <div>
+          <h2>Scan / Start Run</h2>
+          <div class="vsp-p471b-sub">Kick off via <code>/api/vsp/run_v1</code> • Poll via <code>/api/vsp/run_status_v1</code> (best-effort)</div>
+        </div>
+        <div class="vsp-p471b-chip" id="p471b_scan_rid">RID: (none)</div>
+      </div>
+
+      <div class="vsp-p471b-scan-grid">
+        <div>
+          <div class="vsp-p471b-sub" style="margin:0 0 6px 2px">Target path</div>
+          <input class="vsp-p471b-input" id="p471b_target" style="width:100%" value="/home/test/Data/SECURITY_BUNDLE" />
+          <div class="vsp-p471b-sub" style="margin:10px 0 6px 2px">Note</div>
+          <input class="vsp-p471b-input" id="p471b_note" style="width:100%" placeholder="optional note for audit trail" />
+        </div>
+        <div>
+          <div class="vsp-p471b-sub" style="margin:0 0 6px 2px">Mode</div>
+          <select class="vsp-p471b-input" id="p471b_mode" style="width:100%">
+            <option value="FULL">FULL (8 tools)</option>
+            <option value="FAST">FAST</option>
+          </select>
+          <div class="vsp-p471b-scan-row" style="margin-top:12px;justify-content:flex-end">
+            <button class="vsp-p471b-btn" id="p471b_start">Start scan</button>
+            <button class="vsp-p471b-btn" id="p471b_poll">Refresh status</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="vsp-p471b-box" id="p471b_scan_out">Ready.</div>
+    `;
+    root.appendChild(card);
+  }
+
+  function render(rows,pageSize,q){
+    const tb=qs("#p471b_tbody");
+    if(!tb) return;
+    const query=(q||"").trim().toLowerCase();
+    let list=rows||[];
+    if(query) list=list.filter(x=>(x.rid||"").toLowerCase().includes(query));
+    const shown=list.slice(0,pageSize);
+
+    const shownChip=qs("#p471b_shown");
+    if(shownChip) shownChip.textContent="Shown: "+shown.length;
+
+    tb.innerHTML="";
+    if(!shown.length){
+      tb.innerHTML=`<tr><td colspan="4" style="opacity:.75">No runs.</td></tr>`;
+      return;
+    }
+    for(const r of shown){
+      const tr=document.createElement("tr");
+      const date=r.ts?fmtTs(r.ts):(r.label||"");
+      tr.innerHTML=`
+        <td style="font-family:ui-monospace,Menlo,Monaco,Consolas,'Courier New',monospace">${r.rid}</td>
+        <td style="opacity:.9">${date}</td>
+        <td style="opacity:.8">UNKNOWN</td>
+        <td>
+          <div class="vsp-p471b-actions">
+            <span class="vsp-p471b-pill" data-act="use" data-rid="${r.rid}">Use RID</span>
+            <span class="vsp-p471b-pill" data-act="dash" data-rid="${r.rid}">Dashboard</span>
+            <span class="vsp-p471b-pill" data-act="csv" data-rid="${r.rid}">CSV</span>
+            <span class="vsp-p471b-pill" data-act="tgz" data-rid="${r.rid}">TGZ</span>
+          </div>
+        </td>
+      `;
+      tb.appendChild(tr);
+    }
+  }
+
+  async function boot(fromRefresh=false){
+    if(!isCRuns()) return;
+    injectStyles();
+
+    const root=ensureMount();
+    root.innerHTML="";
+    buildRuns(root);
+    buildScan(root);
+
+    // hide legacy AFTER we mount ours (avoid blank)
+    hideLegacySafely();
+
+    const tb=qs("#p471b_tbody");
+    if(tb) tb.innerHTML=`<tr><td colspan="4" style="opacity:.75">Loading from API…</td></tr>`;
+
+    const r=await fetchRunsAny();
+    const rows=(r && r.ok) ? r.items : [];
+    const totalChip=qs("#p471b_total");
+    if(totalChip) totalChip.textContent="Total: "+(r.total||rows.length||0);
+    log("runs src:", (r.src||"n/a"), "items:", rows.length, "refresh:", !!fromRefresh);
+
+    let pageSize=20, q="";
+    render(rows,pageSize,q);
+
+    const pageSel=qs("#p471b_page");
+    const qInp=qs("#p471b_q");
+    const refreshBtn=qs("#p471b_refresh");
+    const openRunsBtn=qs("#p471b_open_runs");
+
+    const rer=()=>render(rows,pageSize,q);
+    if(pageSel) pageSel.addEventListener("change",()=>{ pageSize=Number(pageSel.value||"20")||20; rer(); });
+    if(qInp) qInp.addEventListener("input",()=>{ q=qInp.value||""; rer(); });
+    if(refreshBtn) refreshBtn.addEventListener("click",()=>boot(true));
+    if(openRunsBtn) openRunsBtn.addEventListener("click",()=>{
+      const rid=getRidFromUrl();
+      window.open(rid?("/runs?rid="+encodeURIComponent(rid)):"/runs","_blank");
+    });
+
+    document.addEventListener("click", async (ev)=>{
+      const t=ev.target;
+      if(!t || !t.getAttribute) return;
+      const act=t.getAttribute("data-act");
+      const rid=t.getAttribute("data-rid");
+      if(!act || !rid) return;
+
+      if(act==="use") return setRid(rid);
+      if(act==="dash") return (location.href="/c/dashboard?rid="+encodeURIComponent(rid));
+      if(act==="csv"){
+        const u=await guessDownload("csv",rid);
+        if(u) window.open(u,"_blank"); else alert("CSV endpoint not found (tried common candidates).");
+      }
+      if(act==="tgz"){
+        const u=await guessDownload("tgz",rid);
+        if(u) window.open(u,"_blank"); else alert("TGZ endpoint not found (tried common candidates).");
+      }
+    }, true);
+
+    // Scan UI (best-effort)
+    const out=qs("#p471b_scan_out");
+    const ridChip=qs("#p471b_scan_rid");
+    const startBtn=qs("#p471b_start");
+    const pollBtn=qs("#p471b_poll");
+    const targetInp=qs("#p471b_target");
+    const noteInp=qs("#p471b_note");
+    const modeSel=qs("#p471b_mode");
+
+    async function postRun(){
+      const target=(targetInp?.value||"").trim();
+      const note=(noteInp?.value||"").trim();
+      const mode=(modeSel?.value||"FULL").trim();
+      if(!target) return alert("Target path is empty.");
+
+      if(out) out.textContent="Starting…";
+      try{
+        const rr=await fetch("/api/vsp/run_v1",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          credentials:"same-origin",
+          body: JSON.stringify({target_path: target, mode, note})
+        });
+        const jj=await rr.json().catch(()=>null);
+        const rid=(jj && (jj.rid||jj.run_id)) ? String(jj.rid||jj.run_id) : "";
+        if(ridChip) ridChip.textContent="RID: "+(rid||"(unknown)");
+        if(out) out.textContent=JSON.stringify(jj||{status:rr.status}, null, 2);
+      }catch(e){
+        if(out) out.textContent="Start failed: "+String(e);
+      }
+    }
+    async function poll(){
+      if(out) out.textContent="Polling…";
+      try{
+        const rr=await fetch("/api/vsp/run_status_v1",{credentials:"same-origin"});
+        const jj=await rr.json().catch(()=>null);
+        if(out) out.textContent=JSON.stringify(jj||{status:rr.status}, null, 2);
+      }catch(e){
+        if(out) out.textContent="Poll failed: "+String(e);
+      }
+    }
+
+    if(startBtn) startBtn.onclick=postRun;
+    if(pollBtn) pollBtn.onclick=poll;
+  }
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", ()=>boot(false), {once:true});
+  }else{
+    boot(false);
+  }
+})();
+;/* ===================== /VSP_P471B_C_RUNS_PRO_SINGLE_V1 ===================== */
+"""
+addon = addon.replace("__STAMP__", stamp)
+
+s = s.rstrip() + "\n\n" + addon + "\n"
+f.write_text(s, encoding="utf-8")
+print("[OK] wrote", f)
+PY
+
+echo "[INFO] restart $SVC" | tee -a "$OUT/log.txt"
+if command -v sudo >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
+  sudo systemctl restart "$SVC" || true
+  systemctl is-active "$SVC" || true
+else
+  echo "[WARN] no systemd; restart manually" | tee -a "$OUT/log.txt"
+fi
+
+echo "[OK] P471b done. CLOSE ALL /c/runs tabs, reopen /c/runs then Ctrl+Shift+R" | tee -a "$OUT/log.txt"
+echo "[OK] log: $OUT/log.txt"

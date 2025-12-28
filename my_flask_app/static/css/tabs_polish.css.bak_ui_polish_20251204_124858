@@ -1,0 +1,4 @@
+/* VSP tabs polish placeholder – tránh 404, có thể tinh chỉnh sau */
+.vsp-tabs-nav { }
+.vsp-tabs-nav button { }
+.vsp-tabs-content { }

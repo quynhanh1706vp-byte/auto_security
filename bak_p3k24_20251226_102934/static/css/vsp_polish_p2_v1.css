@@ -1,0 +1,116 @@
+/* VSP_P2_POLISH_V1 (safe add-on) */
+:root{
+  --vsp-card-bg: rgba(255,255,255,0.035);
+  --vsp-card-br: rgba(255,255,255,0.085);
+  --vsp-card-br2: rgba(255,255,255,0.12);
+  --vsp-card-shadow: 0 10px 28px rgba(0,0,0,0.35);
+  --vsp-radius: 18px;
+  --vsp-pad: 14px;
+  --vsp-gap: 12px;
+}
+
+.vsp-panel{
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  border: 1px solid var(--vsp-card-br);
+  border-radius: var(--vsp-radius);
+  box-shadow: var(--vsp-card-shadow);
+  padding: var(--vsp-pad);
+  backdrop-filter: blur(8px);
+}
+
+.vsp-card{
+  background: var(--vsp-card-bg);
+  border: 1px solid var(--vsp-card-br);
+  border-radius: calc(var(--vsp-radius) - 2px);
+  padding: var(--vsp-pad);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+
+.vsp-card:hover{
+  border-color: var(--vsp-card-br2);
+  transform: translateY(-1px);
+  transition: 140ms ease;
+}
+
+.vsp-kpi-grid{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--vsp-gap);
+  align-items: stretch;
+}
+
+@media (max-width: 1300px){
+  .vsp-kpi-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px){
+  .vsp-kpi-grid{ grid-template-columns: 1fr; }
+}
+
+.vsp-kpi-card{
+  min-height: 92px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap: 8px;
+}
+
+.vsp-kpi-title{
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.vsp-kpi-value{
+  font-size: 28px;
+  font-weight: 760;
+  line-height: 1.05;
+}
+
+.vsp-kpi-sub{
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.vsp-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--vsp-card-br);
+  background: rgba(255,255,255,0.03);
+  font-size: 12px;
+}
+
+.vsp-section-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin: 2px 0 10px 0;
+}
+.vsp-section-title h2,
+.vsp-section-title h3{
+  margin: 0;
+}
+
+.vsp-table-tight table{
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.vsp-table-tight th,
+.vsp-table-tight td{
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  vertical-align: top;
+}
+.vsp-table-tight thead th{
+  position: sticky;
+  top: 0;
+  background: rgba(15,17,22,0.92);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+

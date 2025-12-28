@@ -1,0 +1,17 @@
+VSP UI Commercial Demo (P0)
+
+1) Open Dashboard: /vsp5
+   - 5 tabs visible; banner shows degraded mode if KPI disabled
+   - KPI placeholder cards + chart placeholder appear (policy mode)
+
+2) Runs: /runs
+   - list loads, actions available (view/download/export)
+
+3) Data Source: /data_source
+   - filter/search + export json/csv
+
+4) Settings: /settings
+   - tool coverage + policy panel; settings_v2 API available
+
+5) Rule Overrides: /rule_overrides
+   - reload + save works (rules_v1)

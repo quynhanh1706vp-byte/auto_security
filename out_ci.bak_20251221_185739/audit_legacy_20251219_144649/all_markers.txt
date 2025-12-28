@@ -1,0 +1,211 @@
+8:# --- VSP_MARK_FIX_P0_V6 ---
+12:    _vsp_builtins.MARK = 'VSP_UI_GATEWAY_MARK_V1'
+13:MARK = getattr(_vsp_builtins, 'MARK', 'VSP_UI_GATEWAY_MARK_V1')
+15:# --- /VSP_MARK_FIX_P0_V6 ---
+17:# VSP_MARK_DEDUPE_SAFE_P0_V8C: keep legacy alias (do not override MARK)
+19:# /VSP_MARK_DEDUPE_SAFE_P0_V8C
+25:# VSP_MARK_FIX_P0_V3
+29:# VSP_IMPORT_TIME_P0_V2: required by WSGI wrapper (__call__) and cache-bust logic
+32:# /VSP_IMPORT_TIME_P0_V2
+41:# --- VSP_RUNS_HAS_DETECT_P0_V1 ---
+117:        # ==== VSP_P1_RUNS_CONTRACT_FIELDS_V1 ====
+142:                data["cache_ttl"] = int(_os.environ.get("VSP_RUNS_CACHE_TTL", "2"))
+150:                for nm in ("VSP_RUNS_ROOTS", "RUNS_ROOTS", "VSP_DATA_ROOTS"):
+168:        # ==== /VSP_P1_RUNS_CONTRACT_FIELDS_V1 ====
+169:        # ==== VSP_P1_RUNS_CONTRACT_POSTPROCESS_V3 ====
+204:                        _data["cache_ttl"] = int(_os.environ.get("VSP_RUNS_CACHE_TTL", "2"))
+210:                    for k in ("VSP_RUNS_ROOTS", "VSP_DATA_ROOTS", "RUNS_ROOTS"):
+231:        # ==== /VSP_P1_RUNS_CONTRACT_POSTPROCESS_V3 ====
+232:        resp.headers["X-VSP-RUNS-HAS"] = "VSP_RUNS_HAS_DETECT_P0_V1"
+237:# --- /VSP_RUNS_HAS_DETECT_P0_V1 ---
+240:# --- VSP_RUNS_PAGE_NEVER_500_P0_V1 ---
+305:# --- /VSP_RUNS_PAGE_NEVER_500_P0_V1 ---
+308:# === VSP_WSGI_STATUSV2_ALWAYS8_V3 ===
+315:    # VSP_P1_GW_RUNFILE_ANCHOR_ALLOW_SHA_V3: allow reports/SHA256SUMS.txt BEFORE any allowlist/proxy
+453:# === VSP_RULE_OVERRIDES_FORCE_BIND_V1 BEGIN ===
+460:_VSP_RULE_OVR_PATH = _Path("/home/test/Data/SECURITY_BUNDLE/ui/out_ci/vsp_rule_overrides_v1.json")
+490:                if _VSP_RULE_OVR_PATH.exists():
+492:                        data = _json.load(open(_VSP_RULE_OVR_PATH, "r", encoding="utf-8"))
+519:                _vsp_rule_ovr_atomic_write_v1(_VSP_RULE_OVR_PATH, obj)
+521:                out = {"ok": True, "file": str(_VSP_RULE_OVR_PATH), "mode":"FORCE_BIND_V1"}
+546:# === VSP_RULE_OVERRIDES_FORCE_BIND_V1 END ===
+549:# VSP_RULE_OVERRIDES_FORCE_BIND_V1 WRAP
+551:# === VSP_GATEWAY_INJECT_FILLREAL_WSGI_MW_P1_V3 ===
+595:                if ("vsp_fill_real_data_5tabs_p1_v1.js" not in html) and ("VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY" not in html):
+597:                        "\n<!-- VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY -->\n"
+599:                        "<!-- /VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY -->\n"
+618:# === /VSP_GATEWAY_INJECT_FILLREAL_WSGI_MW_P1_V3 ===
+622:# === VSP_API_REPORTS_LATEST_COMPAT_P0_V1 ===
+660:# === VSP_RUN_STATUS_V2_GUARD_V1 BEGIN ===
+710:# === VSP_RUN_STATUS_V2_GUARD_V1 END ===
+713:# VSP_RUN_STATUS_V2_GUARD_V1 WRAP
+717:# === VSP_WSGI_STATUS_CONTRACT_MW_P1_V1_BEGIN ===
+721:# VSP_HARDEN_MARK_P0_V2
+726:# VSP_GLOBAL_MARK_FIX_P0_V1
+778:            fr"VSP_{t}_TIMEOUT_DEGRADE",
+874:# === VSP_WSGI_STATUS_CONTRACT_MW_P1_V1_END ===
+877:# === VSP_WSGI_RUNS_INDEX_ENRICH_MW_P1_V1_BEGIN ===
+979:# === VSP_WSGI_RUNS_INDEX_ENRICH_MW_P1_V1_END ===
+982:# === VSP_WSGI_FINDINGS_UNIFIED_API_P1_V1 (commercial) ===
+987:VSP_UIREQ_DIR = os.environ.get("VSP_UIREQ_DIR", "/home/test/Data/SECURITY_BUNDLE/ui/out_ci/uireq_v1")
+988:VSP_CI_OUT_GLOB = os.environ.get("VSP_CI_OUT_GLOB", "/home/test/Data/**/out_ci/VSP_CI_*")
+1001:  st = _read_json(os.path.join(VSP_UIREQ_DIR, f"{rid}.json")) or {}
+1007:  for d in glob.glob(VSP_CI_OUT_GLOB, recursive=True):
+1067:    # === VSP_CWE_SAFE_GRYE_V2 ===
+1093:    # === /VSP_CWE_SAFE_GRYE_V2 ===
+1095:    # === VSP_CWE_ENRICH_FROM_ITEM_RAW_V1 ===
+1119:    # === /VSP_CWE_ENRICH_FROM_ITEM_RAW_V1 ===
+1129:    # VSP_P1_FIX_RUNS_AND_SHA256SUMS_V1 skip meta dirs
+1157:# === /VSP_WSGI_FINDINGS_UNIFIED_API_P1_V1 ===
+1160:# --- VSP_CWE_ENRICH_FROM_GRYPE_P1_V2 ---
+1207:# --- /VSP_CWE_ENRICH_FROM_GRYPE_P1_V2 ---
+1210:# --- VSP_CWE_FROM_RAW_ITEMS_P1_V3 ---
+1288:# --- /VSP_CWE_FROM_RAW_ITEMS_P1_V3 ---
+1291:# === VSP_FINDINGS_UNIFIED_V2_ENRICHED_V1 ===
+1297:VSP_UIREQ_DIR = os.environ.get("VSP_UIREQ_DIR", "/home/test/Data/SECURITY_BUNDLE/ui/out_ci/uireq_v1")
+1298:VSP_CI_OUT_GLOB = os.environ.get("VSP_CI_OUT_GLOB", "/home/test/Data/**/out_ci/VSP_CI_*")
+1311:  st = _read_json(os.path.join(VSP_UIREQ_DIR, f"{rid}.json")) or {}
+1317:  for d in glob.glob(VSP_CI_OUT_GLOB, recursive=True):
+1506:    "debug": ({"marker":"VSP_FINDINGS_UNIFIED_V2_ENRICHED_V1","flask_var":"app"} if request.args.get("debug")=="1" else None)
+1508:# === /VSP_FINDINGS_UNIFIED_V2_ENRICHED_V1 ===
+1511:# === VSP_DASHBOARD_V3_EXTRAS_FROM_V2_P1_V1 ===
+1579:      "marker": "VSP_DASHBOARD_V3_EXTRAS_FROM_V2_P1_V1"
+1582:# === /VSP_DASHBOARD_V3_EXTRAS_FROM_V2_P1_V1 ===
+1585:# === VSP_RUNS_EXPORT_ZIP_INJECT_MW_P0_V2 ===
+1626:/* VSP_RUNS_EXPORT_ZIP_INJECT_MW_P0_V2 */
+1692:        if _a is not None and not getattr(_a, "__VSP_RUNS_EXPORT_ZIP_INJECT_MW_P0_V2__", False):
+1694:            setattr(_mw, "__VSP_RUNS_EXPORT_ZIP_INJECT_MW_P0_V2__", True)
+1698:# === /VSP_RUNS_EXPORT_ZIP_INJECT_MW_P0_V2 ===
+1701:# === VSP_RUNS_EXPORT_ZIP_NOJS_MW_P0_V3 ===
+1793:        if _a is not None and not getattr(_a, "__VSP_RUNS_EXPORT_ZIP_NOJS_MW_P0_V3__", False):
+1795:            setattr(_mw, "__VSP_RUNS_EXPORT_ZIP_NOJS_MW_P0_V3__", True)
+1799:# === /VSP_RUNS_EXPORT_ZIP_NOJS_MW_P0_V3 ===
+1802:# === VSP_RUNS_INJECT_EXTZIP_JS_P0_V1 ===
+1853:        if _a is not None and not getattr(_a, "__VSP_RUNS_INJECT_EXTZIP_JS_P0_V1__", False):
+1855:            setattr(_mw, "__VSP_RUNS_INJECT_EXTZIP_JS_P0_V1__", True)
+1859:# === /VSP_RUNS_INJECT_EXTZIP_JS_P0_V1 ===
+1862:# === VSP_RUNS_500_FALLBACK_MW_P0_V1 ===
+1924:                "Marker: VSP_RUNS_500_FALLBACK_MW_P0_V1</div>"
+1943:        if _a is not None and not getattr(_a, "__VSP_RUNS_500_FALLBACK_MW_P0_V1__", False):
+1945:            setattr(_mw, "__VSP_RUNS_500_FALLBACK_MW_P0_V1__", True)
+1949:# === /VSP_RUNS_500_FALLBACK_MW_P0_V1 ===
+1952:# === VSP_RUNS_500_FALLBACK_MW_P0_V2 ===
+1958:        # VSP_MARK_FIX_P0_V5: safe fallback (no f-string pitfalls, no MARK NameError)
+1962:            marker = 'VSP_UI_GATEWAY_MARK_V1'
+1979:# VSP_RUN_FILE_SAFE_ENDPOINT_P0_V1
+1996:_VSP_RUNFILE_ALLOWED = {
+2037:    env = _os.environ.get("VSP_RUNS_ROOT", "").strip()
+2082:    cands = _VSP_RUNFILE_ALLOWED.get(virtual_name)
+2114:        if name not in _VSP_RUNFILE_ALLOWED:
+2115:            # VSP_P1_ALLOW_SHA256SUMS_NOT_ALLOWED_V1: allow reports/SHA256SUMS.txt (commercial audit)
+2126:            # VSP_P1_GW_BYPASS_SHA256SUMS_V1: allow reports/SHA256SUMS.txt (commercial audit)
+2214:# END VSP_RUN_FILE_SAFE_ENDPOINT_P0_V1
+2219:# VSP_RUN_FILE2_SAFE_ENDPOINT_P0_V1
+2235:_VSP_RF2_ALLOWED = {
+2259:    env=_os2.environ.get("VSP_RUNS_ROOT","").strip()
+2285:    cands=_VSP_RF2_ALLOWED.get(vname)
+2317:        if name not in _VSP_RF2_ALLOWED:
+2318:            # VSP_P1_ALLOW_SHA256SUMS_NOT_ALLOWED_V1: allow reports/SHA256SUMS.txt (commercial audit)
+2391:            # VSP_FORCE_RUNFILE2_PATHS_P0_V2: normalize path fields and fill missing *_path
+2422:            # VSP_FORCE_RUNFILE2_PATHS_P0_V3: FINAL normalize (override any earlier after_request)
+2457:# END VSP_RUN_FILE2_SAFE_ENDPOINT_P0_V1
+2460:# VSP_FORCE_RUNFILE2_PATHS_P0_V2
+2462:# VSP_FORCE_RUNFILE2_PATHS_P0_V3
+2465:# VSP_REWRITE_RUN_FILE_TO_RUN_FILE2_P0_V1
+2497:# END VSP_REWRITE_RUN_FILE_TO_RUN_FILE2_P0_V1
+2501:# VSP_RUN_FILE_COMPAT_TO_RUN_FILE2_P0_V1
+2537:            allowed = globals().get("_VSP_RF2_ALLOWED") or globals().get("_VSP_RUNFILE_ALLOWED") or {}
+2539:                # VSP_P1_ALLOW_SHA256SUMS_NOT_ALLOWED_V1: allow reports/SHA256SUMS.txt (commercial audit)
+2574:# END VSP_RUN_FILE_COMPAT_TO_RUN_FILE2_P0_V1
+2579:# VSP_RUN_FILE_LEGACY_COMPAT_MW_P0_V1
+2616:# VSP_RUNS_NO_FS_LEAK_MW_P0_V1
+2705:# VSP_RUN_FILE_DIRECTSERVE_REPORTS_SUMMARY_P0_V1
+2762:# === VSP_API_REPORTS_LATEST_BIND_APP_P0_V3 ===
+2815:# VSP_P1_ALLOW_SHA256SUMS_GLOBAL_V1
+2817:# VSP_P1_ALLOW_SHA256SUMS_NOT_ALLOWED_V1
+2819:# VSP_P1_GW_BYPASS_SHA256SUMS_V1
+2821:# VSP_P1_GW_RUNFILE_ANCHOR_ALLOW_SHA_V3
+2823:# VSP_P1_FIX_SHA256SUMS_COMPAT_V2
+2825:# VSP_P1_ALLOW_SHA256SUMS_V5
+2827:# VSP_P1_FIX_RUNS_AND_SHA256SUMS_V1
+2830:# === VSP_P1_PROXY_RUN_FILE_SUMMARY_TO_RUN_FILE2_V1 ===
+2855:# === /VSP_P1_PROXY_RUN_FILE_SUMMARY_TO_RUN_FILE2_V1 ===
+2858:# === VSP_P1_PROXY_RUN_FILE_SUMMARY_TO_RUN_FILE2_V1_APPLY ===
+2866:# === /VSP_P1_PROXY_RUN_FILE_SUMMARY_TO_RUN_FILE2_V1_APPLY ===
+2868:# VSP_P1_PROXY_RUN_FILE_SUMMARY_TO_RUN_FILE2_V1
+2870:# VSP_P1_PROXY_RUN_FILE_SUMMARY_TO_RUN_FILE2_V2
+2873:# === VSP_P1_DIRECT_SERVE_SUMMARY_SHA_V1 ===
+2930:# === /VSP_P1_DIRECT_SERVE_SUMMARY_SHA_V1 ===
+2933:# === VSP_P1_DIRECT_SERVE_SUMMARY_SHA_V1_APPLY ===
+2941:# === /VSP_P1_DIRECT_SERVE_SUMMARY_SHA_V1_APPLY ===
+2943:# VSP_P1_DIRECT_SERVE_SUMMARY_SHA_V1
+2945:# ---- VSP_P1_HTML_NETGUARD_P1_V7B (commercial polish: stop /vsp5 poll spam) ----
+2953:_VSP_P1_NETGUARD_HTML_V7B = r"""
+2954:<!-- VSP_P1_NETGUARD_GLOBAL_V7B -->
+2955:<script id="VSP_P1_NETGUARD_GLOBAL_V7B">
+2968:    /VSP_ROUTE_GUARD_RUNS_ONLY_/i
+3095:    return html[:ins] + "\n" + _VSP_P1_NETGUARD_HTML_V7B + "\n" + html[ins:]
+3110:            if "VSP_P1_NETGUARD_GLOBAL_V7B" in html:
+3121:# ---- end VSP_P1_HTML_NETGUARD_P1_V7B ----
+3123:# VSP_P1_HTML_NETGUARD_P1_V7C_MW
+3124:# ---- VSP_P1_HTML_NETGUARD_P1_V7C_MW (wrap WSGI application; always inject on /vsp5) ----
+3130:_VSP_P1_NETGUARD_HTML_V7C = r"""
+3131:<!-- VSP_P1_NETGUARD_GLOBAL_V7C -->
+3132:<script id="VSP_P1_NETGUARD_GLOBAL_V7C">
+3139:  // VSP_P1_LOAD_FILLREAL_FROM_NETGUARD_P1_V2
+3156:    /VSP_ROUTE_GUARD_RUNS_ONLY_/i
+3269:    if "VSP_P1_NETGUARD_GLOBAL_V7C" in html:
+3275:    html2 = html[:ins] + "\n" + _VSP_P1_NETGUARD_HTML_V7C + "\n" + html[ins:]
+3278:class _VSP_HTML_Injector_V7C:
+3333:        application = _VSP_HTML_Injector_V7C(application)
+3336:# ---- end VSP_P1_HTML_NETGUARD_P1_V7C_MW ----
+3340:# VSP_P1_ROOT_AND_DATASOURCE_ROUTES_V1
+3362:# VSP_P1_ROOT_AND_DATASOURCE_ROUTES_V2
+3397:# VSP_P1_SETTINGS_BOOT_INJECT_MW_V1
+3418:        tag = '<script src="/static/js/vsp_p1_page_boot_v1.js?v=VSP_P1_PAGE_BOOT_V1"></script>'
+3448:# VSP_P1_FORCE_ROOT_200_OVERRIDE_REDIRECT_V4
+3497:# === VSP_GATEWAY_INJECT_FILLREAL_ALLHTML_P1_V1 ===
+3520:            if "vsp_fill_real_data_5tabs_p1_v1.js" in html or "VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY" in html:
+3524:                "\n<!-- VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY -->\n"
+3526:                "<!-- /VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY -->\n"
+3545:# === /VSP_GATEWAY_INJECT_FILLREAL_ALLHTML_P1_V1 ===
+3549:# === VSP_GATEWAY_WRAP_APPLICATION_WITH_FILLREAL_P1_V3 ===
+3556:# === /VSP_GATEWAY_WRAP_APPLICATION_WITH_FILLREAL_P1_V3 ===
+3560:# === VSP_GATEWAY_FORCE_FILLREAL_TAIL_P1_V4 ===
+3566:# === /VSP_GATEWAY_FORCE_FILLREAL_TAIL_P1_V4 ===
+3571:# === VSP_GATEWAY_FILLREAL_PROBE_HEADER_P1_V5 ===
+3621:                if ("vsp_fill_real_data_5tabs_p1_v1.js" not in html) and ("VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY" not in html):
+3623:                        "\n<!-- VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY -->\n"
+3625:                        "<!-- /VSP_FILL_REAL_DATA_5TABS_P1_V1_GATEWAY -->\n"
+3644:# === /VSP_GATEWAY_FILLREAL_PROBE_HEADER_P1_V5 ===
+3655:# === VSP_P1_FORCE_DEFAULT_VSP5_P1_V1 ===
+3670:# === /VSP_P1_FORCE_DEFAULT_VSP5_P1_V1 ===
+3675:# === VSP_P1_RUNS_503_FALLBACK_MW_P1_V1 ===
+3784:# VSP_P1_RUNS_CACHE_MW_V2
+3791:        self.ttl = float(_os.environ.get("VSP_RUNS_CACHE_TTL", "3"))
+3792:        self.limit_cap = int(_os.environ.get("VSP_RUNS_LIMIT_CAP", "10"))
+3793:        self.scan_cap = int(_os.environ.get("VSP_RUNS_SCAN_CAP", "500"))
+3795:        self._run_re = _re.compile(_os.environ.get("VSP_RUNS_DIR_REGEX", r"^(RUN_|AATE_|VSP_|btl).*"))
+3812:            _Path(_os.environ.get("VSP_RUNS_ROOT","") or "").expanduser(),
+3864:# /VSP_P1_RUNS_CACHE_MW_V2
+3866:_VSP_APP_INNER = _VspRuns503FallbackMWP1V1(application)
+3867:application = _VspRunsCacheMW(_VSP_APP_INNER)
+3869:try:  # VSP_AUTOFIX_ORPHAN_EXCEPT
+3873:# === /VSP_P1_RUNS_503_FALLBACK_MW_P1_V1 ===
+3876:# ==== VSP_P1_RUNS_CONTRACT_EOF_V6B ====
+3918:        env_roots = (_os.environ.get("VSP_RUNS_ROOTS") or "").strip()
+3968:            data["cache_ttl"] = int(_os.environ.get("VSP_RUNS_CACHE_TTL", "2"))
+3977:        scan_cap = int(_os.environ.get("VSP_RUNS_SCAN_CAP", "500"))
+3993:# ==== /VSP_P1_RUNS_CONTRACT_EOF_V6B ====
+3996:# ==== VSP_P1_RUNS_CONTRACT_WSGIMW_V2 ====
+4107:            env_roots = (os.environ.get("VSP_RUNS_ROOTS") or "").strip()
+4116:                items = _vsp__list_latest_runs_cached(roots, lim_eff, ttl=int(os.environ.get("VSP_RUNS_CACHE_TTL","2")))
+4128:                data["cache_ttl"] = int(os.environ.get("VSP_RUNS_CACHE_TTL","2"))
+4136:            scan_cap = int(os.environ.get("VSP_RUNS_SCAN_CAP","500"))
+4165:# ==== /VSP_P1_RUNS_CONTRACT_WSGIMW_V2 ====
+4168:# ==== VSP_P1_SHA256_FALLBACK_V1 ====
+4244:        env_roots = (os.environ.get("VSP_RUNS_ROOTS") or "").strip()
+4296:# ==== /VSP_P1_SHA256_FALLBACK_V1 ====
+4299:# ==== VSP_P1_SHA256_ALWAYS200_WSGIMW_V2 ====
+4349:        env_roots = (os.environ.get("VSP_RUNS_ROOTS") or "").strip()
+4413:# ==== /VSP_P1_SHA256_ALWAYS200_WSGIMW_V2 ====

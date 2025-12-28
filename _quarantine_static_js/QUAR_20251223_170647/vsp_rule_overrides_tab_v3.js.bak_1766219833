@@ -1,0 +1,95 @@
+(() => {
+  if(window.__vsp_ro_v3) return; window.__vsp_ro_v3=true;
+  const lib = window.__vsp_tabs3_v3; if(!lib) return;
+  const { $, esc, api, ensure, mountNav } = lib;
+
+  async function boot(){
+    ensure();
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    mountNav("rule_overrides");
+
+    root.innerHTML += `
+      <div class="vsp-row" style="justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-size:18px;font-weight:800">Rule Overrides</div>
+          <div class="vsp-muted" style="font-size:12px;margin-top:2px">/api/ui/rule_overrides_v2</div>
+        </div>
+        <div class="vsp-row">
+          <select class="vsp-in" id="ro_rid" style="min-width:320px"></select>
+          <button class="vsp-btn" id="ro_apply">Apply to RID</button>
+          <button class="vsp-btn" id="ro_reload">Reload</button>
+          <button class="vsp-btn" id="ro_save">Save</button>
+        </div>
+      </div>
+      <div class="vsp-card" style="margin-bottom:10px">
+        <div class="vsp-muted" id="ro_meta" style="font-size:12px"></div>
+        <div class="vsp-muted" style="font-size:12px;margin-top:6px">
+          schema: {"rules":[ {"tool":"semgrep","rule_id":"...","action":"ignore|downgrade|upgrade","severity":"LOW","reason":"..."} ]}
+        </div>
+      </div>
+      <div class="vsp-card">
+        <textarea id="ro_text" class="vsp-code" spellcheck="false"></textarea>
+        <div id="ro_msg" style="margin-top:8px;font-size:12px"></div>
+      </div>
+    `;
+
+    const ridSel=$("#ro_rid"), meta=$("#ro_meta"), txt=$("#ro_text"), msg=$("#ro_msg");
+
+    function normalize(obj){
+      if(Array.isArray(obj)) obj = {rules: obj};
+      if(!obj || typeof obj!=="object" || !Array.isArray(obj.rules)) throw new Error("expect {rules:[...]} or [...]");
+      return obj;
+    }
+
+    async function loadRuns(){
+      ridSel.innerHTML = `<option value="">(loading runs...)</option>`;
+      try{
+        const j = await api("/api/ui/runs_v1?limit=160");
+        const items = j.items||[];
+        if(!items.length){
+          ridSel.innerHTML = `<option value="">(no runs found)</option>`;
+          return;
+        }
+        ridSel.innerHTML = items.map(x=>`<option value="${esc(x.rid)}">${esc(x.rid)}</option>`).join("");
+        ridSel.value = items[0].rid;
+      }catch(e){
+        ridSel.innerHTML = `<option value="">(runs API failed)</option>`;
+      }
+    }
+
+    async function load(){
+      msg.innerHTML = `<span class="vsp-muted">Loading...</span>`;
+      const j = await api("/api/ui/rule_overrides_v2");
+      meta.textContent = `path: ${j.path||""}`;
+      txt.value = JSON.stringify(j.data||{rules:[]}, null, 2);
+      msg.innerHTML = `<span class="vsp-ok">OK</span>`;
+    }
+
+    async function save(){
+      let obj;
+      try{ obj = normalize(JSON.parse(txt.value||"{}")); }
+      catch(e){ msg.innerHTML = `<span class="vsp-err">Invalid JSON:</span> ${esc(e.message||String(e))}`; return; }
+      msg.innerHTML = `<span class="vsp-muted">Saving...</span>`;
+      const j = await api("/api/ui/rule_overrides_v2", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(obj)});
+      msg.innerHTML = `<span class="vsp-ok">Saved</span> · rules_n=${esc(j.rules_n||"")}`;
+      await load();
+    }
+
+    async function apply(){
+      const rid = (ridSel.value||"").trim();
+      if(!rid){ msg.innerHTML = `<span class="vsp-err">No RID selected</span>`; return; }
+      msg.innerHTML = `<span class="vsp-muted">Applying overrides...</span>`;
+      const j = await api(`/api/ui/rule_overrides_apply_v1?rid=${encodeURIComponent(rid)}`);
+      msg.innerHTML = `<span class="vsp-ok">Applied</span> · ignored=${esc(j.stats?.ignored)} downgraded=${esc(j.stats?.downgraded)} upgraded=${esc(j.stats?.upgraded)} · out=${esc(j.out_fp||"")}`;
+    }
+
+    $("#ro_reload").onclick = ()=>load().catch(e=>msg.innerHTML=`<span class="vsp-err">${esc(e.message||e)}</span>`);
+    $("#ro_save").onclick = ()=>save().catch(e=>msg.innerHTML=`<span class="vsp-err">${esc(e.message||e)}</span>`);
+    $("#ro_apply").onclick = ()=>apply().catch(e=>msg.innerHTML=`<span class="vsp-err">${esc(e.message||e)}</span>`);
+
+    await loadRuns();
+    await load();
+  }
+  document.addEventListener("DOMContentLoaded", boot);
+})();

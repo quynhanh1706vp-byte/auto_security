@@ -1,0 +1,35 @@
+:root {
+  --vsp-bg: #050814;
+  --vsp-surface: #0b1020;
+  --vsp-surface-soft: #131832;
+  --vsp-border-subtle: rgba(255, 255, 255, 0.06);
+  --vsp-border-strong: rgba(255, 255, 255, 0.14);
+  --vsp-text: #e5e7eb;
+  --vsp-text-soft: #9ca3af;
+  --vsp-text-muted: #6b7280;
+
+  --vsp-accent-green: #22c55e;
+  --vsp-accent-green-soft: rgba(34, 197, 94, 0.15);
+  --vsp-accent-blue: #38bdf8;
+  --vsp-accent-blue-soft: rgba(56, 189, 248, 0.12);
+  --vsp-accent-amber: #fbbf24;
+  --vsp-accent-red: #ef4444;
+
+  --vsp-sev-critical: #f97373;
+  --vsp-sev-high: #fb923c;
+  --vsp-sev-medium: #facc15;
+  --vsp-sev-low: #22c55e;
+  --vsp-sev-info: #38bdf8;
+  --vsp-sev-trace: #a855f7;
+
+  --vsp-radius-lg: 18px;
+  --vsp-radius-md: 12px;
+  --vsp-radius-pill: 999px;
+
+  --vsp-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.9);
+  --vsp-shadow-subtle: 0 8px 18px rgba(15, 23, 42, 0.7);
+
+  --vsp-sidebar-width: 260px;
+}
+
+/* (phần còn lại y hệt CSS mình gửi ở trên – bạn có thể copy toàn bộ) */

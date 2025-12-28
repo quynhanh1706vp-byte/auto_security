@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "req_id": "VSP_UIREQ_20251214_082917_b9585c",
+  "created_at": "2025-12-14T01:29:17Z",
+  "started_at": "2025-12-14T01:29:17Z",
+  "finished_at": null,
+  "status": "RUNNING",
+  "final": false,
+  "exit_code": null,
+  "gate": "UNKNOWN",
+  "stage": {
+    "i": 0,
+    "n": 8,
+    "name": "",
+    "progress": 0
+  },
+  "ci_run_dir": "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_082917",
+  "vsp_run_id": "",
+  "flag": {
+    "has_findings": null
+  },
+  "degraded": 0,
+  "degraded_reasons": "",
+  "sync": {
+    "done": false,
+    "ok": null,
+    "msg": ""
+  },
+  "meta": {
+    "mode": "local",
+    "profile": "FULL_EXT",
+    "target": "/home/test/Data/SECURITY-10-10-v4",
+    "outer": "/home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_outer_full_v1.sh"
+  },
+  "watch": {
+    "last_stage_sig": "",
+    "last_stage_at": 1765675757.041587,
+    "start_ts": 1765675757.0415883
+  },
+  "log_file": "/home/test/Data/SECURITY_BUNDLE/ui/out_ci/uireq_v1/UIREQ_20251214_082917_b9585c.log",
+  "tail": "",
+  "request_id": "VSP_UIREQ_20251214_082917_b9585c",
+  "rid": "VSP_UIREQ_20251214_082917_b9585c",
+  "status_url": "/api/vsp/run_status_v1/VSP_UIREQ_20251214_082917_b9585c",
+  "updated_at": "2025-12-14T01:29:17Z",
+  "finish_reason": "running",
+  "kill_reason": "",
+  "killed": false,
+  "progress_pct": 25,
+  "runner_log": "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_082917/runner.log",
+  "stage_sig": "3/8||3",
+  "stall_timeout_sec": 600,
+  "total_timeout_sec": 7200
+}

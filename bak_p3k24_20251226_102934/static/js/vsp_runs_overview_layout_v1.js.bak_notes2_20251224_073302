@@ -1,0 +1,131 @@
+// VSP_RUNS_OVERVIEW_LAYOUT_V3
+// Gom 3 KPI Runs overview thành grid + hiển thị Last run chip (fix insertBefore).
+
+(function() {
+
+  // VSP_ROUTE_GUARD_RUNS_ONLY_V1
+  function __vsp_is_runs_only_v1(){
+    try {
+      const h = (location.hash||"").toLowerCase();
+      return h.startsWith("#runs") || h.includes("#runs/");
+    } catch(_) { return false; }
+  }
+  if(!__vsp_is_runs_only_v1()){
+    try{ console.info("[VSP_ROUTE_GUARD_RUNS_ONLY_V1] skip", "vsp_runs_overview_layout_v1.js", "hash=", location.hash); } catch(_){}
+    return;
+  }
+
+  const LOG = "[VSP_RUNS_LAYOUT]";
+  let applied = false;
+
+  function findCards() {
+    const tab = document.querySelector("#vsp-tab-runs");
+    if (!tab) return null;
+
+    const titles = ["TOTAL RUNS", "CRITICAL + HIGH", "AVG FINDINGS / RUN"];
+    const map = {};
+    const els = tab.querySelectorAll("*");
+
+    for (const el of els) {
+      const text = (el.textContent || "").trim().toUpperCase();
+      if (!text) continue;
+      for (const t of titles) {
+        if (!map[t] && text === t) {
+          let card = el.closest(".vsp-kpi-card");
+          if (!card) card = el.closest("div");
+          if (card) map[t] = card;
+        }
+      }
+    }
+
+    const cards = titles.map((t) => map[t]).filter(Boolean);
+    if (cards.length !== 3) return null;
+    return { tab, cards };
+  }
+
+  function buildLastRunChip(tab, grid) {
+    if (tab.querySelector(".vsp-runs-last-run")) return;
+
+    fetch("/api/vsp/runs_index_v3_fs?limit=1")
+      .then((r) => r.json())
+      .then((data) => {
+        const items = data.items || [];
+        const last = items[0];
+        if (!last) {
+          console.log(LOG, "Không có run nào để render Last run chip.");
+          return;
+        }
+
+        const runId = last.run_id || last.id || "—";
+        const started = last.started_at || last.start_time || "";
+        const findings =
+          last.total_findings !== undefined
+            ? last.total_findings
+            : last.findings_total !== undefined
+            ? last.findings_total
+            : null;
+
+        const chip = document.createElement("div");
+        chip.className = "vsp-runs-last-run";
+        chip.innerHTML =
+          '<div class="vsp-runs-last-run-label">Last run</div>' +
+          '<div class="vsp-runs-last-run-meta">' +
+          `<span>${runId}</span>` +
+          `<span>${started || "time: N/A"}</span>` +
+          `<span>${findings != null ? findings + " findings" : "findings: N/A"}</span>` +
+          "</div>";
+
+        const parent = grid.parentElement || tab;
+        if (grid.nextSibling && grid.nextSibling.parentNode === parent) {
+          parent.insertBefore(chip, grid.nextSibling);
+        } else {
+          parent.appendChild(chip);
+        }
+
+        console.log(LOG, "Đã render Last run chip.");
+      })
+      .catch((e) => {
+        console.warn(LOG, "Lỗi fetch runs_index_v3:", e);
+      });
+  }
+
+  function applyLayout() {
+    if (applied) return true;
+    const res = findCards();
+    if (!res) return false;
+    const { tab, cards } = res;
+
+    let grid = tab.querySelector(".vsp-runs-overview-grid");
+    if (!grid) {
+      grid = document.createElement("div");
+      grid.className = "vsp-runs-overview-grid";
+      const parent = cards[0].parentElement || tab;
+      parent.insertBefore(grid, cards[0]);
+    }
+
+    cards.forEach((c) => grid.appendChild(c));
+    applied = true;
+    console.log(LOG, "Applied grid layout cho Runs overview.");
+    buildLastRunChip(tab, grid);
+    return true;
+  }
+
+  function start() {
+    let tries = 0;
+    const maxTries = 30;
+    const timer = setInterval(() => {
+      if (applyLayout()) {
+        clearInterval(timer);
+      } else if (++tries >= maxTries) {
+        clearInterval(timer);
+        console.warn(LOG, "Give up sau", tries, "lần, không tìm đủ 3 KPI card.");
+      }
+    }, 400);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();

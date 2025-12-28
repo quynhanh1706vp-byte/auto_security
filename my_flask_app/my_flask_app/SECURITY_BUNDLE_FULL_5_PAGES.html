@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SECURITY BUNDLE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top, #020817 0, #020617 45%, #020617 100%);
+      color: #e2e8f0;
+    }
+    .card {
+      background: rgba(15,23,42,0.96);
+      border-radius: 1.25rem;
+      border: 1px solid #1e293b;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .panel-main {
+      background: rgba(15,23,42,0.96);
+      border-radius: 1.5rem;
+      border: 1px solid #1f2937;
+      box-shadow: 0 24px 80px rgba(15,23,42,0.9);
+    }
+    .btn-run {
+      background: #22c55e;
+      color: #00140a;
+      font-weight: 800;
+      box-shadow: 0 0 30px rgba(34,197,94,0.55);
+    }
+    .btn-run:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+      box-shadow: 0 0 40px rgba(34,197,94,0.7);
+    }
+    .btn-save {
+      background: #22c55e;
+      color: white;
+      font-weight: 800;
+      box-shadow: 0 0 24px rgba(34,197,94,0.5);
+    }
+    .btn-save:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+    .severity-total { background: radial-gradient(circle at top, #052e16, #022c22); border: 2px solid #16a34a; }
+    .severity-critical { background: #450a0a; }
+    .severity-high     { background: #431407; }
+    .severity-medium   { background: #422006; }
+    .severity-low      { background: #0f172a; }
+    .progress {
+      height: 8px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .active-menu {
+      background: rgba(56,189,248,0.12) !important;
+      color: #e5e7eb !important;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.4);
+    }
+    .tab-active {
+      background: #020617;
+      color: #22c55e;
+      border-bottom: 2px solid #22c55e;
+    }
+    nav a {
+      transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    nav a:hover {
+      background: rgba(15,23,42,0.9);
+      transform: translateX(3px);
+      box-shadow: 0 0 18px rgba(148,163,184,0.3);
+    }
+    .left-badge {
+      background: rgba(15,23,42,0.9);
+      border-radius: 1rem;
+      border: 1px solid #1f2937;
+    }
+    /* Lime -> xanh thuần */
+    .text-lime-200, .text-lime-300, .text-lime-400, .text-lime-500 { color:#22c55e!important; }
+    .bg-lime-200, .bg-lime-300, .bg-lime-400, .bg-lime-500 { background-color:#22c55e!important; }
+    .border-lime-200, .border-lime-300, .border-lime-400, .border-lime-500 { border-color:#22c55e!important; }
+    input[type="checkbox"]:checked { accent-color:#22c55e; }
+    .export-link { color:#f9fafb; }
+    .export-link:hover { text-decoration:underline; }
+    @media print {
+      html, body { height:auto; background:#ffffff!important; color:#000!important; }
+      .layout-root { display:block!important; }
+      .sidebar-print-hide { display:none!important; }
+      .main-print { margin:0!important; padding:0!important; }
+      .panel-main, .card {
+        box-shadow:none!important;
+        border-radius:0!important;
+        border-color:#e5e7eb!important;
+        background:#ffffff!important;
+        color:#000!important;
+      }
+      section { page-break-after:always; }
+      section:last-of-type { page-break-after:auto; }
+      button {
+        border:1px solid #000!important;
+        background:#fff!important;
+        color:#000!important;
+        box-shadow:none!important;
+      }
+    }
+  </style>
+</head>
+<body class="h-full">
+
+<div class="layout-root flex min-h-screen">
+  <!-- Sidebar -->
+  <div class="sidebar-print-hide w-80 bg-slate-950/95 border-r border-slate-800 flex flex-col">
+    <div class="p-6 border-b border-slate-800">
+      <h1 class="text-sm font-semibold text-slate-400 tracking-widest">SECURITY BUNDLE</h1>
+      <div class="mt-3 left-badge px-4 py-3">
+        <div class="text-xs text-slate-500 uppercase mb-1">Profile</div>
+        <div class="text-sm font-semibold text-slate-100">EXT – Multi-tool offline</div>
+        <div class="mt-1 text-[11px] text-slate-500">
+          RUN_20251126_115421
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-4 space-y-2 text-sm">
+      <div class="text-[11px] text-slate-500 uppercase px-3 mb-1">Main</div>
+      <a href="#dashboard" class="active-menu block px-5 py-3 rounded-lg font-medium cursor-pointer">
+        <i class="fas fa-gauge-high mr-2 text-sky-400"></i> Dashboard
+      </a>
+      <a href="#runs" class="block px-5 py-3 hover:bg-slate-900 rounded-lg cursor-pointer">
+        <i class="fas fa-clock-rotate-left mr-2 text-sky-400"></i> Runs &amp; Reports
+      </a>
+      <a href="#datasource" class="block px-5 py-3 hover:bg-slate-900 rounded-lg cursor-pointer">
+        <i class="fas fa-database mr-2 text-sky-400"></i> Data Source
+      </a>
+      <a href="#settings" class="block px-5 py-3 hover:bg-slate-900 rounded-lg cursor-pointer">
+        <i class="fas fa-sliders mr-2 text-sky-400"></i> Settings
+      </a>
+      <a href="#overrides" class="block px-5 py-3 hover:bg-slate-900 rounded-lg cursor-pointer">
+        <i class="fas fa-shield-halved mr-2 text-sky-400"></i> Rule Overrides
+      </a>
+    </nav>
+  </div>
+
+  <!-- Main -->
+  <div class="main-print flex-1 overflow-y-auto p-5 md:p-8 lg:p-10 flex">
+    <div class="panel-main w-full px-5 md:px-8 lg:px-10 py-6 md:py-8 lg:py-10">
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="mb-10">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div>
+            <div class="text-[11px] tracking-[0.25em] text-sky-400 uppercase mb-2">Security Scan</div>
+            <h2 class="text-3xl md:text-4xl font-extrabold tracking-wide text-slate-50">SECURITY_BUNDLE</h2>
+            <p class="text-[12px] md:text-sm text-slate-400 mt-1">
+              Multi-tool offline scan • Mode: <span class="text-sky-300 font-medium">OFFLINE</span> • Profile: <span class="text-lime-300 font-medium">AGGRESSIVE</span>
+            </p>
+            <p class="text-[11px] md:text-xs text-slate-500 mt-1">
+              Last run: <span class="text-slate-300">2025-11-26 13:00:52</span> • SRC:
+              <span class="font-mono text-slate-300">/home/test/Data/CODE_20112025_P</span>
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-2 text-[11px] md:text-xs">
+            <div class="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-700 text-slate-300">
+              Tools enabled: <span class="font-semibold text-lime-300">6 / 7</span>
+            </div>
+            <div class="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-700 text-slate-300">
+              Critical / High: <span class="font-semibold text-orange-300">0 / 170</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Run controls -->
+        <div class="card p-4 md:p-5 mb-6">
+          <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1.1fr)] gap-4">
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400 mb-1">Target url (optional)</div>
+              <input type="text" class="bg-slate-900/70 px-4 py-2.5 md:py-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-400 text-xs md:text-sm w-full"
+                     value="https://app.example.com">
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400 mb-1">Src folder</div>
+              <input type="text" class="bg-slate-900/70 px-4 py-2.5 md:py-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-400 text-xs md:text-sm w-full"
+                     value="/home/test/Data/CODE_20112025_P">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400 mb-1">Profile</div>
+                <select class="bg-slate-900/70 px-3 py-2.5 rounded-xl border border-slate-700 text-xs text-slate-300 focus:outline-none w-full">
+                  <option>Aggressive</option>
+                  <option>Fast</option>
+                </select>
+              </div>
+              <div>
+                <div class="text-[10px] uppercase tracking-[0.18em] text-slate-400 mb-1">Mode</div>
+                <select class="bg-slate-900/70 px-3 py-2.5 rounded-xl border border-slate-700 text-xs text-slate-300 focus:outline-none w-full">
+                  <option>Offline</option>
+                  <option>Online</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex items-end">
+              <button class="btn-run w-full lg:w-auto px-6 md:px-8 py-3 rounded-2xl text-sm md:text-base font-bold shadow-lg flex items-center justify-center gap-3">
+                <i class="fas fa-play"></i> Run scan
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tiles + by tool + bar + top risk -->
+        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-6">
+          <div class="space-y-6">
+            <!-- Tiles -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div class="severity-total card p-5 text-center">
+                <div class="text-xs text-lime-200/90 tracking-[0.22em] uppercase mb-2">Total findings</div>
+                <div class="text-4xl md:text-5xl font-black text-lime-300">9071</div>
+                <div class="text-[11px] text-lime-100/80 mt-2">Across all tools</div>
+              </div>
+              <div class="severity-critical card p-4 text-center">
+                <div class="text-[11px] tracking-[0.18em] uppercase text-red-200/80 mb-1">Critical</div>
+                <div class="text-3xl md:text-4xl font-bold text-red-300">0</div>
+                <div class="progress mt-3"><div class="h-full bg-red-500" style="width:0%"></div></div>
+                <p class="text-[11px] text-red-100/80 mt-2">No critical issue detected.</p>
+              </div>
+              <div class="severity-high card p-4 text-center">
+                <div class="text-[11px] tracking-[0.18em] uppercase text-orange-200/80 mb-1">High</div>
+                <div class="text-3xl md:text-4xl font-bold text-orange-300">170</div>
+                <div class="progress mt-3"><div class="h-full bg-orange-400" style="width:100%"></div></div>
+                <p class="text-[11px] text-orange-100/90 mt-2">Priority remediation bucket.</p>
+              </div>
+              <div class="severity-medium card p-4 text-center">
+                <div class="text-[11px] tracking-[0.18em] uppercase text-yellow-200/80 mb-1">Medium / Low</div>
+                <div class="text-3xl md:text-4xl font-bold text-yellow-300">8901</div>
+                <div class="progress mt-3"><div class="h-full bg-yellow-400" style="width:96%"></div></div>
+                <p class="text-[11px] text-yellow-100/90 mt-2">Bulk of noisy findings.</p>
+              </div>
+            </div>
+
+            <!-- By tool -->
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                  <i class="fas fa-table-cells-large text-sky-400"></i> By tool – severity buckets
+                </h3>
+                <span class="text-[11px] text-slate-500">From summary_unified.json</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-[11px] md:text-xs">
+                  <thead>
+                    <tr class="text-slate-400">
+                      <th class="text-left pb-2">Tool</th>
+                      <th class="text-right pb-2">C</th>
+                      <th class="text-right pb-2">H</th>
+                      <th class="text-right pb-2">M</th>
+                      <th class="text-right pb-2">L</th>
+                      <th class="text-right pb-2">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800">
+                    <tr>
+                      <td class="py-1">Semgrep</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right text-orange-300">346</td>
+                      <td class="text-right">8651</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right font-semibold text-lime-300">8997</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1">Gitleaks</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right text-orange-300">26</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">26</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1">Grype</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">1</td>
+                      <td class="text-right">1</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">2</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1">Trivy</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">3</td>
+                      <td class="text-right">8</td>
+                      <td class="text-right">12</td>
+                      <td class="text-right">23</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right side -->
+          <div class="space-y-6">
+            <div class="card p-5 flex flex-col">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                  <i class="fas fa-chart-column text-sky-400"></i> Severity buckets – last run
+                </h3>
+                <span class="text-[11px] text-slate-500">Critical / High / Medium / Low</span>
+              </div>
+              <div class="flex-1">
+                <canvas id="trendChart" height="220"></canvas>
+              </div>
+              <div class="mt-3 flex justify-between text-[11px] text-slate-500">
+                <span>↓ Phù hợp: tổng giảm dần theo từng RUN</span>
+                <span class="font-mono text-slate-400">RUN_20251122 → RUN_20251126</span>
+              </div>
+            </div>
+
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                  <i class="fas fa-radiation text-orange-400"></i> Top risk findings (Critical / High)
+                </h3>
+                <span class="text-[11px] text-slate-500">Max 10 entries</span>
+              </div>
+              <div class="space-y-3 text-[11px] md:text-xs">
+                <div class="p-3 rounded-xl border border-red-700 bg-red-950/40">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] px-2 py-1 rounded-full bg-red-600 text-white font-semibold">CRITICAL</span>
+                    <span class="font-mono text-[10px] text-slate-300">generic.audit.exec</span>
+                  </div>
+                  <div class="mt-2 font-semibold">Untrusted command execution in helper script</div>
+                  <div class="mt-1 text-[10px] text-slate-400">
+                    File: <span class="font-mono">utils/helper.py:89</span>
+                  </div>
+                </div>
+                <div class="p-3 rounded-xl border border-orange-700 bg-orange-950/40">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] px-2 py-1 rounded-full bg-orange-400 text-black font-semibold">HIGH</span>
+                    <span class="font-mono text-[10px] text-slate-300">gitleaks.aws-access-key</span>
+                  </div>
+                  <div class="mt-2 font-semibold">Hard-coded AWS Access Key</div>
+                  <div class="mt-1 text-[10px] text-slate-400">
+                    File: <span class="font-mono">config.js</span>
+                  </div>
+                </div>
+                <div class="p-3 rounded-xl border border-orange-700 bg-orange-950/30">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] px-2 py-1 rounded-full bg-orange-400 text-black font-semibold">HIGH</span>
+                    <span class="font-mono text-[10px] text-slate-300">semgrep.jwt-insecure</span>
+                  </div>
+                  <div class="mt-2 font-semibold">
+                    Insecure JWT verification without signature check
+                  </div>
+                  <div class="mt-1 text-[10px] text-slate-400">
+                    File: <span class="font-mono">auth/jwt_utils.py:42</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+                Tip: dùng tab <span class="font-semibold text-slate-200">Rule Overrides</span>
+                để hạ severity cho test folder / false positive.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trend total findings – THẤP HƠN, 10 RUN -->
+        <div class="card p-5 mt-3">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-slate-100">Trend (total findings)</h3>
+            <span class="text-[11px] text-slate-500">Last 10 runs</span>
+          </div>
+          <div class="h-32 sm:h-36 lg:h-40">
+            <canvas id="trendTotalChart" class="w-full h-full"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- RUNS & REPORTS -->
+      <section id="runs" class="hidden mb-10">
+        <h2 class="text-3xl md:text-4xl font-bold mb-6">Runs &amp; Reports</h2>
+        <div class="card p-5 overflow-x-auto">
+          <table class="w-full text-[11px] md:text-xs">
+            <thead class="border-b border-slate-800">
+              <tr class="text-slate-300">
+                <th class="pb-3 text-left">RUN</th>
+                <th class="pb-3 text-right">Total</th>
+                <th class="pb-3 text-right">C</th>
+                <th class="pb-3 text-right">H</th>
+                <th class="pb-3 text-right">M</th>
+                <th class="pb-3 text-right">L</th>
+                <th class="pb-3 text-center">Export</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              <tr class="hover:bg-slate-900/80">
+                <td class="py-4 font-mono">RUN_20251126_032236</td>
+                <td class="py-4 font-bold text-lime-300 text-right">9071</td>
+                <td class="text-right">0</td>
+                <td class="text-right text-orange-300">170</td>
+                <td class="text-right">8891</td>
+                <td class="text-right">10</td>
+                <td class="py-4 text-center">
+                  <a href="#" class="export-link text-[10px] font-medium">HTML</a>
+                  <span class="text-slate-600 mx-0.5">|</span>
+                  <a href="#" class="export-link text-[10px] font-medium">PDF</a>
+                  <span class="text-slate-600 mx-0.5">|</span>
+                  <a href="#" class="export-link text-[10px] font-medium">CSV</a>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-900/80">
+                <td class="py-4 font-mono">RUN_20251126_020728</td>
+                <td class="py-4 text-right">9071</td>
+                <td class="text-right">0</td>
+                <td class="text-right">170</td>
+                <td class="text-right">8891</td>
+                <td class="text-right">10</td>
+                <td class="py-4 text-center">
+                  <a href="#" class="export-link text-[10px] font-medium">HTML</a>
+                  <span class="text-slate-600 mx-0.5">|</span>
+                  <a href="#" class="export-link text-[10px] font-medium">PDF</a>
+                  <span class="text-slate-600 mx-0.5">|</span>
+                  <a href="#" class="export-link text-[10px] font-medium">CSV</a>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-900/80">
+                <td class="py-4 font-mono">RUN_20251125_210538</td>
+                <td class="py-4 text-right">33</td>
+                <td class="text-right">0</td>
+                <td class="text-right">27</td>
+                <td class="text-right">5</td>
+                <td class="text-right">1</td>
+                <td class="py-4 text-center">
+                  <a href="#" class="export-link text-[10px] font-medium">HTML</a>
+                  <span class="text-slate-600 mx-0.5">|</span>
+                  <a href="#" class="export-link text-[10px] font-medium">PDF</a>
+                  <span class="text-slate-600 mx-0.5">|</span>
+                  <a href="#" class="export-link text-[10px] font-medium">CSV</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- DATA SOURCE -->
+      <section id="datasource" class="hidden mb-10">
+        <h2 class="text-3xl md:text-4xl font-bold mb-6">Data Source</h2>
+        <div class="card">
+          <div class="flex border-b border-slate-800">
+            <button id="tab-summary" class="tab-active px-5 py-3 font-semibold text-[11px] cursor-pointer">
+              Summary by Tool
+            </button>
+            <button id="tab-samples" class="px-5 py-3 hover:bg-slate-900 text-[11px] cursor-pointer">
+              Sample Findings
+            </button>
+          </div>
+          <div class="p-5">
+            <div id="summary-content">
+              <div class="overflow-x-auto">
+                <table class="w-full text-[11px] md:text-sm">
+                  <thead class="border-b border-slate-800">
+                    <tr class="text-slate-300">
+                      <th class="text-left pb-3">Tool</th>
+                      <th class="text-right pb-3">Critical</th>
+                      <th class="text-right pb-3">High</th>
+                      <th class="text-right pb-3">Medium</th>
+                      <th class="text-right pb-3">Low</th>
+                      <th class="text-right pb-3">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800">
+                    <tr>
+                      <td class="py-4">Semgrep</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right text-orange-300">346</td>
+                      <td class="text-right">8651</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right text-lime-300 font-bold">8997</td>
+                    </tr>
+                    <tr>
+                      <td class="py-4">Gitleaks</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right text-orange-300">26</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">26</td>
+                    </tr>
+                    <tr>
+                      <td class="py-4">Grype</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">1</td>
+                      <td class="text-right">1</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">2</td>
+                    </tr>
+                    <tr>
+                      <td class="py-4">Trivy</td>
+                      <td class="text-right">0</td>
+                      <td class="text-right">3</td>
+                      <td class="text-right">8</td>
+                      <td class="text-right">12</td>
+                      <td class="text-right">23</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Sample findings = TABLE -->
+            <div id="samples-content" class="hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-[11px] md:text-sm">
+                  <thead class="border-b border-slate-800">
+                    <tr class="text-slate-300">
+                      <th class="text-left pb-3">Severity</th>
+                      <th class="text-left pb-3">Tool</th>
+                      <th class="text-left pb-3">Rule ID</th>
+                      <th class="text-left pb-3">Location</th>
+                      <th class="text-left pb-3">Message</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800">
+                    <tr>
+                      <td class="py-3">
+                        <span class="px-2 py-1 rounded-full text-[10px] bg-red-600 text-white font-semibold">CRITICAL</span>
+                      </td>
+                      <td class="py-3">Semgrep</td>
+                      <td class="py-3 font-mono text-[11px]">generic.audit.exec</td>
+                      <td class="py-3 font-mono text-[11px]">utils/helper.py:89</td>
+                      <td class="py-3">Untrusted command execution in helper script</td>
+                    </tr>
+                    <tr>
+                      <td class="py-3">
+                        <span class="px-2 py-1 rounded-full text-[10px] bg-orange-400 text-black font-semibold">HIGH</span>
+                      </td>
+                      <td class="py-3">Gitleaks</td>
+                      <td class="py-3 font-mono text-[11px]">gitleaks.aws-access-key</td>
+                      <td class="py-3 font-mono text-[11px]">config.js</td>
+                      <td class="py-3">Hard-coded AWS Access Key</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settings" class="hidden mb-10">
+        <h2 class="text-3xl md:text-4xl font-bold mb-6">Settings</h2>
+        <div class="card p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px] md:text-sm">
+              <thead class="border-b border-slate-800">
+                <tr class="text-slate-300">
+                  <th class="text-left pb-3">Tool</th>
+                  <th class="text-center pb-3">Enable</th>
+                  <th class="text-left pb-3">Level</th>
+                  <th class="text-left pb-3">Allowed Modes</th>
+                  <th class="text-left pb-3">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr>
+                  <td class="py-4">Gitleaks</td>
+                  <td class="py-4 text-center"><input type="checkbox" checked class="w-5 h-5 rounded"></td>
+                  <td>—</td>
+                  <td>Fast + Aggressive</td>
+                  <td>Tìm secret, API key, password hard-code trong repo.</td>
+                </tr>
+                <tr>
+                  <td class="py-4">Semgrep</td>
+                  <td class="py-4 text-center"><input type="checkbox" checked class="w-5 h-5 rounded"></td>
+                  <td>Aggressive</td>
+                  <td>Aggressive only</td>
+                  <td>Rule-based engine mạnh, cover nhiều ngôn ngữ và framework.</td>
+                </tr>
+                <tr>
+                  <td class="py-4">Trivy</td>
+                  <td class="py-4 text-center"><input type="checkbox" checked class="w-5 h-5 rounded"></td>
+                  <td>Aggressive</td>
+                  <td>Fast + Aggressive</td>
+                  <td>Scan vuln, misconfig, secret cho container / filesystem.</td>
+                </tr>
+                <tr>
+                  <td class="py-4">Grype</td>
+                  <td class="py-4 text-center"><input type="checkbox" checked class="w-5 h-5 rounded"></td>
+                  <td>Standard</td>
+                  <td>Fast</td>
+                  <td>Vulnerability scanner dựa trên SBOM (Syft + Grype).</td>
+                </tr>
+                <tr>
+                  <td class="py-4 text-red-400">CodeQL</td>
+                  <td class="py-4 text-center"><input type="checkbox" class="w-5 h-5 rounded"></td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>Skipped – Không tìm thấy query pack / chưa bật profile.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-6 text-right">
+            <button class="btn-save px-10 py-3 rounded-2xl text-sm md:text-base inline-flex items-center justify-center gap-2">
+              <i class="fas fa-floppy-disk"></i> Save Changes
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RULE OVERRIDES -->
+      <section id="overrides" class="hidden mb-10">
+        <h2 class="text-3xl md:text-4xl font-bold mb-6">Rule Overrides</h2>
+        <div class="card p-6 md:p-7 lg:p-8">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <div class="text-xs font-semibold text-emerald-300 uppercase tracking-[0.2em] mb-1">
+                Current Overrides
+              </div>
+              <p class="text-[11px] text-slate-400">
+                Hạ severity cho <span class="font-mono text-slate-200">tests/</span> hoặc các finding đã xác nhận là
+                <span class="text-slate-200">false positive</span>. Những override này sẽ được áp dụng khi build report.
+              </p>
+              <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                <span class="px-2.5 py-1 rounded-full bg-emerald-900/40 border border-emerald-600 text-emerald-200 font-medium">
+                  1 override đang active
+                </span>
+                <span class="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
+                  Last updated: 2025-11-26 13:05
+                </span>
+              </div>
+            </div>
+            <button class="font-semibold px-6 py-2.5 rounded-full text-[11px] inline-flex items-center gap-2 bg-emerald-700 text-slate-50 hover:bg-emerald-600 transition-colors">
+              <i class="fas fa-plus"></i> Add New Override
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px] md:text-sm">
+              <thead>
+                <tr class="text-slate-300 border-b border-slate-800">
+                  <th class="text-left pb-3">Rule ID</th>
+                  <th class="text-left pb-3">Current</th>
+                  <th class="text-left pb-3">Override To</th>
+                  <th class="text-left pb-3">Path Regex</th>
+                  <th class="text-left pb-3">Note</th>
+                  <th class="text-left pb-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800">
+                <tr class="hover:bg-slate-900/70">
+                  <td class="py-4 font-mono text-[11px] text-slate-100">generic.audit.exec</td>
+                  <td class="py-4">
+                    <span class="px-2 py-1 rounded-full bg-red-700/40 text-red-200 text-[10px] border border-red-500/70">
+                      Critical
+                    </span>
+                  </td>
+                  <td class="py-4">
+                    <span class="px-2 py-1 rounded-full bg-orange-600/30 text-orange-200 text-[10px] border border-orange-400/70">
+                      High
+                    </span>
+                  </td>
+                  <td class="py-4 font-mono text-[11px] text-slate-200">.*tests/.*</td>
+                  <td class="py-4 text-[11px] text-slate-400">
+                    Allow command-exec pattern trong unit test, không tính vào risk thật.
+                  </td>
+                  <td class="py-4 space-x-3">
+                    <button class="px-2.5 py-1 rounded-full border border-sky-500/70 text-sky-300 text-[10px] hover:bg-sky-500/10">Edit</button>
+                    <button class="px-2.5 py-1 rounded-full border border-red-500/70 text-red-300 text-[10px] hover:bg-red-500/10">Delete</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Bar chart (severity buckets last run)
+new Chart(document.getElementById('trendChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Critical','High','Medium','Low'],
+    datasets: [{
+      data: [0,170,8891,10],
+      backgroundColor: [
+        'rgba(248,113,113,0.85)',
+        'rgba(251,146,60,0.9)',
+        'rgba(250,204,21,0.9)',
+        'rgba(56,189,248,0.9)'
+      ],
+      borderWidth:0,
+      borderRadius:12,
+      maxBarThickness:40
+    }]
+  },
+  options:{
+    plugins:{legend:{display:false}},
+    scales:{
+      y:{grid:{color:'#1f2937'},ticks:{color:'#cbd5f5',font:{size:10}}},
+      x:{grid:{display:false},ticks:{color:'#cbd5f5',font:{size:10}}}
+    }
+  }
+});
+
+// Trend total findings – 10 runs, card thấp, ép hiện đủ label
+const trendTotalCtx = document.getElementById('trendTotalChart');
+if(trendTotalCtx){
+  new Chart(trendTotalCtx,{
+    type:'line',
+    data:{
+      labels:['18/11','19/11','20/11','21/11','22/11','23/11','24/11','25/11','26/11','27/11'],
+      datasets:[{
+        data:[10234,9560,9120,8845,7997,3891,5236,6120,8540,9071],
+        borderColor:'#22c55e',
+        backgroundColor:'rgba(34,197,94,0.16)',
+        fill:true,
+        tension:0.45,
+        pointBackgroundColor:'#22c55e',
+        pointRadius:3,
+        pointHoverRadius:5,
+        borderWidth:2
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{grid:{color:'#1f2937'},ticks:{color:'#cbd5f5',font:{size:10}}},
+        x:{
+          grid:{display:false},
+          ticks:{
+            color:'#cbd5f5',
+            font:{size:10},
+            autoSkip:false,
+            maxRotation:0,
+            minRotation:0
+          }
+        }
+      }
+    }
+  });
+}
+
+// Sidebar nav
+document.querySelectorAll('nav a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const targetId=a.getAttribute('href');
+    if(!targetId) return;
+    document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));
+    document.querySelectorAll('nav a').forEach(n=>n.classList.remove('active-menu'));
+    const target=document.querySelector(targetId);
+    if(target) target.classList.remove('hidden');
+    a.classList.add('active-menu');
+  });
+});
+
+// Data Source tabs
+const tabSummary=document.getElementById('tab-summary');
+const tabSamples=document.getElementById('tab-samples');
+const summaryContent=document.getElementById('summary-content');
+const samplesContent=document.getElementById('samples-content');
+
+if(tabSummary && tabSamples){
+  tabSummary.onclick=()=>{
+    tabSummary.classList.add('tab-active');
+    tabSamples.classList.remove('tab-active');
+    summaryContent.classList.remove('hidden');
+    samplesContent.classList.add('hidden');
+  };
+  tabSamples.onclick=()=>{
+    tabSamples.classList.add('tab-active');
+    tabSummary.classList.remove('tab-active');
+    samplesContent.classList.remove('hidden');
+    summaryContent.classList.add('hidden');
+  };
+}
+</script>
+</body>
+</html>

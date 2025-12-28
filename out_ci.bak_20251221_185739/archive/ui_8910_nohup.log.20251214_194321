@@ -1,0 +1,31 @@
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUN_API] skip blueprint already registered: vsp_run_api_v1
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUNV1_V16] installed /healthz
+[VSP_RUNV1_V16] healed url_map._rules_by_endpoint endpoints= 33
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1.run_v1 orig= run_v1
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1_fallback._fallback_run_v1 orig= _fallback_run_v1
+[VSP_RUNV1_V16] installed wrappers: 2
+[VSP_RUNV1_NORMALIZE_REQID_AND_BOOTSTRAP_STATE_V1] wrote /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193344_5c29ea.json
+[BOOTSTRAP_V7] wrote state: /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193344_5c29ea.json
+[VSP_RUN_STATUS_MAP_CI_DIR_V3_DEBUG] no ci dir found for rid= VSP_UIREQ_20251214_193344_5c29ea tgt= 
+[VSP_RUN_STATUS_PERSIST_UIREQ_V2] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193344_5c29ea.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_193344 runner_log= None
+[VSP_RUN_STATUS_PERSIST_UIREQ_V3_WRAP_RETURNS] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193344_5c29ea.json
+[VSP_RUN_STATUS_PERSIST_UIREQ_V5_1_BEFORE_RETURN_JSONIFY] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193344_5c29ea.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_193344
+[VSP_RUN_STATUS_PERSIST_UIREQ_V7_1_HOOK_ALL_RETURNS] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193344_5c29ea.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_193344
+[VSP_RUNV1_NORMALIZE_REQID_AND_BOOTSTRAP_STATE_V1] wrote /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193914_598612.json
+[BOOTSTRAP_V7] wrote state: /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193914_598612.json
+[VSP_RUN_STATUS_MAP_CI_DIR_V3_DEBUG] no ci dir found for rid= VSP_UIREQ_20251214_193914_598612 tgt= 
+[VSP_RUN_STATUS_PERSIST_UIREQ_V2] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193914_598612.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_193914 runner_log= None
+[VSP_RUN_STATUS_PERSIST_UIREQ_V3_WRAP_RETURNS] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193914_598612.json
+[VSP_RUN_STATUS_PERSIST_UIREQ_V5_1_BEFORE_RETURN_JSONIFY] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193914_598612.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_193914
+[VSP_RUN_STATUS_PERSIST_UIREQ_V7_1_HOOK_ALL_RETURNS] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_193914_598612.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_193914
+[VSP_RUNV1_NORMALIZE_REQID_AND_BOOTSTRAP_STATE_V1] wrote /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_194153_820147.json
+[BOOTSTRAP_V7] wrote state: /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_194153_820147.json
+[VSP_RUN_STATUS_MAP_CI_DIR_V3_DEBUG] no ci dir found for rid= VSP_UIREQ_20251214_194153_820147 tgt= 
+[VSP_RUN_STATUS_PERSIST_UIREQ_V2] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_194153_820147.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_194153 runner_log= None
+[VSP_RUN_STATUS_PERSIST_UIREQ_V3_WRAP_RETURNS] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_194153_820147.json
+[VSP_RUN_STATUS_PERSIST_UIREQ_V5_1_BEFORE_RETURN_JSONIFY] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_194153_820147.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_194153
+[VSP_RUN_STATUS_PERSIST_UIREQ_V7_1_HOOK_ALL_RETURNS] persisted /home/test/Data/SECURITY_BUNDLE/ui/ui/out_ci/uireq_v1/VSP_UIREQ_20251214_194153_820147.json ci_run_dir= /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_194153

@@ -1,0 +1,13 @@
+{
+  "request_id": "VSP_UIREQ_20251213_163034_zr7i7i",
+  "req_id": "VSP_UIREQ_20251213_163034_zr7i7i",
+  "ok": true,
+  "synthetic_req_id": true,
+  "mode": "LOCAL_UI",
+  "profile": "FULL_EXT",
+  "target": "/home/test/Data/SECURITY-10-10-v4",
+  "target_type": "path",
+  "stage_sig": "0/0||0",
+  "final": false,
+  "killed": false
+}

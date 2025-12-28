@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+OUT="out_ci"; mkdir -p "$OUT"
+TS="$(date +%Y%m%d_%H%M%S)"
+LOG="$OUT/p47_fix_log_perms_${TS}.txt"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1" | tee -a "$LOG"; exit 2; }; }
+need date; need stat; need chmod; need ls; need sudo
+
+ok(){ echo "[OK] $*" | tee -a "$LOG"; }
+warn(){ echo "[WARN] $*" | tee -a "$LOG" >&2; }
+
+targets=()
+for g in out_ci/ui_8910.error.log out_ci/ui_8910.access.log out_ci/ui_8910.error.log* out_ci/ui_8910.access.log*; do
+  for f in $g; do [ -f "$f" ] && targets+=("$f"); done
+done
+
+echo "== [P47.1b] fix log perms ==" | tee "$LOG"
+echo "[INFO] targets=${#targets[@]}" | tee -a "$LOG"
+
+show(){
+  for f in "${targets[@]}"; do
+    printf "%s %s\n" "$(stat -c '%a %U:%G' "$f")" "$f"
+  done | sort | tee -a "$LOG" >/dev/null
+}
+
+echo "== before ==" | tee -a "$LOG"
+show
+
+fix_one(){
+  local f="$1"
+  # try as owner
+  chmod a-x "$f" 2>>"$LOG" || true
+  chmod 0640 "$f" 2>>"$LOG" || true
+
+  local m
+  m="$(stat -c '%a' "$f")"
+  if [ "$m" = "640" ]; then return 0; fi
+
+  # try with sudo
+  sudo chmod a-x "$f" 2>>"$LOG" || true
+  sudo chmod 0640 "$f" 2>>"$LOG" || true
+  m="$(stat -c '%a' "$f")"
+  [ "$m" = "640" ] && return 0
+
+  # if still not, check immutable / ACL (best effort)
+  if command -v lsattr >/dev/null 2>&1; then
+    echo "[INFO] lsattr $f: $(lsattr -d "$f" 2>/dev/null || true)" | tee -a "$LOG"
+    # remove immutable if present
+    if lsattr -d "$f" 2>/dev/null | grep -q 'i'; then
+      warn "immutable flag detected -> removing"
+      sudo chattr -i "$f" 2>>"$LOG" || true
+      sudo chmod a-x "$f" 2>>"$LOG" || true
+      sudo chmod 0640 "$f" 2>>"$LOG" || true
+    fi
+  fi
+
+  if command -v getfacl >/dev/null 2>&1; then
+    echo "[INFO] getfacl $f:" | tee -a "$LOG"
+    getfacl "$f" 2>/dev/null | head -n 40 | tee -a "$LOG" >/dev/null || true
+    # clear ACL if exists (optional)
+    if getfacl "$f" 2>/dev/null | grep -q "^user:\|^group:"; then
+      warn "clearing ACL (best effort)"
+      sudo setfacl -b "$f" 2>>"$LOG" || true
+      sudo chmod a-x "$f" 2>>"$LOG" || true
+      sudo chmod 0640 "$f" 2>>"$LOG" || true
+    fi
+  fi
+
+  m="$(stat -c '%a' "$f")"
+  if [ "$m" != "640" ]; then
+    warn "still not 640: $f (mode=$m)"
+    return 1
+  fi
+  return 0
+}
+
+fail=0
+for f in "${targets[@]}"; do
+  if fix_one "$f"; then ok "fixed: $f"; else fail=1; fi
+done
+
+echo "== after ==" | tee -a "$LOG"
+show
+
+if [ "$fail" -eq 0 ]; then
+  ok "DONE: all perms=0640"
+else
+  warn "DONE with warnings (see $LOG)"
+  exit 2
+fi

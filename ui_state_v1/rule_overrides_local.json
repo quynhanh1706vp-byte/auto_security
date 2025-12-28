@@ -1,0 +1,11 @@
+{
+  "rules": [
+    {
+      "id": "demo_disable_rule",
+      "enabled": false,
+      "tool": "semgrep",
+      "rule_id": "demo.rule",
+      "note": "sample"
+    }
+  ]
+}

@@ -1,0 +1,1538 @@
+from __future__ import annotations
+
+import datetime
+import json
+from pathlib import Path
+from typing import Optional, Any
+
+from flask import (
+    Flask,
+    jsonify,
+    send_from_directory,
+    request,
+    render_template,
+)
+
+# --------------------------------------------------------------------
+# Cấu hình Flask: static + templates của my_flask_app
+# --------------------------------------------------------------------
+UI_ROOT = Path(__file__).resolve().parent          # .../SECURITY_BUNDLE/ui
+ROOT = UI_ROOT.parent                              # .../SECURITY_BUNDLE
+
+app = Flask(
+    __name__,
+    static_folder="my_flask_app/static",
+    template_folder="my_flask_app/templates",
+)
+
+OUT = ROOT / "out"
+RULES = ROOT / "rules" / "vsp_rule_overrides.json"
+
+
+# --------------------------------------------------------------------
+# Helpers
+# --------------------------------------------------------------------
+def _discover_run_dirs(limit: int = 50):
+    if not OUT.exists():
+        return []
+    dirs = sorted(
+        [p for p in OUT.iterdir() if p.is_dir() and p.name.startswith("RUN_")],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return dirs[:limit]
+
+
+def _get_latest_run() -> Optional[Path]:
+    runs = _discover_run_dirs(limit=50)
+    if not runs:
+        return None
+    # Ưu tiên RUN có report/findings_unified.json và file không rỗng
+    for r in runs:
+        f = r / "report" / "findings_unified.json"
+        if f.exists() and f.stat().st_size > 0:
+            return r
+    # fallback: run mới nhất bất kỳ
+    return runs[0]
+
+
+def _load_json(path: Path) -> Any:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+# --------------------------------------------------------------------
+# Routes UI
+# --------------------------------------------------------------------
+@app.route("/")
+def home():
+    return "<meta http-equiv='refresh' content='0;URL=/security_bundle'>"
+
+
+@app.route("/security_bundle")
+def ui_main():
+    # index.html dùng Jinja, url_for('static', ...) hoạt động
+    return render_template("index.html")
+
+
+# --------------------------------------------------------------------
+# TAB 1 — DASHBOARD
+# --------------------------------------------------------------------
+@app.route("/api/vsp/dashboard")
+def api_dashboard():
+    run_dir = _get_latest_run()
+    if not run_dir:
+        return jsonify({"error": "no_run"}), 404
+
+    summ = _load_json(run_dir / "report" / "summary_unified.json")
+    if not summ:
+        return jsonify({"error": "no_summary"}), 404
+
+    return jsonify({
+        "run_id": run_dir.name,
+        "meta": summ.get("meta", {}),
+        "kpi": {
+            "total_findings": summ.get("total_findings", 0),
+            "severity": summ.get("severity", {}),
+            "tool_counts": summ.get("tool_counts", {}),
+            "security_score": summ.get("security_score", None),
+            "top_risky_tool": summ.get("top_risky_tool"),
+            "top_cwe": summ.get("top_cwe"),
+            "top_module": summ.get("top_module"),
+        },
+    })
+
+
+# --------------------------------------------------------------------
+# TAB 2 — RUNS & REPORTS
+# --------------------------------------------------------------------
+@app.route("/api/vsp/runs_index")
+def api_runs_index():
+    runs = _discover_run_dirs(limit=50)
+    out = []
+    for r in runs:
+        summ = _load_json(r / "report" / "summary_unified.json")
+        if not summ:
+            continue
+        meta = summ.get("meta", {})
+        out.append({
+            "run_id": r.name,
+            "ts": meta.get("ts"),
+            "src_path": meta.get("src_path"),
+            "profile": meta.get("profile"),
+            "engine_mode": meta.get("engine_mode"),
+            "total_findings": summ.get("total_findings"),
+            "severity": summ.get("severity", {}),
+            "tools": list(summ.get("tool_counts", {}).keys()),
+            "report_html": f"/out/{r.name}/report/report.html",
+            "report_pdf": f"/out/{r.name}/report/report.pdf",
+            "sbom": f"/out/{r.name}/report/sbom_trivy.json",
+            "license_report": f"/out/{r.name}/report/license_report.json",
+        })
+    return jsonify({"runs": out})
+
+
+# --------------------------------------------------------------------
+# TAB 3 — DATA SOURCE
+# --------------------------------------------------------------------
+
+def api_datasource():
+    """
+    mode = dashboard  -> chỉ trả sample ~1000 dòng cho Dashboard (nhanh)
+    mode = None       -> trả full (tối đa 60000) cho tab Data Source
+    """
+    mode = request.args.get("mode")
+    rid = request.args.get("run_id")
+    run_dir: Optional[Path] = None
+
+    if rid:
+        cand = OUT / rid
+        if cand.exists():
+            run_dir = cand
+
+    if not run_dir:
+        run_dir = _get_latest_run()
+    if not run_dir:
+        return jsonify({"error": "no_run"}), 404
+
+    fpath = run_dir / "report" / "findings_unified.json"
+    data = _load_json(fpath)
+    if not data:
+        return jsonify({"error": "no_data"}), 404
+
+    # hỗ trợ 2 dạng: list[] hoặc {rows: []}
+    rows = data if isinstance(data, list) else data.get("rows", [])
+    total = len(rows)
+
+    if mode == "dashboard":
+        visible = rows[:1000]   # đủ cho top risk / noisy / by tool
+    else:
+        visible = rows[:60000]  # trần cứng cho Data Source
+
+    return jsonify({
+        "run_id": run_dir.name,
+        "total_rows": total,
+        "rows": visible,
+    })
+
+
+# --------------------------------------------------------------------
+# TAB 4 — SETTINGS
+# --------------------------------------------------------------------
+@app.route("/api/vsp/settings")
+def api_settings():
+    run_dir = _get_latest_run()
+    if not run_dir:
+        return jsonify({"error": "no_run"}), 404
+
+    summ = _load_json(run_dir / "report" / "summary_unified.json")
+    if not summ:
+        return jsonify({"error": "no_summary"}), 404
+
+    meta = summ.get("meta", {})
+    return jsonify({
+        "profile_label": meta.get("profile"),
+        "src_path": meta.get("src_path"),
+        "engine_mode": meta.get("engine_mode"),
+        "last_run_id": run_dir.name,
+        "tools_enabled": list(summ.get("tool_counts", {}).keys()),
+        "max_rows_ui": meta.get("max_rows_ui", 300),
+        "default_export": meta.get("default_export", "HTML"),
+    })
+
+
+# --------------------------------------------------------------------
+# TAB 5 — RULE OVERRIDES
+# --------------------------------------------------------------------
+@app.route("/api/vsp/rule_overrides")
+def api_rule_overrides():
+    if not RULES.exists():
+        return jsonify({
+            "rules": [],
+            "note": "nguồn: rules/vsp_rule_overrides.json – hiện chưa có rule override",
+        })
+
+    data = _load_json(RULES)
+    if not data:
+        return jsonify({
+            "rules": [],
+            "note": "nguồn: rules/vsp_rule_overrides.json – file trống hoặc lỗi",
+        })
+
+    # Hỗ trợ 2 format:
+    # 1) {"overrides": [ ... ]} hoặc {"rules": [ ... ]}
+    # 2) [ ... ]
+    if isinstance(data, dict):
+        rules = data.get("overrides") or data.get("rules") or []
+    elif isinstance(data, list):
+        rules = data
+    else:
+        rules = []
+    return jsonify({"rules": rules})
+
+
+# --------------------------------------------------------------------
+# Serve OUT/ (report HTML/PDF/JSON…)
+# --------------------------------------------------------------------
+@app.route("/out/<path:sub>")
+def serve_out(sub: str):
+    return send_from_directory(str(OUT), sub)
+
+
+# --------------------------------------------------------------------
+
+
+# ================== VSP – API CHO 5 TAB ==================
+from pathlib import Path
+import json
+
+VSP_ROOT = Path(__file__).resolve().parent.parent
+VSP_OUT_DIR = VSP_ROOT / "out"
+VSP_RULES_DIR = VSP_ROOT / "rules"
+
+
+def _vsp_safe_read_json(path: Path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def _vsp_discover_runs(limit: int = 200):
+    """Trả về list Path các thư mục RUN_* trong out/, sort mới -> cũ."""
+    if not VSP_OUT_DIR.is_dir():
+        return []
+
+    runs = []
+    for p in VSP_OUT_DIR.iterdir():
+        if p.is_dir() and p.name.startswith("RUN_"):
+            runs.append(p)
+
+    runs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    return runs[:limit]
+
+
+def _vsp_get_latest_run():
+    runs = _vsp_discover_runs(limit=1)
+    return runs[0] if runs else None
+
+
+# ---------- TAB 2 – Runs & Reports ----------
+@app.route("/api/vsp/runs_index", methods=["GET"])
+def api_vsp_runs_index():
+    """Danh sách RUN cho tab 'Runs & Reports'."""
+    rows = []
+
+    for run_dir in _vsp_discover_runs(limit=200):
+        report_dir = run_dir / "report"
+        summary_path = report_dir / "summary_unified.json"
+
+        if not summary_path.is_file():
+            continue
+
+        summary = _vsp_safe_read_json(summary_path, {})
+        meta = summary.get("meta", {})
+        sev = summary.get("severity_counts", {}) or summary.get("severity", {})
+
+        def _i(v):
+            try:
+                return int(v)
+            except Exception:
+                try:
+                    return int(float(v))
+                except Exception:
+                    return 0
+
+        total = meta.get("total_findings")
+        if total is None:
+            total = sum(_i(v) for v in sev.values() or [0])
+
+        row = {
+            "run_id": run_dir.name,
+            "report_dir": str(report_dir),
+            "profile": meta.get("profile", meta.get("scan_profile", "N/A")),
+            "source_path": meta.get("source_path", meta.get("src_dir", "N/A")),
+            "engine_mode": meta.get("engine_mode", meta.get("mode", "FULL_EXT")),
+            "ts": meta.get("timestamp", meta.get("ts", "")),
+            "total": _i(total),
+            "critical": _i(sev.get("CRITICAL", 0)),
+            "high": _i(sev.get("HIGH", 0)),
+            "medium": _i(sev.get("MEDIUM", 0)),
+            "low": _i(sev.get("LOW", 0)),
+            "info": _i(sev.get("INFO", 0)),
+            "trace": _i(sev.get("TRACE", 0)),
+        }
+
+        rows.append(row)
+
+    return jsonify({"runs": rows})
+
+
+# ---------- TAB 4 – Settings ----------
+@app.route("/api/vsp/settings", methods=["GET"])
+def api_vsp_settings():
+    """Meta cho tab 'Settings': PROFILE, SOURCE PATH, ENGINE MODE, LAST RUN."""
+    latest = _vsp_get_latest_run()
+
+    profile = "FULL_EXT"
+    source_path = ""
+    engine_mode = "Enterprise Security Profile (EXT+)"
+    last_run_id = None
+    last_run_ts = None
+
+    if latest:
+        last_run_id = latest.name
+        report_dir = latest / "report"
+        summary_path = report_dir / "summary_unified.json"
+
+        summary = _vsp_safe_read_json(summary_path, {})
+        meta = summary.get("meta", {})
+
+        profile = meta.get("profile", meta.get("scan_profile", profile))
+        source_path = meta.get("source_path", meta.get("src_dir", source_path))
+        engine_mode = meta.get("engine_mode", engine_mode)
+        last_run_ts = meta.get("timestamp", meta.get("ts", last_run_ts))
+
+    settings_path = VSP_RULES_DIR / "vsp_settings.json"
+    if settings_path.is_file():
+        s = _vsp_safe_read_json(settings_path, {})
+        profile = s.get("profile", profile)
+        source_path = s.get("source_path", source_path)
+        engine_mode = s.get("engine_mode", engine_mode)
+
+    payload = {
+        "profile": profile,
+        "source_path": source_path,
+        "engine_mode": engine_mode,
+        "last_run": {
+            "run_id": last_run_id,
+            "timestamp": last_run_ts,
+        },
+    }
+
+    return jsonify(payload)
+
+
+# ---------- TAB 5 – Rule Overrides ----------
+@app.route("/api/vsp/rule_overrides", methods=["GET"])
+def api_vsp_rule_overrides():
+    """Danh sách rule override cho tab 'Rule Overrides'."""
+    rules_path = VSP_RULES_DIR / "vsp_rule_overrides.json"
+
+    if rules_path.is_file():
+        data = _vsp_safe_read_json(rules_path, {})
+    else:
+        data = {}
+
+    overrides = data.get("overrides", data.get("rules", []))
+
+    return jsonify({
+        "overrides": overrides
+    })
+# ================== END VSP – API CHO 5 TAB ==================
+# ================== VSP RUN CENTER BACKEND v1 ==================
+from pathlib import Path as _Path_for_run_center
+import json as _json_for_run_center
+
+# POST /api/vsp/settings  -> lưu config mặc định vào rules/vsp_settings.json
+@app.route("/api/vsp/settings", methods=["POST"])
+def api_vsp_settings_save():
+    data = request.get_json(force=True, silent=True) or {}
+    source_path = str(data.get("source_path", "")).strip()
+    profile = str(data.get("profile", "")).strip() or "FULL_EXT"
+    engine_mode = str(data.get("engine_mode", "")).strip() or "Enterprise Security Profile (EXT+)"
+
+    settings = {
+        "source_path": source_path,
+        "profile": profile,
+        "engine_mode": engine_mode,
+    }
+
+    rules_dir = VSP_RULES_DIR
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    settings_path = rules_dir / "vsp_settings.json"
+    settings_path.write_text(_json_for_run_center.dumps(settings, indent=2), encoding="utf-8")
+
+    print(f"[VSP][SETTINGS] Saved settings -> {settings_path} :: {settings}")
+    return jsonify({"status": "ok", "settings": settings})
+
+
+# POST /api/vsp/run_scan  -> nhận yêu cầu chạy scan
+@app.route("/api/vsp/run_scan", methods=["POST"])
+def api_vsp_run_scan():
+    data = request.get_json(force=True, silent=True) or {}
+    source_path = str(data.get("source_path", "")).strip()
+    profile = str(data.get("profile", "")).strip() or "FULL_EXT"
+    environment = str(data.get("environment", "")).strip() or "local"
+
+    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    run_id = f"RUN_VSP_{profile}_{ts}"
+
+    # TODO: chỗ này bạn nối vào script scan thật của bạn.
+    # Ví dụ:
+    #   cmd = [
+    #       str(VSP_ROOT / "bin" / "run_vsp_scan_full_ext.sh"),
+    #       source_path,
+    #       profile,
+    #       environment,
+    #       run_id,
+    #   ]
+    #   subprocess.Popen(cmd, stdout=..., stderr=...)
+    #
+    print("[VSP][RUN] Requested scan:",
+          "src=", source_path,
+          "profile=", profile,
+          "env=", environment,
+          "run_id=", run_id)
+
+    return jsonify({
+        "status": "accepted",
+        "run_id": run_id,
+        "source_path": source_path,
+        "profile": profile,
+        "environment": environment,
+    })
+# ================== END VSP RUN CENTER BACKEND v1 ==================
+
+
+
+
+
+@app.route("/api/vsp/datasource", methods=["GET"])
+def api_vsp_datasource():
+    """
+    Unified findings cho tab Data Source.
+
+    Response:
+      - ok: bool
+      - run_id: RUN_...
+      - summary: { total, severity_counts, tool_counts }
+      - severity_chart: { labels, data }
+      - tools_chart: { labels, data }
+      - rows: list cho table
+      - findings: raw findings_unified.json
+    Optional query: run_id=<RUN_ID>
+    """
+    from collections import Counter  # import local để khỏi sửa phần header
+
+    base = RUN_ROOT
+    run_id = request.args.get("run_id") or None
+    run_dir = None
+
+    # Nếu có run_id thì ưu tiên dùng
+    if run_id:
+        cand = base / run_id
+        if cand.is_dir():
+            run_dir = cand
+
+    # Nếu không có hoặc không tồn tại -> lấy RUN_* mới nhất
+    if run_dir is None:
+        candidates = sorted(
+            [p for p in base.glob("RUN_*") if p.is_dir()],
+            key=lambda p: p.name,
+            reverse=True,
+        )
+        if candidates:
+            run_dir = candidates[0]
+
+    if run_dir is None:
+        return jsonify({
+            "ok": False,
+            "error": "No RUN_* folder found under RUN_ROOT.",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 404
+
+    findings_path = run_dir / "report" / "findings_unified.json"
+    if not findings_path.is_file():
+        app.logger.warning(
+            "[VSP][DATASOURCE] missing findings_unified.json in %s", run_dir
+        )
+        return jsonify({
+            "ok": False,
+            "error": f"Missing findings_unified.json in {run_dir}",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 404
+
+    try:
+        raw = findings_path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception as exc:
+        app.logger.error(
+            "[VSP][DATASOURCE] cannot parse findings_unified.json in %s: %s",
+            run_dir,
+            exc,
+        )
+        return jsonify({
+            "ok": False,
+            "error": f"Cannot parse findings_unified.json: {exc}",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 500
+
+    if not isinstance(data, list):
+        app.logger.error(
+            "[VSP][DATASOURCE] findings_unified.json is not a list in %s", run_dir
+        )
+        return jsonify({
+            "ok": False,
+            "error": "findings_unified.json must be a list of findings.",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 500
+
+    sev_counter = Counter()
+    tool_counter = Counter()
+
+    rows = []
+    findings_raw = []
+
+    for idx, item in enumerate(data):
+        if not isinstance(item, dict):
+            continue
+
+        sev = (item.get("severity") or "INFO").upper()
+        tool = (item.get("tool") or "unknown").lower()
+        rule = item.get("rule_id") or item.get("rule") or ""
+        file_path = item.get("file") or ""
+        line_no = item.get("line") or 0
+        message = item.get("message") or item.get("description") or ""
+        cwe = item.get("cwe") or item.get("cve") or ""
+
+        sev_counter[sev] += 1
+        tool_counter[tool] += 1
+
+        findings_raw.append(item)
+
+        rows.append({
+            "id": idx + 1,
+            "severity": sev,
+            "tool": tool,
+            "rule": rule,
+            "file": file_path,
+            "line": line_no,
+            "message": message,
+            "cwe": cwe
+        })
+
+    sev_labels = sorted(sev_counter.keys())
+    sev_data = [sev_counter[s] for s in sev_labels]
+
+    top_tools_sorted = sorted(tool_counter.items(), key=lambda kv: kv[1], reverse=True)
+    tool_labels = [t for t, _ in top_tools_sorted]
+    tool_data = [c for _, c in top_tools_sorted]
+
+    summary = {
+        "total": len(rows),
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter)
+    }
+
+    app.logger.info(
+        "[VSP][DATASOURCE] run=%s total_rows=%d",
+        run_dir.name,
+        len(rows)
+    )
+
+    return jsonify({
+        "ok": True,
+        "run_id": run_dir.name,
+        "summary": summary,
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter),
+        "severity_chart": {
+            "labels": sev_labels,
+            "data": sev_data
+        },
+            "tools_chart": {
+            "labels": tool_labels,
+            "data": tool_data
+        },
+        "rows": rows,
+        "findings": findings_raw
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8910)
+
+
+# ===== VSP extra API routes (runs_index, settings, rule_overrides) =====
+
+from flask import jsonify  # dùng cho các API bên dưới
+import json
+
+def _vsp_read_summary(run_dir: Path):
+    """
+    Đọc summary_unified.json trong RUN_DIR, trả về dict hoặc None.
+    """
+    report = run_dir / "report" / "summary_unified.json"
+    if not report.is_file():
+        return None
+    try:
+        data = json.loads(report.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return data
+
+
+@app.get("/api/vsp/runs_index")
+def api_vsp_runs_index():
+    """
+    Trả về danh sách các run để tab 'Runs & Reports' hiển thị RUN HISTORY.
+    Dựa trên _discover_run_dirs() + summary_unified.json trong từng RUN_DIR.
+    """
+    runs = []
+    # Hàm _discover_run_dirs() và _get_latest_run() đã có sẵn trong file gốc.
+    try:
+        run_dirs = _discover_run_dirs(limit=50)
+    except Exception:
+        run_dirs = []
+
+    for run_dir in run_dirs:
+        data = _vsp_read_summary(run_dir)
+        if not data:
+            # vẫn cho hiện row basic nếu thiếu summary
+            runs.append({
+                "run_id": run_dir.name,
+                "ts": "-",
+                "profile": "-",
+                "src_path": "-",
+                "total": 0,
+                "crit": 0,
+                "high": 0,
+                "med": 0,
+                "low": 0,
+                "info": 0,
+                "trace": 0,
+                "tools": [],
+            })
+            continue
+
+        sev = (
+            data.get("severity_stats")
+            or data.get("severity_counts")
+            or {}
+        )
+        tools = data.get("tools") or data.get("tool_stats") or {}
+        runs.append({
+            "run_id": data.get("run_id") or run_dir.name,
+            "ts": data.get("ts") or data.get("timestamp") or "-",
+            "profile": data.get("profile") or data.get("scan_profile") or "-",
+            "src_path": data.get("src_path") or data.get("source_path") or "-",
+            "total": data.get("total_findings") or data.get("total") or 0,
+            "crit": sev.get("CRITICAL", 0),
+            "high": sev.get("HIGH", 0),
+            "med": sev.get("MEDIUM", 0),
+            "low": sev.get("LOW", 0),
+            "info": sev.get("INFO", 0),
+            "trace": sev.get("TRACE", 0),
+            "tools": sorted(tools.keys()),
+        })
+
+    return jsonify({"runs": runs})
+
+
+@app.get("/api/vsp/settings")
+def api_vsp_settings():
+    """
+    Trả về thông tin cấu hình cơ bản cho tab Settings.
+    Lấy thông tin SRC_PATH, LAST_RUN, TOTAL_FINDINGS từ run mới nhất (nếu có).
+    """
+    latest = None
+    try:
+        latest = _get_latest_run()
+    except Exception:
+        latest = None
+
+    src_path = "-"
+    total = 0
+    if latest:
+        data = _vsp_read_summary(latest)
+        if data:
+            src_path = data.get("src_path") or data.get("source_path") or "-"
+            total = data.get("total_findings") or data.get("total") or 0
+
+    payload = {
+        "profile": "EXT+ (Enterprise Security Profile)",
+        "engine_mode": "offline",
+        "src_path": src_path,
+        "last_run": latest.name if latest else None,
+        "total_findings": total,
+    }
+    return jsonify(payload)
+
+
+@app.get("/api/vsp/rule_overrides")
+def api_vsp_rule_overrides():
+    """
+    Đọc rules/vsp_rule_overrides.json (nếu có) cho tab Rule Overrides.
+    """
+    root = Path(__file__).resolve().parent.parent
+    rule_file = root / "rules" / "vsp_rule_overrides.json"
+    rules = []
+
+    if rule_file.is_file():
+        try:
+            data = json.loads(rule_file.read_text(encoding="utf-8"))
+            # chấp nhận cả dạng list hoặc dict có key 'rules'
+            if isinstance(data, dict):
+                rules = data.get("rules") or []
+            elif isinstance(data, list):
+                rules = data
+        except Exception:
+            rules = []
+
+    return jsonify({"rules": rules})
+
+# ==== VSP SETTINGS & RULE OVERRIDES API (simple snapshot) ====
+from pathlib import Path
+from typing import Optional
+import json
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _vsp_latest_run_dir() -> Optional[Path]:
+    out_dir = BASE_DIR / "out"
+    if not out_dir.is_dir():
+        return None
+    runs = sorted(
+        [p for p in out_dir.glob("RUN_VSP_*") if p.is_dir()],
+        key=lambda p: p.name,
+    )
+    return runs[-1] if runs else None
+
+
+@app.get("/api/vsp/settings")
+def api_vsp_settings():
+    """
+    Simple snapshot cho tab Settings:
+      - profile
+      - source_path
+      - engine_mode
+      - last_run_id
+      - tool_stack (danh sách tool đang bật)
+    """
+    run_dir = _vsp_latest_run_dir()
+    last_run_id = run_dir.name if run_dir is not None else "-"
+
+    # tạm thời hard-code, sau này mình có thể đọc từ config thật
+    profile = "EXT+ / Multi-tool offline"
+    engine_mode = "FULL_EXT"
+    source_path = str((BASE_DIR / "khach6").resolve()) if (BASE_DIR / "khach6").exists() else "-"
+
+    tool_stack = [
+        {"tool": "gitleaks",  "category": "Secrets",      "enabled": True},
+        {"tool": "semgrep",   "category": "SAST",         "enabled": True},
+        {"tool": "kics",      "category": "IaC / Config", "enabled": True},
+        {"tool": "bandit",    "category": "Python SAST",  "enabled": True},
+        {"tool": "trivy_fs",  "category": "FS Scan",      "enabled": True},
+        {"tool": "grype",     "category": "Vuln Scanner", "enabled": True},
+        {"tool": "syft",      "category": "SBOM",         "enabled": True},
+        {"tool": "codeql",    "category": "CodeQL SAST",  "enabled": True},
+    ]
+
+    payload = {
+        "profile": profile,
+        "source_path": source_path,
+        "engine_mode": engine_mode,
+        "last_run_id": last_run_id,
+        "tool_stack": tool_stack,
+    }
+    return jsonify(payload)
+
+
+@app.get("/api/vsp/rule_overrides")
+def api_vsp_rule_overrides():
+    """
+    Đọc file rules/vsp_rule_overrides.json (nếu có)
+    để feed cho tab Rule Overrides.
+    """
+    rules_file = BASE_DIR / "rules" / "vsp_rule_overrides.json"
+    rows = []
+
+    if rules_file.is_file():
+        try:
+            raw = json.loads(rules_file.read_text(encoding="utf-8"))
+            if isinstance(raw, list):
+                for idx, r in enumerate(raw, start=1):
+                    rows.append(
+                        {
+                            "index": idx,
+                            "tool": r.get("tool", "-"),
+                            "rule_id": r.get("rule_id", "-"),
+                            "match": r.get("match", "-"),
+                            "action": r.get("action", "-"),
+                            "note": r.get("note", "-"),
+                        }
+                    )
+        except Exception as exc:  # chỉ log ra server, UI vẫn chạy
+            print("[VSP] Error reading vsp_rule_overrides.json:", exc)
+
+    payload = {
+        "source": "rules/vsp_rule_overrides.json",
+        "rows": rows,
+    }
+    return jsonify(payload)
+
+
+
+@app.get("/api/vsp/runs_index")
+def api_vsp_runs_index():
+    """
+    Trả về danh sách các RUN cho tab "Runs & Reports",
+    build từ out/RUN_*/report/summary_unified.json.
+    JSON trả về là một LIST (array) để UI + jq dễ xử lý.
+    """
+    from flask import jsonify
+    from pathlib import Path
+    import json, datetime
+
+    root = Path(__file__).resolve().parents[1]
+    out_dir = root / "out"
+    runs = []
+
+    if not out_dir.exists():
+        return jsonify(runs)
+
+    # Lấy tối đa 200 RUN mới nhất
+    for run_dir in sorted(out_dir.glob("RUN_*"), key=lambda p: p.name, reverse=True)[:200]:
+        summary_path = run_dir / "report" / "summary_unified.json"
+        data = {}
+        if summary_path.is_file():
+            try:
+                data = json.loads(summary_path.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+
+        run_id = data.get("run_id") or run_dir.name
+
+        ts = data.get("ts") or data.get("timestamp")
+        if isinstance(ts, (int, float)):
+            ts_str = datetime.datetime.fromtimestamp(ts).isoformat(timespec="seconds")
+        elif ts:
+            ts_str = str(ts)
+        else:
+            ts_str = datetime.datetime.fromtimestamp(run_dir.stat().st_mtime).isoformat(timespec="seconds")
+
+        profile = data.get("profile") or data.get("scan_profile") or data.get("mode") or ""
+        source_path = data.get("source_path") or data.get("src_path") or data.get("SRC") or ""
+
+        sev = data.get("severity") or data.get("severity_counts") or {}
+        total_findings = (
+            data.get("total_findings")
+            or data.get("total")
+            or (sev.get("CRITICAL", 0)
+                + sev.get("HIGH", 0)
+                + sev.get("MEDIUM", 0)
+                + sev.get("LOW", 0)
+                + sev.get("INFO", 0)
+                + sev.get("TRACE", 0))
+        )
+
+        status = data.get("status") or "SUCCESS"
+
+        reports = data.get("reports") or {}
+        # fallback: tự build path report tương đối nếu JSON không có
+        if not reports:
+            try:
+                rel = run_dir.relative_to(root)
+                report_dir = "/" + str(rel / "report")
+                reports = {
+                    "html": report_dir + "/summary_unified.html",
+                    "pdf":  report_dir + "/summary_unified.pdf",
+                    "csv":  report_dir + "/findings_unified.csv",
+                    "sbom": report_dir + "/sbom_trivy.json",
+                }
+            except Exception:
+                reports = {}
+
+        runs.append({
+            "run_id": run_id,
+            "ts": ts_str,
+            "profile": profile,
+            "source_path": source_path,
+            "findings_total": int(total_findings) if total_findings is not None else 0,
+            "status": status,
+            "reports": reports,
+        })
+
+    print(f"[VSP] runs_index: {len(runs)} items từ {out_dir}", flush=True)
+    return jsonify(runs)
+
+
+# ----------------------------------------------------------------------
+# API: VSP – Runs index (Trend – Findings over time)
+# ----------------------------------------------------------------------
+@app.route("/api/vsp/runs_index", methods=["GET"])
+def api_vsp_runs_index():
+    """
+    Trả về danh sách các RUN VSP để vẽ trend:
+    [
+      {
+        "run_id": "RUN_20251129_145503",
+        "ts": "20251129_145503",
+        "findings_total": 6528
+      },
+      ...
+    ]
+    """
+    import json
+    import datetime
+    from pathlib import Path
+    from flask import jsonify
+
+    # ROOT = thư mục SECURITY_BUNDLE
+    root = Path(__file__).resolve().parent.parent
+    out_dir = root / "out"
+
+    runs = []
+
+    if out_dir.is_dir():
+        # sort reverse để RUN mới nhất đứng đầu
+        for run_dir in sorted(out_dir.glob("RUN_*"), reverse=True):
+            report_dir = run_dir / "report"
+            summary = report_dir / "summary_unified.json"
+            if not summary.is_file():
+                continue
+
+            try:
+                data = json.loads(summary.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+
+            # --- ts: ưu tiên lấy từ JSON, nếu không có thì lấy từ tên thư mục ---
+            ts = data.get("ts")
+            if not ts:
+                parts = run_dir.name.split("_")
+                if len(parts) >= 3:
+                    ts = parts[1] + "_" + parts[2]
+                else:
+                    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+            # --- tính tổng findings ---
+            total = 0
+            # Case 1: BE lưu severity_counts = {CRITICAL, HIGH, ...}
+            if isinstance(data.get("severity_counts"), dict):
+                sc = data["severity_counts"]
+                for key in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"):
+                    total += int(sc.get(key, 0) or 0)
+            # Case 2: BE dùng key khác, ví dụ "severity" hoặc "buckets"
+            elif isinstance(data.get("severity"), dict):
+                sc = data["severity"]
+                for key in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"):
+                    total += int(sc.get(key, 0) or 0)
+            # Case 3: Có sẵn total_findings
+            elif isinstance(data.get("total_findings"), int):
+                total = int(data["total_findings"])
+
+            runs.append(
+                {
+                    "run_id": run_dir.name,
+                    "ts": ts,
+                    "findings_total": total,
+                }
+            )
+
+    return jsonify(runs)
+
+# ======= VSP Data Source API v1 (AUTO PATCH) =======
+from collections import Counter
+from typing import Optional
+from pathlib import Path
+
+def _load_run_dir(run_id: Optional[str] = None) -> Optional[Path]:
+    """
+    Load a specific run directory by run_id, or return the latest run if run_id is None.
+    """
+    base = RUN_ROOT  # RUN_ROOT đã được khai báo phía trên
+    if run_id:
+        candidate = base / run_id
+        if candidate.is_dir():
+            return candidate
+        return None
+
+    # Fallback: dùng helper có sẵn (nếu có)
+    if "_get_latest_run" in globals():
+        return _get_latest_run()
+    return None
+
+
+
+def api_vsp_datasource():
+    """
+    Unified findings cho tab Data Source.
+    Optional query: run_id=<RUN_ID>
+    Trả về:
+      - run_id: tên thư mục RUN_...
+      - total: tổng số findings
+      - severity_counts: đếm theo CRITICAL/HIGH/...
+      - tool_counts: đếm theo từng tool
+      - findings: list đầy đủ findings_unified
+    """
+    run_id = request.args.get("run_id") or None
+    run_dir = _load_run_dir(run_id)
+
+    if not run_dir:
+        return jsonify({
+            "ok": False,
+            "error": "Run directory not found.",
+            "findings": [],
+            "severity_counts": {},
+            "tool_counts": {}
+        }), 404
+
+    findings_path = run_dir / "report" / "findings_unified.json"
+    if not findings_path.is_file():
+        return jsonify({
+            "ok": False,
+            "error": f"Missing findings_unified.json in {run_dir}",
+            "findings": [],
+            "severity_counts": {},
+            "tool_counts": {}
+        }), 404
+
+    try:
+        raw = findings_path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception as exc:
+        return jsonify({
+            "ok": False,
+            "error": f"Cannot parse findings_unified.json: {exc}",
+            "findings": [],
+            "severity_counts": {},
+            "tool_counts": {}
+        }), 500
+
+    if not isinstance(data, list):
+        return jsonify({
+            "ok": False,
+            "error": "findings_unified.json must be a list.",
+            "findings": [],
+            "severity_counts": {},
+            "tool_counts": {}
+        }), 500
+
+    sev_counter = Counter()
+    tool_counter = Counter()
+    findings = []
+
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        sev = (item.get("severity") or "INFO").upper()
+        tool = (item.get("tool") or "unknown").lower()
+        sev_counter[sev] += 1
+        tool_counter[tool] += 1
+        findings.append(item)
+
+    return jsonify({
+        "ok": True,
+        "run_id": run_dir.name,
+        "total": len(findings),
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter),
+        "findings": findings
+    })
+# ======= END VSP Data Source API v1 =======
+
+
+# ======= VSP Data Source API v3 (AUTO PATCH – latest RUN_* scan) =======
+from collections import Counter
+from typing import Optional, List
+from pathlib import Path
+
+def _discover_latest_run_for_datasource() -> Optional[Path]:
+    """
+    Tự quét RUN_ROOT để tìm thư mục RUN_* mới nhất.
+    """
+    base = RUN_ROOT
+    try:
+        candidates: List[Path] = sorted(
+            [p for p in base.glob("RUN_*") if p.is_dir()],
+            key=lambda p: p.name,
+            reverse=True,
+        )
+    except Exception as exc:
+        app.logger.error("[VSP][DATASOURCE] error while glob RUN_*: %s", exc)
+        return None
+
+    if not candidates:
+        app.logger.warning("[VSP][DATASOURCE] no RUN_* folder found under %s", base)
+        return None
+
+    latest = candidates[0]
+    app.logger.info("[VSP][DATASOURCE] latest run dir detected: %s", latest)
+    return latest
+
+
+def _load_run_dir_for_datasource(run_id: Optional[str] = None) -> Optional[Path]:
+    """
+    Nếu có run_id -> ưu tiên dùng; nếu không -> dùng RUN_* mới nhất.
+    Nếu run_id không tồn tại -> fallback về latest RUN_*.
+    """
+    base = RUN_ROOT
+
+    if run_id:
+        candidate = base / run_id
+        if candidate.is_dir():
+            app.logger.info("[VSP][DATASOURCE] using explicit run_id=%s", run_id)
+            return candidate
+        app.logger.warning(
+            "[VSP][DATASOURCE] run_id=%s not found, fallback to latest RUN_*", run_id
+        )
+
+    return _discover_latest_run_for_datasource()
+
+
+
+def api_vsp_datasource():
+    """
+    Unified findings cho tab Data Source.
+
+    Response:
+      - ok: bool
+      - run_id: RUN_...
+      - summary: { total, severity_counts, tool_counts }
+      - severity_chart: { labels, data }
+      - tools_chart: { labels, data }
+      - rows: list cho table
+      - findings: raw findings_unified.json
+    Optional query: run_id=<RUN_ID>
+    """
+    run_id = request.args.get("run_id") or None
+    run_dir = _load_run_dir_for_datasource(run_id)
+
+    if not run_dir:
+        return jsonify({
+            "ok": False,
+            "error": "No RUN_* folder found under RUN_ROOT.",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 404
+
+    findings_path = run_dir / "report" / "findings_unified.json"
+    if not findings_path.is_file():
+        app.logger.warning(
+            "[VSP][DATASOURCE] missing findings_unified.json in %s", run_dir
+        )
+        return jsonify({
+            "ok": False,
+            "error": f"Missing findings_unified.json in {run_dir}",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 404
+
+    try:
+        raw = findings_path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception as exc:
+        app.logger.error(
+            "[VSP][DATASOURCE] cannot parse findings_unified.json in %s: %s",
+            run_dir,
+            exc,
+        )
+        return jsonify({
+            "ok": False,
+            "error": f"Cannot parse findings_unified.json: {exc}",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 500
+
+    if not isinstance(data, list):
+        app.logger.error(
+            "[VSP][DATASOURCE] findings_unified.json is not a list in %s", run_dir
+        )
+        return jsonify({
+            "ok": False,
+            "error": "findings_unified.json must be a list of findings.",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 500
+
+    sev_counter = Counter()
+    tool_counter = Counter()
+
+    rows = []
+    findings_raw = []
+
+    for idx, item in enumerate(data):
+        if not isinstance(item, dict):
+            continue
+
+        sev = (item.get("severity") or "INFO").upper()
+        tool = (item.get("tool") or "unknown").lower()
+        rule = item.get("rule_id") or item.get("rule") or ""
+        file_path = item.get("file") or ""
+        line_no = item.get("line") or 0
+        message = item.get("message") or item.get("description") or ""
+        cwe = item.get("cwe") or item.get("cve") or ""
+
+        sev_counter[sev] += 1
+        tool_counter[tool] += 1
+
+        findings_raw.append(item)
+
+        rows.append({
+            "id": idx + 1,
+            "severity": sev,
+            "tool": tool,
+            "rule": rule,
+            "file": file_path,
+            "line": line_no,
+            "message": message,
+            "cwe": cwe
+        })
+
+    sev_labels = sorted(sev_counter.keys())
+    sev_data = [sev_counter[s] for s in sev_labels]
+
+    top_tools_sorted = sorted(tool_counter.items(), key=lambda kv: kv[1], reverse=True)
+    tool_labels = [t for t, _ in top_tools_sorted]
+    tool_data = [c for _, c in top_tools_sorted]
+
+    summary = {
+        "total": len(rows),
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter)
+    }
+
+    app.logger.info(
+        "[VSP][DATASOURCE] run=%s total_rows=%d",
+        run_dir.name,
+        len(rows)
+    )
+
+    return jsonify({
+        "ok": True,
+        "run_id": run_dir.name,
+        "summary": summary,
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter),
+        "severity_chart": {
+            "labels": sev_labels,
+            "data": sev_data
+        },
+        "tools_chart": {
+            "labels": tool_labels,
+            "data": tool_data
+        },
+        "rows": rows,
+        "findings": findings_raw
+    })
+# ======= END VSP Data Source API v3 =======
+
+
+# ======= VSP Data Source API – FINAL VERSION =======
+@app.route("/api/vsp/datasource", methods=["GET"])
+def api_vsp_datasource():
+    """
+    Unified findings cho tab Data Source.
+
+    Response:
+      - ok: bool
+      - run_id: RUN_...
+      - summary: { total, severity_counts, tool_counts }
+      - severity_chart: { labels, data }
+      - tools_chart: { labels, data }
+      - rows: list cho table
+      - findings: raw findings_unified.json
+    Optional query: run_id=<RUN_ID>
+    """
+    from collections import Counter
+    from pathlib import Path
+
+    # Chuẩn hoá RUN_ROOT thành Path
+    base = RUN_ROOT
+    if not isinstance(base, Path):
+        base = Path(base)
+
+    run_id = request.args.get("run_id") or None
+    run_dir = None
+
+    # 1) Nếu có run_id thì ưu tiên dùng
+    if run_id:
+        cand = base / run_id
+        if cand.is_dir():
+            run_dir = cand
+
+    # 2) Nếu không có hoặc không tìm thấy -> lấy RUN_* mới nhất
+    if run_dir is None:
+        candidates = sorted(
+            [p for p in base.glob("RUN_*") if p.is_dir()],
+            key=lambda p: p.name,
+            reverse=True,
+        )
+        if candidates:
+            run_dir = candidates[0]
+
+    if run_dir is None:
+        return jsonify({
+            "ok": False,
+            "error": "No RUN_* folder found under RUN_ROOT.",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 404
+
+    findings_path = run_dir / "report" / "findings_unified.json"
+    if not findings_path.is_file():
+        app.logger.warning(
+            "[VSP][DATASOURCE] missing findings_unified.json in %s", run_dir
+        )
+        return jsonify({
+            "ok": False,
+            "error": f"Missing findings_unified.json in {run_dir}",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 404
+
+    # Đọc file JSON
+    try:
+        raw = findings_path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception as exc:
+        app.logger.error(
+            "[VSP][DATASOURCE] cannot parse findings_unified.json in %s: %s",
+            run_dir,
+            exc,
+        )
+        return jsonify({
+            "ok": False,
+            "error": f"Cannot parse findings_unified.json: {exc}",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 500
+
+    if not isinstance(data, list):
+        app.logger.error(
+            "[VSP][DATASOURCE] findings_unified.json is not a list in %s", run_dir
+        )
+        return jsonify({
+            "ok": False,
+            "error": "findings_unified.json must be a list of findings.",
+            "rows": [],
+            "findings": [],
+            "summary": {
+                "total": 0,
+                "severity_counts": {},
+                "tool_counts": {}
+            },
+            "severity_chart": {"labels": [], "data": []},
+            "tools_chart": {"labels": [], "data": []}
+        }), 500
+
+    sev_counter = Counter()
+    tool_counter = Counter()
+
+    rows = []
+    findings_raw = []
+
+    for idx, item in enumerate(data):
+        if not isinstance(item, dict):
+            continue
+
+        sev = (item.get("severity") or "INFO").upper()
+        tool = (item.get("tool") or "unknown").lower()
+        rule = item.get("rule_id") or item.get("rule") or ""
+        file_path = item.get("file") or ""
+        line_no = item.get("line") or 0
+        message = item.get("message") or item.get("description") or ""
+        cwe = item.get("cwe") or item.get("cve") or ""
+
+        sev_counter[sev] += 1
+        tool_counter[tool] += 1
+
+        findings_raw.append(item)
+
+        rows.append({
+            "id": idx + 1,
+            "severity": sev,
+            "tool": tool,
+            "rule": rule,
+            "file": file_path,
+            "line": line_no,
+            "message": message,
+            "cwe": cwe
+        })
+
+    # Build chart data
+    sev_labels = sorted(sev_counter.keys())
+    sev_data = [sev_counter[s] for s in sev_labels]
+
+    top_tools_sorted = sorted(tool_counter.items(), key=lambda kv: kv[1], reverse=True)
+    tool_labels = [t for t, _ in top_tools_sorted]
+    tool_data = [c for _, c in top_tools_sorted]
+
+    summary = {
+        "total": len(rows),
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter)
+    }
+
+    app.logger.info(
+        "[VSP][DATASOURCE] run=%s total_rows=%d",
+        run_dir.name,
+        len(rows)
+    )
+
+    return jsonify({
+        "ok": True,
+        "run_id": run_dir.name,
+        "summary": summary,
+        "severity_counts": dict(sev_counter),
+        "tool_counts": dict(tool_counter),
+        "severity_chart": {
+            "labels": sev_labels,
+            "data": sev_data
+        },
+        "tools_chart": {
+            "labels": tool_labels,
+            "data": tool_data
+        },
+        "rows": rows,
+        "findings": findings_raw
+    })
+# ======= END VSP Data Source API – FINAL VERSION =======
+

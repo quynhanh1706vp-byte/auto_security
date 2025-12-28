@@ -1,0 +1,8 @@
+tổng 3930
+drwxr-xr-x 1 test test    4096 Thg 12 18 09:34 .
+drwxr-xr-x 1 test test   65536 Thg 12 18 09:34 ..
+-rwxr-xr-x 1 test test     122 Thg 12 18 09:34 AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.SHA256SUMS.txt
+-rwxr-xr-x 1 test test 2007382 Thg 12 18 09:34 AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.tgz
+-rwxr-xr-x 1 test test     444 Thg 12 18 09:34 RELEASE_SHA256SUMS.txt
+-rwxr-xr-x 1 test test     101 Thg 12 18 09:34 REPORT_SHA256SUMS.txt
+-rwxr-xr-x 1 test test 1939654 Thg 12 18 09:34 VSP_CI_20251215_034956__REPORT.tgz

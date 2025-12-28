@@ -1,0 +1,60 @@
+/* VSP_HASH_NORMALIZE_V1: normalize #tab=... or #route&k=v to #route */
+(function(){
+  'use strict';
+  if (window.__VSP_HASH_NORMALIZE_V1) return;
+  window.__VSP_HASH_NORMALIZE_V1 = 1;
+
+  function parseHash(){
+    let h = (location.hash || '').replace(/^#/, '').trim();
+    if (!h) return { route: 'dashboard', params: {} };
+
+    // split params by '&'
+    const parts = h.split('&').filter(Boolean);
+    let first = (parts[0] || '').trim();
+
+    // support "#tab=datasource"
+    if (first.startsWith('tab=')) first = first.slice(4).trim();
+    else {
+      // support "tab=" anywhere
+      const m = h.match(/(?:^|&)tab=([^&]+)/);
+      if (m && m[1]) first = String(m[1]).trim();
+    }
+
+    // normalize synonyms
+    if (first === 'runs-reports' || first === 'reports') first = 'runs';
+    if (first === 'data') first = 'datasource';
+    if (first === 'rule-overrides') first = 'rules';
+
+    const params = {};
+    for (const p of parts.slice(1)){
+      const i = p.indexOf('=');
+      if (i > 0){
+        const k = decodeURIComponent(p.slice(0,i));
+        const v = decodeURIComponent(p.slice(i+1));
+        params[k] = v;
+      }
+    }
+    // also parse if first itself is like "datasource?x=y" (rare)
+    if (first.includes('?')) first = first.split('?')[0];
+
+    return { route: first || 'dashboard', params };
+  }
+
+  function normalize(){
+    const { route, params } = parseHash();
+    window.__VSP_HASH_ROUTE__ = route;
+    window.__VSP_HASH_PARAMS__ = params;
+
+    const target = '#' + route;
+    if (location.hash !== target){
+      try{
+        history.replaceState(null, '', location.pathname + location.search + target);
+        // trigger watchers
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      }catch(_){}
+    }
+  }
+
+  normalize();
+  window.addEventListener('hashchange', normalize);
+})();

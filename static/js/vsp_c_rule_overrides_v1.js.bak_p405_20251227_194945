@@ -1,0 +1,124 @@
+/* VSP_RULE_OVERRIDES_P404 - hide legacy by signature, keep P403 panel */
+(function(){
+  "use strict";
+  const log=(...a)=>console.log("[ovr:p404]",...a);
+
+  function el(tag, attrs, html){
+    const e=document.createElement(tag);
+    if(attrs) for(const [k,v] of Object.entries(attrs)){
+      if(k==="class") e.className=v;
+      else if(k==="style") e.setAttribute("style",v);
+      else e.setAttribute(k,v);
+    }
+    if(html!==undefined) e.innerHTML=html;
+    return e;
+  }
+
+  function hideLegacyStrong(){
+    const sig="VSP_RULE_OVERRIDES_EDITOR_P0_V1";
+    const pres=Array.from(document.querySelectorAll("pre"));
+    for(const pre of pres){
+      const t=(pre.innerText||"");
+      if(!t.includes(sig)) continue;
+
+      // hide a reasonable container around that <pre>
+      let p=pre;
+      for(let i=0;i<12 && p && p!==document.body; i++){
+        const cls=(p.className||"").toString();
+        const h=(p.getBoundingClientRect? p.getBoundingClientRect().height:0) || 0;
+        if(cls.includes("card")||cls.includes("panel")||cls.includes("container")||h>=180) break;
+        p=p.parentElement;
+      }
+      (p||pre).setAttribute("data-vsp-legacy-hidden","1");
+      (p||pre).style.display="none";
+    }
+  }
+
+  function cssOnce(){
+    if(document.getElementById("vsp_ovr_css_p404")) return;
+    const css=`
+      html,body{ background:#0b1020; }
+      .ovr-p404{ padding:16px; color:#eaeaea; }
+      .ovr-h1{ font-size:18px; margin:0 0 12px 0; }
+      .ovr-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+      .ovr-card{ border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); border-radius:14px; padding:12px; min-height:120px; }
+      .ovr-card h2{ font-size:13px; margin:0 0 10px 0; opacity:.9; }
+      textarea.ovr-ta{ width:100%; min-height:240px; resize:vertical; border-radius:12px; padding:10px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.25); color:#eaeaea;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; line-height:1.4; }
+      .ovr-msg{ margin-top:8px; font-size:12px; opacity:.8; }
+      @media (max-width: 1100px){ .ovr-grid{ grid-template-columns:1fr; } }
+    `;
+    document.head.appendChild(el("style",{id:"vsp_ovr_css_p404"},css));
+  }
+
+  async function ensureViewerLoaded(){
+    if(window.VSP && window.VSP.jsonViewer) return true;
+    return await new Promise((resolve)=>{
+      const s=document.createElement("script");
+      s.src="/static/js/vsp_json_viewer_v1.js?v="+Date.now();
+      s.onload=()=>resolve(true);
+      s.onerror=()=>resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+
+  async function fetchJson(url){
+    try{
+      const r=await fetch(url,{cache:"no-store",credentials:"same-origin"});
+      const text=await r.text();
+      let data=null; try{ data=JSON.parse(text);}catch(_){}
+      return {ok:r.ok,status:r.status,text,data};
+    }catch(e){
+      return {ok:false,status:0,text:String(e),data:null};
+    }
+  }
+
+  async function detectEndpoint(){
+    const cands=["/api/vsp/rule_overrides_v1","/api/vsp/overrides_v1","/api/vsp/rule_overrides","/api/vsp/overrides"];
+    for(const u of cands){
+      const r=await fetchJson(u);
+      if(r.ok && r.data!==null) return u;
+    }
+    return cands[0];
+  }
+
+  async function main(){
+    cssOnce();
+    hideLegacyStrong();
+
+    const mount=document.body;
+    const root=el("div",{class:"ovr-p404"});
+    root.appendChild(el("div",{class:"ovr-h1"},"Rule Overrides • P404 (legacy hidden by signature)"));
+
+    const grid=el("div",{class:"ovr-grid"});
+    const left=el("div",{class:"ovr-card"});
+    const right=el("div",{class:"ovr-card"});
+    left.appendChild(el("h2",null,"Live view (stable JSON)"));
+    right.appendChild(el("h2",null,"Editor (read-only safe)"));
+
+    const jsonBox=el("div"); left.appendChild(jsonBox);
+    const ta=el("textarea",{class:"ovr-ta",spellcheck:"false"}); right.appendChild(ta);
+    const msg=el("div",{class:"ovr-msg"},""); right.appendChild(msg);
+
+    grid.appendChild(left); grid.appendChild(right);
+    root.appendChild(grid);
+    mount.prepend(root);
+
+    const endpoint=await detectEndpoint();
+    const r=await fetchJson(endpoint);
+    msg.textContent=`endpoint=${endpoint} status=${r.status}`;
+    ta.value=r.data ? JSON.stringify(r.data,null,2) : (r.text||"");
+
+    const viewerOk=await ensureViewerLoaded();
+    if(viewerOk && window.VSP && window.VSP.jsonViewer){
+      window.VSP.jsonViewer.render(jsonBox,{endpoint,payload:(r.data||{raw:r.text})},{title:"RuleOverrides",maxDepth:8});
+    } else {
+      jsonBox.innerHTML=`<pre style="white-space:pre-wrap;word-break:break-word;opacity:.9;color:#eaeaea">${(r.text||"").slice(0,3000)}</pre>`;
+    }
+
+    log("rendered");
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();

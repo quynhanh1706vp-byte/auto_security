@@ -1,0 +1,146 @@
+/* VSP_P121B_C_RULE_OVERRIDES_V1 - safe */
+(function(){
+  "use strict";
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function log(){ console.log.apply(console, ["[VSPC][ovr]"].concat([].slice.call(arguments))); }
+  function warn(){ console.warn.apply(console, ["[VSPC][ovr]"].concat([].slice.call(arguments))); }
+
+  function fetchJSON(url, timeoutMs){
+    timeoutMs = timeoutMs || 8000;
+    var ctl = new AbortController();
+    var t = setTimeout(function(){ try{ctl.abort();}catch(e){} }, timeoutMs);
+    return fetch(url, {signal: ctl.signal, cache:"no-store", credentials:"same-origin"})
+      .then(function(r){
+        return r.text().then(function(txt){
+          var j=null; try{ j=JSON.parse(txt); }catch(e){}
+          return {ok:r.ok, status:r.status, json:j, text:txt, url:url};
+        });
+      })
+      .finally(function(){ clearTimeout(t); });
+  }
+
+  function firstOK(urls){
+    var p = Promise.resolve(null);
+    urls.forEach(function(u){
+      p = p.then(function(prev){
+        if (prev) return prev;
+        return fetchJSON(u, 8000).then(function(res){
+          if (res && res.ok && res.json) return res;
+          return null;
+        }).catch(function(){ return null; });
+      });
+    });
+    return p;
+  }
+
+  function findEditor(){
+    return qs("textarea") || qs("#rule_overrides_editor") || null;
+  }
+
+  function findBtn(exact){
+    exact = (exact||"").toLowerCase();
+    var bs = qsa("button");
+    for (var i=0;i<bs.length;i++){
+      var t=(bs[i].textContent||"").trim().toLowerCase();
+      if (t === exact) return bs[i];
+    }
+    return null;
+  }
+
+  function loadBackend(){
+    return firstOK(["/api/vsp/rule_overrides_v1", "/api/vsp/rule_overrides", "/api/vsp/overrides_v1"])
+      .then(function(res){ return (res && res.json) ? res.json : null; });
+  }
+
+  function main(){
+    var ed = findEditor();
+    if (!ed){ warn("textarea not found"); return; }
+
+    var key = "vsp_rule_overrides_v1";
+
+    function doLoad(){
+      return loadBackend().then(function(j){
+        if (j){
+          ed.value = JSON.stringify(j, null, 2);
+          localStorage.setItem(key, ed.value);
+          log("loaded from backend");
+        } else {
+          var s = localStorage.getItem(key) || '{"ok":false,"items":[]}';
+          ed.value = s;
+          log("loaded from localStorage");
+        }
+      });
+    }
+
+    function doSave(){
+      var obj=null;
+      try{ obj = JSON.parse(ed.value); }catch(e){ alert("JSON invalid"); return Promise.resolve(); }
+
+      // best-effort POST
+      return fetch("/api/vsp/rule_overrides_v1", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(obj),
+        cache:"no-store",
+        credentials:"same-origin"
+      }).then(function(r){
+        if (r.ok){
+          localStorage.setItem(key, ed.value);
+          alert("Saved (backend)");
+          return;
+        }
+        localStorage.setItem(key, ed.value);
+        alert("Saved (local)");
+      }).catch(function(){
+        localStorage.setItem(key, ed.value);
+        alert("Saved (local)");
+      });
+    }
+
+    function doExport(){
+      var blob = new Blob([ed.value], {type:"application/json"});
+      var a=document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "rule_overrides.json";
+      a.click();
+      setTimeout(function(){ try{URL.revokeObjectURL(a.href);}catch(e){} }, 500);
+    }
+
+    var bLoad = findBtn("load");
+    var bSave = findBtn("save");
+    var bExp  = findBtn("export");
+    if (bLoad) bLoad.onclick = function(){ doLoad().catch(console.error); };
+    if (bSave) bSave.onclick = function(){ doSave().catch(console.error); };
+    if (bExp)  bExp.onclick  = function(){ doExport(); };
+
+    doLoad().catch(console.error);
+  }
+
+  window.addEventListener("DOMContentLoaded", main);
+})();
+
+
+/* === VSP_JSON_COLLAPSE_P400_TAB_rule_overrides === */
+(function(){
+  try {
+    if (!location || !location.pathname) return;
+    if (location.pathname.indexOf("/c/rule_overrides") !== 0) return;
+    function go(){
+      try {
+        if (window.VSPC && typeof window.VSPC.reapplyJsonCollapseP400 === "function") {
+          window.VSPC.reapplyJsonCollapseP400("rule_overrides");
+        } else if (window.VSPC && typeof window.VSPC.installJsonCollapseP400 === "function") {
+          window.VSPC.installJsonCollapseP400(document, {page:"rule_overrides", key:"vsp_json_expand::rule_overrides"});
+        }
+      } catch(e){}
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", go);
+    } else {
+      go();
+    }
+  } catch(e){}
+})();
+

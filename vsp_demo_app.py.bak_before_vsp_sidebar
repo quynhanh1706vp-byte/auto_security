@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+from pathlib import Path
+from flask import Flask, render_template, jsonify, request, send_file, abort
+
+# ---- PATHS / CONSTANTS ----
+
+UI_DIR = Path(__file__).resolve().parent
+ROOT = UI_DIR.parent
+OUT_DIR = ROOT / "out"
+
+# App UI demo cho VSP – dùng layout 5 tab trong vsp_index.html
+# CHỈ phục vụ HTML/CSS/JS. Không tự bịa thêm API /export linh tinh.
+app = Flask(
+    __name__,
+    static_folder=str(UI_DIR / "static"),
+    template_folder=str(UI_DIR / "templates"),
+)
+
+
+@app.route("/")
+def index():
+    """
+    Mặc định: vào thẳng VSP Security Bundle dashboard (5 tab).
+    """
+    return render_template("vsp_index.html")
+
+
+@app.route("/security_bundle")
+def security_bundle():
+    """
+    Đường dẫn cũ /security_bundle vẫn hoạt động,
+    dùng chung template vsp_index.html cho tiện thói quen.
+    """
+    return render_template("vsp_index.html")
+
+
+@app.route("/healthz")
+def healthz():
+    """
+    Health check đơn giản để xem UI app còn sống không.
+    Không đụng gì tới pipeline scan.
+    """
+    return jsonify(
+        {
+            "ok": True,
+            "app": "vsp_demo_app",
+            "ui_dir": str(UI_DIR),
+            "out_dir": str(OUT_DIR),
+        }
+    )
+
+
+if __name__ == "__main__":
+    # Nếu bạn muốn đổi port, chỉnh lại số 8910.
+    app.run(host="0.0.0.0", port=8910, debug=True)

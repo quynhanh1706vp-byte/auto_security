@@ -1,0 +1,241 @@
+(function(){
+
+  // VSP_ROUTE_GUARD_RUNS_ONLY_V1
+  function __vsp_is_runs_only_v1(){
+    try {
+      const h = (location.hash||"").toLowerCase();
+      return h.startsWith("#runs") || h.includes("#runs/");
+    } catch(_) { return false; }
+  }
+  if(!__vsp_is_runs_only_v1()){
+    try{ console.info("[VSP_ROUTE_GUARD_RUNS_ONLY_V1] skip", "vsp_runs_scan_panel_commercial_v1.js", "hash=", location.hash); } catch(_){}
+    return;
+  }
+
+  if (window.__VSP_RUNSCAN_COMM_V1__) return;
+  window.__VSP_RUNSCAN_COMM_V1__ = true;
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+  function esc(s){ return String(s||"").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+
+  function ensureCss(){
+    if (document.getElementById("vsp-runscan-css-v1")) return;
+    var l = document.createElement("link");
+    l.id = "vsp-runscan-css-v1";
+    l.rel = "stylesheet";
+    l.href = "/static/css/vsp_runscan_commercial_v1.css";
+    document.head.appendChild(l);
+  }
+
+  function findRunsPane(){
+    return document.getElementById("vsp-runs-main") || qs("#vsp-runs-main") || qs("[data-pane='runs']");
+  }
+
+  function makePanel(){
+    var wrap = document.createElement("div");
+    wrap.className = "vsp-runscan-wrap";
+    wrap.id = "vsp-runscan-comm-v1";
+
+    wrap.innerHTML = ''
+      + '<div class="vsp-runscan-head">'
+      + '  <div>'
+      + '    <div class="vsp-runscan-title"><span class="vsp-runscan-dot"></span><span>Run Scan Now</span></div>'
+      + '    <div class="vsp-runscan-sub">Trigger FULL_EXT pipeline (VSP_CI_OUTER) + poll run status</div>'
+      + '  </div>'
+      + '  <div class="vsp-runscan-actions">'
+      + '    <button class="vsp-runscan-btn primary" id="vsp-runscan-btn-run">Run Scan Now</button>'
+      + '    <button class="vsp-runscan-btn" id="vsp-runscan-btn-refresh">Refresh Status</button>'
+      + '  </div>'
+      + '</div>'
+      + '<div class="vsp-runscan-body">'
+      + '  <div class="vsp-runscan-grid">'
+      + '    <div class="vsp-runscan-field">'
+      + '      <div class="vsp-runscan-label">Target path</div>'
+      + '      <input class="vsp-runscan-input" id="vsp-runscan-target" value="/home/test/Data/SECURITY-10-10-v4" />'
+      + '      <div class="vsp-runscan-kv">'
+      + '        <div class="k">Profile</div><div class="v"><select class="vsp-runscan-select" id="vsp-runscan-profile">'
+      + '          <option value="FULL_EXT" selected>FULL_EXT</option>'
+      + '          <option value="EXT">EXT</option>'
+      + '        </select></div>'
+      + '        <div class="k">Mode</div><div class="v"><select class="vsp-runscan-select" id="vsp-runscan-mode">'
+      + '          <option value="local" selected>local</option>'
+      + '          <option value="ci">ci</option>'
+      + '        </select></div>'
+      + '      </div>'
+      + '      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">'
+      + '        <span class="vsp-runscan-pill info" id="vsp-runscan-pill-status"><span class="k">status</span><span id="vsp-runscan-status">IDLE</span></span>'
+      + '        <span class="vsp-runscan-pill" id="vsp-runscan-pill-req"><span class="k">request</span><span id="vsp-runscan-req">-</span></span>'
+      + '        <span class="vsp-runscan-pill" id="vsp-runscan-pill-run"><span class="k">ci_run</span><span id="vsp-runscan-run">-</span></span>'
+      + '        <span class="vsp-runscan-pill" id="vsp-runscan-pill-gate"><span class="k">gate</span><span id="vsp-runscan-gate">-</span></span>'
+      + '        <span class="vsp-runscan-pill" id="vsp-runscan-pill-find"><span class="k">has_findings</span><span id="vsp-runscan-find">-</span></span>'
+      + '      </div>'
+      + '    </div>'
+      + '    <div>'
+      + '      <div class="vsp-runscan-log">'
+      + '        <div class="vsp-runscan-log-head">'
+      + '          <div>Pipeline tail</div>'
+      + '          <div id="vsp-runscan-last">-</div>'
+      + '        </div>'
+      + '        <div class="vsp-runscan-log-body" id="vsp-runscan-tail">(no data)</div>'
+      + '      </div>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>';
+
+    return wrap;
+  }
+
+  var POLL_TIMER = null;
+  var CURRENT_REQ = null;
+
+  function setPillClass(pill, kind){
+    pill.classList.remove("good","warn","bad","info");
+    pill.classList.add(kind);
+  }
+
+  function renderStatus(js){
+    var st = (js && js.status) ? String(js.status) : "UNKNOWN";
+    var gate = (js && js.gate) ? String(js.gate) : "-";
+    var req = (js && js.request_id) ? String(js.request_id) : (CURRENT_REQ||"-");
+    var run = (js && js.ci_run_id) ? String(js.ci_run_id) : "-";
+    var hasF = (js && js.flag && (js.flag.has_findings!==undefined)) ? String(js.flag.has_findings) : "-";
+    var fin = (js && js.final!==undefined) ? String(js.final) : "-";
+
+    qs("#vsp-runscan-status").textContent = st;
+    qs("#vsp-runscan-req").textContent = req;
+    qs("#vsp-runscan-run").textContent = run;
+    qs("#vsp-runscan-gate").textContent = gate + " / rc=" + fin;
+    qs("#vsp-runscan-find").textContent = hasF;
+
+    var pill = qs("#vsp-runscan-pill-status");
+    if (st === "DONE" || st === "PASSED" || st === "SUCCESS") setPillClass(pill, "good");
+    else if (st === "FAILED" || st === "ERROR") setPillClass(pill, "bad");
+    else if (st === "RUNNING" || st === "PENDING") setPillClass(pill, "warn");
+    else setPillClass(pill, "info");
+
+    var tail = (js && js.tail && Array.isArray(js.tail)) ? js.tail : null;
+    if (tail && tail.length){
+      qs("#vsp-runscan-tail").textContent = tail.join("\n");
+    } else {
+      qs("#vsp-runscan-tail").textContent = "(no tail)";
+    }
+    qs("#vsp-runscan-last").textContent = new Date().toLocaleString();
+  }
+
+  async function apiRun(){
+    var target = qs("#vsp-runscan-target").value.trim();
+    var profile = qs("#vsp-runscan-profile").value;
+    var mode = qs("#vsp-runscan-mode").value;
+
+    if (!target) {
+      alert("Target path is empty.");
+      return;
+    }
+
+    renderStatus({status:"PENDING", gate:"-", request_id:"...", ci_run_id:"-", flag:{has_findings:"-"}, tail:["[UI] sending POST /api/vsp/run ..."]});
+
+    var payload = { mode: mode, profile: profile, target_type: "path", target: target };
+
+    var r = await fetch("/api/vsp/run", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    var js = null;
+    try{ js = await r.json(); } catch(e){}
+
+    if (!r.ok || !js || !js.ok){
+      renderStatus({status:"ERROR", gate:"-", request_id:"-", ci_run_id:"-", flag:{has_findings:"-"}, tail:[
+        "[UI] run failed",
+        "HTTP=" + r.status,
+        (js && js.error) ? String(js.error) : "(no json error)"
+      ]});
+      return;
+    }
+
+    CURRENT_REQ = js.request_id;
+    renderStatus({status:"PENDING", gate:"-", request_id: js.request_id, ci_run_id:"-", flag:{has_findings:"-"}, tail:[
+      "[UI] Scan request accepted.",
+      "request_id=" + js.request_id,
+      "profile=" + js.profile,
+      "target=" + js.target,
+      "ci_mode=" + js.ci_mode
+    ]});
+
+    startPoll(js.request_id);
+  }
+
+  async function apiStatus(reqId){
+    var r = await fetch("/api/vsp/run_status/" + encodeURIComponent(reqId), {method:"GET"});
+    if (!r.ok) {
+      renderStatus({status:"ERROR", gate:"-", request_id:reqId, ci_run_id:"-", flag:{has_findings:"-"}, tail:["[UI] run_status HTTP="+r.status]});
+      return;
+    }
+    var js = await r.json();
+    renderStatus(js);
+
+    var st = String(js.status || "");
+    if (st === "DONE" || st === "FAILED" || st === "ERROR") stopPoll();
+  }
+
+  function startPoll(reqId){
+    stopPoll();
+    if (!reqId) return;
+    POLL_TIMER = setInterval(function(){ apiStatus(reqId).catch(function(){}); }, 1500);
+    // immediate
+    apiStatus(reqId).catch(function(){});
+  }
+
+  function stopPoll(){
+    if (POLL_TIMER){ clearInterval(POLL_TIMER); POLL_TIMER = null; }
+  }
+
+  function wire(panel){
+    qs("#vsp-runscan-btn-run", panel).addEventListener("click", function(){
+      apiRun().catch(function(e){
+        renderStatus({status:"ERROR", gate:"-", request_id:"-", ci_run_id:"-", flag:{has_findings:"-"}, tail:["[UI] exception", String(e)]});
+      });
+    });
+    qs("#vsp-runscan-btn-refresh", panel).addEventListener("click", function(){
+      if (CURRENT_REQ) apiStatus(CURRENT_REQ).catch(function(){});
+      else renderStatus({status:"IDLE", gate:"-", request_id:"-", ci_run_id:"-", flag:{has_findings:"-"}, tail:["[UI] no request_id yet"]});
+    });
+  }
+
+  function mount(){
+    ensureCss();
+    var pane = findRunsPane();
+    if (!pane) return false;
+
+    // ensure only one
+    var existed = document.getElementById("vsp-runscan-comm-v1");
+    if (existed) return true;
+
+    // insert on top of Runs pane (below its header KPI row if exists)
+    var panel = makePanel();
+
+    // Prefer placing after the filters row (search/select) if exists
+    var anchor = qs(".vsp-runs-toolbar", pane) || qs(".vsp-filter-row", pane) || qs(".vsp-runs-header", pane);
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(panel, anchor.nextSibling);
+    } else {
+      pane.insertBefore(panel, pane.firstChild);
+    }
+
+    wire(panel);
+    return true;
+  }
+
+  // Expose for external hook
+  window.VSP_RUNSCAN_MOUNT = mount;
+
+  // retry mount
+  var n=0, it=setInterval(function(){
+    n++;
+    if (mount()) { clearInterval(it); return; }
+    if (n>120) clearInterval(it);
+  }, 200);
+
+})();

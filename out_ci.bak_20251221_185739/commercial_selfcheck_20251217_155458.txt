@@ -1,0 +1,152 @@
+== VSP COMMERCIAL SELFCHECK P0 ==
+[TS] 20251217_155458
+[PWD] /home/test/Data/SECURITY_BUNDLE/ui
+
+== (A) Service/Port ==
+[WARN] 8910 not listening
+
+== (B) Python compile sanity ==
+[OK] py_compile core OK
+
+== (C) Boot/Error logs tail ==
+nohup: đang bỏ qua dữ liệu vào
+
+Error: Already running on PID 830099 (or pid file 'out_ci/ui_8910.pid' is stale)
+
+----
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1348, in do_open
+    r = h.getresponse()
+        ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 1428, in getresponse
+    response.begin()
+  File "/usr/lib/python3.12/http/client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+[2025-12-17 13:31:38 +0700] [740392] [INFO] Autorestarting worker after current request.
+[2025-12-17 13:32:09 +0700] [740392] [INFO] Worker exiting (pid: 740392)
+[2025-12-17 13:33:55 +0700] [750853] [INFO] Booting worker with pid: 750853
+[2025-12-17 13:53:49 +0700] [750853] [INFO] Autorestarting worker after current request.
+[2025-12-17 13:54:19 +0700] [750853] [INFO] Worker exiting (pid: 750853)
+[2025-12-17 13:55:23 +0700] [760248] [INFO] Booting worker with pid: 760248
+[2025-12-17 14:19:27 +0700] [760248] [INFO] Autorestarting worker after current request.
+[2025-12-17 14:19:57 +0700] [760248] [INFO] Worker exiting (pid: 760248)
+[2025-12-17 14:20:30 +0700] [772334] [INFO] Booting worker with pid: 772334
+[2025-12-17 14:34:31 +0700] [740388] [INFO] Handling signal: term
+[2025-12-17 14:34:31 +0700] [772334] [INFO] Worker exiting (pid: 772334)
+[2025-12-17 14:34:31 +0700] [740388] [INFO] Shutting down: Master
+[2025-12-17 14:34:32 +0700] [780048] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 14:34:32 +0700] [780048] [INFO] Listening at: http://127.0.0.1:8910 (780048)
+[2025-12-17 14:34:32 +0700] [780048] [INFO] Using worker: gthread
+[2025-12-17 14:34:32 +0700] [780050] [INFO] Booting worker with pid: 780050
+[2025-12-17 14:57:04 +0700] [780048] [INFO] Handling signal: term
+[2025-12-17 14:57:05 +0700] [780050] [INFO] Worker exiting (pid: 780050)
+[2025-12-17 14:57:05 +0700] [780048] [INFO] Shutting down: Master
+[2025-12-17 14:57:06 +0700] [797085] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 14:57:06 +0700] [797085] [INFO] Listening at: http://127.0.0.1:8910 (797085)
+[2025-12-17 14:57:06 +0700] [797085] [INFO] Using worker: gthread
+[2025-12-17 14:57:06 +0700] [797101] [INFO] Booting worker with pid: 797101
+[2025-12-17 15:00:33 +0700] [797085] [INFO] Handling signal: term
+[2025-12-17 15:00:34 +0700] [800112] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:00:48 +0700] [797085] [INFO] Shutting down: Master
+[2025-12-17 15:03:52 +0700] [803276] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:03:52 +0700] [803276] [INFO] Listening at: http://127.0.0.1:8910 (803276)
+[2025-12-17 15:03:52 +0700] [803276] [INFO] Using worker: gthread
+[2025-12-17 15:03:52 +0700] [803278] [INFO] Booting worker with pid: 803278
+[2025-12-17 15:03:52 +0700] [803279] [INFO] Booting worker with pid: 803279
+[2025-12-17 15:08:15 +0700] [803276] [INFO] Handling signal: term
+[2025-12-17 15:08:16 +0700] [803278] [INFO] Worker exiting (pid: 803278)
+[2025-12-17 15:08:16 +0700] [807224] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:08:30 +0700] [803276] [INFO] Shutting down: Master
+[2025-12-17 15:13:32 +0700] [811600] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:13:32 +0700] [811600] [INFO] Listening at: http://127.0.0.1:8910 (811600)
+[2025-12-17 15:13:32 +0700] [811600] [INFO] Using worker: gthread
+[2025-12-17 15:13:32 +0700] [811602] [INFO] Booting worker with pid: 811602
+[2025-12-17 15:13:32 +0700] [811621] [INFO] Booting worker with pid: 811621
+[2025-12-17 15:23:27 +0700] [811600] [INFO] Handling signal: term
+[2025-12-17 15:23:27 +0700] [811602] [INFO] Worker exiting (pid: 811602)
+[2025-12-17 15:23:27 +0700] [811621] [INFO] Worker exiting (pid: 811621)
+[2025-12-17 15:23:27 +0700] [811600] [INFO] Shutting down: Master
+[2025-12-17 15:23:28 +0700] [819508] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:23:28 +0700] [819508] [INFO] Listening at: http://127.0.0.1:8910 (819508)
+[2025-12-17 15:23:28 +0700] [819508] [INFO] Using worker: gthread
+[2025-12-17 15:23:28 +0700] [819529] [INFO] Booting worker with pid: 819529
+[2025-12-17 15:23:28 +0700] [819530] [INFO] Booting worker with pid: 819530
+[2025-12-17 15:24:46 +0700] [819508] [INFO] Handling signal: term
+[2025-12-17 15:24:47 +0700] [819529] [INFO] Worker exiting (pid: 819529)
+[2025-12-17 15:24:47 +0700] [819530] [INFO] Worker exiting (pid: 819530)
+[2025-12-17 15:24:47 +0700] [819508] [INFO] Shutting down: Master
+[2025-12-17 15:24:47 +0700] [820031] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:24:47 +0700] [820031] [INFO] Listening at: http://127.0.0.1:8910 (820031)
+[2025-12-17 15:24:47 +0700] [820031] [INFO] Using worker: gthread
+[2025-12-17 15:24:47 +0700] [820033] [INFO] Booting worker with pid: 820033
+[2025-12-17 15:24:47 +0700] [820034] [INFO] Booting worker with pid: 820034
+[2025-12-17 15:34:23 +0700] [820031] [INFO] Handling signal: term
+[2025-12-17 15:34:23 +0700] [820033] [INFO] Worker exiting (pid: 820033)
+[2025-12-17 15:34:23 +0700] [820034] [INFO] Worker exiting (pid: 820034)
+[2025-12-17 15:34:23 +0700] [820031] [INFO] Shutting down: Master
+[2025-12-17 15:34:24 +0700] [823884] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:34:24 +0700] [823884] [INFO] Listening at: http://127.0.0.1:8910 (823884)
+[2025-12-17 15:34:24 +0700] [823884] [INFO] Using worker: gthread
+[2025-12-17 15:34:24 +0700] [823886] [INFO] Booting worker with pid: 823886
+[2025-12-17 15:34:24 +0700] [823887] [INFO] Booting worker with pid: 823887
+[2025-12-17 15:38:45 +0700] [823884] [INFO] Handling signal: term
+[2025-12-17 15:38:45 +0700] [823887] [INFO] Worker exiting (pid: 823887)
+[2025-12-17 15:38:45 +0700] [823886] [INFO] Worker exiting (pid: 823886)
+[2025-12-17 15:38:45 +0700] [823884] [INFO] Shutting down: Master
+[2025-12-17 15:38:46 +0700] [825664] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:38:46 +0700] [825664] [INFO] Listening at: http://127.0.0.1:8910 (825664)
+[2025-12-17 15:38:46 +0700] [825664] [INFO] Using worker: gthread
+[2025-12-17 15:38:46 +0700] [825666] [INFO] Booting worker with pid: 825666
+[2025-12-17 15:38:46 +0700] [825667] [INFO] Booting worker with pid: 825667
+[2025-12-17 15:43:09 +0700] [825664] [INFO] Handling signal: term
+[2025-12-17 15:43:10 +0700] [825667] [INFO] Worker exiting (pid: 825667)
+[2025-12-17 15:43:10 +0700] [825666] [INFO] Worker exiting (pid: 825666)
+[2025-12-17 15:43:10 +0700] [825664] [INFO] Shutting down: Master
+[2025-12-17 15:43:10 +0700] [827635] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:43:10 +0700] [827635] [INFO] Listening at: http://127.0.0.1:8910 (827635)
+[2025-12-17 15:43:10 +0700] [827635] [INFO] Using worker: gthread
+[2025-12-17 15:43:10 +0700] [827637] [INFO] Booting worker with pid: 827637
+[2025-12-17 15:43:10 +0700] [827638] [INFO] Booting worker with pid: 827638
+[2025-12-17 15:46:22 +0700] [827635] [INFO] Handling signal: term
+[2025-12-17 15:46:23 +0700] [829295] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:46:32 +0700] [827638] [INFO] Worker exiting (pid: 827638)
+[2025-12-17 15:46:37 +0700] [827635] [INFO] Shutting down: Master
+[2025-12-17 15:48:13 +0700] [830099] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:48:13 +0700] [830099] [INFO] Listening at: http://127.0.0.1:8910 (830099)
+[2025-12-17 15:48:13 +0700] [830099] [INFO] Using worker: gthread
+[2025-12-17 15:48:13 +0700] [830101] [INFO] Booting worker with pid: 830101
+[2025-12-17 15:48:14 +0700] [830102] [INFO] Booting worker with pid: 830102
+[2025-12-17 15:53:03 +0700] [830099] [INFO] Handling signal: term
+[2025-12-17 15:53:04 +0700] [830101] [INFO] Worker exiting (pid: 830101)
+[2025-12-17 15:53:04 +0700] [833134] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:53:18 +0700] [830099] [INFO] Shutting down: Master
+
+== (D) HTTP checks (HTML + APIs) ==
+[GET] http://127.0.0.1:8910/vsp4
+curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+
+[GET] http://127.0.0.1:8910/api/vsp/run_status_v1
+curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+
+[GET] http://127.0.0.1:8910/api/vsp/run_status_v2
+curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+
+== (E) What scripts are actually served? (parse HTML) ==
+  File "<stdin>", line 3
+    srcs = re.findall(r'<script[^>]+src=["\\']([^"\\']+)["\\']', html, flags=re.I)
+                                             ^
+SyntaxError: closing parenthesis ']' does not match opening parenthesis '('

@@ -1,0 +1,226 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from flask import Blueprint, jsonify
+
+bp_vsp_runs_v2 = Blueprint("vsp_runs_v2", __name__)
+
+ROOT = Path("/home/test/Data/SECURITY_BUNDLE")
+OUT_DIR = ROOT / "out"
+
+
+def _safe_read_json(path: Path) -> Any:
+    if not path.is_file():
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _folder_ts_iso(p: Path) -> str:
+    try:
+        dt = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc)
+        return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    except Exception:
+        return ""
+
+
+def _compute_score_from_severity(sev: Dict[str, Any], total: Optional[int]) -> float:
+    crit = int(sev.get("CRITICAL", 0) or 0)
+    high = int(sev.get("HIGH", 0) or 0)
+    med = int(sev.get("MEDIUM", 0) or 0)
+
+    if not total or total <= 0:
+        total = crit + high + med
+        if total <= 0:
+            return 100.0
+
+    risk_numer = crit * 5 + high * 3 + med
+    risk_ratio = risk_numer / float(total)
+    penalty = risk_ratio * 14.0
+    if penalty > 100.0:
+        penalty = 100.0
+    score = 100.0 - penalty
+    if score < 0.0:
+        score = 0.0
+    return round(score, 1)
+
+
+def _pick(d: Dict[str, Any], *keys: str):
+    for k in keys:
+        if k in d and d[k] not in (None, "", []):
+            return d[k]
+    return None
+
+
+def _collect_runs() -> List[Dict[str, Any]]:
+    runs: List[Dict[str, Any]] = []
+
+    if not OUT_DIR.is_dir():
+        return runs
+
+    for child in OUT_DIR.iterdir():
+        if not child.is_dir():
+            continue
+
+        run_id = child.name
+        if not (run_id.startswith("RUN_") or run_id.startswith("TEST_")):
+            continue
+
+        report_dir = child / "report"
+        summary_path = report_dir / "summary_unified.json"
+        summary = _safe_read_json(summary_path)
+        if not isinstance(summary, dict):
+            continue
+
+        meta = summary.get("meta") or summary.get("run_meta") or {}
+
+        run: Dict[str, Any] = {}
+        run["run_id"] = run_id
+
+        # --- Time / created_at ---
+        ts = _pick(summary, "ts", "timestamp", "time", "created_at") or _pick(
+            meta, "ts", "timestamp", "time", "created_at"
+        )
+        if not ts:
+            ts = _folder_ts_iso(child)
+        if ts:
+            run["ts"] = ts
+            run["created_at"] = ts
+            run["time"] = ts
+
+        # --- Profile ---
+        profile = _pick(
+            summary,
+            "profile",
+            "run_profile",
+            "scan_profile",
+            "profile_label",
+            "profile_name",
+        ) or _pick(meta, "profile", "profile_label", "profile_name")
+
+        if not profile:
+            if "FULL_EXT" in run_id or "FULL-EXT" in run_id:
+                profile = "EXT+"
+            elif "FULL" in run_id:
+                profile = "FULL"
+
+        if profile:
+            run["profile"] = profile
+            run["profile_label"] = profile
+
+        # --- Source / URL / app_origin ---
+        source = _pick(summary, "source", "src", "url", "app_origin") or _pick(
+            meta, "source", "src", "url", "app_origin"
+        )
+        if source:
+            run["source"] = source
+            run["url"] = source
+            run["app_origin"] = source
+
+        # --- Report root / bundle path ---
+        if report_dir.is_dir():
+            report_root = str(report_dir)
+            run["report_root"] = report_root
+            run["report_path"] = report_root
+            run["bundle_root"] = str(child)
+
+        # Fallback: nếu không có source thì dùng report_root
+        if not run.get("source") and run.get("report_root"):
+            run["source"] = run["report_root"]
+            run["url"] = run["report_root"]
+
+        # --- Severity buckets ---
+        sev = (
+            summary.get("summary", {}).get("by_severity")
+            or summary.get("by_severity")
+            or summary.get("severity")
+            or {}
+        )
+        if isinstance(sev, dict):
+            run["severity"] = sev
+            run.setdefault("summary", {})
+            run["summary"]["by_severity"] = sev
+        else:
+            sev = {}
+
+        # --- Total findings ---
+        total = (
+            summary.get("summary", {}).get("total_findings")
+            or summary.get("total_findings")
+            or summary.get("total")
+        )
+        if total is None and isinstance(sev, dict) and sev:
+            crit = int(sev.get("CRITICAL", 0) or 0)
+            high = int(sev.get("HIGH", 0) or 0)
+            med = int(sev.get("MEDIUM", 0) or 0)
+            low = int(sev.get("LOW", 0) or 0)
+            info = int(sev.get("INFO", 0) or 0)
+            trace = int(sev.get("TRACE", 0) or 0)
+            total = crit + high + med + low + info + trace
+
+        if total is not None:
+            total = int(total)
+            run["total_findings"] = total
+            run.setdefault("summary", {})
+            run["summary"]["total_findings"] = total
+        else:
+            total = 0
+
+        # --- Security score ---
+        score = _pick(
+            summary, "security_score", "security_posture_score", "score"
+        ) or _pick(
+            summary.get("kpi", {}) if isinstance(summary.get("kpi"), dict) else {},
+            "security_score",
+            "score",
+        )
+
+        if isinstance(score, (int, float)):
+            score_val = float(score)
+        else:
+            score_val = _compute_score_from_severity(sev, total)
+
+        run["security_score"] = score_val
+        run["score"] = score_val
+
+        # --- Tools / by_tool ---
+        by_tool = (
+            summary.get("summary", {}).get("by_tool")
+            or summary.get("by_tool")
+            or None
+        )
+        if isinstance(by_tool, dict):
+            run.setdefault("summary", {})
+            run["summary"]["by_tool"] = by_tool
+            run["tools"] = list(by_tool.keys())
+
+        # --- Status ---
+        run["status"] = "COMPLETED"
+
+        runs.append(run)
+
+    def _sort_key(item: Dict[str, Any]):
+        ts = str(item.get("ts") or "")
+        return (ts, item.get("run_id", ""))
+
+    runs.sort(key=_sort_key, reverse=True)
+    return runs
+
+
+@bp_vsp_runs_v2.route("/api/vsp/runs_v2", methods=["GET"])
+def api_vsp_runs_v2():
+    runs = _collect_runs()
+    resp: Dict[str, Any] = {
+        "ok": True,
+        "runs": runs,
+        "total": len(runs),
+        "source": str(OUT_DIR),
+    }
+    return jsonify(resp)

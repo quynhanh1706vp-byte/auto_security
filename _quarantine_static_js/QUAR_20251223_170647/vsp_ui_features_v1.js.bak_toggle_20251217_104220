@@ -1,0 +1,11 @@
+/* VSP_UI_FEATURES_V1 (route-scoped) */
+(function(){
+  'use strict';
+  window.__VSP_FEATURE_FLAGS__ = window.__VSP_FEATURE_FLAGS__ || {
+    DASHBOARD_CHARTS: true,
+    RUNS_PANEL: true,
+    DATASOURCE_TAB: true,
+    SETTINGS_TAB: true,
+    RULE_OVERRIDES_TAB: true
+  };
+})();

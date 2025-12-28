@@ -1,0 +1,14 @@
+== VSP UI STABILITY SMOKE P0 ==
+[BASE]=http://127.0.0.1:8910 [N]=600
+[FAIL] i=233 code=000000 url=http://127.0.0.1:8910/vsp4
+[FAIL] i=233 code=000000 url=http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[FAIL] i=233 code=000000 url=http://127.0.0.1:8910/api/vsp/dashboard_v3
+[FAIL] i=233 code=000000 url=http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=1
+[FAIL] i=233 code=000000 url=http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+[FAIL] i=234 code=000000 url=http://127.0.0.1:8910/vsp4
+[FAIL] i=234 code=000000 url=http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[FAIL] i=234 code=000000 url=http://127.0.0.1:8910/api/vsp/dashboard_v3
+[FAIL] i=234 code=000000 url=http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=1
+[FAIL] i=234 code=000000 url=http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+== RESULT ==
+[WARN] fails=10 (check out_ci/ui_8910.error.log)

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+OUT="out_ci"; TS="$(date +%Y%m%d_%H%M%S)"
+EVID="$OUT/p56h3_loaded_js_${TS}"
+mkdir -p "$EVID"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need curl; need python3; need node; need sort; need uniq; need awk; need sed; need head; need wc
+
+tabs=(/vsp5 /runs /data_source /settings /rule_overrides)
+
+echo "== [P56H3] Loaded-JS syntax gate ==" | tee "$EVID/summary.txt"
+echo "[INFO] BASE=$BASE" | tee -a "$EVID/summary.txt"
+
+# 1) fetch HTML per tab (retry a bit)
+for p in "${tabs[@]}"; do
+  f="$EVID/$(echo "$p" | tr '/?' '__').html"
+  code="000"
+  for i in 1 2 3; do
+    code="$(curl -sS -m 8 -o "$f" -w "%{http_code}" "$BASE$p" || true)"
+    [ "$code" != "000" ] && break
+    sleep 0.3
+  done
+  echo "[HTTP] $p => $code" | tee -a "$EVID/summary.txt"
+done
+
+# 2) extract loaded JS urls into loaded_js_urls.txt
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+evid = Path("out_ci").resolve()
+latest = sorted(evid.glob("p56h3_loaded_js_*"))[-1]
+
+js=set()
+for html in latest.glob("*.html"):
+    s=html.read_text(encoding="utf-8", errors="replace")
+    for m in re.finditer(r'src="(/static/js/[^"]+\.js[^"]*)"', s):
+        u=m.group(1).split("#",1)[0]
+        js.add(u)
+
+out = latest/"loaded_js_urls.txt"
+out.write_text("\n".join(sorted(js))+"\n", encoding="utf-8")
+print(len(js))
+PY > "$EVID/loaded_js_count.txt"
+
+loaded_urls="$(cat "$EVID/loaded_js_count.txt" 2>/dev/null || echo 0)"
+echo "[OK] loaded_js_urls = $loaded_urls" | tee -a "$EVID/summary.txt"
+
+# 3) map urls -> local files
+> "$EVID/loaded_js_files.txt"
+while read -r u; do
+  [ -n "${u:-}" ] || continue
+  path="${u%%\?*}"
+  path="${path#/static/}"     # js/xxx
+  f="static/$path"            # static/js/xxx
+  echo "$f"
+done < "$EVID/loaded_js_urls.txt" | sort -u > "$EVID/loaded_js_files.txt"
+
+echo "[OK] loaded_js_files = $(wc -l < "$EVID/loaded_js_files.txt")" | tee -a "$EVID/summary.txt"
+
+# 4) node --check only loaded files
+fails=0
+> "$EVID/fails.txt"
+while read -r f; do
+  [ -n "${f:-}" ] || continue
+  if [ ! -f "$f" ]; then
+    echo "[WARN] missing file: $f" | tee -a "$EVID/summary.txt"
+    continue
+  fi
+  if node --check "$f" >/dev/null 2>"$EVID/$(basename "$f").nodecheck.err"; then
+    echo "[OK] syntax: $f" >> "$EVID/syntax_ok.txt"
+  else
+    echo "[FAIL] syntax: $f" | tee -a "$EVID/summary.txt"
+    echo "$f" >> "$EVID/fails.txt"
+    fails=$((fails+1))
+  fi
+done < "$EVID/loaded_js_files.txt"
+
+python3 - <<PY
+import json, datetime, pathlib
+e=pathlib.Path("$EVID")
+fails = e/"fails.txt"
+j={
+  "ok": (fails.read_text().strip()=="") if fails.exists() else True,
+  "ts": datetime.datetime.now().isoformat(),
+  "base": "$BASE",
+  "evidence_dir": str(e),
+  "loaded_js_count": len((e/"loaded_js_files.txt").read_text().splitlines()),
+  "fails_count": len(fails.read_text().splitlines()) if fails.exists() else 0,
+}
+(e/"verdict.json").write_text(json.dumps(j, indent=2), encoding="utf-8")
+print(json.dumps(j, indent=2))
+PY | tee -a "$EVID/summary.txt"
+
+if [ -s "$EVID/fails.txt" ]; then
+  echo "[DONE] P56H3 FAIL (loaded JS has syntax errors). Evidence=$EVID" | tee -a "$EVID/summary.txt"
+  exit 1
+fi
+echo "[DONE] P56H3 PASS (loaded JS syntax OK). Evidence=$EVID" | tee -a "$EVID/summary.txt"

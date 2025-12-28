@@ -1,0 +1,351 @@
+/* ======================================================
+ * VersaSecure Platform – Commercial UI V1
+ * Chuẩn hóa giao diện 5 tab: Dashboard / Runs / Data /
+ * Settings / Rule Overrides
+ * ==================================================== */
+
+/* ---------- Design tokens ---------- */
+:root {
+  --vsp-bg: #020617;
+  --vsp-surface: #020617;
+  --vsp-surface-soft: #020617;
+  --vsp-border-subtle: rgba(148, 163, 184, 0.18);
+  --vsp-border-strong: rgba(148, 163, 184, 0.35);
+  --vsp-accent: #22c55e;
+  --vsp-accent-soft: rgba(34, 197, 94, 0.12);
+
+  --vsp-text: #e5e7eb;
+  --vsp-text-muted: #9ca3af;
+  --vsp-text-subtle: #6b7280;
+
+  --vsp-critical: #ef4444;
+  --vsp-high: #f97316;
+  --vsp-medium: #eab308;
+  --vsp-low: #22c55e;
+  --vsp-info: #38bdf8;
+  --vsp-trace: #64748b;
+}
+
+/* ---------- Global base ---------- */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--vsp-text);
+  background:
+    radial-gradient(circle at top left, #0b1120 0, #020617 45%, #000 100%);
+}
+
+/* Links */
+a {
+  color: var(--vsp-accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5 {
+  margin: 0;
+  font-weight: 600;
+  color: var(--vsp-text);
+}
+h1 { font-size: 24px; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+h4 { font-size: 14px; }
+
+/* Small labels / hint text */
+.vsp-subtitle {
+  font-size: 12px;
+  color: var(--vsp-text-muted);
+}
+
+/* ---------- Shell / Layout chung cho 5 tab ---------- */
+#vsp-root, .vsp-root {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 20px 32px;
+}
+
+/* Top bar (logo + title) – nếu có */
+header, .vsp-topbar {
+  font-size: 13px;
+}
+
+/* Tab content wrapper */
+#vsp-tab-dashboard,
+#vsp-tab-runs,
+#vsp-tab-datasource,
+#vsp-tab-settings,
+#vsp-tab-overrides {
+  padding-top: 8px;
+}
+
+/* Section chung */
+.vsp-section {
+  margin-bottom: 20px;
+}
+.vsp-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.vsp-section-header h2 {
+  font-size: 18px;
+}
+.vsp-section-header .vsp-subtitle {
+  font-size: 12px;
+}
+
+/* ---------- Card / panel ---------- */
+.vsp-card,
+.card,
+.panel {
+  background: radial-gradient(circle at top left, #0f172a 0, #020617 60%);
+  border-radius: 18px;
+  border: 1px solid var(--vsp-border-subtle);
+  padding: 14px 16px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.8);
+}
+.vsp-card + .vsp-card {
+  margin-top: 10px;
+}
+.vsp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.vsp-card-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vsp-text-muted);
+}
+
+/* ---------- Buttons ---------- */
+button,
+.vsp-btn {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--vsp-border-subtle);
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--vsp-text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+button:hover,
+.vsp-btn:hover {
+  background: rgba(30, 64, 175, 0.7);
+}
+button:active,
+.vsp-btn:active {
+  transform: scale(0.98);
+}
+
+.vsp-btn-primary {
+  background: var(--vsp-accent);
+  border-color: var(--vsp-accent);
+  color: #020617;
+  font-weight: 500;
+}
+.vsp-btn-primary:hover {
+  filter: brightness(1.05);
+}
+.vsp-btn-danger {
+  background: var(--vsp-critical);
+  border-color: var(--vsp-critical);
+}
+
+/* Toolbar (Runs / Settings / Rules) */
+.vsp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Inputs / Selects ---------- */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="password"],
+select,
+textarea {
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 999px;
+  border: 1px solid var(--vsp-border-subtle);
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--vsp-text);
+  outline: none;
+}
+textarea {
+  border-radius: 12px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--vsp-accent);
+  box-shadow: 0 0 0 1px rgba(34,197,94,0.3);
+}
+
+/* ---------- KPI zone (Dashboard) ---------- */
+.vsp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1280px) {
+  .vsp-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.vsp-kpi-card {
+  background: radial-gradient(circle at top left, #111827 0, #020617 65%);
+  border-radius: 18px;
+  border: 1px solid var(--vsp-border-subtle);
+  padding: 10px 12px;
+}
+.vsp-kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vsp-text-muted);
+}
+.vsp-kpi-value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 600;
+}
+.vsp-kpi-hint {
+  font-size: 11px;
+  color: var(--vsp-text-subtle);
+}
+
+/* ---------- Charts (Dashboard + Data Source) ---------- */
+.vsp-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 1280px) {
+  .vsp-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Giới hạn chiều cao tất cả chart trên Dashboard/Data Source */
+#vsp-tab-dashboard canvas,
+#vsp-tab-datasource canvas {
+  max-height: 260px !important;
+  height: 260px !important;
+}
+
+/* Đảm bảo card chart không cao quá mức */
+#vsp-tab-dashboard .vsp-card,
+#vsp-tab-datasource .vsp-card,
+#vsp-tab-datasource .card,
+#vsp-tab-datasource .panel {
+  max-height: 300px;
+  overflow: hidden;
+}
+
+/* ---------- Tables (Runs + Data Source + Rules) ---------- */
+#vsp-tab-runs table,
+#vsp-tab-datasource table,
+#vsp-tab-overrides table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+#vsp-tab-runs th, #vsp-tab-runs td,
+#vsp-tab-datasource th, #vsp-tab-datasource td,
+#vsp-tab-overrides th, #vsp-tab-overrides td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+}
+#vsp-tab-runs th,
+#vsp-tab-datasource th,
+#vsp-tab-overrides th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--vsp-text-muted);
+}
+#vsp-tab-runs tr:hover td,
+#vsp-tab-datasource tr:hover td,
+#vsp-tab-overrides tr:hover td {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+/* Hàng run được chọn */
+#vsp-tab-runs tr.vsp-row-selected td {
+  background: var(--vsp-accent-soft);
+  border-bottom-color: var(--vsp-accent-soft);
+}
+
+/* Nếu bảng rất cao, bọc trong container để dễ scroll (option) */
+.vsp-table-scroll {
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+/* ---------- Settings & Rule overrides – max width ---------- */
+#vsp-tab-settings > div,
+#vsp-tab-overrides > div {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---------- Badges (severity, env, version…) ---------- */
+.vsp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--vsp-border-subtle);
+  background: rgba(15,23,42,0.9);
+  font-size: 11px;
+  color: var(--vsp-text-muted);
+}
+.vsp-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+.vsp-badge-critical .vsp-badge-dot { background: var(--vsp-critical); }
+.vsp-badge-high .vsp-badge-dot { background: var(--vsp-high); }
+.vsp-badge-medium .vsp-badge-dot { background: var(--vsp-medium); }
+.vsp-badge-low .vsp-badge-dot { background: var(--vsp-low); }
+.vsp-badge-info .vsp-badge-dot { background: var(--vsp-info); }
+.vsp-badge-trace .vsp-badge-dot { background: var(--vsp-trace); }
+
+/* ---------- JSON editor (Settings / Rules) ---------- */
+.vsp-json-editor {
+  margin-top: 10px;
+}
+.vsp-json-editor textarea {
+  width: 100%;
+  min-height: 160px;
+}
+
+/* ---------- Footer nhỏ ---------- */
+.vsp-footer {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--vsp-text-subtle);
+}

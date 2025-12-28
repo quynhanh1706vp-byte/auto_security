@@ -1,0 +1,182 @@
+/* VSP_P121B_C_RUNS_V1 - safe, no template literal */
+(function(){
+  "use strict";
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function log(){ console.log.apply(console, ["[VSPC][runs]"].concat([].slice.call(arguments))); }
+  function warn(){ console.warn.apply(console, ["[VSPC][runs]"].concat([].slice.call(arguments))); }
+
+  function sanitizeRid(r){
+    r = (r==null ? "" : String(r)).trim();
+    r = r.replace(/[^\w\-:.]/g, "");
+    if (r.length > 160) r = r.slice(0,160);
+    return r;
+  }
+  function getParam(name){
+    try { return (new URLSearchParams(location.search)).get(name) || ""; }
+    catch(e){ return ""; }
+  }
+  function getRid(){
+    var u = sanitizeRid(getParam("rid"));
+    var ls = sanitizeRid(localStorage.getItem("VSP_C_RID") || "");
+    return u || ls || "";
+  }
+  function setRid(rid){
+    rid = sanitizeRid(rid);
+    if (rid) localStorage.setItem("VSP_C_RID", rid);
+    return rid;
+  }
+
+  function fetchJSON(url, timeoutMs){
+    timeoutMs = timeoutMs || 9000;
+    var ctl = new AbortController();
+    var t = setTimeout(function(){ try{ctl.abort();}catch(e){} }, timeoutMs);
+    return fetch(url, {signal: ctl.signal, cache:"no-store", credentials:"same-origin"})
+      .then(function(r){
+        return r.text().then(function(txt){
+          var j=null; try{ j=JSON.parse(txt); }catch(e){}
+          return {ok:r.ok, status:r.status, json:j, text:txt, url:url};
+        });
+      })
+      .finally(function(){ clearTimeout(t); });
+  }
+
+  function firstOK(urls){
+    var p = Promise.resolve(null);
+    urls.forEach(function(u){
+      p = p.then(function(prev){
+        if (prev) return prev;
+        return fetchJSON(u, 9000).then(function(res){
+          if (res && res.ok && res.json) return res;
+          return null;
+        }).catch(function(){ return null; });
+      });
+    });
+    return p;
+  }
+
+  function findRunsTable(){
+    var tables = qsa("table");
+    for (var i=0;i<tables.length;i++){
+      var t = tables[i];
+      var th = qsa("th", t).map(function(x){ return (x.textContent||"").trim().toLowerCase(); }).join("|");
+      if (th.indexOf("rid")>=0 && th.indexOf("action")>=0) return t;
+    }
+    return qs("#runs_table") || qs("table");
+  }
+
+  function renderRows(tbody, items){
+    tbody.innerHTML = "";
+    for (var i=0;i<items.length;i++){
+      var it = items[i] || {};
+      var rid = sanitizeRid(it.rid || it.run_id || it.id || "");
+      var label = String(it.label || it.ts || it.when || it.created_at || "");
+      var verdict = String(it.verdict || it.overall || it.status || "");
+
+      var tr = document.createElement("tr");
+
+      var tdRid = document.createElement("td");
+      tdRid.textContent = rid || "(none)";
+      tdRid.style.whiteSpace = "nowrap";
+
+      var tdLabel = document.createElement("td");
+      tdLabel.textContent = label;
+
+      var tdAct = document.createElement("td");
+      tdAct.style.whiteSpace = "nowrap";
+
+      function mkA(href, txt){
+        var a=document.createElement("a");
+        a.href=href; a.textContent=txt;
+        a.style.marginRight="10px";
+        return a;
+      }
+
+      if (rid){
+        tdAct.appendChild(mkA("/c/dashboard?rid="+encodeURIComponent(rid), "Dashboard"));
+        tdAct.appendChild(mkA("/api/vsp/export_findings_csv_v1?rid="+encodeURIComponent(rid), "CSV"));
+        tdAct.appendChild(mkA("/api/vsp/export_reports_tgz_v1?rid="+encodeURIComponent(rid), "Reports.tgz"));
+        if (verdict){
+          var sp=document.createElement("span");
+          sp.textContent = verdict;
+          sp.style.opacity="0.75";
+          sp.style.marginLeft="6px";
+          tdAct.appendChild(sp);
+        }
+        var btn=document.createElement("button");
+        btn.textContent="Use RID";
+        btn.style.marginLeft="10px";
+        btn.onclick=function(r){
+          return function(){ setRid(r); location.href="/c/runs?rid="+encodeURIComponent(r); };
+        }(rid);
+        tdAct.appendChild(btn);
+      } else {
+        tdAct.textContent = verdict || "";
+      }
+
+      tr.appendChild(tdRid);
+      tr.appendChild(tdLabel);
+      tr.appendChild(tdAct);
+      tbody.appendChild(tr);
+    }
+  }
+
+  function main(){
+    var rid = getRid();
+    if (rid) log("rid=", rid);
+
+    var tbl = findRunsTable();
+    if (!tbl){ warn("table not found"); return; }
+
+    var tb = qs("tbody", tbl);
+    if (!tb){ tb=document.createElement("tbody"); tbl.appendChild(tb); }
+
+    var inp = null;
+    var ins = qsa("input");
+    for (var i=0;i<ins.length;i++){
+      var ph = (ins[i].placeholder||"").toLowerCase();
+      if (ph.indexOf("filter")>=0){ inp=ins[i]; break; }
+    }
+
+    tb.innerHTML = '<tr><td colspan="3" style="opacity:.7">Loading...</td></tr>';
+
+    firstOK([
+      "/api/ui/runs_v3?limit=200&include_ci=1",
+      "/api/vsp/runs_v3?limit=200&include_ci=1",
+      "/api/vsp/runs_v2?limit=200"
+    ]).then(function(res){
+      if (!res){
+        tb.innerHTML = '<tr><td colspan="3" style="color:#ffb">Cannot load runs API</td></tr>';
+        return;
+      }
+      var items = res.json.items || res.json.data || res.json.runs || [];
+      var norm = items.map(function(x){
+        return {
+          rid: x.rid || x.run_id || x.id,
+          label: x.label || x.ts || x.when || x.created_at || "",
+          verdict: x.verdict || x.overall || x.status || ""
+        };
+      });
+      var view = norm.slice();
+      renderRows(tb, view);
+
+      if (inp){
+        inp.addEventListener("input", function(){
+          var q=(inp.value||"").toLowerCase().trim();
+          if (!q){ view=norm.slice(); renderRows(tb, view); return; }
+          view = norm.filter(function(x){
+            return (String(x.rid||"").toLowerCase().indexOf(q)>=0) ||
+                   (String(x.label||"").toLowerCase().indexOf(q)>=0);
+          });
+          renderRows(tb, view);
+        });
+      }
+    }).catch(function(e){
+      console.error(e);
+      tb.innerHTML = '<tr><td colspan="3" style="color:#ffb">runs error</td></tr>';
+    });
+  }
+
+  window.addEventListener("DOMContentLoaded", main);
+})();

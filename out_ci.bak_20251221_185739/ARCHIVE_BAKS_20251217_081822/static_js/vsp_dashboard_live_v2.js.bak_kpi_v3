@@ -1,0 +1,197 @@
+// === VSP DASHBOARD FIX V3 – CHUẨN 2025 ===
+
+// mapping severity 6 mức chuẩn
+const VSP_SEVERITY_KEYS = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+
+// mapping tool 8 chuẩn
+const VSP_TOOL_KEYS = [
+  "gitleaks","semgrep","kics","codeql",
+  "bandit","trivy_fs","grype","syft"
+];
+
+// Load KPI vào Dashboard
+function vspLoadKPIs(data) {
+  $("#kpi-total").text(data.total_findings);
+
+  // by severity
+  VSP_SEVERITY_KEYS.forEach(sev => {
+    const el = $("#kpi-" + sev.toLowerCase());
+    el.text(data.by_severity[sev] || 0);
+    el.addClass("sev-" + sev.toLowerCase());
+  });
+
+  // by tool
+  VSP_TOOL_KEYS.forEach(tool => {
+    $("#kpi-tool-" + tool).text(data.by_tool[tool] || 0);
+  });
+
+  $("#kpi-top-cwe").text(data.top_cwe || "N/A");
+  $("#kpi-top-module").text(data.top_module || "N/A");
+  $("#kpi-top-risky-tool").text(data.top_risky_tool || "N/A");
+}
+
+// MAIN fetch
+function loadDashboard() {
+  fetch("/api/vsp/dashboard_v3")
+    .then(r => r.json())
+    .then(json => {
+      if (!json.ok) return console.error("[DASHBOARD] JSON not ok");
+      vspLoadKPIs(json);
+      drawCharts(json); // gọi chart
+    })
+    .catch(err => console.error("[DASHBOARD] Error", err));
+}
+
+document.addEventListener("DOMContentLoaded", loadDashboard);
+
+
+/* ======================= VSP_DASHBOARD_KPI_V2 – BEGIN ======================= */
+
+window.vspDashboardApplyExtrasV1 = function(extras) {
+  try {
+    if (!extras) return;
+    window.vspApplyKpiDiffFromExtras(extras);
+    window.vspRenderTopRiskFromExtras(extras);
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V2] Error apply extras:", e);
+  }
+};
+
+window.vspApplyKpiDiffFromExtras = function(extras) {
+  try {
+    if (!extras || !extras.kpi_diff_v1) return;
+    var diff  = extras.kpi_diff_v1;
+    var cur   = diff.current || {};
+    var prev  = diff.prev   || {};
+    var delta = diff.delta  || {};
+
+    // Last run label: PREV → CURRENT
+    var prevId = prev.run_id || "N/A";
+    var curId  = cur.run_id  || "N/A";
+    var lastRunLabel = prevId + " \u2192 " + curId; // arrow
+
+    // Delta total + chi tiết từng severity
+    var dTotal = delta.total_findings || 0;
+    var signTotal = dTotal > 0 ? "+" : "";
+    var baseText = signTotal + dTotal + " findings vs prev";
+
+    var sevOrder = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+    var sevParts = [];
+    if (delta.by_severity) {
+      sevOrder.forEach(function(s) {
+        var v = delta.by_severity.hasOwnProperty(s)
+          ? delta.by_severity[s]
+          : 0;
+        if (!v) return;
+        var sign = v > 0 ? "+" : "";
+        sevParts.push(sign + v + " " + s);
+      });
+    }
+    var details = sevParts.length ? " (" + sevParts.join(", ") + ")" : "";
+    var deltaText = baseText + details;
+
+    var elLast = document.getElementById("kpi-last-run-label");
+    if (!elLast) {
+      elLast = document.querySelector("[data-kpi-last-run]");
+    }
+    if (elLast) {
+      elLast.textContent = lastRunLabel;
+    }
+
+    var elDelta = document.getElementById("kpi-delta-label");
+    if (!elDelta) {
+      elDelta = document.querySelector("[data-kpi-delta]");
+    }
+    if (elDelta) {
+      elDelta.textContent = deltaText;
+    }
+
+    if (window.console && console.log) {
+      console.log("[VSP][KPI_V2] Applied KPI diff extras.");
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V2] Error in vspApplyKpiDiffFromExtras:", e);
+  }
+};
+
+window.vspRenderTopRiskFromExtras = function(extras) {
+  try {
+    if (!extras || !extras.top_risk_findings) return;
+    var items = extras.top_risk_findings;
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    var tbody = document.getElementById("vsp-top-risk-tbody");
+    if (!tbody) {
+      tbody = document.querySelector("tbody[data-top-risk-body]");
+    }
+    if (!tbody) {
+      return;
+    }
+
+    while (tbody.firstChild) {
+      tbody.removeChild(tbody.firstChild);
+    }
+
+    items.forEach(function(it, idx) {
+      var tr = document.createElement("tr");
+
+      var tdIdx  = document.createElement("td");
+      var tdSev  = document.createElement("td");
+      var tdTool = document.createElement("td");
+      var tdFile = document.createElement("td");
+      var tdRule = document.createElement("td");
+
+      tdIdx.textContent  = String(idx + 1);
+
+      // Severity badge + palette
+      var sev = (it.severity || "").toUpperCase();
+      tdSev.textContent = sev;
+      var cls = "sev-" + sev.toLowerCase();
+      tdSev.classList.add("sev-pill");
+      tdSev.classList.add(cls);
+
+      tdTool.textContent = it.tool || "";
+
+      var fileLabel = it.file || "";
+      if (it.line) {
+        fileLabel += ":" + it.line;
+      }
+      tdFile.textContent = fileLabel;
+
+      // Rule / CWE gọn đẹp
+      var rule = it.rule_id || "";
+      var cwe  = it.cwe || "";
+      var label = "";
+      if (rule && cwe) {
+        label = rule + " \u2022 " + cwe; // bullet giữa
+      } else if (rule) {
+        label = rule;
+      } else if (cwe) {
+        label = cwe;
+      }
+      // Cắt ngắn nếu quá dài
+      var maxLen = 60;
+      if (label.length > maxLen) {
+        label = label.slice(0, maxLen - 1) + "\u2026";
+      }
+      tdRule.textContent = label;
+
+      tr.appendChild(tdIdx);
+      tr.appendChild(tdSev);
+      tr.appendChild(tdTool);
+      tr.appendChild(tdFile);
+      tr.appendChild(tdRule);
+
+      tbody.appendChild(tr);
+    });
+
+    if (window.console && console.log) {
+      console.log("[VSP][KPI_V2] Rendered top_risk_findings:", items.length);
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[VSP][KPI_V2] Error in vspRenderTopRiskFromExtras:", e);
+  }
+};
+
+/* ======================= VSP_DASHBOARD_KPI_V2 – END ========================= */
+

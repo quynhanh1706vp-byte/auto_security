@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VSP CIO Security Report - {{ rid }}</title>
+  <style>
+    :root{
+      --bg:#020617; --panel:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0;
+      --bd:rgba(148,163,184,.18); --bd2:rgba(148,163,184,.12);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#071024);color:var(--text);font:13px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1180px;margin:0 auto;padding:26px 18px 80px}
+    .top{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between}
+    h1{margin:0;font-size:22px;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:12px;margin-top:6px}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--bd);background:rgba(15,23,42,.55);color:var(--text);font-size:12px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:14px}
+    .card{grid-column:span 3;border:1px solid var(--bd);background:rgba(15,23,42,.45);border-radius:16px;padding:12px}
+    .k{color:var(--muted);font-size:12px}
+    .v{font-size:20px;font-weight:800;margin-top:4px}
+    .row{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:12px}
+    .panel{grid-column:span 12;border:1px solid var(--bd);background:rgba(2,6,23,.35);border-radius:18px;padding:14px}
+    .panel h2{margin:0 0 10px 0;font-size:14px;letter-spacing:.2px}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    td,th{padding:9px 10px;border:1px solid var(--bd2);background:rgba(2,6,23,.35);text-align:left;vertical-align:top}
+    tr td:first-child,tr th:first-child{border-radius:12px 0 0 12px}
+    tr td:last-child,tr th:last-child{border-radius:0 12px 12px 0}
+    .muted{color:var(--muted)}
+    code{background:rgba(2,6,23,.7);border:1px solid var(--bd2);padding:2px 6px;border-radius:8px}
+    .two{grid-column:span 6}
+    .three{grid-column:span 4}
+    .small{font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>VSP CIO Security Report</h1>
+        <div class="sub">
+          RID: <code>{{ rid }}</code> • Source: <code>{{ source }}</code> • Generated (UTC): <code>{{ now_utc }}</code>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span class="pill">Overall: <b>{{ overall }}</b></span>
+        <span class="pill">Security Score: <b>{{ score }}</b></span>
+        <span class="pill">Degraded tools: <b>{{ degraded_n }}</b></span>
+        <span class="pill">Overrides applied: <b>{{ overrides.applied_n }}</b></span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><div class="k">Total findings (raw)</div><div class="v">{{ totals.raw }}</div></div>
+      <div class="card"><div class="k">Total findings (effective)</div><div class="v">{{ totals.effective }}</div></div>
+      <div class="card"><div class="k">Critical + High</div><div class="v">{{ totals.crit_high }}</div></div>
+      <div class="card"><div class="k">Top risky tool</div><div class="v" style="font-size:16px">{{ top.tool }}</div><div class="muted small">{{ top.tool_n }} findings</div></div>
+    </div>
+
+    <div class="row">
+      <div class="panel two">
+        <h2>Executive Summary</h2>
+        <div class="muted small">
+          This report summarizes security posture for the selected run. “Effective” findings reflect Rule Overrides (suppress/severity changes).
+          Degraded tools may reduce confidence for certain categories.
+        </div>
+        <div style="margin-top:10px" class="small">
+          <b>Top CWE:</b> {{ top.cwe }} ({{ top.cwe_n }}) •
+          <b>Overrides:</b> matched={{ overrides.matched_n }}, suppressed={{ overrides.suppressed_n }}, changed={{ overrides.changed_severity_n }}, expired={{ overrides.expired_match_n }}.
+        </div>
+      </div>
+
+      <div class="panel two">
+        <h2>Breakdown by Severity</h2>
+        <table>
+          <tr><th>Severity</th><th>Count</th></tr>
+          {% for k,v in by_sev %}
+          <tr><td><b>{{ k }}</b></td><td>{{ v }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="panel three">
+        <h2>Top Tools</h2>
+        <table>
+          <tr><th>Tool</th><th>Count</th></tr>
+          {% for k,v in by_tool %}
+          <tr><td><b>{{ k }}</b></td><td>{{ v }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <div class="panel three">
+        <h2>Top CWE</h2>
+        <table>
+          <tr><th>CWE</th><th>Count</th></tr>
+          {% for k,v in by_cwe %}
+          <tr><td><b>{{ k }}</b></td><td>{{ v }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <div class="panel three">
+        <h2>ISO 27001 Coverage</h2>
+        <div class="muted small">Controls inferred from CWE/tool mapping (best-effort).</div>
+        <table>
+          <tr><th>Control</th><th>Evidence</th></tr>
+          {% for it in iso_controls %}
+          <tr><td><b>{{ it.control }}</b></td><td class="small">{{ it.evidence }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="panel">
+        <h2>Top Findings (sample)</h2>
+        <table>
+          <tr>
+            <th>Severity</th><th>Tool</th><th>Title</th><th>File</th><th>Line</th><th>CWE</th>
+          </tr>
+          {% for f in top_findings %}
+          <tr>
+            <td><b>{{ f.severity }}</b></td>
+            <td>{{ f.tool }}</td>
+            <td class="small">{{ f.title }}</td>
+            <td class="small">{{ f.file }}</td>
+            <td>{{ f.line }}</td>
+            <td>{{ f.cwe }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="panel">
+        <h2>Artifacts</h2>
+        <div class="small muted">Open raw artifacts via API (logs, JSON, SARIF).</div>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+          {% for a in artifacts %}
+            {% if a.url %}
+              <a class="pill" href="{{ a.url }}" target="_blank" rel="noopener">{{ a.name }}</a>
+            {% else %}
+              <span class="pill muted">{{ a.name }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="sub" style="margin-top:16px">
+      Generated by VSP Report CIO v1 • ISO mapping is best-effort and must be verified for compliance reporting.
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+[2025-12-15 05:28:19 +0700] [138871] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 05:28:19 +0700] [138871] [INFO] Listening at: http://127.0.0.1:8910 (138871)
+[2025-12-15 05:28:19 +0700] [138871] [INFO] Using worker: gthread
+[2025-12-15 05:28:19 +0700] [138873] [INFO] Booting worker with pid: 138873

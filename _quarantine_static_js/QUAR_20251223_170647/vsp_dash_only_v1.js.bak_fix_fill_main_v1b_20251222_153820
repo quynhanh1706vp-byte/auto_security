@@ -1,0 +1,682 @@
+/* VSP_P0_DASH_MIN_STABLE_V1
+   Purpose: eliminate all loops/bind storms; render a small stable panel that proves dashboard works.
+*/
+(()=> {
+  if (window.__VSP_P0_DASH_MIN_STABLE_V1) return;
+  window.__VSP_P0_DASH_MIN_STABLE_V1 = true;
+
+  const log=(...a)=>console.log("[VSP][MIN_STABLE]",...a);
+
+  function esc(s){
+    return String(s??"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function ensurePanel(){
+    let el = document.getElementById("vsp_min_stable_panel_v1");
+    if (el) return el;
+
+    el = document.createElement("div");
+    el.id = "vsp_min_stable_panel_v1";
+    el.style.cssText = [
+      "position:fixed","right:16px","bottom:16px","z-index:99999",
+      "width:520px","max-width:calc(100vw - 32px)",
+      "background:rgba(10,14,26,.92)","color:#e6e9f2",
+      "border:1px solid rgba(255,255,255,.14)","border-radius:14px",
+      "box-shadow:0 18px 48px rgba(0,0,0,.45)",
+      "backdrop-filter: blur(8px)",
+      "font:13px/1.35 system-ui,Segoe UI,Arial",
+      "padding:12px"
+    ].join(";");
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="font-weight:700">VSP • Dashboard (MIN_STABLE)</div>
+        <button id="vsp_ms_close" style="cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e6e9f2;border-radius:10px;padding:6px 10px">Close</button>
+      </div>
+
+      <div style="margin-top:8px;opacity:.85">
+        RID: <span id="vsp_ms_rid" style="font-family:ui-monospace,Menlo,Consolas,monospace">...</span>
+        <span style="margin-left:10px">Overall: <b id="vsp_ms_overall">...</b></span>
+      </div>
+
+      <div id="vsp_ms_status" style="margin-top:8px;opacity:.85">booting…</div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <div style="flex:1;min-width:110px;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px;background:rgba(255,255,255,.03)">
+          <div style="opacity:.75">HIGH</div><div id="vsp_ms_high" style="font-weight:800;font-size:18px">-</div>
+        </div>
+        <div style="flex:1;min-width:110px;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px;background:rgba(255,255,255,.03)">
+          <div style="opacity:.75">MEDIUM</div><div id="vsp_ms_medium" style="font-weight:800;font-size:18px">-</div>
+        </div>
+        <div style="flex:1;min-width:110px;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px;background:rgba(255,255,255,.03)">
+          <div style="opacity:.75">LOW</div><div id="vsp_ms_low" style="font-weight:800;font-size:18px">-</div>
+        </div>
+        <div style="flex:1;min-width:110px;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px;background:rgba(255,255,255,.03)">
+          <div style="opacity:.75">INFO</div><div id="vsp_ms_info" style="font-weight:800;font-size:18px">-</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <button id="vsp_ms_reload" style="cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e6e9f2;border-radius:10px;padding:8px 12px">Reload summary</button>
+        <button id="vsp_ms_top" style="cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#e6e9f2;border-radius:10px;padding:8px 12px">Load top findings (25)</button>
+      </div>
+
+      <div id="vsp_ms_tablewrap" style="margin-top:10px;max-height:320px;overflow:auto;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(255,255,255,.02)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="opacity:.8">
+              <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)">Sev</th>
+              <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)">Tool</th>
+              <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)">Title</th>
+              <th style="text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)">Loc</th>
+            </tr>
+          </thead>
+          <tbody id="vsp_ms_rows">
+            <tr><td colspan="4" style="padding:10px;opacity:.75">Not loaded</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    document.body.appendChild(el);
+
+    el.querySelector("#vsp_ms_close").addEventListener("click", ()=> el.remove(), {once:true});
+    return el;
+  }
+
+  function setStatus(t){
+    const el = document.getElementById("vsp_ms_status");
+    if (el) el.textContent = t;
+  }
+
+  async function getLatestRid(){
+    const r = await fetch("/api/vsp/rid_latest_gate_root", {cache:"no-store"});
+    const j = await r.json();
+    return j && j.rid ? j.rid : "";
+  }
+
+  async function loadSummary(rid){
+    // prefer run_gate_summary.json (you already have it OK)
+    const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`;
+    const r = await fetch(url, {cache:"no-store"});
+    const j = await r.json();
+    return j || {};
+  }
+
+  function applyCounts(j){
+    const c = (j && j.counts_total) ? j.counts_total : {};
+    const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = (v===0? "0" : (v||"-")); };
+    set("vsp_ms_high", c.HIGH);
+    set("vsp_ms_medium", c.MEDIUM);
+    set("vsp_ms_low", c.LOW);
+    set("vsp_ms_info", c.INFO);
+
+    const ov = (j && j.overall) ? j.overall : "-";
+    const eov = document.getElementById("vsp_ms_overall");
+    if (eov) eov.textContent = ov;
+  }
+
+  function renderRows(items){
+    const tb = document.getElementById("vsp_ms_rows");
+    if (!tb) return;
+    if (!Array.isArray(items) || items.length === 0){
+      tb.innerHTML = `<tr><td colspan="4" style="padding:10px;opacity:.75">No items</td></tr>`;
+      return;
+    }
+    tb.innerHTML = items.map(it => {
+      const sev = esc(it.severity||"");
+      const tool = esc(it.tool||"");
+      const title = esc(it.title||"");
+      const loc = esc((it.file||"") + (it.line? (":" + it.line) : ""));
+      return `<tr>
+        <td style="padding:8px;border-top:1px solid rgba(255,255,255,.06)">${sev}</td>
+        <td style="padding:8px;border-top:1px solid rgba(255,255,255,.06)">${tool}</td>
+        <td style="padding:8px;border-top:1px solid rgba(255,255,255,.06)">${title}</td>
+        <td style="padding:8px;border-top:1px solid rgba(255,255,255,.06);font-family:ui-monospace,Menlo,Consolas,monospace">${loc}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  async function loadTop(rid, limit=25){
+    // this one you validated returns real rows
+    const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=${encodeURIComponent(limit)}`;
+    const r = await fetch(url, {cache:"no-store"});
+    const j = await r.json();
+    if (!j || !j.ok) return {ok:false, err:(j&&j.err)||"err", items:[]};
+    return {ok:true, items:Array.isArray(j.items)?j.items:[], src:j.source||"v4"};
+  }
+
+  async function boot(){
+    ensurePanel();
+    try{
+      setStatus("Fetching rid_latest_gate_root…");
+      const rid = await getLatestRid();
+      const ridEl = document.getElementById("vsp_ms_rid");
+      if (ridEl) ridEl.textContent = rid || "<none>";
+      if (!rid){
+        setStatus("No RID from /api/vsp/rid_latest_gate_root");
+        return;
+      }
+
+      setStatus("Loading run_gate_summary.json…");
+      const sum = await loadSummary(rid);
+      applyCounts(sum);
+      setStatus("Summary loaded. Click 'Load top findings'.");
+
+      const btnReload = document.getElementById("vsp_ms_reload");
+      const btnTop = document.getElementById("vsp_ms_top");
+
+      if (btnReload){
+        btnReload.onclick = async ()=>{
+          try{
+            setStatus("Reloading summary…");
+            const s2 = await loadSummary(rid);
+            applyCounts(s2);
+            setStatus("Summary reloaded.");
+          }catch(e){
+            console.error("[VSP][MIN_STABLE] reload err", e);
+            setStatus("Reload error (see console)");
+          }
+        };
+      }
+
+      if (btnTop){
+        btnTop.onclick = async ()=>{
+          try{
+            setStatus("Loading top findings via /api/vsp/top_findings_v4…");
+            const t = await loadTop(rid, 25);
+            if (!t.ok){
+              renderRows([]);
+              setStatus("Topfind: " + (t.err||"no data"));
+              return;
+            }
+            renderRows(t.items);
+            setStatus(`Topfind loaded: ${t.items.length} • ${t.src} • ${rid}`);
+          }catch(e){
+            console.error("[VSP][MIN_STABLE] topfind err", e);
+            setStatus("Topfind error (see console)");
+          }
+        };
+      }
+
+      log("boot ok", {rid});
+    }catch(e){
+      console.error("[VSP][MIN_STABLE] boot err", e);
+      setStatus("Boot error (see console)");
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, {once:true});
+  else boot();
+})();
+
+
+
+/* ===================== VSP_P1_UI_OK_BADGE_V1 ===================== */
+(()=> {
+  if (window.__vsp_p1_ui_ok_badge_v1) return;
+  window.__vsp_p1_ui_ok_badge_v1 = true;
+
+  async function ping(){
+    try{
+      const r = await fetch("/api/vsp/rid_latest_gate_root", {credentials:"same-origin"});
+      if(!r.ok) return {ok:false, status:r.status};
+      const j = await r.json().catch(()=>null);
+      return {ok: !!(j && (j.ok || j.rid)), status:200};
+    }catch(e){
+      return {ok:false, status:0};
+    }
+  }
+
+  function mount(){
+    if (document.getElementById("vsp_ui_ok_badge_v1")) return;
+
+    const host =
+      document.querySelector("header") ||
+      document.querySelector(".topbar") ||
+      document.querySelector("#topbar") ||
+      document.body;
+
+    const b = document.createElement("span");
+    b.id = "vsp_ui_ok_badge_v1";
+    b.textContent = "UI: …";
+    b.style.cssText =
+      "display:inline-flex;align-items:center;gap:6px;" +
+      "padding:4px 10px;border-radius:999px;" +
+      "border:1px solid rgba(255,255,255,.12);" +
+      "background:rgba(255,255,255,.06);" +
+      "color:#d8ecff;font:12px/1.2 system-ui,Segoe UI,Roboto;" +
+      "margin-left:10px;";
+
+    // If host is body (fallback), make fixed
+    if (host === document.body){
+      b.style.cssText += "position:fixed;z-index:99998;top:10px;right:12px;";
+      document.body.appendChild(b);
+    } else {
+      host.appendChild(b);
+    }
+
+    async function refresh(){
+      const res = await ping();
+      if(res.ok){
+        b.textContent = "UI: OK";
+        b.style.borderColor = "rgba(90,255,170,.35)";
+        b.style.background = "rgba(20,80,40,.35)";
+        b.style.color = "#c9ffe0";
+      } else {
+        b.textContent = "UI: DEGRADED";
+        b.style.borderColor = "rgba(255,210,120,.35)";
+        b.style.background = "rgba(80,60,20,.35)";
+        b.style.color = "#ffe7b7";
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 30000);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
+})();
+/* ===================== /VSP_P1_UI_OK_BADGE_V1 ===================== */
+
+
+
+
+/* ===================== VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 =====================
+   Goal: Populate existing dashboard KPI cards + Top findings table in the main layout
+         using safe one-shot heuristics (no loops).
+*/
+(()=> {
+  try{
+    if (window.__VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1) return;
+    window.__VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 = true;
+
+    const log=(...a)=>console.log("[VSP][FILL_MAIN_V1]",...a);
+
+    function esc(s){
+      return String(s??"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // --- KPI fill (by label text: TOTAL/CRITICAL/HIGH/MEDIUM/LOW/INFO/TRACE) ---
+    function findLabelEl(label){
+      const want = String(label).trim().toUpperCase();
+      const all = document.querySelectorAll("div,span,small,strong,b");
+      for (const el of all){
+        const t = (el.textContent||"").trim().toUpperCase();
+        if (t === want) return el;
+      }
+      return null;
+    }
+    function findValueSlot(cardRoot){
+      // find a short text node element that currently shows dash/empty (— or -)
+      const cands = cardRoot.querySelectorAll("div,span,strong,b");
+      for (const el of cands){
+        const t = (el.textContent||"").trim();
+        if (t in {"—":"—","-":"-","--":"--"} or t == "—" or t == "-" or t == "--"):
+          return el
+      return null;
+    }
+
+    function fillOneKpi(label, value){
+      const labEl = findLabelEl(label);
+      if (!labEl) return false;
+      // card root: climb a bit
+      let root = labEl;
+      for (let i=0;i<5 && root && root.parentElement;i++){
+        root = root.parentElement;
+        // heuristic: stop when the block contains the label + looks like a card
+        const txt = (root.textContent||"").toUpperCase();
+        if (txt.includes(label) && txt.length < 200) break;
+      }
+      if (!root) return false;
+
+      // pick a value slot: prefer first element that is just "—" within root
+      const els = root.querySelectorAll("div,span,strong,b");
+      for (const el of els){
+        const t = (el.textContent||"").trim();
+        if (t === "—" || t === "-" || t === "--"){
+          el.textContent = String(value ?? "-");
+          return true;
+        }
+      }
+      // fallback: set last big-ish element
+      if (els.length){
+        els[0].textContent = String(value ?? "-");
+        return true;
+      }
+      return false;
+    }
+
+    function fillKpisFromSummary(summary){
+      const c = (summary && summary.counts_total) ? summary.counts_total : {};
+      // TOTAL is sum of severities
+      const total = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].reduce((a,k)=>a+(Number(c[k]||0)||0),0);
+      fillOneKpi("TOTAL", total);
+      fillOneKpi("CRITICAL", c.CRITICAL);
+      fillOneKpi("HIGH", c.HIGH);
+      fillOneKpi("MEDIUM", c.MEDIUM);
+      fillOneKpi("LOW", c.LOW);
+      fillOneKpi("INFO", c.INFO);
+      fillOneKpi("TRACE", c.TRACE);
+      log("kpi filled", {total});
+    }
+
+    // --- Top findings table fill: find section by heading text "Top findings" then fill its table tbody ---
+    function findTopFindingsTbody(){
+      // find element that contains "Top findings" header
+      const all = document.querySelectorAll("h1,h2,h3,h4,div,span");
+      let anchor = null;
+      for (const el of all){
+        const t = (el.textContent||"").trim().toLowerCase();
+        if (t === "top findings (sample)" || t.startsWith("top findings")){
+          anchor = el;
+          break;
+        }
+      }
+      if (!anchor) return null;
+
+      // find nearest table below anchor
+      let node = anchor;
+      for (let i=0;i<6 && node && node.parentElement;i++) node = node.parentElement;
+      if (!node) node = document.body;
+
+      const table = node.querySelector("table") || document.querySelector("table");
+      if (!table) return null;
+      const tbody = table.querySelector("tbody");
+      return tbody;
+    }
+
+    function renderTopFindingsInMain(items){
+      const tbody = findTopFindingsTbody();
+      if (!tbody){
+        log("cannot find main top findings tbody");
+        return false;
+      }
+      if (!Array.isArray(items) || items.length === 0){
+        tbody.innerHTML = `<tr><td colspan="4" style="padding:10px;opacity:.75">No items</td></tr>`;
+        return true;
+      }
+      tbody.innerHTML = items.map(it=>{
+        const sev = esc(it.severity||"");
+        const tool = esc(it.tool||"");
+        const title = esc(it.title||"");
+        const loc = esc((it.file||"") + (it.line? (":" + it.line) : ""));
+        return `<tr>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${sev}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${tool}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${title}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06);font-family:ui-monospace,Menlo,Consolas,monospace">${loc}</td>
+        </tr>`;
+      }).join("");
+      return true;
+    }
+
+    // --- Hook into MIN_STABLE panel buttons (if present) to also update main layout ---
+    function hookPanelButtons(){
+      const btnTop = document.getElementById("vsp_ms_top");
+      const btnReload = document.getElementById("vsp_ms_reload");
+      const ridEl = document.getElementById("vsp_ms_rid");
+      const rid = ridEl ? (ridEl.textContent||"").trim() : "";
+
+      if (btnReload && !btnReload.__vsp_hooked){
+        btnReload.__vsp_hooked = true;
+        btnReload.addEventListener("click", async ()=>{
+          try{
+            if (!rid) return;
+            const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`;
+            const res = await fetch(url, {cache:"no-store"});
+            const j = await res.json();
+            fillKpisFromSummary(j);
+          }catch(e){ console.error("[VSP][FILL_MAIN_V1] reload hook err", e); }
+        });
+      }
+
+      if (btnTop && !btnTop.__vsp_hooked){
+        btnTop.__vsp_hooked = true;
+        btnTop.addEventListener("click", async ()=>{
+          try{
+            if (!rid) return;
+            const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=25`;
+            const res = await fetch(url, {cache:"no-store"});
+            const j = await res.json();
+            if (j && j.ok) renderTopFindingsInMain(j.items||[]);
+          }catch(e){ console.error("[VSP][FILL_MAIN_V1] top hook err", e); }
+        });
+      }
+      log("hooked panel buttons");
+    }
+
+    // wait a tick for MIN_STABLE panel to be created
+    setTimeout(hookPanelButtons, 200);
+
+  }catch(e){
+    console.error("[VSP][FILL_MAIN_V1] fatal", e);
+  }
+})();
+
+
+
+
+/* ===================== VSP_P1_UI_OK_BADGE_V2_FORCE_FIXED ===================== */
+(()=> {
+  if (window.__vsp_p1_ui_ok_badge_v2) return;
+  window.__vsp_p1_ui_ok_badge_v2 = true;
+
+  async function ping(){
+    try{
+      const r = await fetch("/api/vsp/rid_latest_gate_root", {credentials:"same-origin"});
+      if(!r.ok) return {ok:false, status:r.status};
+      const j = await r.json().catch(()=>null);
+      return {ok: !!(j && (j.ok || j.rid)), status:200};
+    }catch(e){
+      return {ok:false, status:0};
+    }
+  }
+
+  function mount(){
+    let b = document.getElementById("vsp_ui_ok_badge_v2");
+    if (!b){
+      b = document.createElement("div");
+      b.id = "vsp_ui_ok_badge_v2";
+      b.style.cssText =
+        "position:fixed;z-index:999999;top:10px;right:12px;" +
+        "display:inline-flex;align-items:center;gap:8px;" +
+        "padding:6px 12px;border-radius:999px;" +
+        "border:1px solid rgba(255,255,255,.12);" +
+        "background:rgba(10,18,32,.82);" +
+        "backdrop-filter: blur(10px);" +
+        "color:#d8ecff;font:12px/1.2 system-ui,Segoe UI,Roboto;" +
+        "box-shadow:0 10px 30px rgba(0,0,0,.35)";
+      b.textContent = "UI: …";
+      document.body.appendChild(b);
+    }
+
+    async function refresh(){
+      const res = await ping();
+      if(res.ok){
+        b.textContent = "UI: OK";
+        b.style.borderColor = "rgba(90,255,170,.35)";
+        b.style.background = "rgba(20,80,40,.35)";
+        b.style.color = "#c9ffe0";
+      } else {
+        b.textContent = "UI: DEGRADED";
+        b.style.borderColor = "rgba(255,210,120,.35)";
+        b.style.background = "rgba(80,60,20,.35)";
+        b.style.color = "#ffe7b7";
+      }
+    }
+    refresh();
+    setInterval(refresh, 20000);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
+})();
+/* ===================== /VSP_P1_UI_OK_BADGE_V2_FORCE_FIXED ===================== */
+
+
+
+/* ===================== VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 =====================
+   Goal: Populate main KPI cards + main Top Findings table by hooking MIN_STABLE overlay buttons.
+   Safe: no loops, no bind storms.
+*/
+(()=> {
+  try{
+    if (window.__VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1) return;
+    window.__VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 = true;
+
+    const log=(...a)=>console.log("[VSP][FILL_MAIN_V1]",...a);
+
+    function esc(s){
+      return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function u(s){ return String(s||"").trim().toUpperCase(); }
+    function l(s){ return String(s||"").trim().toLowerCase(); }
+
+    // ---- KPI fill by label text (TOTAL/CRITICAL/HIGH/MEDIUM/LOW/INFO/TRACE) ----
+    function findLabelEl(label){
+      const want = u(label);
+      const all = document.querySelectorAll("div,span,small,strong,b,h1,h2,h3,h4");
+      for (const el of all){
+        const t = u(el.textContent || "");
+        if (t === want) return el;
+      }
+      return null;
+    }
+
+    function fillOneKpi(label, value){
+      const labEl = findLabelEl(label);
+      if (!labEl) return false;
+
+      // climb to a reasonable card container
+      let root = labEl;
+      for (let i=0; i<8 && root && root.parentElement; i++){
+        root = root.parentElement;
+        const txt = u(root.textContent||"");
+        // heuristic: container includes label and at least one dash
+        if (txt.indexOf(u(label)) >= 0 && (root.textContent||"").indexOf("—") >= 0) break;
+      }
+      if (!root) return false;
+
+      // replace first dash-like element inside the container
+      const els = root.querySelectorAll("div,span,strong,b");
+      for (const el of els){
+        const t = (el.textContent||"").trim();
+        if (t === "—" || t === "-" || t === "--"){
+          el.textContent = String(value ?? "-");
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function fillKpisFromSummary(summary){
+      const c = (summary && summary.counts_total) ? summary.counts_total : {};
+      const total = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].reduce((a,k)=>a+(Number(c[k]||0)||0),0);
+      fillOneKpi("TOTAL", total);
+      fillOneKpi("CRITICAL", c.CRITICAL);
+      fillOneKpi("HIGH", c.HIGH);
+      fillOneKpi("MEDIUM", c.MEDIUM);
+      fillOneKpi("LOW", c.LOW);
+      fillOneKpi("INFO", c.INFO);
+      fillOneKpi("TRACE", c.TRACE);
+      log("kpi filled", {total});
+    }
+
+    // ---- Top findings main table: pick table that has headers Severity/Tool/Title/Location ----
+    function findMainTopTableTbody(){
+      const tables = Array.from(document.querySelectorAll("table"));
+      for (const t of tables){
+        const h = l(t.innerText || "");
+        if (h.includes("severity") && h.includes("tool") && h.includes("title") && (h.includes("location") || h.includes("loc"))){
+          const tb = t.querySelector("tbody");
+          if (tb) return tb;
+        }
+      }
+      return null;
+    }
+
+    function renderTopFindingsInMain(items){
+      const tbody = findMainTopTableTbody();
+      if (!tbody){
+        log("cannot find main Top findings table");
+        return false;
+      }
+      if (!Array.isArray(items) || items.length === 0){
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:10px;opacity:.75">No items</td></tr>';
+        return true;
+      }
+      tbody.innerHTML = items.map(it=>{
+        const sev = esc(it.severity||"");
+        const tool = esc(it.tool||"");
+        const title = esc(it.title||"");
+        const loc = esc((it.file||"") + (it.line ? (":" + it.line) : ""));
+        return `<tr>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${sev}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${tool}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06)">${title}</td>
+          <td style="padding:10px;border-top:1px solid rgba(255,255,255,.06);font-family:ui-monospace,Menlo,Consolas,monospace">${loc}</td>
+        </tr>`;
+      }).join("");
+      return true;
+    }
+
+    // ---- Hook MIN_STABLE overlay buttons ----
+    async function getRidFromPanel(){
+      const ridEl = document.getElementById("vsp_ms_rid");
+      const rid = ridEl ? (ridEl.textContent||"").trim() : "";
+      return rid || "";
+    }
+
+    function hookOnce(){
+      const btnReload = document.getElementById("vsp_ms_reload");
+      const btnTop = document.getElementById("vsp_ms_top");
+
+      if (btnReload && !btnReload.__vsp_fill_main_hooked){
+        btnReload.__vsp_fill_main_hooked = true;
+        btnReload.addEventListener("click", async ()=>{
+          try{
+            const rid = await getRidFromPanel();
+            if (!rid) return;
+            const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=run_gate_summary.json`;
+            const res = await fetch(url, {cache:"no-store"});
+            const j = await res.json();
+            fillKpisFromSummary(j);
+          }catch(e){ console.error("[VSP][FILL_MAIN_V1] reload hook err", e); }
+        });
+      }
+
+      if (btnTop && !btnTop.__vsp_fill_main_hooked){
+        btnTop.__vsp_fill_main_hooked = true;
+        btnTop.addEventListener("click", async ()=>{
+          try{
+            const rid = await getRidFromPanel();
+            if (!rid) return;
+            const url = `/api/vsp/top_findings_v4?rid=${encodeURIComponent(rid)}&limit=25`;
+            const res = await fetch(url, {cache:"no-store"});
+            const j = await res.json();
+            if (j && j.ok) renderTopFindingsInMain(j.items||[]);
+            else log("top findings not ok", j);
+          }catch(e){ console.error("[VSP][FILL_MAIN_V1] top hook err", e); }
+        });
+      }
+
+      log("hooked MIN_STABLE buttons -> main fill");
+    }
+
+    // try a few times (very light) to wait overlay creation
+    let tries = 0;
+    const iv = setInterval(()=>{
+      tries++;
+      hookOnce();
+      if (document.getElementById("vsp_ms_top") || tries >= 10) clearInterval(iv);
+    }, 200);
+
+  }catch(e){
+    console.error("[VSP][FILL_MAIN_V1] fatal", e);
+  }
+})();
+/* ===================== /VSP_P0_DASH_FILL_MAIN_KPI_TOPFIND_V1 ===================== */
+

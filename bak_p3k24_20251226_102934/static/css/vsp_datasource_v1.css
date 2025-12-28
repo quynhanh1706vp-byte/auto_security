@@ -1,0 +1,487 @@
+/* =========================================================
+ * VSP DATASOURCE – EXT+ PROFILE
+ * - Style cho tab Data Source
+ * - Đồng bộ với dashboard: card tối, bo góc, severity màu.
+ * =======================================================*/
+
+/* Màu severity dùng chung */
+:root {
+  --vsp-sev-critical: #ff6b81;
+  --vsp-sev-high:     #ffb347;
+  --vsp-sev-medium:   #ffd86b;
+  --vsp-sev-low:      #4dd6a8;
+  --vsp-sev-info:     #6aa8ff;
+  --vsp-sev-trace:    #9ea5c3;
+}
+
+/* Khung tổng cho tab Data Source */
+#tab-datasource {
+  padding: 24px 32px 40px;
+}
+
+@media (max-width: 1200px) {
+  #tab-datasource {
+    padding: 16px 16px 32px;
+  }
+}
+
+/* Card chung trong Data Source */
+#tab-datasource .vsp-card {
+  background:
+    radial-gradient(circle at top left, rgba(77, 255, 204, 0.08), transparent 55%),
+    rgba(6, 13, 32, 0.98);
+  border-radius: 18px;
+  border: 1px solid rgba(151, 255, 214, 0.18);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.65);
+  padding: 18px 22px 20px;
+  margin-bottom: 22px;
+}
+
+/* Tiêu đề card */
+#tab-datasource .vsp-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8f6ff;
+  margin-bottom: 8px;
+}
+
+#tab-datasource .vsp-card-subtitle {
+  font-size: 12px;
+  color: #7f8ba5;
+  margin-bottom: 10px;
+}
+
+/* ======================= SUMMARY ======================== */
+
+.vsp-ds-summary-wrapper {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.vsp-ds-summary-table {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.vsp-ds-summary-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vsp-ds-summary-table thead th {
+  padding: 6px 8px;
+  font-weight: 600;
+  color: #9fb3d9;
+  border-bottom: 1px solid rgba(100, 140, 190, 0.45);
+  text-align: left;
+  font-size: 11px;
+}
+
+.vsp-ds-summary-table tbody td {
+  padding: 5px 8px;
+  border-bottom: 1px dotted rgba(90, 120, 170, 0.35);
+  color: #dde7ff;
+}
+
+/* Severity column – dùng dot màu + text */
+.vsp-ds-summary-table.sev-table tbody td:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Dot chung */
+.vsp-ds-summary-table.sev-table tbody td:first-child::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+/* Màu cho từng dòng (CRITICAL, HIGH, MEDIUM, LOW, INFO, TRACE)
+   -> giả định bảng luôn theo đúng thứ tự này. */
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(1) td:first-child {
+  color: var(--vsp-sev-critical);
+}
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(1) td:first-child::before {
+  background: var(--vsp-sev-critical);
+}
+
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(2) td:first-child {
+  color: var(--vsp-sev-high);
+}
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(2) td:first-child::before {
+  background: var(--vsp-sev-high);
+}
+
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(3) td:first-child {
+  color: var(--vsp-sev-medium);
+}
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(3) td:first-child::before {
+  background: var(--vsp-sev-medium);
+}
+
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(4) td:first-child {
+  color: var(--vsp-sev-low);
+}
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(4) td:first-child::before {
+  background: var(--vsp-sev-low);
+}
+
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(5) td:first-child {
+  color: var(--vsp-sev-info);
+}
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(5) td:first-child::before {
+  background: var(--vsp-sev-info);
+}
+
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(6) td:first-child {
+  color: var(--vsp-sev-trace);
+}
+.vsp-ds-summary-table.sev-table tbody tr:nth-child(6) td:first-child::before {
+  background: var(--vsp-sev-trace);
+}
+
+/* Bảng theo tool */
+.vsp-ds-summary-table.tool-table tbody td:first-child {
+  font-weight: 600;
+  color: #e8f6ff;
+}
+
+/* Responsive: summary xếp dọc khi hẹp */
+@media (max-width: 1200px) {
+  .vsp-ds-summary-wrapper {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+/* ======================= DETAIL GRID ===================== */
+
+.vsp-ds-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #9fb3d9;
+}
+
+.vsp-ds-detail-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vsp-ds-detail-header-right {
+  font-size: 11px;
+  color: #7f8ba5;
+}
+
+/* Filter line */
+.vsp-ds-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.vsp-ds-filters-row label {
+  font-size: 11px;
+  color: #9fb3d9;
+}
+
+.vsp-ds-filters-row select,
+.vsp-ds-filters-row input[type="text"],
+.vsp-ds-filters-row button {
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(126, 163, 210, 0.6);
+  background: rgba(7, 16, 37, 0.95);
+  color: #e8f6ff;
+  padding: 0 10px;
+  font-size: 12px;
+  outline: none;
+}
+
+.vsp-ds-filters-row input[type="text"] {
+  min-width: 220px;
+}
+
+.vsp-ds-filters-row button {
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #3be6b9, #46bfff);
+  border-color: transparent;
+  color: #020814;
+  box-shadow: 0 10px 24px rgba(59, 230, 185, 0.32);
+}
+
+/* ===== TABLE ===== */
+
+.vsp-ds-table-wrapper {
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 210, 0.45);
+  background: radial-gradient(circle at top left, rgba(90, 150, 255, 0.08), transparent 55%),
+              rgba(4, 11, 26, 0.98);
+  overflow: hidden;
+}
+
+/* cho phép scroll ngang nếu màn hình hẹp */
+.vsp-ds-table-scroll {
+  overflow-x: auto;
+}
+
+/* bảng chi tiết */
+.vsp-ds-detail-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vsp-ds-detail-table thead th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9fb3d9;
+  border-bottom: 1px solid rgba(108, 140, 190, 0.8);
+  background: rgba(5, 16, 40, 0.95);
+}
+
+.vsp-ds-detail-table tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(35, 46, 80, 0.85);
+  color: #e5eeff;
+}
+
+.vsp-ds-detail-table tbody tr:nth-child(even) {
+  background: rgba(9, 16, 32, 0.88);
+}
+
+.vsp-ds-detail-table tbody tr:nth-child(odd) {
+  background: rgba(7, 13, 28, 0.88);
+}
+
+.vsp-ds-detail-table tbody tr:hover {
+  background: rgba(74, 206, 184, 0.13);
+}
+
+/* Severity pill trong bảng chi tiết (nếu JS gán class .vsp-pill-*) */
+.vsp-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.vsp-pill--critical {
+  color: var(--vsp-sev-critical);
+  border-color: rgba(255, 107, 129, 0.7);
+  background: rgba(255, 107, 129, 0.08);
+}
+.vsp-pill--high {
+  color: var(--vsp-sev-high);
+  border-color: rgba(255, 179, 71, 0.8);
+  background: rgba(255, 179, 71, 0.08);
+}
+.vsp-pill--medium {
+  color: var(--vsp-sev-medium);
+  border-color: rgba(255, 216, 107, 0.8);
+  background: rgba(255, 216, 107, 0.06);
+}
+.vsp-pill--low {
+  color: var(--vsp-sev-low);
+  border-color: rgba(77, 214, 168, 0.8);
+  background: rgba(77, 214, 168, 0.06);
+}
+.vsp-pill--info {
+  color: var(--vsp-sev-info);
+  border-color: rgba(106, 168, 255, 0.8);
+  background: rgba(106, 168, 255, 0.06);
+}
+.vsp-pill--trace {
+  color: var(--vsp-sev-trace);
+  border-color: rgba(158, 165, 195, 0.8);
+  background: rgba(158, 165, 195, 0.06);
+}
+
+/* Cột Overridden */
+.vsp-ds-detail-table td.vsp-overridden-yes {
+  color: #ffb347;
+}
+.vsp-ds-detail-table td.vsp-overridden-no {
+  color: #7f8ba5;
+}
+
+/* Footer (Rows / page, paging) */
+.vsp-ds-table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #9fb3d9;
+  background: rgba(4, 10, 24, 0.98);
+}
+
+.vsp-ds-table-footer select,
+.vsp-ds-table-footer button {
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(126, 163, 210, 0.6);
+  background: rgba(7, 16, 37, 0.95);
+  color: #e8f6ff;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.vsp-ds-table-footer button {
+  cursor: pointer;
+}
+
+/* Responsive: footer xếp dọc khi màn nhỏ */
+@media (max-width: 768px) {
+  .vsp-ds-table-footer {
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+  }
+}
+
+/* =============== VSP_DS_PILLS_V1 – Overridden Yes/No ================= */
+
+.vsp-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.vsp-pill--override-yes {
+  background: rgba(255, 159, 67, 0.18);   /* cam nhạt */
+  border: 1px solid rgba(255, 159, 67, 0.8);
+  color: #ff9f43;
+}
+
+.vsp-pill--override-no {
+  background: rgba(136, 136, 136, 0.16);  /* xám nhạt */
+  border: 1px solid rgba(160, 160, 160, 0.8);
+  color: #cccccc;
+}
+
+/* =============== VSP_DS_PILLS_V1 – base pill + Overridden Yes/No ============== */
+
+.vsp-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.vsp-pill--override-yes {
+  background: rgba(255, 159, 67, 0.18);
+  border: 1px solid rgba(255, 159, 67, 0.9);
+  color: #ff9f43;
+}
+
+.vsp-pill--override-no {
+  background: rgba(136, 136, 136, 0.16);
+  border: 1px solid rgba(160, 160, 160, 0.8);
+  color: #cccccc;
+}
+
+/* =============== VSP_DS_PILLS_V1 – base pill + Overridden Yes/No (clean) ============== */
+
+.vsp-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.vsp-pill--override-yes {
+  background: rgba(255, 159, 67, 0.18);
+  border: 1px solid rgba(255, 159, 67, 0.9);
+  color: #ff9f43;
+}
+
+.vsp-pill--override-no {
+  background: rgba(136, 136, 136, 0.16);
+  border: 1px solid rgba(160, 160, 160, 0.8);
+  color: #cccccc;
+}
+
+/* =============== VSP_DS_PILLS_V1 – severity colors ============== */
+
+.vsp-pill--critical {
+  background: rgba(255, 77, 79, 0.18);
+  border: 1px solid rgba(255, 77, 79, 0.9);
+  color: #ff4d4f;
+}
+
+.vsp-pill--high {
+  background: rgba(250, 140, 22, 0.18);
+  border: 1px solid rgba(250, 140, 22, 0.9);
+  color: #fa8c16;
+}
+
+.vsp-pill--medium {
+  background: rgba(250, 173, 20, 0.18);
+  border: 1px solid rgba(250, 173, 20, 0.9);
+  color: #faad14;
+}
+
+.vsp-pill--low {
+  background: rgba(82, 196, 26, 0.18);
+  border: 1px solid rgba(82, 196, 26, 0.9);
+  color: #52c41a;
+}
+
+.vsp-pill--info {
+  background: rgba(24, 144, 255, 0.18);
+  border: 1px solid rgba(24, 144, 255, 0.9);
+  color: #1890ff;
+}
+
+.vsp-pill--trace {
+  background: rgba(140, 140, 140, 0.16);
+  border: 1px solid rgba(140, 140, 140, 0.9);
+  color: #d9d9d9;
+}

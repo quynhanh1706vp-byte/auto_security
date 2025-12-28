@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+# VSP Run API v1 (commercial): stage/progress parser + stall/total timeout + unify+sync
+import json, os, re, subprocess, uuid, time, datetime
+from pathlib import Path
+from flask import Blueprint, request, jsonify
+
+bp = Blueprint("vsp_run_api_v1", __name__)
+
+# In-memory process registry (dev server OK)
+PROCS = {}
+
+# Defaults (override via env)
+STALL_TIMEOUT_SEC = int(os.environ.get("VSP_UIREQ_STALL_TIMEOUT_SEC", "1200"))   # 20m no stage change
+TOTAL_TIMEOUT_SEC = int(os.environ.get("VSP_UIREQ_TOTAL_TIMEOUT_SEC", "10800"))  # 3h whole run
+TAIL_MAX_LINES    = int(os.environ.get("VSP_UIREQ_TAIL_LINES", "240"))
+
+UI_ROOT = Path(__file__).resolve().parents[1]               # .../SECURITY_BUNDLE/ui
+BUNDLE_ROOT = Path(os.environ.get("VSP_BUNDLE_ROOT", str(UI_ROOT.parents[1]))).resolve()  # .../SECURITY_BUNDLE
+STATE_DIR = (UI_ROOT / "out_ci" / "uireq_v1")
+STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+def now_utc_iso():
+  return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+def _safe_read_text(p: Path) -> str:
+  try:
+    return p.read_text(encoding="utf-8", errors="replace")
+  except Exception:
+    return ""
+
+def _tail_file(p: Path, n=200) -> str:
+  try:
+    with p.open("rb") as f:
+      f.seek(0, os.SEEK_END)
+      size = f.tell()
+      # read last ~128KB (enough for logs)
+      chunk = 131072
+      f.seek(max(0, size - chunk), os.SEEK_SET)
+      data = f.read().decode("utf-8", errors="replace")
+    lines = data.splitlines()
+    return "\n".join(lines[-n:])
+  except Exception:
+    return ""
+
+def _write_state(req_id: str, st: dict):
+  (STATE_DIR / f"{req_id}.json").write_text(json.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def _read_state(req_id: str) -> dict:
+  p = STATE_DIR / f"{req_id}.json"
+  if not p.exists():
+    return {}
+  try:
+    return json.loads(p.read_text(encoding="utf-8", errors="replace"))
+  except Exception:
+    return {}
+
+def _parse_stage_from_tail(tail: str):
+  """
+  Detect stage patterns:
+    ===== [3/8] KICS (EXT) =====
+  """
+  m = None
+  for line in reversed(tail.splitlines()):
+    mm = re.search(r'=\s*\[\s*(\d+)\s*/\s*(\d+)\s*\]\s*([A-Z0-9_\- ]+?)\s*(?:\(|=|$)', line)
+    if mm:
+      m = mm
+      break
+  if not m:
+    return {"i": 0, "n": 8, "name": "", "progress": 0}
+  i = int(m.group(1))
+  n = int(m.group(2))
+  name = (m.group(3) or "").strip()
+  prog = int((i / max(1, n)) * 100)
+  return {"i": i, "n": n, "name": name, "progress": prog}
+
+def _parse_run_dir_from_tail(tail: str) -> str:
+  # Example: [VSP_CI_OUTER] RUN_DIR    = /home/.../out_ci/VSP_CI_YYYY...
+  for line in reversed(tail.splitlines()):
+    if "RUN_DIR" in line and "=" in line:
+      m = re.search(r'RUN_DIR\s*=\s*(/.+)$', line.strip())
+      if m:
+        return m.group(1).strip()
+  return ""
+
+def _parse_gate_from_tail(tail: str) -> str:
+  # Example: [VSP_CI_GATE] GATE RESULT: FAIL
+  for line in reversed(tail.splitlines()):
+    m = re.search(r'GATE RESULT:\s*(PASS|FAIL)', line)
+    if m:
+      return m.group(1)
+  return "UNKNOWN"
+
+def _read_degraded(run_dir: str):
+  out = {"degraded": 0, "reasons": ""}
+  if not run_dir:
+    return out
+  p = Path(run_dir) / "vsp_degraded.env"
+  if not p.exists():
+    return out
+  txt = _safe_read_text(p)
+  for line in txt.splitlines():
+    line=line.strip()
+    if not line or line.startswith("#"): continue
+    if line.startswith("degraded="):
+      try: out["degraded"] = int(line.split("=",1)[1].strip() or "0")
+      except Exception: pass
+    if line.startswith("reasons="):
+      out["reasons"] = line.split("=",1)[1].strip()
+  return out
+
+def _read_severity_from_summary(run_dir: str):
+  if not run_dir:
+    return {}
+  p = Path(run_dir) / "report" / "summary_unified.json"
+  if not p.exists():
+    return {}
+  try:
+    j = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+    # support both keys
+    sev = j.get("summary_by_severity") or j.get("by_severity") or {}
+    if isinstance(sev, dict):
+      return {k: int(sev.get(k,0) or 0) for k in ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"]}
+  except Exception:
+    return {}
+  return {}
+
+def _kill_proc(req_id: str):
+  pr = PROCS.get(req_id)
+  if not pr:
+    return
+  try:
+    # kill process group if possible
+    os.killpg(os.getpgid(pr.pid), 9)
+  except Exception:
+    try:
+      pr.kill()
+    except Exception:
+      pass
+
+def _finalize_unify_and_sync(run_dir: str) -> dict:
+  """
+  Best-effort: ensure report exists, unify if missing, then sync to SECURITY_BUNDLE/out.
+  """
+  res = {"done": False, "ok": None, "vsp_run_id": "", "msg": ""}
+  if not run_dir:
+    res["ok"] = False
+    res["msg"] = "missing run_dir"
+    return res
+
+  runp = Path(run_dir)
+  summary = runp / "report" / "summary_unified.json"
+  findings = runp / "report" / "findings_unified.json"
+
+  try:
+    # unify if missing
+    if not summary.exists() or not findings.exists():
+      unify_sh = BUNDLE_ROOT / "bin" / "vsp_unify_from_run_dir_v1.sh"
+      if unify_sh.exists():
+        subprocess.run([str(unify_sh), str(runp)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900)
+  except Exception as e:
+    res["msg"] += f"unify_err:{e}; "
+
+  try:
+    # sync to bundle/out
+    sync_sh = BUNDLE_ROOT / "bin" / "vsp_ci_sync_to_vsp_v1.sh"
+    if sync_sh.exists():
+      subprocess.run([str(sync_sh), str(runp)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
+  except Exception as e:
+    res["msg"] += f"sync_err:{e}; "
+
+  # derive vsp_run_id convention: RUN_<VSP_CI_...>
+  base = runp.name.strip()
+  if base.startswith("VSP_CI_"):
+    cand = BUNDLE_ROOT / "out" / f"RUN_{base}"
+    if cand.exists():
+      res["vsp_run_id"] = f"RUN_{base}"
+    else:
+      # try find newest matching prefix
+      outdir = (BUNDLE_ROOT / "out")
+      if outdir.exists():
+        matches = sorted([d for d in outdir.iterdir() if d.is_dir() and d.name.startswith(f"RUN_{base}")],
+                         key=lambda x: x.stat().st_mtime, reverse=True)
+        if matches:
+          res["vsp_run_id"] = matches[0].name
+
+  res["done"] = True
+  res["ok"] = True
+  return res
+
+@bp.route("/api/vsp/run_v1", methods=["POST"])
+def run_v1():
+  data = request.get_json(silent=True) or {}
+  mode = (data.get("mode") or "local").strip()
+  profile = (data.get("profile") or "FULL_EXT").strip()
+  target_type = (data.get("target_type") or "path").strip()
+  target = (data.get("target") or "").strip()
+
+  if target_type != "path" or not target:
+    return jsonify({"ok": False, "error": "target_type=path and target required"}), 400
+
+  ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+  req_id = f"UIREQ_{ts}_{uuid.uuid4().hex[:6]}"
+
+  log_file = STATE_DIR / f"{req_id}.log"
+  created = now_utc_iso()
+
+  # spawn CI OUTER in target repo
+  target_path = Path(target).resolve()
+  outer = target_path / "ci" / "VSP_CI_OUTER" / "vsp_ci_outer_full_v1.sh"
+  if not outer.exists():
+    # fallback: still allow, but will fail and be visible in tail
+    outer = target_path / "ci" / "VSP_CI_OUTER" / "vsp_ci_gate_core_v1.sh"
+
+  env = os.environ.copy()
+  env["VSP_BUNDLE_ROOT"] = str(BUNDLE_ROOT)
+  env["BUNDLE_ROOT"] = str(BUNDLE_ROOT)
+  env["PROFILE"] = profile
+  env["VSP_PROFILE"] = profile
+  env["VSP_UIREQ_ID"] = req_id
+
+  # state
+  st = {
+    "ok": True,
+    "req_id": req_id,
+    "created_at": created,
+    "started_at": created,
+    "finished_at": None,
+    "status": "RUNNING",
+    "final": False,
+    "exit_code": None,
+    "gate": "UNKNOWN",
+    "stage": {"i":0,"n":8,"name":"","progress":0},
+    "ci_run_dir": "",
+    "vsp_run_id": "",
+    "flag": {"has_findings": None},
+    "degraded": 0,
+    "degraded_reasons": "",
+    "sync": {"done": False, "ok": None, "msg": ""},
+    "meta": {"mode": mode, "profile": profile, "target": str(target_path), "outer": str(outer)},
+    "watch": {"last_stage_sig": "", "last_stage_at": time.time(), "start_ts": time.time()},
+    "log_file": str(log_file),
+    "tail": ""
+  }
+  _write_state(req_id, st)
+
+  # spawn
+  try:
+    f = open(log_file, "ab", buffering=0)
+    p = subprocess.Popen(
+      [str(outer)],
+      cwd=str(target_path),
+      env=env,
+      stdout=f,
+      stderr=subprocess.STDOUT,
+      start_new_session=True
+    )
+    PROCS[req_id] = p
+  except Exception as e:
+    st["status"] = "ERROR"
+    st["final"] = True
+    st["exit_code"] = 2
+    st["sync"]["ok"] = False
+    st["sync"]["msg"] = f"spawn_err:{e}"
+    _write_state(req_id, st)
+    return jsonify(st), 500
+
+  return jsonify({"ok": True, "req_id": req_id, "status_url": f"/api/vsp/run_status_v1/{req_id}"}), 200
+
+@bp.route("/api/vsp/run_status_v1/<req_id>", methods=["GET"])
+def run_status_v1(req_id: str):
+  st = _read_state(req_id)
+  if not st:
+    return jsonify({"ok": False, "error": "not found", "req_id": req_id}), 404
+
+  log_file = Path(st.get("log_file") or "")
+  tail = _tail_file(log_file, n=TAIL_MAX_LINES) if log_file.exists() else ""
+  st["tail"] = tail
+
+  # stage parse
+  stage = _parse_stage_from_tail(tail)
+  st["stage"] = stage
+
+  # run_dir parse
+  run_dir = st.get("ci_run_dir") or ""
+  parsed_run_dir = _parse_run_dir_from_tail(tail)
+  if parsed_run_dir:
+    run_dir = parsed_run_dir
+    st["ci_run_dir"] = run_dir
+
+  # degraded parse
+  dg = _read_degraded(run_dir)
+  st["degraded"] = dg["degraded"]
+  st["degraded_reasons"] = dg["reasons"]
+
+  # timeouts (stall + total)
+  watch = st.get("watch") or {}
+  now = time.time()
+  start_ts = float(watch.get("start_ts") or now)
+  last_stage_sig = str(watch.get("last_stage_sig") or "")
+  last_stage_at = float(watch.get("last_stage_at") or now)
+
+  stage_sig = f'{stage.get("i",0)}/{stage.get("n",8)}:{stage.get("name","")}'
+  if stage_sig != last_stage_sig and stage.get("i",0) != 0:
+    last_stage_sig = stage_sig
+    last_stage_at = now
+
+  watch["start_ts"] = start_ts
+  watch["last_stage_sig"] = last_stage_sig
+  watch["last_stage_at"] = last_stage_at
+  st["watch"] = watch
+
+  # detect process status
+  pr = PROCS.get(req_id)
+
+  # total timeout
+  if not st.get("final") and (now - start_ts) > TOTAL_TIMEOUT_SEC:
+    _kill_proc(req_id)
+    st["status"] = "TIMEOUT"
+    st["final"] = True
+    st["exit_code"] = 124
+    st["gate"] = "FAIL"
+    st["degraded"] = 1
+    st["degraded_reasons"] = (st["degraded_reasons"] + ";runner_total_timeout").strip(";")
+    st["finished_at"] = now_utc_iso()
+    _write_state(req_id, st)
+    return jsonify(st)
+
+  # stall timeout (no stage change)
+  if not st.get("final") and stage.get("i",0) != 0 and (now - last_stage_at) > STALL_TIMEOUT_SEC:
+    _kill_proc(req_id)
+    st["status"] = "STALLED"
+    st["final"] = True
+    st["exit_code"] = 124
+    st["gate"] = "FAIL"
+    st["degraded"] = 1
+    st["degraded_reasons"] = (st["degraded_reasons"] + ";runner_stall_timeout").strip(";")
+    st["finished_at"] = now_utc_iso()
+    _write_state(req_id, st)
+    return jsonify(st)
+
+  # if process finished => finalize + sync
+  if pr is not None:
+    rc = pr.poll()
+    if rc is not None and not st.get("final"):
+      st["exit_code"] = int(rc)
+      st["finished_at"] = now_utc_iso()
+      st["status"] = "DONE" if rc == 0 else "FAIL"
+      st["gate"] = _parse_gate_from_tail(tail)
+
+      # severity from summary if exists
+      sev = _read_severity_from_summary(run_dir)
+      st["severity"] = sev
+
+      # has_findings flag
+      total = sum(int(sev.get(k,0) or 0) for k in ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"])
+      st["flag"]["has_findings"] = 1 if total > 0 else 0
+
+      # finalize unify + sync
+      fin = _finalize_unify_and_sync(run_dir)
+      st["sync"] = {"done": fin.get("done"), "ok": fin.get("ok"), "msg": fin.get("msg","")}
+      st["vsp_run_id"] = fin.get("vsp_run_id","") or st.get("vsp_run_id","")
+
+      st["final"] = True
+      _write_state(req_id, st)
+      return jsonify(st)
+
+  # still running
+  _write_state(req_id, st)
+  return jsonify(st)
+
+print("[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>")
+
+
+# === VSP_COMMERCIAL_BP_EXPORT_ALIAS_V1 ===
+# Backward-compatible export name expected by UI gateway:
+bp_vsp_run_api_v1 = bp
+# Optional: keep old name too (some code may import bp_vsp_run_api)
+try:
+    bp_vsp_run_api
+except NameError:
+    bp_vsp_run_api = bp
+# === END VSP_COMMERCIAL_BP_EXPORT_ALIAS_V1 ===

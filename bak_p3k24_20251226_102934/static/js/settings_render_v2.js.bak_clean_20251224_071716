@@ -1,0 +1,392 @@
+"use strict";
+
+(function () {
+  if (!window.VSP) window.VSP = {};
+
+  const TOOL_LIST = [
+    { key: "gitleaks",  label: "Gitleaks (Secrets)" },
+    { key: "semgrep",   label: "Semgrep (SAST)" },
+    { key: "kics",      label: "KICS (IaC)" },
+    { key: "codeql",    label: "CodeQL" },
+    { key: "bandit",    label: "Bandit (Python)" },
+    { key: "trivy_fs",  label: "Trivy FS" },
+    { key: "syft",      label: "Syft (SBOM)" },
+    { key: "grype",     label: "Grype (Vuln)" }
+  ];
+
+  function setText(id, value, fallback) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = value != null && value !== "" ? value : (fallback || "—");
+  }
+
+  function safe(val, dflt) {
+    return val == null || val === "" ? dflt : val;
+  }
+
+  // ---- Top cards (ENV / SRC / PROFILE / LAST RUN) ----
+  function renderTopCards(settings) {
+    const profile    = settings.profile || settings.active_profile || settings.engine_mode || "EXT+";
+    const srcPath    = settings.src_path || settings.source_path || settings.default_src_path || "";
+    const engineMode = settings.engine_mode || settings.scan_mode || "EXT+";
+    const lastRunId  = settings.last_run_id || settings.run_id || "";
+    const lastRunTs  = settings.last_run_ts || settings.run_ts || "";
+
+    setText("set-profile-main", profile, "N/A");
+    setText("set-src-main", srcPath, "N/A");
+    setText("set-engine-main", engineMode, "N/A");
+    setText(
+      "set-last-main",
+      lastRunId ? (lastRunId + (lastRunTs ? " @ " + lastRunTs : "")) : "N/A"
+    );
+  }
+
+  // ---- Bảng 8 tool bên trái (đọc từ BE, không chỉnh sửa tại UI) ----
+  function renderToolStack(settings) {
+    const table = document.getElementById("tbl-tools");
+    if (!table) return;
+
+    const tbody = table.querySelector("tbody") || table;
+    tbody.innerHTML = "";
+
+    const stack = settings.tools || settings.tool_stack || settings.enabled_tools || {};
+
+    TOOL_LIST.forEach(function (tool, idx) {
+      const enabled = !!stack[tool.key];
+      const mode = stack[tool.key + "_mode"] || (enabled ? "ON" : "OFF");
+
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + (idx + 1) + "</td>" +
+        "<td>" + tool.label + "</td>" +
+        "<td>" + (enabled ? "Enabled" : "Disabled") + "</td>" +
+        "<td>" + mode + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---- Dropdown profile cũ (nếu tồn tại) ----
+  function renderProfiles(settings) {
+    const sel = document.getElementById("cfg-profile-select");
+    if (!sel) return;
+
+    const list = settings.profiles
+      || settings.available_profiles
+      || ["FAST", "EXT+", "AGGR", "FULL"];
+
+    const active = settings.profile || settings.active_profile || "EXT+";
+
+    sel.innerHTML = "";
+    list.forEach(function (p) {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p;
+      if (p === active) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  // ---------- NEW SETTINGS PANEL (cột phải) ----------
+  function injectSettingsStyles() {
+    if (document.getElementById("vsp-settings-run-style")) return;
+
+    const css = `
+.vsp-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 13px;
+}
+.vsp-settings-block {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: radial-gradient(circle at top left, rgba(56,189,248,0.12), transparent 60%),
+              rgba(15,23,42,0.98);
+  border: 1px solid rgba(148,163,184,0.25);
+}
+.vsp-settings-block h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(148,163,184,0.95);
+}
+.vsp-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.vsp-settings-field label {
+  display: block;
+  font-size: 12px;
+  color: rgba(203,213,225,0.9);
+  margin-bottom: 3px;
+}
+.vsp-settings-field input,
+.vsp-settings-field select,
+.vsp-settings-field textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(51,65,85,0.9);
+  background: rgba(15,23,42,0.95);
+  color: #e5e7eb;
+  font-size: 12px;
+  outline: none;
+}
+.vsp-settings-field textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+.vsp-settings-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.vsp-btn-primary,
+.vsp-btn-secondary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.vsp-btn-primary {
+  background: linear-gradient(135deg, #22c55e, #22d3ee);
+  color: #0b1120;
+  box-shadow:
+    0 0 0 1px rgba(15,23,42,0.8),
+    0 10px 24px rgba(34,197,94,0.40);
+}
+.vsp-btn-secondary {
+  background: rgba(15,23,42,0.95);
+  color: rgba(226,232,240,0.9);
+  border: 1px solid rgba(148,163,184,0.7);
+}
+.vsp-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(34,197,94,0.5);
+}
+.vsp-btn-primary:active,
+.vsp-btn-secondary:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+.vsp-settings-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(148,163,184,0.9);
+}
+`;
+    const style = document.createElement("style");
+    style.id = "vsp-settings-run-style";
+    style.type = "text/css";
+    style.appendChild(document.createTextNode(css));
+    document.head.appendChild(style);
+  }
+
+  function rebuildRightPanel(settings) {
+    injectSettingsStyles();
+
+    const profileSel = document.getElementById("cfg-profile-select");
+    if (!profileSel) return;
+
+    const card =
+      profileSel.closest(".vsp-card") ||
+      profileSel.closest(".card") ||
+      profileSel.parentElement;
+
+    if (!card) return;
+
+    const defaultSrc   = safe(settings.default_src_path || settings.src_path, "");
+    const defaultRun   = safe(settings.default_run_dir || settings.run_dir, "out");
+    const defaultExport= safe(settings.default_export_type, "HTML");
+    const maxRows      = safe(settings.max_rows_ui, 2000);
+    const ignorePaths  = safe(
+      (settings.ignore_paths || []).join("\n") ||
+      settings.ignore_paths_raw,
+      ""
+    );
+    const sevFloor     = safe(settings.ui_severity_floor, "all");
+
+    const profileActive = settings.profile || settings.active_profile || "EXT+";
+    const webhookUrl    = safe(settings.webhook_url, "");
+    const slackUrl      = safe(settings.slack_webhook, "");
+    const sarifEndpoint = safe(settings.sarif_endpoint, "");
+    const autoExport    = !!settings.auto_export_after_scan;
+
+    card.innerHTML =
+      '<div class="vsp-settings-panel">' +
+
+      '  <div class="vsp-settings-block">' +
+      '    <h4>GENERAL CONFIGURATION</h4>' +
+      '    <div class="vsp-settings-grid">' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Default SRC path</label>' +
+      '        <input id="cfg-src-path-input" type="text" placeholder="/home/test/Data/khach6" value="' + defaultSrc + '"/>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Default RUN_DIR</label>' +
+      '        <input id="cfg-run-dir-input" type="text" placeholder="out" value="' + defaultRun + '"/>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Default export type</label>' +
+      '        <select id="cfg-export-type-select">' +
+      '          <option value="HTML"'       + (defaultExport === "HTML"       ? " selected" : "") + '>HTML</option>' +
+      '          <option value="PDF"'        + (defaultExport === "PDF"        ? " selected" : "") + '>PDF</option>' +
+      '          <option value="CSV"'        + (defaultExport === "CSV"        ? " selected" : "") + '>CSV</option>' +
+      '          <option value="HTML+PDF"'   + (defaultExport === "HTML+PDF"   ? " selected" : "") + '>HTML + PDF</option>' +
+      '          <option value="HTML+CSV"'   + (defaultExport === "HTML+CSV"   ? " selected" : "") + '>HTML + CSV</option>' +
+      '        </select>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Max rows load in UI</label>' +
+      '        <input id="cfg-max-rows-input" type="number" min="100" step="100" value="' + maxRows + '"/>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Severity floor (UI)</label>' +
+      '        <select id="cfg-sev-floor">' +
+      '          <option value="all"'     + (sevFloor === "all"     ? " selected" : "") + '>Show all</option>' +
+      '          <option value="medium+"' + (sevFloor === "medium+" ? " selected" : "") + '>Medium+</option>' +
+      '          <option value="high+"'   + (sevFloor === "high+"   ? " selected" : "") + '>High+</option>' +
+      '        </select>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Path ignore list (one pattern per line)</label>' +
+      '        <textarea id="cfg-ignore-paths-input" placeholder="*/node_modules/*&#10;*/dist/*&#10;*/.git/*">' + ignorePaths + '</textarea>' +
+      '      </div>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div class="vsp-settings-block">' +
+      '    <h4>PROFILES & PIPELINE</h4>' +
+      '    <div class="vsp-settings-grid">' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Scanner profile</label>' +
+      '        <select id="cfg-profile-select-inner">' +
+      '          <option value="FAST"' + (profileActive === "FAST" ? " selected" : "") + '>FAST</option>' +
+      '          <option value="EXT+"' + (profileActive === "EXT+" ? " selected" : "") + '>EXT+</option>' +
+      '          <option value="AGGR"' + (profileActive === "AGGR" ? " selected" : "") + '>AGGR</option>' +
+      '          <option value="FULL"' + (profileActive === "FULL" ? " selected" : "") + '>FULL</option>' +
+      '        </select>' +
+      '      </div>' +
+      '    </div>' +
+      '    <div class="vsp-settings-hint">Profile quyết định tool stack & độ nặng pipeline. Mapping chi tiết sẽ cấu hình ở backend.</div>' +
+      '  </div>' +
+
+      '  <div class="vsp-settings-block">' +
+      '    <h4>EXPORT & INTEGRATIONS</h4>' +
+      '    <div class="vsp-settings-grid">' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Webhook URL</label>' +
+      '        <input id="cfg-webhook-url" type="text" value="' + webhookUrl + '"/>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>Slack Webhook</label>' +
+      '        <input id="cfg-slack-url" type="text" value="' + slackUrl + '"/>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label>SARIF Endpoint</label>' +
+      '        <input id="cfg-sarif-endpoint" type="text" value="' + sarifEndpoint + '"/>' +
+      '      </div>' +
+      '      <div class="vsp-settings-field">' +
+      '        <label><input id="cfg-auto-export" type="checkbox"' + (autoExport ? " checked" : "") + '> Auto-export report after each scan</label>' +
+      '      </div>' +
+      '    </div>' +
+      '  </div>' +
+
+      '  <div class="vsp-settings-actions">' +
+      '    <button id="cfg-main-run-btn" class="vsp-btn-primary">Run scan</button>' +
+      '    <button id="cfg-btn-save-all" class="vsp-btn-secondary">Save settings</button>' +
+      '  </div>' +
+      '  <div class="vsp-settings-hint">Hiện tại Save sẽ log JSON cấu hình lên console để bạn kiểm tra. Khi có API POST /api/vsp/settings chỉ cần gửi payload này.</div>' +
+      '</div>';
+
+    const runBtn  = document.getElementById("cfg-main-run-btn");
+    const saveBtn = document.getElementById("cfg-btn-save-all");
+
+    if (runBtn) {
+      runBtn.addEventListener("click", function () {
+        const profileSelInner = document.getElementById("cfg-profile-select-inner");
+        const profile = profileSelInner ? profileSelInner.value : "EXT+";
+        console.log("[VSP][SETTINGS] Run scan clicked (UI only) – profile =", profile);
+        runBtn.disabled = true;
+        runBtn.style.opacity = "0.85";
+        setTimeout(function () {
+          runBtn.disabled = false;
+          runBtn.style.opacity = "1";
+        }, 1000);
+      });
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener("click", function () {
+        const payload = collectSettingsPayload(settings);
+        console.log("[VSP][SETTINGS] Save draft settings payload =", payload);
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = "0.85";
+        setTimeout(function () {
+          saveBtn.disabled = false;
+          saveBtn.style.opacity = "1";
+        }, 800);
+      });
+    }
+  }
+
+  function collectSettingsPayload(old) {
+    const srcPath   = document.getElementById("cfg-src-path-input")?.value || "";
+    const runDir    = document.getElementById("cfg-run-dir-input")?.value || "";
+    const exportTyp = document.getElementById("cfg-export-type-select")?.value || "HTML";
+    const maxRows   = parseInt(document.getElementById("cfg-max-rows-input")?.value || "2000", 10) || 2000;
+    const sevFloor  = document.getElementById("cfg-sev-floor")?.value || "all";
+    const ignoreRaw = document.getElementById("cfg-ignore-paths-input")?.value || "";
+    const profile   = document.getElementById("cfg-profile-select-inner")?.value || "EXT+";
+    const webhook   = document.getElementById("cfg-webhook-url")?.value || "";
+    const slack     = document.getElementById("cfg-slack-url")?.value || "";
+    const sarif     = document.getElementById("cfg-sarif-endpoint")?.value || "";
+    const autoExp   = !!document.getElementById("cfg-auto-export")?.checked;
+
+    const ignoreList = ignoreRaw
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    return {
+      ...old,
+      default_src_path: srcPath,
+      default_run_dir: runDir,
+      default_export_type: exportTyp,
+      max_rows_ui: maxRows,
+      ui_severity_floor: sevFloor,
+      ignore_paths: ignoreList,
+      ignore_paths_raw: ignoreRaw,
+
+      profile,
+      active_profile: profile,
+
+      webhook_url: webhook,
+      slack_webhook: slack,
+      sarif_endpoint: sarif,
+      auto_export_after_scan: autoExp
+    };
+  }
+
+  // ---- ENTRY POINT CHO TAB SETTINGS ----
+  window.VSP.initSettings = async function () {
+    console.log("[VSP][UI] initSettings (settings_render_v2)");
+    const settings = await window.VSP.API.getSettings() || {};
+
+    renderTopCards(settings);
+    renderToolStack(settings);
+    renderProfiles(settings);
+    rebuildRightPanel(settings);
+  };
+})();

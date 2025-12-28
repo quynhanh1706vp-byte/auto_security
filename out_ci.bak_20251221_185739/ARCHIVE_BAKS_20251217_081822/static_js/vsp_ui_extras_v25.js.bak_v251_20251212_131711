@@ -1,0 +1,393 @@
+/**
+ * VSP 2025 – UI Extras V2.5.1
+ * - Shell spacing cho 5 tab
+ * - Header đẹp cho từng tab
+ * - Dashboard extras: Top High/Critical + Delta run
+ * - Filter Runs / DataSource
+ * - Re-bootstrap mỗi lần đổi hash tab
+ */
+
+(function () {
+  console.log("[VSP_V251] vsp_ui_extras_v25.js (V2.5.1) loaded");
+
+  function wrapShell() {
+    [
+      { id: "vsp-dashboard-main", title: "Dashboard", sub: "CIO-level Security Posture & Trends" },
+      { id: "vsp-runs-main",      title: "Runs & Reports", sub: "Lịch sử quét, CI/CD Gate & Export báo cáo" },
+      { id: "vsp-datasource-main",title: "Data Source", sub: "Chi tiết unified findings & mini analytics" },
+      { id: "vsp-settings-main",  title: "Settings", sub: "Cấu hình tool stack & profile" },
+      { id: "vsp-rules-main",     title: "Rule Overrides", sub: "Mapping & override rule/threshold" }
+    ].forEach(function (cfg) {
+      var el = document.getElementById(cfg.id);
+      if (!el) return;
+
+      if (!el.classList.contains("vsp-main-shell")) {
+        el.classList.add("vsp-main-shell");
+      }
+
+      // Nếu chưa có header thì chèn vào đầu
+      if (!el.querySelector(".vsp-tab-header")) {
+        var header = document.createElement("div");
+        header.className = "vsp-tab-header vsp-fadein vsp-fadein-delay-1";
+
+        var hTitle = document.createElement("div");
+        hTitle.className = "vsp-tab-header-title";
+        hTitle.textContent = cfg.title;
+
+        var hSub = document.createElement("div");
+        hSub.className = "vsp-tab-header-sub";
+        hSub.textContent = cfg.sub;
+
+        header.appendChild(hTitle);
+        header.appendChild(hSub);
+
+        // chèn header lên trên cùng
+        if (el.firstChild) {
+          el.insertBefore(header, el.firstChild);
+        } else {
+          el.appendChild(header);
+        }
+      }
+    });
+  }
+
+  function animateDashboardKpis() {
+    var root = document.getElementById("vsp-dashboard-main");
+    if (!root) return;
+    var kpis = root.querySelectorAll(".vsp-kpi-card, .vsp-chart-card");
+    kpis.forEach(function (card, idx) {
+      if (!card.classList.contains("vsp-fadein")) {
+        card.classList.add("vsp-fadein");
+        card.classList.add("vsp-fadein-delay-" + ((idx % 6) + 1));
+      }
+    });
+  }
+
+  function buildDashboardExtras() {
+    var root = document.getElementById("vsp-dashboard-main");
+    if (!root) return;
+
+    if (root.querySelector(".vsp-dashboard-extras-grid")) {
+      return; // đã build rồi
+    }
+
+    var extras = document.createElement("div");
+    extras.className = "vsp-dashboard-extras-grid vsp-fadein vsp-fadein-delay-2";
+
+    // Card Top High/Critical
+    var cardTop = document.createElement("div");
+    cardTop.className = "vsp-table-card";
+
+    var headerTop = document.createElement("div");
+    headerTop.className = "vsp-table-card-header";
+
+    var hTitle = document.createElement("div");
+    hTitle.className = "vsp-table-card-title";
+    hTitle.textContent = "Top 10 High / Critical Findings";
+
+    var hSub = document.createElement("div");
+    hSub.className = "vsp-table-card-sub";
+    hSub.textContent = "Ưu tiên CRITICAL trước, lấy từ unified datasource_v2";
+
+    headerTop.appendChild(hTitle);
+    headerTop.appendChild(hSub);
+    cardTop.appendChild(headerTop);
+
+    var tableTop = document.createElement("table");
+    tableTop.className = "vsp-table-compact";
+    tableTop.innerHTML =
+      "<thead><tr>" +
+      "<th>#</th>" +
+      "<th>Severity</th>" +
+      "<th>Tool</th>" +
+      "<th>Rule</th>" +
+      "<th>CWE</th>" +
+      "<th>File</th>" +
+      "<th>Line</th>" +
+      "</tr></thead>" +
+      "<tbody id='vsp-dash-top-risks-body'><tr><td colspan='7'>Đang tải...</td></tr></tbody>";
+
+    cardTop.appendChild(tableTop);
+
+    // Card Delta run
+    var cardDelta = document.createElement("div");
+    cardDelta.className = "vsp-table-card";
+
+    var headerDelta = document.createElement("div");
+    headerDelta.className = "vsp-table-card-header";
+
+    var dTitle = document.createElement("div");
+    dTitle.className = "vsp-table-card-title";
+    dTitle.textContent = "What changed since last run?";
+
+    var dSub = document.createElement("div");
+    dSub.className = "vsp-table-card-sub";
+    dSub.textContent = "So sánh 2 lần quét gần nhất (Total Findings & xu hướng).";
+
+    headerDelta.appendChild(dTitle);
+    headerDelta.appendChild(dSub);
+    cardDelta.appendChild(headerDelta);
+
+    var tableDelta = document.createElement("table");
+    tableDelta.className = "vsp-table-compact";
+    tableDelta.innerHTML =
+      "<thead><tr>" +
+      "<th></th>" +
+      "<th>Run ID</th>" +
+      "<th>Total Findings</th>" +
+      "<th>Time / Trend</th>" +
+      "</tr></thead>" +
+      "<tbody id='vsp-dash-delta-body'><tr><td colspan='4'>Đang tải...</td></tr></tbody>";
+
+    cardDelta.appendChild(tableDelta);
+
+    extras.appendChild(cardTop);
+    extras.appendChild(cardDelta);
+
+    root.appendChild(extras);
+
+    fetchTopRisks();
+    fetchDeltaRuns();
+  }
+
+  function fetchTopRisks() {
+    var tbody = document.getElementById("vsp-dash-top-risks-body");
+    if (!tbody) return;
+
+    fetch("/api/vsp/datasource_v2?limit=1000")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var items = data.items || [];
+        var shortlist = items.filter(function (it) {
+          return it.severity === "CRITICAL" || it.severity === "HIGH";
+        });
+
+        shortlist.sort(function (a, b) {
+          var sA = a.severity === "CRITICAL" ? 2 : 1;
+          var sB = b.severity === "CRITICAL" ? 2 : 1;
+          if (sA !== sB) return sB - sA;
+          return 0;
+        });
+
+        shortlist = shortlist.slice(0, 10);
+
+        if (!shortlist.length) {
+          tbody.innerHTML = "<tr><td colspan='7'>Không có High/Critical trong 1000 findings đầu.</td></tr>";
+          return;
+        }
+
+        tbody.innerHTML = "";
+        shortlist.forEach(function (it, idx) {
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + (idx + 1) + "</td>" +
+            "<td>" + (it.severity || "") + "</td>" +
+            "<td>" + (it.tool || "") + "</td>" +
+            "<td>" + (it.rule_id || it.rule || "") + "</td>" +
+            "<td>" + (it.cwe || "") + "</td>" +
+            "<td>" + (it.file || "").split("/").slice(-2).join("/") + "</td>" +
+            "<td>" + (it.line || "") + "</td>";
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(function (err) {
+        console.warn("[VSP_V251] fetchTopRisks error", err);
+        tbody.innerHTML = "<tr><td colspan='7'>Lỗi tải dữ liệu.</td></tr>";
+      });
+  }
+
+  function fetchDeltaRuns() {
+    var tbody = document.getElementById("vsp-dash-delta-body");
+    if (!tbody) return;
+
+    fetch("/api/vsp/dashboard_v3")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var trend = data.trend_by_run || [];
+        if (!Array.isArray(trend) || trend.length < 2) {
+          tbody.innerHTML = "<tr><td colspan='4'>Chưa đủ dữ liệu trend (cần ≥ 2 run).</td></tr>";
+          return;
+        }
+
+        trend.sort(function (a, b) {
+          var ta = new Date(a.started_at || a.created_at || "").getTime();
+          var tb = new Date(b.started_at || b.created_at || "").getTime();
+          return tb - ta;
+        });
+
+        var latest = trend[0];
+        var prev = trend[1];
+
+        var totalLatest = latest.total_findings || latest.total || 0;
+        var totalPrev = prev.total_findings || prev.total || 0;
+        var delta = totalLatest - totalPrev;
+
+        var badge = document.createElement("span");
+        badge.className = "vsp-badge " +
+          (delta > 0 ? "vsp-badge-red" : delta < 0 ? "vsp-badge-green" : "vsp-badge-amber");
+        badge.textContent =
+          delta > 0 ? ("▲ +" + delta) :
+          delta < 0 ? ("▼ " + delta) :
+          "No change";
+
+        tbody.innerHTML = "";
+
+        var trLatest = document.createElement("tr");
+        trLatest.innerHTML =
+          "<td>Latest</td>" +
+          "<td>" + (latest.run_id || "") + "</td>" +
+          "<td>" + totalLatest + "</td>" +
+          "<td>" + (latest.started_at || latest.created_at || "") + "</td>";
+        tbody.appendChild(trLatest);
+
+        var trPrev = document.createElement("tr");
+        trPrev.innerHTML =
+          "<td>Previous</td>" +
+          "<td>" + (prev.run_id || "") + "</td>" +
+          "<td>" + totalPrev + "</td>" +
+          "<td>" + (prev.started_at || prev.created_at || "") + "</td>";
+        tbody.appendChild(trPrev);
+
+        var trDelta = document.createElement("tr");
+        var tdLabel = document.createElement("td");
+        tdLabel.textContent = "Delta";
+
+        var tdEmptyRun = document.createElement("td");
+        tdEmptyRun.textContent = "";
+
+        var tdDeltaVal = document.createElement("td");
+        tdDeltaVal.textContent = (delta >= 0 ? "+" : "") + delta;
+
+        var tdBadgeCell = document.createElement("td");
+        tdBadgeCell.appendChild(badge);
+
+        trDelta.appendChild(tdLabel);
+        trDelta.appendChild(tdEmptyRun);
+        trDelta.appendChild(tdDeltaVal);
+        trDelta.appendChild(tdBadgeCell);
+
+        tbody.appendChild(trDelta);
+      })
+      .catch(function (err) {
+        console.warn("[VSP_V251] fetchDeltaRuns error", err);
+        tbody.innerHTML = "<tr><td colspan='4'>Lỗi tải dữ liệu.</td></tr>";
+      });
+  }
+
+  function enhanceRunsFilter() {
+    var root = document.getElementById("vsp-runs-main");
+    if (!root) return;
+
+    var table = root.querySelector("table");
+    if (!table || table.dataset.vspFilterAdded === "1") return;
+
+    table.dataset.vspFilterAdded = "1";
+
+    var tbody = table.querySelector("tbody");
+    if (!tbody) return;
+
+    var container = document.createElement("div");
+    container.className = "vsp-filter-bar";
+
+    var inpId = document.createElement("input");
+    inpId.className = "vsp-filter-input";
+    inpId.placeholder = "Filter Run ID...";
+    container.appendChild(inpId);
+
+    var inpStatus = document.createElement("input");
+    inpStatus.className = "vsp-filter-input";
+    inpStatus.placeholder = "Filter Status / Gate...";
+    container.appendChild(inpStatus);
+
+    table.parentNode.insertBefore(container, table);
+
+    function applyFilter() {
+      var qId = inpId.value.toLowerCase();
+      var qStatus = inpStatus.value.toLowerCase();
+
+      Array.from(tbody.rows).forEach(function (row) {
+        var text = row.innerText.toLowerCase();
+        var ok = true;
+        if (qId && text.indexOf(qId) === -1) ok = false;
+        if (qStatus && text.indexOf(qStatus) === -1) ok = false;
+        row.style.display = ok ? "" : "none";
+      });
+    }
+
+    inpId.addEventListener("input", applyFilter);
+    inpStatus.addEventListener("input", applyFilter);
+  }
+
+  function enhanceDatasourceFilter() {
+    var root = document.getElementById("vsp-datasource-main");
+    if (!root) return;
+
+    var table = root.querySelector("table");
+    if (!table || table.dataset.vspFilterAdded === "1") return;
+
+    table.dataset.vspFilterAdded = "1";
+
+    var tbody = table.querySelector("tbody");
+    if (!tbody) return;
+
+    var container = document.createElement("div");
+    container.className = "vsp-filter-bar";
+
+    var inpSeverity = document.createElement("input");
+    inpSeverity.className = "vsp-filter-input";
+    inpSeverity.placeholder = "Severity (CRITICAL/HIGH/...)";
+    container.appendChild(inpSeverity);
+
+    var inpTool = document.createElement("input");
+    inpTool.className = "vsp-filter-input";
+    inpTool.placeholder = "Tool (semgrep, kics, ...)";
+    container.appendChild(inpTool);
+
+    table.parentNode.insertBefore(container, table);
+
+    function applyFilter() {
+      var qSev = inpSeverity.value.toLowerCase();
+      var qTool = inpTool.value.toLowerCase();
+
+      Array.from(tbody.rows).forEach(function (row) {
+        var text = row.innerText.toLowerCase();
+        var ok = true;
+        if (qSev && text.indexOf(qSev) === -1) ok = false;
+        if (qTool && text.indexOf(qTool) === -1) ok = false;
+        row.style.display = ok ? "" : "none";
+      });
+    }
+
+    inpSeverity.addEventListener("input", applyFilter);
+    inpTool.addEventListener("input", applyFilter);
+  }
+
+  function bootstrap() {
+    try {
+      wrapShell();
+      animateDashboardKpis();
+      buildDashboardExtras();
+    } catch (e) {
+      console.warn("[VSP_V251] bootstrap dashboard error", e);
+    }
+
+    setTimeout(function () {
+      try { enhanceRunsFilter(); } catch (e) { console.warn("[VSP_V251] runs filter error", e); }
+      try { enhanceDatasourceFilter(); } catch (e) { console.warn("[VSP_V251] datasource filter error", e); }
+    }, 800);
+  }
+
+  // Initial load
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootstrap);
+  } else {
+    bootstrap();
+  }
+
+  // Re-run khi đổi tab (hash change)
+  window.addEventListener("hashchange", function () {
+    setTimeout(function () {
+      bootstrap();
+    }, 200);
+  });
+})();

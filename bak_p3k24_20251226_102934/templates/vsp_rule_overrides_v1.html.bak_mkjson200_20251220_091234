@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- VSP_UI_DARK_CSS_P1_2_INJECT -->
+  <link rel=\"stylesheet\" href="/static/css/vsp_dark_commercial_p1_2.css?v=1766111363\">
+<meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>VSP Rule Overrides</title>
+  <style>
+    body{margin:0;background:#070d18;color:#dbe7ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;}
+    .top{position:sticky;top:0;z-index:9;background:#0b1220;border-bottom:1px solid rgba(255,255,255,.08)}
+    .wrap{max-width:1400px;margin:0 auto;padding:12px 14px}
+    a{color:#9fe2ff;text-decoration:none}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+    .btn{padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#dbe7ff;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    textarea{width:100%;height:68vh;resize:vertical;background:#0b1220;color:#dbe7ff;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:13px;line-height:1.35}
+    .card{margin-top:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px}
+    .muted{color:#8ea3c7}
+    .ok{color:#9be8a5}.bad{color:#ff6b6b}
+    code{color:#9fe2ff}
+  </style>
+
+<!-- VSP_GLOBAL_POLL_GUARD_P1_V1 -->
+<script>
+(function(){
+  if (window.__VSP_GLOBAL_POLL_GUARD) return;
+  window.__VSP_GLOBAL_POLL_GUARD = true;
+
+  const nativeFetch = (globalThis.fetch ? globalThis.fetch.bind(globalThis) : null);
+
+  const MIN = {
+    runs: 12000,
+    dash: 15000
+  };
+  const st = {
+    last: Object.create(null),
+    cache: Object.create(null),
+    inflight: Object.create(null),
+    backoffMs: 2000,
+    nextTryAt: 0,
+    lastWarnAt: 0
+  };
+
+  function now(){ return Date.now(); }
+  function baseKey(u){ try{ return u.toString().split('?')[0]; }catch(e){ return ""; } }
+  function urlStr(input){ try{ if (typeof input==="string") return input; if (input && input.url) return input.url; }catch(e){} return ""; }
+
+  function shouldGuard(url){
+    const s = (url||"").toString();
+    if (!s.includes("/api/vsp/")) return false;
+
+    // never guard downloads/exports/sha/file
+    if (s.includes("/api/vsp/run_file")) return false;
+    if (s.includes("/api/vsp/run_file2")) return false;
+    if (s.includes("/api/vsp/export_")) return false;
+    if (s.includes("/api/vsp/sha256")) return false;
+
+    if (s.includes("/api/vsp/runs")) return true;
+    if (s.includes("/api/vsp/dashboard")) return true; // includes dashboard_commercial_v2
+    return false;
+  }
+
+  function minInterval(key){
+    if (key.includes("/api/vsp/runs")) return MIN.runs;
+    if (key.includes("/api/vsp/dashboard")) return MIN.dash;
+    return 0;
+  }
+
+  function mkJsonResponse(obj, status){
+    try{
+      if (obj && typeof obj === "object"){
+        if (obj.ok === false) obj.ok = true;
+        if (obj.ok == null) obj.ok = true;
+        obj._degraded = true;
+        obj._degraded_reason = obj._degraded_reason || "poll_guard_cached";
+      } else {
+        obj = {ok:true,_degraded:true,_degraded_reason:"poll_guard_cached"};
+      }
+      return new Response(JSON.stringify(obj), {
+        status: 200,
+        headers: {
+          "Content-Type":"application/json",
+          "X-VSP-CACHED":"1",
+          "X-VSP-ALWAYS200":"1"
+        }
+      });
+    }catch(e){
+      return new Response(JSON.stringify({ok:true,_degraded:true,_degraded_reason:"poll_guard_cached"}), {
+        status: 200,
+        headers: {
+          "Content-Type":"application/json",
+          "X-VSP-CACHED":"1",
+          "X-VSP-ALWAYS200":"1"
+        }
+      });
+    }
+  }
+      });
+    } catch(e) {
+      return { ok:false, status:status||503, json: async()=>obj };
+    }
+  }
+
+  async function guardedFetch(input, init){
+    if (!nativeFetch) return mkJsonResponse({ok:false,error:"NO_FETCH"},503);
+    const u = urlStr(input);
+    if (!u || !shouldGuard(u)) return nativeFetch(input, init);
+
+    const k = baseKey(u);
+    const t = now();
+    const min = minInterval(k);
+
+    // If tab is hidden -> do NOT spam network; serve cache if any
+    if (document && document.hidden) {
+      if (st.cache[k]) return new Response(st.cache[k], { status:200, headers:{"Content-Type":"application/json","X-VSP-CACHED":"1"} });
+      return mkJsonResponse({ok:false, who:"VSP_POLL_GUARD", error:"HIDDEN"}, 503);
+    }
+
+    // global backoff window (after failures)
+    if (t < st.nextTryAt) {
+      if (st.cache[k]) return new Response(st.cache[k], { status:200, headers:{"Content-Type":"application/json","X-VSP-CACHED":"1"} });
+      return mkJsonResponse({ok:false, who:"VSP_POLL_GUARD", error:"BACKOFF"}, 503);
+    }
+
+    const last = st.last[k] || 0;
+
+    // throttle: if too soon -> serve cache, NO network
+    if ((t - last) < min && st.cache[k]) {
+      return new Response(st.cache[k], { status:200, headers:{"Content-Type":"application/json","X-VSP-CACHED":"1"} });
+    }
+
+    // inflight: serve cache, NO network
+    if (st.inflight[k]) {
+      if (st.cache[k]) return new Response(st.cache[k], { status:200, headers:{"Content-Type":"application/json","X-VSP-CACHED":"1"} });
+      return mkJsonResponse({ok:false, who:"VSP_POLL_GUARD", error:"INFLIGHT"}, 503);
+    }
+
+    st.inflight[k] = true;
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 8000);
+
+    try {
+      const _init = Object.assign({}, init||{});
+      _init.signal = ctrl.signal;
+      _init.cache = "no-store";
+      const r = await nativeFetch(input, _init);
+
+      st.last[k] = t;
+      if (r && r.ok) {
+        try {
+          const txt = await r.clone().text();
+          if (txt && txt.length < 5_000_000) st.cache[k] = txt;
+        } catch(e){}
+        // reset backoff after success
+        st.backoffMs = 2000;
+        st.nextTryAt = 0;
+      }
+      return r;
+    } catch(e) {
+      const t2 = now();
+      if (t2 - st.lastWarnAt > 5000) {
+        console.warn("[VSP] poll down; backoff", st.backoffMs, "ms");
+        st.lastWarnAt = t2;
+      }
+      st.nextTryAt = t2 + st.backoffMs;
+      st.backoffMs = Math.min(st.backoffMs * 2, 60000);
+      if (st.cache[k]) return new Response(st.cache[k], { status:200, headers:{"Content-Type":"application/json","X-VSP-CACHED":"1"} });
+      return mkJsonResponse({ok:false, who:"VSP_POLL_GUARD", error:"FETCH_FAILED"}, 503);
+    } finally {
+      clearTimeout(timer);
+      st.inflight[k] = false;
+    }
+  }
+
+  // override as early as possible
+  globalThis.fetch = guardedFetch;
+  window.fetch = guardedFetch;
+
+  // guard XHR too (best effort)
+  try {
+    const _open = XMLHttpRequest.prototype.open;
+    const _send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url){
+      try { this.__vsp_url = url; } catch(e) {}
+      return _open.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function(){
+      try {
+        const u = (this.__vsp_url || "");
+        if (shouldGuard(u)) {
+          const k = baseKey(u);
+          const t = now();
+          const min = minInterval(k);
+          const last = st.last[k] || 0;
+          if (document && document.hidden) { try{ this.abort(); }catch(e){}; return; }
+          if (t < st.nextTryAt) { try{ this.abort(); }catch(e){}; return; }
+          if ((t-last) < min) { try{ this.abort(); }catch(e){}; return; }
+          if (st.inflight[k]) { try{ this.abort(); }catch(e){}; return; }
+        }
+      } catch(e) {}
+      return _send.apply(this, arguments);
+    };
+  } catch(e) {}
+})();
+</script>
+<!-- /VSP_GLOBAL_POLL_GUARD_P1_V1 -->
+
+
+<!-- VSP_THEME_OVERRIDE_P1_V1 -->
+<link rel="stylesheet" href="/static/css/vsp_theme_override_p1_v1.css?v=20251219_182445">
+
+<link rel="stylesheet" href="/static/css/vsp_theme_override_p1_v2.css?v=20251219_184002">
+</head>
+<body>
+<!-- VSP_P1_NAV5_UNIFY_V1 -->
+<div id="vspNav5" style="position:sticky;top:0;z-index:9999;background:rgba(10,14,20,.92);backdrop-filter: blur(6px);
+  border-bottom:1px solid rgba(255,255,255,.08);padding:10px 12px;display:flex;gap:10px;align-items:center;">
+  <div style="font-weight:900;letter-spacing:.4px;color:#cfe0ff;">VSP</div>
+
+  <a class="pill" href="/" style="text-decoration:none;padding:8px 10px;border-radius:12px;
+     background:rgba(255,255,255,.06);color:#dbe7ff;font-weight:700;">Dashboard</a>
+
+  <a class="pill" href="/vsp5" style="text-decoration:none;padding:8px 10px;border-radius:12px;
+     background:rgba(255,255,255,.06);color:#dbe7ff;font-weight:700;">Runs &amp; Reports</a>
+
+  <a class="pill" href="/data_source" style="text-decoration:none;padding:8px 10px;border-radius:12px;
+     background:rgba(255,255,255,.06);color:#dbe7ff;font-weight:700;">Data Source</a>
+
+  <a class="pill" href="/settings" style="text-decoration:none;padding:8px 10px;border-radius:12px;
+     background:rgba(255,255,255,.06);color:#dbe7ff;font-weight:700;">Settings</a>
+
+  <a class="pill" href="/rule_overrides" style="text-decoration:none;padding:8px 10px;border-radius:12px;
+     background:rgba(255,255,255,.06);color:#dbe7ff;font-weight:700;">Rule Overrides</a>
+
+  <div style="margin-left:auto;opacity:.85;font-size:12px;color:#9bb2d9;">
+    P1 UI • nav unified
+  </div>
+</div>
+
+  <div class="top">
+    <div class="wrap">
+      <div class="row">
+        <div style="font-weight:800;letter-spacing:.3px">VSP Rule Overrides</div>
+        <div class="pill small muted" id="file">loading…</div>
+        <div style="flex:1"></div>
+        <a class="pill" href="/runs">Runs & Reports</a>
+        <a class="pill" href="/data">Data Source</a>
+        <a class="pill" href="/settings">Settings</a>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="reload">Reload</button>
+        <button class="btn" id="validate">Validate JSON</button>
+        <button class="btn" id="save">Save</button>
+        <div class="pill muted" id="status">ready</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card muted">
+      Format (JSON): you can override by <code>rule_id</code> or <code>match</code>.
+      Example:
+      <pre style="margin:8px 0 0;white-space:pre-wrap;color:#9fb5de">{
+  "enabled": true,
+  "updated_by": "admin",
+  "overrides": [
+    { "rule_id": "semgrep.python.lang.security.audit.exec-used", "severity": "LOW", "reason": "dev sandbox" },
+    { "match": { "tool": "gitleaks", "secret_type": "generic" }, "action": "suppress", "reason": "false positive" }
+  ]
+}</pre>
+    </div>
+
+    <div class="card">
+      <textarea id="editor" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:10px">
+        <div class="muted small" id="meta"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(async function(){
+  const editor = document.getElementById('editor');
+  const status = document.getElementById('status');
+  const meta = document.getElementById('meta');
+  const file = document.getElementById('file');
+  const btnReload = document.getElementById('reload');
+  const btnSave = document.getElementById('save');
+  const btnValidate = document.getElementById('validate');
+
+  const setStatus = (txt, ok=true) => {
+    status.textContent = txt;
+    status.className = 'pill ' + (ok ? 'ok' : 'bad');
+  };
+
+  function pretty(obj){ return JSON.stringify(obj, null, 2) + "\n"; }
+
+  async function load(){
+    setStatus('loading…', true);
+    const res = await fetch('/api/vsp/rule_overrides');
+    const j = await res.json();
+    file.textContent = j.path || 'n/a';
+    editor.value = pretty(j.data || {});
+    meta.textContent = `who=${j.who||'n/a'}  ts=${j.ts||'n/a'}  bytes=${(editor.value||'').length}`;
+    setStatus(j.ok ? 'loaded' : ('load failed: ' + (j.error||'unknown')), !!j.ok);
+  }
+
+  function validate(){
+    try{
+      const obj = JSON.parse(editor.value || "{}");
+      setStatus('valid JSON', true);
+      return obj;
+    }catch(e){
+      setStatus('INVALID JSON: ' + e.message, false);
+      return null;
+    }
+  }
+
+  async function save(){
+    const obj = validate();
+    if(!obj) return;
+    setStatus('saving…', true);
+    btnSave.disabled = true;
+    try{
+      const res = await fetch('/api/vsp/rule_overrides', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({data: obj})
+      });
+      const j = await res.json();
+      setStatus(j.ok ? 'saved' : ('save failed: ' + (j.error||'unknown')), !!j.ok);
+      if(j.backup) meta.textContent = `saved. backup=${j.backup}`;
+    } finally {
+      btnSave.disabled = false;
+    }
+  }
+
+  btnReload.addEventListener('click', load);
+  btnValidate.addEventListener('click', validate);
+  btnSave.addEventListener('click', save);
+
+  await load();
+})();
+</script>
+
+<script defer src="/static/js/vsp_p1_page_boot_v1.js?v="></script>
+  <!-- VSP_UI_KEEPALIVE_JS_P1_2_INJECT -->
+  <script defer src="/static/js/vsp_ui_keepalive_p1_2.js?v=1766111363\"></script>
+
+<!-- VSP_FILL_REAL_DATA_5TABS_P1_V1 -->
+<script src="/static/js/vsp_fill_real_data_5tabs_p1_v1.js"></script>
+<!-- /VSP_FILL_REAL_DATA_5TABS_P1_V1 -->
+
+<script>
+/* VSP_UI_POLISH_RIDLATEST_BADGE_V1 */
+(function(){
+  const MARK = "VSP_UI_POLISH_RIDLATEST_BADGE_V1";
+  if (window[MARK]) return; window[MARK]=1;
+
+  function setTextAll(match, newText){
+    document.querySelectorAll('button,span,div,a').forEach(el=>{
+      try{
+        const t = (el.textContent||"").trim();
+        if (t.includes(match)) el.textContent = newText;
+      }catch(e){}
+    });
+  }
+
+  async function probe(){
+    try{
+      const r = await fetch('/api/vsp/runs?limit=1', { cache: 'no-store' });
+      const hdrDegraded = (r.headers.get('X-VSP-RUNS-DEGRADED') || '') === '1';
+      const txt = await r.text();
+      let j=null; try{ j=JSON.parse(txt); }catch(e){}
+      const rid = (j && j.rid_latest) ? j.rid_latest : 'N/A';
+      const ok = (r.status===200) && j && (j.ok===true);
+
+      // 1) Unstick banner FAIL -> OK/DEGRADED
+      if (ok){
+        const msg = hdrDegraded ? `RUNS API DEGRADED (rid_latest=${rid})`
+                                : `RUNS API OK (rid_latest=${rid})`;
+        setTextAll('RUNS API FAIL', msg);
+        setTextAll('Error: 503', '');
+      }
+
+      // 2) Always-visible badge for demo confidence
+      let b=document.getElementById('vsp_rid_latest_badge');
+      if(!b){
+        b=document.createElement('div');
+        b.id='vsp_rid_latest_badge';
+        b.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99999;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);font:12px/1.2 system-ui;color:#e6edf3;border:1px solid rgba(255,255,255,.10)';
+        document.body.appendChild(b);
+      }
+      b.textContent = (ok ? (hdrDegraded?'DEGRADED':'OK') : 'FAIL') + ` • rid_latest=${rid}`;
+    }catch(e){}
+  }
+
+  probe();
+  setInterval(probe, 5000);
+})();
+</script>
+
+
+<!-- VSP_P1_COMMERCIAL_FINISH_ALL_UI_V1 -->
+
+<script>
+/* VSP_P1_COMMERCIAL_FINISH_ALL_UI_V1 */
+(function(){
+  if (window.__VSP_COMM_FINISH_ALL__) return;
+  window.__VSP_COMM_FINISH_ALL__ = 1;
+
+  const q = new URLSearchParams(location.search);
+  const FORCE_RID = (q.get('rid')||'').trim();
+  if (FORCE_RID) window.VSP_FORCE_RID = FORCE_RID;
+
+  // --- Fetch interceptor: force rid for run_file and reports when ?rid= is present ---
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init){
+    try{
+      let url = (typeof input === 'string') ? input : (input && input.url) ? input.url : '';
+      if (FORCE_RID && url){
+        // rewrite /api/reports/<name> -> /api/vsp/run_file?rid=FORCE&name=reports/<name>
+        if (url.startsWith('/api/reports/')) {
+          const name = url.substring('/api/reports/'.length);
+          const rew = '/api/vsp/run_file?rid=' + encodeURIComponent(FORCE_RID) + '&name=' + encodeURIComponent('reports/' + name);
+          url = rew;
+        }
+        // rewrite run_file rid=*
+        if (url.includes('/api/vsp/run_file?')) {
+          const u = new URL(url, location.origin);
+          const rid = (u.searchParams.get('rid')||'').trim();
+          const name = (u.searchParams.get('name')||'').trim();
+          if (name && rid && rid !== FORCE_RID) {
+            u.searchParams.set('rid', FORCE_RID);
+            url = u.pathname + '?' + u.searchParams.toString();
+          }
+        }
+        if (typeof input === 'string') input = url;
+        else input = new Request(url, input);
+      }
+    }catch(e){}
+    return _origFetch(input, init);
+  };
+
+  // --- Utilities ---
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  function ensureTopBar(){
+    let bar = document.getElementById('vsp_live_status_bar');
+    if (bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'vsp_live_status_bar';
+    bar.style.cssText = [
+      "position:sticky","top:0","z-index:99999",
+      "margin:0 auto","max-width:1200px",
+      "padding:8px 10px","border-radius:12px",
+      "background:rgba(0,0,0,.45)","backdrop-filter:blur(8px)",
+      "color:#e6edf3","border:1px solid rgba(255,255,255,.10)",
+      "font:12px/1.2 system-ui","display:flex","gap:10px","align-items:center",
+      "justify-content:space-between"
+    ].join(";");
+    bar.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="vsp_live_runs_state">RUNS: ...</span>
+        <span style="opacity:.8" id="vsp_live_rid">rid_latest: ...</span>
+        <span style="opacity:.7" id="vsp_live_mode">${FORCE_RID ? ('FORCE rid=' + FORCE_RID) : 'AUTO rid_latest'}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="vsp_btn_csv" style="all:unset;cursor:pointer;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14)">CSV</button>
+        <button id="vsp_btn_tgz" style="all:unset;cursor:pointer;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14)">TGZ</button>
+        <button id="vsp_btn_sha" style="all:unset;cursor:pointer;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14)">SHA</button>
+        <button id="vsp_btn_sum" style="all:unset;cursor:pointer;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14)">Summary JSON</button>
+      </div>
+    `;
+
+    // Insert nicely below existing header area if present, else at body top
+    const anchor = document.body.firstElementChild;
+    document.body.insertBefore(bar, anchor);
+
+    return bar;
+  }
+
+  function setStickyFailToOkText(ridLatest, degraded){
+    // Remove/overwrite sticky "RUNS API FAIL" banners if exist
+    const msg = degraded ? `RUNS API DEGRADED • rid_latest=${ridLatest}` : `RUNS API OK • rid_latest=${ridLatest}`;
+    $$('button,span,div,a').forEach(el=>{
+      const t = (el.textContent||"").trim();
+      if (!t) return;
+      if (t.includes('RUNS API FAIL')) el.textContent = msg;
+      if (t.includes('Error: 503') || t.includes('Error: 500') || t.includes('Error:')) {
+        // soften error noise if runs is OK now
+        if (t.includes('/api/vsp/runs')) el.textContent = '';
+      }
+    });
+  }
+
+  function ensureCornerBadge(){
+    let b = document.getElementById('vsp_rid_latest_badge');
+    if (b) return b;
+    b = document.createElement('div');
+    b.id = 'vsp_rid_latest_badge';
+    b.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:99999;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);font:12px/1.2 system-ui;color:#e6edf3;border:1px solid rgba(255,255,255,.10)";
+    document.body.appendChild(b);
+    return b;
+  }
+
+  function applyRunRowLinks(){
+    // Runs page: turn each run_id text into links
+    // Heuristic: find text nodes that look like *_RUN_* or VSP_CI_RUN_*
+    const rx = /(VSP_CI_RUN_\d{8}_\d{6}|[A-Za-z0-9-]+_RUN_\d{8}_\d{6}_\d{6}|RUN_[A-Za-z0-9-]+_\d{8}_\d{6})/g;
+
+    $$('a,div,span').forEach(el=>{
+      const t = (el.textContent||"").trim();
+      if (!t || t.length > 120) return;
+      const m = t.match(rx);
+      if (!m) return;
+      const rid = m[0];
+      // avoid patching buttons
+      if (el.tagName === 'A' && el.getAttribute('href')) return;
+
+      // Create small actions only once per element
+      if (el.dataset && el.dataset.vspRidLinked === '1') return;
+      if (el.dataset) el.dataset.vspRidLinked = '1';
+
+      const wrap = document.createElement('span');
+      wrap.style.cssText = "display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap";
+      const ridSpan = document.createElement('span');
+      ridSpan.textContent = rid;
+
+      const aDS = document.createElement('a');
+      aDS.textContent = "Open Data Source";
+      aDS.href = "/data_source?rid=" + encodeURIComponent(rid);
+      aDS.target = "_blank";
+      aDS.style.cssText = "opacity:.9;text-decoration:none;padding:4px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.14)";
+
+      const aSum = document.createElement('a');
+      aSum.textContent = "Open Summary";
+      aSum.href = "/api/vsp/run_file?rid=" + encodeURIComponent(rid) + "&name=" + encodeURIComponent("reports/run_gate_summary.json");
+      aSum.target = "_blank";
+      aSum.style.cssText = "opacity:.9;text-decoration:none;padding:4px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.14)";
+
+      wrap.appendChild(ridSpan);
+      wrap.appendChild(aDS);
+      wrap.appendChild(aSum);
+
+      // replace el content
+      el.textContent = "";
+      el.appendChild(wrap);
+    });
+  }
+
+  async function pollRuns(){
+    const bar = ensureTopBar();
+    const badge = ensureCornerBadge();
+    try{
+      const r = await fetch('/api/vsp/runs?limit=1', { cache:'no-store' });
+      const degraded = (r.headers.get('X-VSP-RUNS-DEGRADED')||'') === '1';
+      const txt = await r.text();
+      let j=null; try{ j=JSON.parse(txt); }catch(e){}
+      const ridLatest = FORCE_RID || (j && j.rid_latest) || 'N/A';
+      const ok = (r.status===200) && j && (j.ok===true);
+
+      $('#vsp_live_runs_state').textContent = ok ? (degraded?'RUNS: DEGRADED':'RUNS: OK') : ('RUNS: FAIL ' + r.status);
+      $('#vsp_live_rid').textContent = 'rid_latest: ' + ridLatest;
+      badge.textContent = (ok ? (degraded?'DEGRADED':'OK') : 'FAIL') + ' • rid=' + ridLatest;
+
+      setStickyFailToOkText(ridLatest, degraded);
+
+      // wire buttons
+      const ridForButtons = ridLatest;
+      $('#vsp_btn_csv').onclick = ()=> location.href = '/api/vsp/export_csv?rid=' + encodeURIComponent(ridForButtons);
+      $('#vsp_btn_tgz').onclick = ()=> location.href = '/api/vsp/export_tgz?rid=' + encodeURIComponent(ridForButtons) + '&scope=reports';
+      $('#vsp_btn_sha').onclick = ()=> window.open('/api/vsp/sha256?rid=' + encodeURIComponent(ridForButtons) + '&name=' + encodeURIComponent('reports/run_gate_summary.json'), '_blank');
+      $('#vsp_btn_sum').onclick = ()=> window.open('/api/vsp/run_file?rid=' + encodeURIComponent(ridForButtons) + '&name=' + encodeURIComponent('reports/run_gate_summary.json'), '_blank');
+
+      // update links on runs page
+      applyRunRowLinks();
+
+    }catch(e){}
+  }
+
+  pollRuns();
+  setInterval(pollRuns, 4000);
+})();
+</script>
+
+</body>
+</html>

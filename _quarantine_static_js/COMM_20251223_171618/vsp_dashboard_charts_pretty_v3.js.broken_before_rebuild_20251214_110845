@@ -1,0 +1,37 @@
+(function () {
+  console.log("[VSP_CHARTS_V3] pretty charts loaded (FULL v2)");
+
+  function getCanvasCtx(candidates) {
+    for (var i = 0; i < candidates.length; i++) {
+      var el = document.getElementById(candidates[i]);
+      if (el && el.getContext) return el.getContext("2d");
+    }
+    // thử tìm theo data-attr
+    var alt = document.querySelector("[data-vsp-chart='" + candidates[0] + "'] canvas");
+    if (alt && alt.getContext) return alt.getContext("2d");
+    
+var el = document.getElementById(candidates[i]);
+
+
+  initAll: function (dash) {
+      if (!dash) {
+        console.warn("[VSP_CHARTS_V3] initAll: không có dashboard data.");
+        return;
+      }
+      try { buildSeverityDonut(dash.by_severity); } catch (e) { console.error(e); }
+      try { buildTrend(dash.trend_by_run); } catch (e) { console.error(e); }
+      try { buildCritHighByTool(dash.by_tool); } catch (e) { console.error(e); }
+      try { buildTopCwe(dash.top_cwe_list); } catch (e) { console.error(e); }
+    }
+  };
+
+
+// === VSP_PRETTY_V3_CHARTS_READY_DISPATCH_V1 ===
+try {
+  // announce that charts engine has been registered
+  window.dispatchEvent(new CustomEvent('vsp:charts-ready', { detail: { engine: 'V3' } }));
+  console.log('[VSP_CHARTS_V3] dispatched vsp:charts-ready (SAFE)');
+} catch(e) {}
+// === END VSP_PRETTY_V3_CHARTS_READY_DISPATCH_V1 ===
+
+})();

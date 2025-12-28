@@ -1,0 +1,200 @@
+/* ========== VSP 2025 – CHART & RUNS LAYOUT COMMON STYLES ========== */
+
+.vsp-preview-note {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.6));
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #e5e7eb;
+}
+
+.vsp-preview-note strong {
+  color: #22c55e;
+}
+
+/* Runs overview – grid 3 KPI */
+.vsp-runs-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .vsp-runs-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .vsp-runs-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Last run chip */
+.vsp-runs-last-run {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 55%);
+  font-size: 0.85rem;
+  color: #e5e7eb;
+  margin-bottom: 1.5rem;
+}
+
+.vsp-runs-last-run-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.vsp-runs-last-run-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+
+.vsp-runs-last-run-meta span {
+  opacity: 0.9;
+}
+
+/* Chart cards */
+.vsp-chart-card {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.vsp-chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.vsp-chart-card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #e5e7eb;
+}
+
+.vsp-chart-card-subtitle {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.vsp-chart-card-body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.vsp-chart-canvas-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.vsp-chart-canvas-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Mini list rows (nếu sau này bạn muốn dùng) */
+.vsp-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  font-size: 0.8rem;
+  color: #e5e7eb;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.7);
+}
+
+.vsp-mini-row:last-child {
+  border-bottom: none;
+}
+
+.vsp-mini-rank {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #a5b4fc;
+  margin-right: 0.5rem;
+}
+
+.vsp-mini-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #cbd5f5;
+}
+
+.vsp-mini-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+/* ========== END COMMON ========== */
+
+/* ========== Data Source – mini charts section ========== */
+.vsp-ds-mini-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.9);
+}
+
+.vsp-ds-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.vsp-ds-mini-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #e5e7eb;
+}
+
+.vsp-ds-mini-subtitle {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.vsp-ds-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .vsp-ds-mini-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Data Source – mini charts card look & list */
+.vsp-ds-card {
+  border-radius: 1rem;
+  border: 1px solid var(--vsp-border-subtle, rgba(148,163,184,0.25));
+  background: radial-gradient(circle at top left, rgba(15,23,42,0.95), rgba(15,23,42,0.85));
+}
+
+.vsp-mini-list {
+  padding: 0.5rem 0.75rem 0.75rem;
+}

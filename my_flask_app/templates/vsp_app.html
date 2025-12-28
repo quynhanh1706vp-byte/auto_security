@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>VersaSecure Platform – VSP 2025</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Font & CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_main.css') }}">
+
+  <!-- Chart.js (cho donut, trend, by-tool) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+
+  <!-- JS modules mới (sẽ tạo sau) -->
+  <script src="{{ url_for('static', filename='js/vsp_dashboard_v1.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/vsp_runs_v1.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/vsp_datasource_v1.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/vsp_settings_v1.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/vsp_overrides_v1.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/vsp_main.js') }}" defer></script>
+</head>
+<body class="vsp-body">
+  <div class="vsp-shell">
+    <!-- SIDEBAR -->
+    <aside class="vsp-sidebar">
+      <div class="vsp-logo-block">
+        <div class="vsp-logo-circle">V</div>
+        <div class="vsp-logo-text">
+          <div class="vsp-logo-title">VersaSecure Platform</div>
+          <div class="vsp-logo-subtitle">Enterprise Security Profile · EXT+ · DevSecOps / CIO level</div>
+        </div>
+      </div>
+
+      <div class="vsp-profile-block">
+        <div class="vsp-profile-title">PROFILE</div>
+        <div class="vsp-profile-card">
+          <div class="vsp-profile-top">
+            <div class="vsp-profile-name">EXT+ · Multi-tool / offline</div>
+            <div class="vsp-profile-badge">ENGINE: ACTIVE</div>
+          </div>
+          <div class="vsp-profile-meta">
+            Unified findings · ISO 27001 / OWASP baseline
+          </div>
+        </div>
+      </div>
+
+      <nav class="vsp-nav">
+        <div class="vsp-nav-title">MAIN</div>
+        <button class="vsp-nav-item vsp-nav-item-active" data-tab="dashboard">
+          <span class="vsp-nav-dot"></span>
+          <span>Dashboard</span>
+        </button>
+        <button class="vsp-nav-item" data-tab="runs">
+          <span class="vsp-nav-dot"></span>
+          <span>Runs &amp; Reports</span>
+        </button>
+        <button class="vsp-nav-item" data-tab="datasource">
+          <span class="vsp-nav-dot"></span>
+          <span>Data Source</span>
+        </button>
+        <button class="vsp-nav-item" data-tab="settings">
+          <span class="vsp-nav-dot"></span>
+          <span>Settings</span>
+        </button>
+        <button class="vsp-nav-item" data-tab="overrides">
+          <span class="vsp-nav-dot"></span>
+          <span>Rule Overrides</span>
+        </button>
+      </nav>
+
+      <div class="vsp-sidebar-footer">
+        <div class="vsp-footer-line">DEPSECOPS · ISO 27001 · CIO LEVEL</div>
+        <div class="vsp-footer-line">VSP 2025 · Commercial Edition</div>
+      </div>
+    </aside>
+
+    <!-- MAIN AREA -->
+    <main class="vsp-main">
+      <!-- HEADER -->
+      <header class="vsp-header">
+        <div class="vsp-header-left">
+          <h1 class="vsp-header-title">VersaSecure Platform – VSP</h1>
+          <p class="vsp-header-subtitle">
+            CIO-level overview · One dashboard for findings, tools, CWEs, CVEs.
+          </p>
+        </div>
+        <div class="vsp-header-right">
+          <div class="vsp-header-pill">
+            <span class="vsp-pill-label">Total findings</span>
+            <span class="vsp-pill-value" id="vsp-pill-total">N/A</span>
+          </div>
+          <div class="vsp-header-pill">
+            <span class="vsp-pill-label">Security posture</span>
+            <span class="vsp-pill-value" id="vsp-pill-score">N/A</span>
+          </div>
+          <div class="vsp-header-pill vsp-header-pill-active">
+            <span class="vsp-pill-label">Engine</span>
+            <span class="vsp-pill-value">ACTIVE</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- TAB SWITCHER -->
+      <div class="vsp-tabs">
+        <div class="vsp-tabs-left-title">
+          TAB 1 – DASHBOARD · CIO-LEVEL SECURITY OVERVIEW
+        </div>
+        <div class="vsp-tabs-buttons">
+          <button class="vsp-tab-btn vsp-tab-btn-active" data-tab="dashboard">
+            <span class="vsp-tab-dot"></span>
+            <span>Dashboard</span>
+          </button>
+          <button class="vsp-tab-btn" data-tab="runs">
+            <span class="vsp-tab-dot"></span>
+            <span>Runs &amp; Reports</span>
+          </button>
+          <button class="vsp-tab-btn" data-tab="datasource">
+            <span class="vsp-tab-dot"></span>
+            <span>Data Source</span>
+          </button>
+          <button class="vsp-tab-btn" data-tab="settings">
+            <span class="vsp-tab-dot"></span>
+            <span>Settings</span>
+          </button>
+          <button class="vsp-tab-btn" data-tab="overrides">
+            <span class="vsp-tab-dot"></span>
+            <span>Rule Overrides</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB PANES -->
+      <div class="vsp-tabs-container">
+        <!-- ========== TAB 1: DASHBOARD ========== -->
+        <section id="tab-dashboard" class="vsp-tab-pane">
+          <div class="vsp-dashboard-grid">
+            <!-- KPI row -->
+            <div class="vsp-row vsp-row-kpi">
+              <!-- Unified findings -->
+              <div class="vsp-card vsp-card-kpi" id="vsp-kpi-unified-card">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Unified findings</div>
+                    <div class="vsp-card-subtitle">
+                      Normalized from unified findings file.
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">All buckets</div>
+                </div>
+                <div class="vsp-card-body vsp-kpi-body">
+                  <div>
+                    <div class="vsp-kpi-label">TOTAL</div>
+                    <div class="vsp-kpi-value" id="vsp-kpi-total-findings">N/A</div>
+                    <div class="vsp-kpi-sub">
+                      Tổng số issue từ 7–8 tool SAST / SBOM / Secrets.
+                    </div>
+                  </div>
+                  <div class="vsp-kpi-bysev" id="vsp-kpi-by-severity">
+                    <!-- JS render badges CRI/HIGH/MED/LOW/INFO/TRACE -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Security score -->
+              <div class="vsp-card vsp-card-kpi" id="vsp-kpi-score-card">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Security Score</div>
+                    <div class="vsp-card-subtitle">
+                      Calculated from CRITICAL/HIGH + coverage FULL-MAX.
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">VSP score</div>
+                </div>
+                <div class="vsp-card-body vsp-kpi-body">
+                  <div>
+                    <div class="vsp-kpi-label">CURRENT</div>
+                    <div class="vsp-kpi-value">
+                      <span id="vsp-kpi-score-current">N/A</span>
+                      <span class="vsp-kpi-score-max">/ <span id="vsp-kpi-score-max">100</span></span>
+                    </div>
+                    <div class="vsp-kpi-sub">
+                      Target: <span id="vsp-kpi-score-target">85</span> · mapped to ISO 27001 / OWASP.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hotspot -->
+              <div class="vsp-card vsp-card-kpi vsp-card-kpi-wide" id="vsp-kpi-hotspot-card">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Top risk &amp; hotspot</div>
+                    <div class="vsp-card-subtitle">
+                      Aggregated from unified findings: tool, CWE, module.
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">Risk focus</div>
+                </div>
+                <div class="vsp-card-body vsp-kpi-hotspot">
+                  <div class="vsp-hotspot-item">
+                    <div class="vsp-hotspot-label">Top risky tool</div>
+                    <div class="vsp-hotspot-value" id="vsp-hotspot-tool">N/A</div>
+                    <div class="vsp-hotspot-sub" id="vsp-hotspot-tool-sub">
+                      Sẽ hiển thị CRITICAL / HIGH theo tool.
+                    </div>
+                  </div>
+                  <div class="vsp-hotspot-item">
+                    <div class="vsp-hotspot-label">Highest impacted CWE</div>
+                    <div class="vsp-hotspot-value" id="vsp-hotspot-cwe">N/A</div>
+                    <div class="vsp-hotspot-sub" id="vsp-hotspot-cwe-sub">
+                      Số lượng findings theo CWE.
+                    </div>
+                  </div>
+                  <div class="vsp-hotspot-item">
+                    <div class="vsp-hotspot-label">Top vulnerable module</div>
+                    <div class="vsp-hotspot-value" id="vsp-hotspot-module">N/A</div>
+                    <div class="vsp-hotspot-sub" id="vsp-hotspot-module-sub">
+                      Module/bundle có nhiều CRITICAL/HIGH.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Middle row: donut + trend -->
+            <div class="vsp-row vsp-row-mid">
+              <!-- Severity donut -->
+              <div class="vsp-card vsp-card-chart">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Severity distribution</div>
+                    <div class="vsp-card-subtitle">
+                      Unified severity buckets (CRITICAL / HIGH / MED / LOW / INFO / TRACE).
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">Unified severity</div>
+                </div>
+                <div class="vsp-card-body vsp-card-body-chart">
+                  <canvas id="vsp-chart-severity-donut"></canvas>
+                </div>
+              </div>
+
+              <!-- Trendline -->
+              <div class="vsp-card vsp-card-chart">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Trend – findings over time</div>
+                    <div class="vsp-card-subtitle">
+                      Last 10 runs / latest 30 days.
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">Run history</div>
+                </div>
+                <div class="vsp-card-body vsp-card-body-chart">
+                  <canvas id="vsp-chart-trend"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom row: by tool + top findings -->
+            <div class="vsp-row vsp-row-bottom">
+              <!-- Findings by tool -->
+              <div class="vsp-card vsp-card-chart vsp-card-chart-wide">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Findings by tool</div>
+                    <div class="vsp-card-subtitle">
+                      CRITICAL/HIGH per tool – ưu tiên tuning và triage.
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">Tool comparison</div>
+                </div>
+                <div class="vsp-card-body vsp-card-body-chart">
+                  <canvas id="vsp-chart-by-tool"></canvas>
+                </div>
+              </div>
+
+              <!-- Top findings table -->
+              <div class="vsp-card vsp-card-table">
+                <div class="vsp-card-header">
+                  <div>
+                    <div class="vsp-card-title">Top risk findings</div>
+                    <div class="vsp-card-subtitle">
+                      Top CRITICAL / HIGH từ unified findings (priority list).
+                    </div>
+                  </div>
+                  <div class="vsp-card-chip">Top 10</div>
+                </div>
+                <div class="vsp-card-body vsp-table-wrapper">
+                  <table class="vsp-table" id="vsp-table-top-findings">
+                    <thead>
+                      <tr>
+                        <th>Severity</th>
+                        <th>Location</th>
+                        <th>Rule / CWE</th>
+                        <th>Tool</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- JS sẽ render từ /api/vsp/top_findings_v1 -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== TAB 2: RUNS & REPORTS ========== -->
+        <section id="tab-runs" class="vsp-tab-pane vsp-tab-hidden">
+          <div class="vsp-tab-header">
+            <h2>Runs &amp; Reports</h2>
+            <div class="vsp-tab-actions">
+              <button class="vsp-btn" id="vsp-runs-refresh">Refresh</button>
+              <button class="vsp-btn-secondary" id="vsp-runs-status">Scan status</button>
+            </div>
+          </div>
+          <div class="vsp-tab-body">
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table" id="vsp-table-runs">
+                <thead>
+                  <tr>
+                    <th>Run ID</th>
+                    <th>Date</th>
+                    <th>Profile</th>
+                    <th>Tools</th>
+                    <th>Total</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                    <th>Gate</th>
+                    <th>Report</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- JS: /api/vsp/runs_v2 -->
+                </tbody>
+              </table>
+            </div>
+            <div class="vsp-status-bar" id="vsp-runs-status-bar"></div>
+          </div>
+        </section>
+
+        <!-- ========== TAB 3: DATA SOURCE ========== -->
+        <section id="tab-datasource" class="vsp-tab-pane vsp-tab-hidden">
+          <div class="vsp-tab-header">
+            <h2>Data Source – Unified Findings</h2>
+            <div class="vsp-tab-actions">
+              <button class="vsp-btn" id="vsp-ds-refresh">Refresh</button>
+            </div>
+          </div>
+
+          <div class="vsp-ds-layout">
+            <!-- Filters -->
+            <div class="vsp-ds-filters">
+              <label>
+                <span>Severity</span>
+                <select id="vsp-ds-severity">
+                  <option value="ALL">All</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                  <option value="INFO">Info</option>
+                  <option value="TRACE">Trace</option>
+                </select>
+              </label>
+              <label>
+                <span>Tool</span>
+                <select id="vsp-ds-tool">
+                  <option value="">All tools</option>
+                </select>
+              </label>
+              <label class="vsp-ds-search">
+                <span>Search</span>
+                <input type="text" id="vsp-ds-search-input"
+                       placeholder="Rule ID, CWE, file path, message…" />
+              </label>
+              <label>
+                <span>Limit</span>
+                <select id="vsp-ds-limit">
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </label>
+            </div>
+
+            <!-- Charts -->
+            <div class="vsp-ds-charts">
+              <div class="vsp-card vsp-card-chart-small">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">By severity</div>
+                </div>
+                <div class="vsp-card-body vsp-card-body-chart">
+                  <canvas id="vsp-ds-chart-severity"></canvas>
+                </div>
+              </div>
+              <div class="vsp-card vsp-card-chart-small">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">By tool</div>
+                </div>
+                <div class="vsp-card-body vsp-card-body-chart">
+                  <canvas id="vsp-ds-chart-tool"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="vsp-ds-table-wrapper">
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table" id="vsp-table-datasource">
+                  <thead>
+                    <tr>
+                      <th>Severity</th>
+                      <th>Tool</th>
+                      <th>Rule / CWE</th>
+                      <th>Location</th>
+                      <th>Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- JS: /api/vsp/datasource_v2 -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== TAB 4: SETTINGS ========== -->
+        <section id="tab-settings" class="vsp-tab-pane vsp-tab-hidden">
+          <div class="vsp-tab-header">
+            <h2>Settings – Tool Stack &amp; Profiles</h2>
+            <div class="vsp-tab-actions">
+              <button class="vsp-btn" id="vsp-settings-save">Save</button>
+              <button class="vsp-btn-secondary" id="vsp-settings-reload">Reload</button>
+            </div>
+          </div>
+
+          <div class="vsp-settings-layout">
+            <div class="vsp-card vsp-settings-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Profile &amp; Mode</div>
+              </div>
+              <div class="vsp-settings-grid">
+                <label>
+                  <span>Profile name</span>
+                  <input type="text" id="vsp-set-profile" />
+                </label>
+                <label>
+                  <span>Mode</span>
+                  <select id="vsp-set-mode">
+                    <option value="offline">Offline</option>
+                    <option value="online">Online</option>
+                    <option value="ci_cd">CI/CD</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="vsp-card vsp-settings-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Paths &amp; Limits</div>
+              </div>
+              <div class="vsp-settings-grid">
+                <label>
+                  <span>SRC path</span>
+                  <input type="text" id="vsp-set-path-src" />
+                </label>
+                <label>
+                  <span>OUT path</span>
+                  <input type="text" id="vsp-set-path-out" />
+                </label>
+                <label>
+                  <span>Max findings</span>
+                  <input type="number" id="vsp-set-max-findings" />
+                </label>
+                <label>
+                  <span>Timeout (sec)</span>
+                  <input type="number" id="vsp-set-timeout" />
+                </label>
+              </div>
+            </div>
+
+            <div class="vsp-card vsp-settings-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Tools</div>
+              </div>
+              <div class="vsp-settings-tools" id="vsp-set-tools">
+                <!-- JS render list tool from /api/vsp/settings/get -->
+              </div>
+            </div>
+          </div>
+
+          <div class="vsp-status-bar" id="vsp-settings-status"></div>
+        </section>
+
+        <!-- ========== TAB 5: RULE OVERRIDES ========== -->
+        <section id="tab-overrides" class="vsp-tab-pane vsp-tab-hidden">
+          <div class="vsp-tab-header">
+            <h2>Rule Overrides</h2>
+            <div class="vsp-tab-actions">
+              <button class="vsp-btn" id="vsp-overrides-refresh">Refresh</button>
+              <button class="vsp-btn-secondary" id="vsp-overrides-save">Save selected</button>
+            </div>
+          </div>
+
+          <div class="vsp-overrides-layout">
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table" id="vsp-table-overrides">
+                <thead>
+                  <tr>
+                    <th>Tool</th>
+                    <th>Rule ID</th>
+                    <th>Raw severity</th>
+                    <th>Effective severity</th>
+                    <th>Scope</th>
+                    <th>Match</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- JS: /api/vsp/rule_overrides -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="vsp-card vsp-overrides-form">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Edit override</div>
+              </div>
+              <div class="vsp-settings-grid">
+                <label>
+                  <span>Tool</span>
+                  <input type="text" id="vsp-ovr-tool" readonly />
+                </label>
+                <label>
+                  <span>Rule ID</span>
+                  <input type="text" id="vsp-ovr-id" readonly />
+                </label>
+                <label>
+                  <span>Effective severity</span>
+                  <select id="vsp-ovr-severity">
+                    <option value="CRITICAL">CRITICAL</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="LOW">LOW</option>
+                    <option value="INFO">INFO</option>
+                    <option value="TRACE">TRACE</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Scope</span>
+                  <input type="text" id="vsp-ovr-scope" placeholder="file / path / rule" />
+                </label>
+                <label>
+                  <span>Match</span>
+                  <input type="text" id="vsp-ovr-match" placeholder="e.g. */Resources/*.resx" />
+                </label>
+                <label class="vsp-settings-full">
+                  <span>Reason</span>
+                  <textarea id="vsp-ovr-reason" rows="3"></textarea>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="vsp-status-bar" id="vsp-overrides-status"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Global error/toast (JS sẽ điều khiển) -->
+  <div id="vsp-global-error" class="vsp-global-banner vsp-global-banner-error vsp-hidden"></div>
+  <div id="vsp-global-toast" class="vsp-global-banner vsp-global-banner-toast vsp-hidden"></div>
+</body>
+</html>

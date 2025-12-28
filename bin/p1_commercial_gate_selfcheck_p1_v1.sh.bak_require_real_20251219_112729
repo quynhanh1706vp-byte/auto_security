@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing cmd: $1"; exit 2; }; }
+need curl; need jq; need sed; need awk; need date
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+TS="$(date +%Y%m%d_%H%M%S)"
+echo "[INFO] TS=$TS"
+echo "[INFO] BASE=$BASE"
+
+ok=0; fail=0
+pass(){ echo "[OK] $*"; ok=$((ok+1)); }
+bad(){ echo "[FAIL] $*"; fail=$((fail+1)); }
+
+hcode(){ curl -sS -o /dev/null -w "%{http_code}" "$1" || true; }
+head12(){ curl -sS -I "$1" | sed -n '1,12p' || true; }
+
+echo
+echo "== 1) Pages =="
+for path in "/" "/vsp5" "/data_source" "/settings" "/rule_overrides"; do
+  code="$(hcode "$BASE$path")"
+  if [ "$code" = "200" ] || [ "$code" = "302" ]; then
+    pass "$path -> $code"
+  else
+    bad  "$path -> $code"
+    head12 "$BASE$path"
+  fi
+done
+
+echo
+echo "== 2) Runs API + RID =="
+RID="$(curl -sS "$BASE/api/vsp/runs?limit=1" | jq -r '.items[0].run_id // empty' 2>/dev/null || true)"
+if [ -n "${RID:-}" ] && [ "$RID" != "null" ]; then
+  pass "latest RID=$RID"
+else
+  bad "cannot get latest RID from /api/vsp/runs?limit=1"
+  curl -sS "$BASE/api/vsp/runs?limit=1" | head -c 500; echo
+fi
+
+echo
+echo "== 3) Run has flags (html/json/summary) =="
+if [ -n "${RID:-}" ] && [ "$RID" != "null" ]; then
+  HAS="$(curl -sS "$BASE/api/vsp/runs?limit=1" | jq -c '.items[0].has' 2>/dev/null || true)"
+  echo "[INFO] has=$HAS"
+  H_HTML="$(echo "$HAS" | jq -r '.html // false' 2>/dev/null || echo false)"
+  H_JSON="$(echo "$HAS" | jq -r '.json // false' 2>/dev/null || echo false)"
+  H_SUM="$(echo "$HAS" | jq -r '.summary // false' 2>/dev/null || echo false)"
+
+  [ "$H_HTML" = "true" ] && pass "has.html=true" || bad "has.html=false"
+  [ "$H_JSON" = "true" ] && pass "has.json=true" || bad "has.json=false"
+  [ "$H_SUM"  = "true" ] && pass "has.summary=true" || bad "has.summary=false"
+fi
+
+echo
+echo "== 4) Export endpoints (HEAD only) =="
+if [ -n "${RID:-}" ] && [ "$RID" != "null" ]; then
+  for u in \
+    "$BASE/api/vsp/export_tgz?rid=${RID}&scope=reports" \
+    "$BASE/api/vsp/export_csv?rid=${RID}" \
+    "$BASE/api/vsp/sha256?rid=${RID}&name=reports/run_gate_summary.json" \
+  ; do
+    code="$(hcode "$u")"
+    if [ "$code" = "200" ] || [ "$code" = "302" ]; then
+      pass "$(echo "$u" | sed 's#'"$BASE"'##') -> $code"
+    else
+      bad  "$(echo "$u" | sed 's#'"$BASE"'##') -> $code"
+      head12 "$u"
+    fi
+  done
+fi
+
+echo
+echo "== RESULT =="
+echo "OK=$ok FAIL=$fail"
+if [ "$fail" -gt 0 ]; then
+  exit 2
+fi

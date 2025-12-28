@@ -1,0 +1,452 @@
+// VSP_DASHBOARD_CHARTS_FULL_V2
+// Sửa lại phần đọc dữ liệu để donut + trend + by-tool dùng đúng số KPI.
+
+(function () {
+  const LOG = "[VSP][CHARTS]";
+  const API_URL = "/api/vsp/dashboard_v3";
+
+  const SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+  const SEVERITY_COLORS = {
+    CRITICAL: "#ef4444",
+    HIGH: "#f97316",
+    MEDIUM: "#eab308",
+    LOW: "#22c55e",
+    INFO: "#0ea5e9",
+    TRACE: "#64748b",
+  };
+
+  function ensureChartCanvas(titleText, canvasId) {
+    const tab = document.querySelector("#vsp-tab-dashboard");
+    if (!tab) {
+      console.warn(LOG, "Không tìm thấy #vsp-tab-dashboard.");
+      return null;
+    }
+    const all = Array.from(tab.querySelectorAll("*"));
+    let titleEl = null;
+    for (const el of all) {
+      const text = (el.textContent || "").trim().toUpperCase();
+      if (text === titleText.toUpperCase()) {
+        titleEl = el;
+        break;
+      }
+    }
+    if (!titleEl) {
+      console.warn(LOG, "Không tìm thấy card title:", titleText);
+      return null;
+    }
+
+    let card = titleEl.closest(".vsp-chart-card");
+    if (!card) card = titleEl.closest("div");
+    if (!card) {
+      console.warn(LOG, "Không tìm thấy card container cho:", titleText);
+      return null;
+    }
+
+    let wrapper = card.querySelector(".vsp-chart-canvas-wrapper");
+    if (!wrapper) {
+      const body = card.querySelector(".vsp-chart-card-body") || card;
+      wrapper = document.createElement("div");
+      wrapper.className = "vsp-chart-canvas-wrapper";
+      body.appendChild(wrapper);
+    }
+
+    let canvas = wrapper.querySelector("canvas#" + canvasId);
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.id = canvasId;
+      wrapper.innerHTML = "";
+      wrapper.appendChild(canvas);
+    }
+    return canvas;
+  }
+
+  async function fetchDashboardModel() {
+    console.log(LOG, "Loading charts data from", API_URL, "...");
+    const res = await fetch(API_URL);
+    const model = await res.json();
+    console.log(LOG, "Render charts với model", model);
+    return model;
+  }
+
+  // ===== Helpers đọc model =====
+
+  function extractSeverityBuckets(model) {
+    const base =
+      model.by_severity ||
+      model.severity_buckets ||
+      (model.summary_all && model.summary_all.by_severity) ||
+      {};
+    const result = {};
+    for (const sev of SEVERITY_ORDER) {
+      const v = base[sev] || base[sev.toLowerCase()] || 0;
+      result[sev] = Number(v || 0);
+    }
+
+    const sumBase = Object.values(result).reduce((a, b) => a + b, 0);
+
+    // Fallback: nếu tất cả = 0 thì dùng trực tiếp KPI top-level
+    if (sumBase === 0) {
+      result.CRITICAL = Number(model.crit || 0);
+      result.HIGH     = Number(model.high || 0);
+      result.MEDIUM   = Number(model.med || model.medium || 0);
+      result.LOW      = Number(model.low || 0);
+      result.INFO     = Number(model.info || 0);
+      result.TRACE    = Number(model.trace || 0);
+    }
+
+    console.log(LOG, "Severity buckets (final):", result);
+    return result;
+  }
+
+  function extractTrendSeries(model) {
+    const raw =
+      model.trend ||
+      model.trend_series ||
+      model.runs_recent ||
+      model.recent_runs ||
+      [];
+
+    const series = [];
+    for (const item of raw) {
+      const label =
+        item.label ||
+        item.date ||
+        item.started_at ||
+        item.start_time ||
+        item.run_id ||
+        "";
+
+      const sevFields = {
+        crit:  Number(item.crit || 0),
+        high:  Number(item.high || 0),
+        med:   Number(item.med || item.medium || 0),
+        low:   Number(item.low || 0),
+        info:  Number(item.info || 0),
+        trace: Number(item.trace || 0),
+      };
+      const totalFromSev =
+        sevFields.crit +
+        sevFields.high +
+        sevFields.med +
+        sevFields.low +
+        sevFields.info +
+        sevFields.trace;
+
+      let total =
+        item.total_findings ??
+        item.total ??
+        item.count ??
+        item.findings_total ??
+        0;
+
+      if ((!total || total === 0) && totalFromSev > 0) {
+        total = totalFromSev;
+      }
+
+      let highCrit =
+        item.crit_high ??
+        item.critical_high ??
+        item.high_crit ??
+        0;
+
+      const sevHighCrit = sevFields.crit + sevFields.high;
+      if ((!highCrit || highCrit === 0) && sevHighCrit > 0) {
+        highCrit = sevHighCrit;
+      }
+
+      series.push({
+        label: String(label),
+        total: Number(total || 0),
+        highCrit: Number(highCrit || 0),
+      });
+    }
+
+    console.log(LOG, "Trend series (final):", series);
+    return series;
+  }
+
+  function extractCritHighByTool(model) {
+    let ch = model.critical_high_by_tool || model.by_tool_critical_high || {};
+    let labels = [];
+    let values = [];
+
+    if (ch.labels && ch.values) {
+      labels = ch.labels.map(String);
+      values = ch.values.map((v) => Number(v || 0));
+    } else {
+      for (const [tool, v] of Object.entries(ch)) {
+        labels.push(tool);
+        values.push(Number(v || 0));
+      }
+    }
+
+    const sumBase = values.reduce((a, b) => a + b, 0);
+
+    // Fallback: nếu không có gì hoặc toàn 0 → build từ by_tool.{CRITICAL,HIGH}
+    if (!labels.length || sumBase === 0) {
+      const byTool = model.by_tool || model.summary_by_tool || {};
+      const tmp = [];
+      for (const [tool, obj] of Object.entries(byTool)) {
+        const c =
+          Number(obj.CRITICAL || obj.critical || 0) +
+          Number(obj.HIGH || obj.high || 0);
+        if (c > 0) tmp.push([tool, c]);
+      }
+      tmp.sort((a, b) => b[1] - a[1]);
+      const top = tmp.slice(0, 6);
+      labels = top.map(([tool]) => tool);
+      values = top.map(([, v]) => v);
+    }
+
+    console.log(LOG, "Critical+High by tool (final):", { labels, values });
+    return { labels, values };
+  }
+
+  function extractTopCwe(model) {
+    const arr = model.top_cwe || model.topCwe || [];
+    const list = [];
+    for (const item of arr) {
+      if (typeof item === "string") {
+        list.push({ cwe: item, total: null });
+      } else if (item && typeof item === "object") {
+        list.push({
+          cwe: item.cwe || item.id || item.code || "-",
+          total: Number(
+            item.count ?? item.total ?? item.findings ?? item.value ?? 0
+          ),
+        });
+      }
+    }
+    console.log(LOG, "Top CWE (parsed):", list);
+    return list;
+  }
+
+  // ===== Render từng chart =====
+
+  function renderSeverityDonut(ctx, buckets) {
+    const labels = [];
+    const data = [];
+    const bg = [];
+    for (const sev of SEVERITY_ORDER) {
+      labels.push(sev);
+      data.push(buckets[sev] || 0);
+      bg.push(SEVERITY_COLORS[sev] || "#6b7280");
+    }
+    new Chart(ctx, {
+      type: "doughnut",
+      data: { labels, datasets: [{ data, backgroundColor: bg }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "60%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#e5e7eb", font: { size: 10 } },
+          },
+          tooltip: {
+            callbacks: {
+              label: (info) => {
+                const v = info.parsed;
+                const total = data.reduce((a, b) => a + b, 0) || 1;
+                const pct = ((v * 100) / total).toFixed(1);
+                return `${info.label}: ${v} (${pct}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderTrendLine(ctx, series) {
+    if (!series.length) {
+      console.log(LOG, "Không có data cho Trend over time.");
+      return;
+    }
+    const labels = series.map((s) => s.label);
+    const totals = series.map((s) => s.total);
+    const highs  = series.map((s) => s.highCrit);
+
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Total findings",
+            data: totals,
+            borderWidth: 2,
+            tension: 0.3,
+          },
+          {
+            label: "Critical + High",
+            data: highs,
+            borderWidth: 2,
+            tension: 0.3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#e5e7eb", font: { size: 10 } },
+          },
+          tooltip: { mode: "index", intersect: false },
+        },
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { display: false },
+          },
+          y: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { color: "rgba(148,163,184,0.25)" },
+          },
+        },
+      },
+    });
+  }
+
+  function renderCritHighByToolBar(ctx, data) {
+    const labels = data.labels || [];
+    const values = data.values || [];
+    if (!labels.length) {
+      console.log(LOG, "Không có data cho Critical & High by tool.");
+      return;
+    }
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Critical + High",
+            data: values,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: "nearest", intersect: true },
+        },
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { display: false },
+          },
+          y: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { color: "rgba(148,163,184,0.25)" },
+          },
+        },
+      },
+    });
+  }
+
+  function renderTopCweBar(ctx, list) {
+    if (!list.length) {
+      console.warn(LOG, "No Top CWE data to render.");
+      return;
+    }
+    const labels = list.map((x) => x.cwe);
+    const values = list.map((x) => x.total ?? 0);
+
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Findings",
+            data: values,
+          },
+        ],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: "nearest", intersect: true },
+        },
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { color: "rgba(148,163,184,0.25)" },
+          },
+          y: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  async function initCharts() {
+    if (typeof Chart === "undefined") {
+      console.warn(LOG, "Chart.js chưa được load (window.Chart undefined).");
+      return;
+    }
+
+    try {
+      const model = await fetchDashboardModel();
+
+      const buckets = extractSeverityBuckets(model);
+      const trend   = extractTrendSeries(model);
+      const byTool  = extractCritHighByTool(model);
+      const topCwe  = extractTopCwe(model);
+
+      const cvsSeverity = ensureChartCanvas("SEVERITY DISTRIBUTION (6 LEVELS)", "vsp-chart-severity");
+      if (cvsSeverity) {
+        renderSeverityDonut(cvsSeverity.getContext("2d"), buckets);
+      }
+
+      const cvsTrend = ensureChartCanvas("TREND OVER TIME", "vsp-chart-trend");
+      if (cvsTrend) {
+        renderTrendLine(cvsTrend.getContext("2d"), trend);
+      }
+
+      const cvsTool = ensureChartCanvas("CRITICAL & HIGH BY TOOL", "vsp-chart-bytool");
+      if (cvsTool) {
+        renderCritHighByToolBar(cvsTool.getContext("2d"), byTool);
+      }
+
+      const cvsCwe = ensureChartCanvas("TOP CWE EXPOSURE", "vsp-chart-topcwe");
+      if (cvsCwe) {
+        renderTopCweBar(cvsCwe.getContext("2d"), topCwe);
+      }
+    } catch (e) {
+      console.warn(LOG, "Init charts error:", e);
+    }
+  }
+
+  function start() {
+    let tries = 0;
+    const maxTries = 30;
+    const timer = setInterval(() => {
+      const tab = document.querySelector("#vsp-tab-dashboard");
+      if (tab && typeof Chart !== "undefined") {
+        clearInterval(timer);
+        initCharts();
+      } else if (++tries >= maxTries) {
+        clearInterval(timer);
+        console.warn(LOG, "Give up sau", tries, "lần – không thấy tab hoặc Chart.js.");
+      }
+    }, 400);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();

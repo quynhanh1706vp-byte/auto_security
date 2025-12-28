@@ -1,0 +1,159 @@
+/* === UI5 – Layout & Polish === */
+
+/* Sidebar: nền tối, bo tròn mép phải */
+.sb-sidebar {
+  width: 260px;
+  background: radial-gradient(circle at top left, #051b1a 0, #020613 45%, #01030a 100%);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  padding: 18px 18px 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 22px 22px 0;
+}
+
+/* Phần main chiếm hết chiều ngang còn lại – cảm giác full màn hơn */
+.sb-main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 22px 32px 32px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at top, #071326 0, #050814 55%, #02020a 100%);
+  overflow: auto;
+}
+
+/* Header Dashboard */
+.sb-main-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sb-main-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.86);
+}
+
+.sb-main-subtitle {
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+}
+
+/* Lưới card trên & dưới – full chiều ngang, có gap hợp lý */
+.sb-grid-top {
+  display: grid;
+  grid-template-columns: minmax(0,1.25fr) minmax(0,1fr) minmax(0,1.1fr);
+  grid-gap: 16px;
+  margin-bottom: 18px;
+}
+
+.sb-grid-bottom {
+  display: grid;
+  grid-template-columns: minmax(0,1.25fr) minmax(0,1.1fr);
+  grid-gap: 16px;
+  margin-top: 6px;
+}
+
+/* Card Dashboard – bo tròn + glow nhẹ theo viền xanh hiện tại */
+.sb-card {
+  background: radial-gradient(circle at top, #091128 0, #050814 55%, #02020a 100%);
+  border-radius: 20px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 0 0 1px rgba(35,224,107,0.22);
+  position: relative;
+}
+
+/* Hover card cho “xịn” hơn nhưng vẫn nhẹ nhàng */
+.sb-card:hover {
+  box-shadow: 0 0 0 1px rgba(35,224,107,0.38),
+              0 0 14px rgba(0,0,0,0.7);
+  transform: translateY(-1px);
+  transition: all 0.15s ease-out;
+}
+
+/* Chart wrapper – bo tròn & tránh tràn */
+.trend-chart-wrapper,
+.severity-chart-wrapper {
+  margin-top: 8px;
+  height: 220px;
+  background: radial-gradient(circle at top, #050c18 0, #02040b 70%);
+  border-radius: 16px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Riêng severity buckets cao hơn tí */
+.severity-chart-wrapper {
+  height: 260px;
+}
+
+/* Bảng trong card – chữ nhỏ hơn, gọn */
+table.sb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+table.sb-table th,
+table.sb-table td {
+  padding: 4px 6px;
+}
+
+table.sb-table th {
+  text-align: left;
+  color: rgba(255,255,255,0.65);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+table.sb-table tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
+/* LEGEND severity góc trên bên phải */
+.sev-legend {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  position: absolute;
+  right: 16px;
+  top: 16px;
+}
+
+/* Responsive – màn vừa: thu layout 2 cột */
+@media (max-width: 1400px) {
+  .sb-grid-top {
+    grid-template-columns: minmax(0,1.4fr) minmax(0,1.1fr);
+    grid-template-rows: auto auto;
+  }
+  .sb-grid-bottom {
+    grid-template-columns: minmax(0,1.4fr);
+  }
+}
+
+/* Responsive – màn nhỏ: xếp 1 cột, tránh vỡ giao diện */
+@media (max-width: 1100px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sb-sidebar {
+    width: 100%;
+    border-radius: 0 0 22px 22px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+  .sb-main {
+    padding: 18px 18px 24px;
+  }
+  .sb-grid-top,
+  .sb-grid-bottom {
+    grid-template-columns: 1fr;
+  }
+}

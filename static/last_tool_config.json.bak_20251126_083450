@@ -1,0 +1,117 @@
+[
+  {
+    "tool": "Trivy_FS",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "Online",
+      "CI/CD"
+    ],
+    "note": "Phiên bản Trivy cho File System scan (Aqua Security). Quét vulnerabilities, misconfigurations và secrets trong filesystem / source code. Mode \"fast\": quét nhanh, ưu tiên tốc độ. Mode \"aggr\": quét sâu, đầy đủ hơn. Output JSON hoặc CycloneDX SBOM.",
+    "ghi_chu": "Phiên bản Trivy cho File System scan (từ Aquasecurity). Scan vulnerabilities, misconfigs, secrets trong filesystem/code. Mode \"fast\": Scan nhanh, ưu tiên tốc độ. Output JSON hoặc CycloneDX (SBOM format).",
+    "notes": "Phiên bản Trivy cho File System scan (từ Aquasecurity). Scan vulnerabilities, misconfigs, secrets trong filesystem/code. Mode \"fast\": Scan nhanh, ưu tiên tốc độ. Output JSON hoặc CycloneDX (SBOM format).",
+    "explain": "Phiên bản Trivy cho File System scan (từ Aquasecurity). Scan vulnerabilities, misconfigs, secrets trong filesystem/code. Mode \"fast\": Scan nhanh, ưu tiên tốc độ. Output JSON hoặc CycloneDX (SBOM format).",
+    "desc": "Phiên bản Trivy cho File System scan (Aqua Security). Quét vulnerabilities, misconfigurations và secrets trong filesystem / source code. Mode \"fast\": quét nhanh, ưu tiên tốc độ. Mode \"aggr\": quét sâu, đầy đủ hơn. Output JSON hoặc CycloneDX SBOM."
+  },
+  {
+    "tool": "Trivy_IaC",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "Online",
+      "CI/CD"
+    ],
+    "note": "Scanner cho Infrastructure as Code (Terraform, Kubernetes, …). Kiểm tra misconfiguration trong IaC. Mode \"fast\": chạy nhanh, không đi quá sâu. Mode \"aggr\": kiểm tra kỹ hơn, phù hợp cho review bảo mật. Hỗ trợ cả local (Offline) và remote (Online).",
+    "ghi_chu": "Trivy IaC scanner. Kiểm tra misconfigurations trong Infrastructure as Code (Terraform, Kubernetes, etc.). \"fast\": Nhanh, không deep dive. Hỗ trợ cả local (Offline) và remote (Online) resources.",
+    "notes": "Trivy IaC scanner. Kiểm tra misconfigurations trong Infrastructure as Code (Terraform, Kubernetes, etc.). \"fast\": Nhanh, không deep dive. Hỗ trợ cả local (Offline) và remote (Online) resources.",
+    "explain": "Trivy IaC scanner. Kiểm tra misconfigurations trong Infrastructure as Code (Terraform, Kubernetes, etc.). \"fast\": Nhanh, không deep dive. Hỗ trợ cả local (Offline) và remote (Online) resources.",
+    "desc": "Scanner cho Infrastructure as Code (Terraform, Kubernetes, …). Kiểm tra misconfiguration trong IaC. Mode \"fast\": chạy nhanh, không đi quá sâu. Mode \"aggr\": kiểm tra kỹ hơn, phù hợp cho review bảo mật. Hỗ trợ cả local (Offline) và remote (Online)."
+  },
+  {
+    "tool": "Grype",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "Online"
+    ],
+    "note": "Vulnerability scanner cho container images / filesystem. Thường kết hợp với Syft để có SBOM. Mode \"aggr\": aggressive scan, tra cứu trên nhiều DB CVE hơn. Output chủ yếu dạng JSON, dùng cho báo cáo và CI/CD.",
+    "ghi_chu": "Vulnerability scanner từ Anchore, dùng cho container images/filesystems. Thường kết hợp với Syft (SBOM). \"aggr\": Aggressive scan, kiểm tra sâu và nhiều DB (CVE, etc.). Output JSON/CD.",
+    "notes": "Vulnerability scanner từ Anchore, dùng cho container images/filesystems. Thường kết hợp với Syft (SBOM). \"aggr\": Aggressive scan, kiểm tra sâu và nhiều DB (CVE, etc.). Output JSON/CD.",
+    "explain": "Vulnerability scanner từ Anchore, dùng cho container images/filesystems. Thường kết hợp với Syft (SBOM). \"aggr\": Aggressive scan, kiểm tra sâu và nhiều DB (CVE, etc.). Output JSON/CD.",
+    "desc": "Vulnerability scanner cho container images / filesystem. Thường kết hợp với Syft để có SBOM. Mode \"aggr\": aggressive scan, tra cứu trên nhiều DB CVE hơn. Output chủ yếu dạng JSON, dùng cho báo cáo và CI/CD."
+  },
+  {
+    "tool": "Syft_SBOM",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "Online",
+      "CI/CD"
+    ],
+    "note": "Generate Software Bill of Materials (SBOM) cho dependencies. Mode \"fast\": tạo SBOM nhanh cho dự án. Hỗ trợ chuẩn CycloneDX / SPDX. Offline: quét file local; Online: quét image trên registry.",
+    "ghi_chu": "Phiên bản cơ bản của Syft (không SBOM cụ thể). Chỉ output JSON/CD, có lẽ offline-only trong config này. Tương tự trên, dùng cho catalog packages.",
+    "notes": "Phiên bản cơ bản của Syft (không SBOM cụ thể). Chỉ output JSON/CD, có lẽ offline-only trong config này. Tương tự trên, dùng cho catalog packages.",
+    "explain": "Phiên bản cơ bản của Syft (không SBOM cụ thể). Chỉ output JSON/CD, có lẽ offline-only trong config này. Tương tự trên, dùng cho catalog packages.",
+    "desc": "Generate Software Bill of Materials (SBOM) cho dependencies. Mode \"fast\": tạo SBOM nhanh cho dự án. Hỗ trợ chuẩn CycloneDX / SPDX. Offline: quét file local; Online: quét image trên registry."
+  },
+  {
+    "tool": "Gitleaks",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "CI/CD"
+    ],
+    "note": "Secret scanner (API keys, passwords, tokens trong code / git). Mode \"fast\": quét nhanh toàn bộ repo. Mode \"aggr\": quét kỹ hơn, phù hợp tiêu chuẩn bảo mật nội bộ. Thường chạy Offline trên repository local.",
+    "ghi_chu": "Secret scanner (tìm API keys, passwords trong code/git). \"fast\": Scan nhanh qua repo. Offline: Local scan, không cần network.",
+    "notes": "Secret scanner (tìm API keys, passwords trong code/git). \"fast\": Scan nhanh qua repo. Offline: Local scan, không cần network.",
+    "explain": "Secret scanner (tìm API keys, passwords trong code/git). \"fast\": Scan nhanh qua repo. Offline: Local scan, không cần network.",
+    "desc": "Secret scanner (API keys, passwords, tokens trong code / git). Mode \"fast\": quét nhanh toàn bộ repo. Mode \"aggr\": quét kỹ hơn, phù hợp tiêu chuẩn bảo mật nội bộ. Thường chạy Offline trên repository local."
+  },
+  {
+    "tool": "Bandit",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "Online"
+    ],
+    "note": "Python static analyzer, tìm vulnerabilities trong mã nguồn Python. Mode \"aggr\": full scan với bộ rule mạnh hơn. Chủ yếu chạy Offline; có thể tích hợp Online / CI/CD.",
+    "ghi_chu": "Python static analyzer (từ PyCQA). Tìm vulnerabilities trong Python code. \"aggr\": Full scan, aggressive rules. Offline chính, có thể hỗ trợ online nếu config thêm.",
+    "notes": "Python static analyzer (từ PyCQA). Tìm vulnerabilities trong Python code. \"aggr\": Full scan, aggressive rules. Offline chính, có thể hỗ trợ online nếu config thêm.",
+    "explain": "Python static analyzer (từ PyCQA). Tìm vulnerabilities trong Python code. \"aggr\": Full scan, aggressive rules. Offline chính, có thể hỗ trợ online nếu config thêm.",
+    "desc": "Python static analyzer, tìm vulnerabilities trong mã nguồn Python. Mode \"aggr\": full scan với bộ rule mạnh hơn. Chủ yếu chạy Offline; có thể tích hợp Online / CI/CD."
+  },
+  {
+    "tool": "KICS",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "Online"
+    ],
+    "note": "Keeping Infrastructure as Code Secure. Scanner misconfiguration trong Terraform, CloudFormation, … Mode \"fast\": quét nhanh. Mode \"aggr\": kiểm tra sâu hơn. Thường chạy Offline trên file IaC.",
+    "ghi_chu": "Keeping Infrastructure as Code Secure (từ Checkmarx). Scan IaC misconfigs (Terraform, CloudFormation). \"fast\": Nhanh. Offline: Local files.",
+    "notes": "Keeping Infrastructure as Code Secure (từ Checkmarx). Scan IaC misconfigs (Terraform, CloudFormation). \"fast\": Nhanh. Offline: Local files.",
+    "explain": "Keeping Infrastructure as Code Secure (từ Checkmarx). Scan IaC misconfigs (Terraform, CloudFormation). \"fast\": Nhanh. Offline: Local files.",
+    "desc": "Keeping Infrastructure as Code Secure. Scanner misconfiguration trong Terraform, CloudFormation, … Mode \"fast\": quét nhanh. Mode \"aggr\": kiểm tra sâu hơn. Thường chạy Offline trên file IaC."
+  },
+  {
+    "tool": "CodeQL",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "Offline",
+      "CI/CD"
+    ],
+    "note": "Semantic code analysis, query code như dữ liệu để tìm vulnerabilities (đa ngôn ngữ). Mode \"aggr\": deep analysis, phù hợp chuẩn ISO / audit. Offline: build DB & query local; Online: có thể tích hợp GitHub Advanced Security.",
+    "ghi_chu": "Semantic code analysis từ GitHub. Query code như data để tìm vulnerabilities (multi-language). \"aggr\": Deep analysis. Offline: Local DB, Online: GitHub integration.",
+    "notes": "Semantic code analysis từ GitHub. Query code như data để tìm vulnerabilities (multi-language). \"aggr\": Deep analysis. Offline: Local DB, Online: GitHub integration.",
+    "explain": "Semantic code analysis từ GitHub. Query code như data để tìm vulnerabilities (multi-language). \"aggr\": Deep analysis. Offline: Local DB, Online: GitHub integration.",
+    "desc": "Semantic code analysis, query code như dữ liệu để tìm vulnerabilities (đa ngôn ngữ). Mode \"aggr\": deep analysis, phù hợp chuẩn ISO / audit. Offline: build DB & query local; Online: có thể tích hợp GitHub Advanced Security."
+  }
+]

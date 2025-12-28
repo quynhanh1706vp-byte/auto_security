@@ -1,0 +1,8 @@
+{
+  "run_id": "btl86-connector_RUN_20251127_095755_000599",
+  "verdict": "UNKNOWN",
+  "overall": "UNKNOWN",
+  "degraded": true,
+  "generated_at": "2025-12-18T19:55:00",
+  "note": "Backfilled minimal reports because this run folder had no report artifacts."
+}

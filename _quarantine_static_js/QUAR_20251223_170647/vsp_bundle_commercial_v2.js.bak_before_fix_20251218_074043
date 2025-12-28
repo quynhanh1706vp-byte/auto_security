@@ -1,0 +1,241 @@
+/* VSP_BUNDLE_COMMERCIAL_V2_FULL_CLEAN_P0_V1: 5 tabs + no console-red + degrade-graceful */
+(function(){
+  'use strict';
+
+  // ---------- utils ----------
+  const $  = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = (s)=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  async function fetchJson(url){
+    const r = await fetch(url, { cache:'no-store' });
+    let j=null;
+    try{ j = await r.json(); }catch(_){}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return j;
+  }
+
+  // ---------- CSS ----------
+  function ensureCss(){
+    if($('#__vsp_full_css')) return;
+    const st=document.createElement('style'); st.id='__vsp_full_css';
+    st.textContent = `
+      :root{ --bg:#0b1020; --panel:rgba(255,255,255,.04); --bd:rgba(255,255,255,.10); --mut:rgba(233,238,247,.70); }
+      body{ margin:0; background:var(--bg); color:#e9eef7; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+      #vspShell{ display:flex; min-height:100vh; }
+      #vspNav{ width:280px; padding:18px 14px; border-right:1px solid rgba(255,255,255,.08); background:rgba(10,14,26,.96); }
+      .brand{ font-weight:900; font-size:16px; letter-spacing:.02em; }
+      .sub{ opacity:.70; font-size:12px; margin-top:2px; }
+      .pill{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--bd); border-radius:999px; background:rgba(255,255,255,.05); font-weight:800; font-size:12px; }
+      .btn{ all:unset; cursor:pointer; padding:8px 10px; border:1px solid var(--bd); border-radius:10px; background:rgba(255,255,255,.06); font-weight:800; font-size:12px; }
+      .btn:hover{ background:rgba(255,255,255,.10); }
+      .navItem{ text-decoration:none; color:#e9eef7; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); display:flex; justify-content:space-between; font-weight:800; }
+      .navItem.on{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); }
+      #vspMain{ flex:1; padding:18px 18px; }
+      .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+      .h1{ font-size:18px; font-weight:950; }
+      .grid2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+      .grid3{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+      .card{ border:1px solid var(--bd); background:var(--panel); border-radius:16px; padding:14px 14px; box-shadow:0 18px 45px rgba(0,0,0,.35); }
+      .kpi{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+      .kpi .t{ opacity:.80; font-weight:850; font-size:12px; letter-spacing:.08em; }
+      .kpi .v{ font-weight:950; font-size:26px; line-height:1; }
+      .mut{ opacity:.75; font-size:12px; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ text-align:left; padding:10px 10px; border-bottom:1px solid rgba(255,255,255,.08); font-size:12px; vertical-align:top; }
+      th{ opacity:.85; font-weight:900; letter-spacing:.06em; font-size:11px; }
+      .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .tag{ display:inline-flex; padding:3px 8px; border:1px solid rgba(255,255,255,.12); border-radius:999px; background:rgba(255,255,255,.05); font-weight:850; font-size:11px; opacity:.92; }
+      .tag.bad{ border-color:rgba(255,80,80,.35); background:rgba(255,80,80,.10); }
+      .tag.ok{ border-color:rgba(80,255,160,.30); background:rgba(80,255,160,.10); }
+      .tag.amb{ border-color:rgba(255,200,80,.35); background:rgba(255,200,80,.10); }
+      .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+      .inp{ all:unset; padding:8px 10px; border:1px solid var(--bd); border-radius:10px; background:rgba(255,255,255,.05); min-width:220px; font-size:12px; }
+      .toast{ position:fixed; right:22px; bottom:24px; z-index:100000; padding:10px 12px; background:rgba(22,24,30,.96);
+        border:1px solid rgba(255,255,255,.10); border-radius:12px; box-shadow:0 14px 35px rgba(0,0,0,.45);
+        font-size:13px; opacity:0; transform:translateY(10px); transition:all .18s ease; }
+      .toast.on{ opacity:1; transform:translateY(0); }
+      .toast.bad{ border-color:rgba(255,80,80,.35); }
+      .toast.good{ border-color:rgba(80,255,160,.30); }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function toast(msg, ok){
+    const t=document.createElement('div');
+    t.className='toast' + (ok===false?' bad':ok===true?' good':'');
+    t.textContent=String(msg||'');
+    document.body.appendChild(t);
+    setTimeout(()=>t.classList.add('on'), 10);
+    setTimeout(()=>t.classList.remove('on'), 2300);
+    setTimeout(()=>{ try{t.remove();}catch(_){ } }, 2800);
+  }
+
+  // ---------- state ----------
+  const STATE = {
+    rid:'',
+    run_dir:'',
+    dashboard:null,
+    runs:null,
+    findings:null,
+    rules:null,
+    degraded:[]
+  };
+
+  async function refreshLatest(){
+    try{
+      const j = await fetchJson('/api/vsp/latest_rid_v1?ts=' + Date.now());
+      STATE.rid = j?.rid || '';
+      STATE.run_dir = j?.ci_run_dir || '';
+      const ridTop = $('#vspRidTop'); if(ridTop) ridTop.textContent = STATE.rid || '(none)';
+      const ridPill = $('#vspRidPill'); if(ridPill) ridPill.textContent = 'RID: ' + (STATE.rid || '(none)');
+    }catch(_){}
+    return STATE;
+  }
+
+  // ---------- shell ----------
+  const TABS = [
+    { key:'dashboard',  label:'Dashboard' },
+    { key:'runs',       label:'Runs & Reports' },
+    { key:'datasource', label:'Data Source' },
+    { key:'settings',   label:'Settings' },
+    { key:'rules',      label:'Rule Overrides' }
+  ];
+
+  function ensureShell(){
+    ensureCss();
+
+    // Always provide export-rid to protect legacy scripts
+    if(!$('#export-rid')){
+      const sp=document.createElement('span'); sp.id='export-rid'; sp.style.display='none';
+      document.body.appendChild(sp);
+    }
+
+    // If template already has content, keep it; but if it is blank/legacy, we replace.
+    // Replace if body is nearly empty OR no vspShell.
+    if($('#vspShell')) return;
+
+    const shell=document.createElement('div'); shell.id='vspShell';
+
+    const nav=document.createElement('div'); nav.id='vspNav';
+    nav.innerHTML = `
+      <div class="brand">VersaSecure Platform</div>
+      <div class="sub">VSP 2025 • UI gateway 8910</div>
+      <div style="margin-top:12px" class="row">
+        <span class="pill mono" id="vspRidPill">RID: (none)</span>
+      </div>
+      <div style="margin-top:10px" class="row">
+        <button class="btn" id="btnOpenHTML">Open HTML</button>
+        <button class="btn" id="btnExportTGZ">Export TGZ</button>
+        <button class="btn" id="btnVerifySHA">Verify SHA</button>
+      </div>
+      <div style="margin-top:14px; opacity:.85; font-size:12px;">Selected: <span id="vspRidTop" class="mono">(none)</span></div>
+      <div style="margin-top:16px; display:grid; gap:8px;">
+        ${TABS.map(t=>`<a href="#${t.key}" class="navItem" data-tab="${t.key}"><span>${t.label}</span><span style="opacity:.55;">›</span></a>`).join('')}
+      </div>
+      <div style="margin-top:16px" class="card">
+        <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">STATUS</div>
+        <div id="vspDegraded" class="mut" style="margin-top:8px;">OK</div>
+      </div>
+    `;
+
+    const main=document.createElement('div'); main.id='vspMain';
+    main.innerHTML = `
+      <div id="pane-dashboard"></div>
+      <div id="pane-runs" style="display:none"></div>
+      <div id="pane-datasource" style="display:none"></div>
+      <div id="pane-settings" style="display:none"></div>
+      <div id="pane-rules" style="display:none"></div>
+    `;
+
+    shell.appendChild(nav);
+    shell.appendChild(main);
+
+    document.body.innerHTML = '';
+    document.body.appendChild(shell);
+  }
+
+  function setDegraded(){
+    const el=$('#vspDegraded');
+    if(!el) return;
+    if(!STATE.degraded.length){ el.textContent='OK'; return; }
+    el.innerHTML = `DEGRADED: <span class="mono">${esc(STATE.degraded.join(', '))}</span>`;
+  }
+
+  function currentTab(){
+    const h=(location.hash||'#dashboard').replace('#','').trim().toLowerCase();
+    const ok = TABS.some(t=>t.key===h);
+    return ok ? h : 'dashboard';
+  }
+
+  async function showTab(tab){
+    for(const t of TABS){
+      const p=$('#pane-'+t.key);
+      if(p) p.style.display = (t.key===tab) ? '' : 'none';
+      const a=$(`.navItem[data-tab="${t.key}"]`);
+      if(a) a.classList.toggle('on', t.key===tab);
+    }
+    await renderTab(tab);
+  }
+
+  // ---------- actions ----------
+  async function resolveRunDir(){
+    await refreshLatest();
+    if(!STATE.run_dir) throw new Error('No ci_run_dir');
+    return STATE.run_dir;
+  }
+
+  async function bindTopActions(){
+    const b1=$('#btnOpenHTML'), b2=$('#btnExportTGZ'), b3=$('#btnVerifySHA');
+    if(b1) b1.onclick = async ()=>{
+      try{ const rd=await resolveRunDir(); window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()), '_blank'); }
+      catch(e){ toast('Open HTML failed ❌', false); }
+    };
+    if(b2) b2.onclick = async ()=>{
+      try{ const rd=await resolveRunDir(); window.location.href='/api/vsp/export_report_tgz_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()); }
+      catch(e){ toast('Export TGZ failed ❌', false); }
+    };
+    if(b3) b3.onclick = async ()=>{
+      try{
+        const rd=await resolveRunDir();
+        const j=await fetchJson('/api/vsp/verify_report_sha_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()));
+        toast(j&&j.ok?'SHA256 OK ✅':'SHA256 FAIL ❌', !!(j&&j.ok));
+      }catch(e){ toast('Verify SHA failed ❌', false); }
+    };
+  }
+
+  // ---------- render helpers ----------
+  function tagVerdict(x){
+    const v=String(x||'').toUpperCase();
+    if(v==='PASS' || v==='OK') return `<span class="tag ok">${esc(v)}</span>`;
+    if(v==='FAIL' || v==='ERROR') return `<span class="tag bad">${esc(v)}</span>`;
+    if(v==='AMBER' || v==='WARN') return `<span class="tag amb">${esc(v)}</span>`;
+    return `<span class="tag">${esc(v||'N/A')}</span>`;
+  }
+
+  function kpiCard(title, val){
+    return `
+      <div class="card">
+        <div class="kpi">
+          <div class="t">${esc(title)}</div>
+          <div class="v">${esc(val)}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---------- Dashboard ----------
+  
+async function loadDashboard(){
+  try{
+    // VSP_DASH_USE_COMMERCIAL_P1_V1
+    STATE.dashboard = await fetchJson('/api/vsp/dashboard_commercial_v1?ts=' + Date.now());
+  }catch(e1){
+    try{
+      STATE.dashboard = await fetchJson('/api/vsp/dashboard_v3?ts=' + Date.now());
+    }catch(e2){
+      STATE.degraded.push('dashboard_commercial_v1');
+      STATE.dashboard = null;
+    }
+  }
+  setDegraded();
+}
+)();

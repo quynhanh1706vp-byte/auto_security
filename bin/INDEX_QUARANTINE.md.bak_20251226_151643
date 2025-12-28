@@ -1,0 +1,14 @@
+# INDEX_QUARANTINE
+
+- Generated: 20251226_151049
+- Root: /home/test/Data/SECURITY_BUNDLE/ui
+
+## Summary
+- Quarantine files in bin/: **1**
+
+| File | Why (from README or fallback) |
+|---|---|
+| `p0_quarantine_static_js_backups_v1p1.sh` | README: (no match) — see file header  |
+
+## Detail
+- Quarantine convention: keep risky/legacy/experimental scripts here; do not call from release gate.

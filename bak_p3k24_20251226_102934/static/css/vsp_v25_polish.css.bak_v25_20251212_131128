@@ -1,0 +1,186 @@
+/* VSP 2025 – V2.5 Polish: spacing + animation + bảng nâng cao */
+
+:root {
+  --vsp-shell-max-width: 1440px;
+  --vsp-shell-padding-x: 32px;
+  --vsp-shell-padding-y: 24px;
+  --vsp-card-radius: 16px;
+  --vsp-card-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.7);
+  --vsp-anim-duration: 0.45s;
+}
+
+/* Shell cho từng tab */
+.vsp-main-shell {
+  max-width: var(--vsp-shell-max-width);
+  margin: 0 auto;
+  padding: var(--vsp-shell-padding-y) var(--vsp-shell-padding-x) 40px;
+  box-sizing: border-box;
+}
+
+/* Card style chung */
+.vsp-card,
+.vsp-kpi-card,
+.vsp-chart-card,
+.vsp-table-card {
+  border-radius: var(--vsp-card-radius);
+  background: linear-gradient(145deg, #0b1020, #020617);
+  box-shadow: var(--vsp-card-shadow-soft);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  backdrop-filter: blur(18px);
+  transition:
+    transform 180ms ease-out,
+    box-shadow 180ms ease-out,
+    border-color 180ms ease-out,
+    background 220ms ease-out;
+}
+
+.vsp-card:hover,
+.vsp-kpi-card:hover,
+.vsp-chart-card:hover,
+.vsp-table-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.9);
+  border-color: rgba(129, 140, 248, 0.55);
+}
+
+/* Bảng nâng cao */
+.vsp-table-card {
+  padding: 16px 20px;
+}
+
+.vsp-table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.vsp-table-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e5e7eb;
+}
+
+.vsp-table-card-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.vsp-table-compact {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vsp-table-compact thead {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+
+.vsp-table-compact th,
+.vsp-table-compact td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(30, 64, 175, 0.55);
+  white-space: nowrap;
+}
+
+.vsp-table-compact tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.vsp-table-compact tbody tr:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* Grid zone cho extra bảng */
+.vsp-dashboard-extras-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+/* Badge gate / trend */
+.vsp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vsp-badge-green {
+  background: rgba(22, 163, 74, 0.16);
+  color: #bbf7d0;
+  border: 1px solid rgba(22, 163, 74, 0.7);
+}
+
+.vsp-badge-amber {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fed7aa;
+  border: 1px solid rgba(245, 158, 11, 0.7);
+}
+
+.vsp-badge-red {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fecaca;
+  border: 1px solid rgba(239, 68, 68, 0.7);
+}
+
+/* Animation */
+@keyframes vspFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vsp-fadein {
+  opacity: 0;
+  animation: vspFadeUp var(--vsp-anim-duration) ease-out forwards;
+}
+
+.vsp-fadein-delay-1 { animation-delay: 0.06s; }
+.vsp-fadein-delay-2 { animation-delay: 0.12s; }
+.vsp-fadein-delay-3 { animation-delay: 0.18s; }
+.vsp-fadein-delay-4 { animation-delay: 0.24s; }
+.vsp-fadein-delay-5 { animation-delay: 0.30s; }
+.vsp-fadein-delay-6 { animation-delay: 0.36s; }
+
+/* Filter bar cho Runs & DataSource */
+.vsp-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.vsp-filter-input {
+  background: #020617;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #e5e7eb;
+  outline: none;
+}
+
+.vsp-filter-input::placeholder {
+  color: #6b7280;
+}
+
+.vsp-filter-input:focus {
+  border-color: rgba(129, 140, 248, 0.9);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.5);
+}

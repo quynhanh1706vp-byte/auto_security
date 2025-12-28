@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need date; need curl; need python3; need mkdir; need sed
+
+BASE="http://127.0.0.1:8910"
+J="$(curl -fsS "$BASE/api/vsp/release_latest")"
+
+RID="$(python3 - <<PY
+import json,sys
+j=json.loads('''$J''')
+print(j.get("rid",""))
+PY
+)"
+[ -n "$RID" ] || { echo "[ERR] rid missing"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+OUT="releases/PROOF_${RID}_${TS}.md"
+mkdir -p releases
+
+python3 - <<PY > "$OUT"
+import json
+j=json.loads('''$J''')
+print(f"# VSP UI Release Proof")
+print()
+print(f"- RID: `{j.get('rid')}`")
+print(f"- Generated at: `{j.get('ts')}`")
+print(f"- Package path: `{j.get('package_path')}`")
+print(f"- Package sha256: `{j.get('package_sha256')}`")
+print(f"- Manifest path: `{j.get('manifest_path')}`")
+print(f"- Run dir: `{j.get('run_dir')}`")
+print(f"- Notes: {j.get('notes')}")
+print()
+print("## Links")
+print(f"- Download: `{j.get('download_url')}`")
+print(f"- Audit: `{j.get('audit_url')}`")
+PY
+
+echo "[OK] wrote $OUT"
+echo "[TIP] send these URLs:"
+python3 - <<PY
+import json
+j=json.loads('''$J''')
+print("Download:", j.get("download_url"))
+print("Audit:", j.get("audit_url"))
+PY

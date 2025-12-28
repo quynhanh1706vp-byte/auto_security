@@ -1,0 +1,13 @@
+/* VSP_BUNDLE_COMMERCIAL_V1_STUB_P1_V1
+   This file was broken (syntax error). Keep as safe stub that loads v2. */
+(function(){
+  try{
+    if (window.__vsp_bundle_commercial_v1_stub) return;
+    window.__vsp_bundle_commercial_v1_stub = true;
+    var s=document.createElement("script");
+    s.src="/static/js/vsp_bundle_commercial_v2.js";
+    s.defer=true;
+    (document.head||document.documentElement).appendChild(s);
+    console.warn("[VSP] v1 bundle stub loaded -> redirected to v2");
+  }catch(e){}
+})();

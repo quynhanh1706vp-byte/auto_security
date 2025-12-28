@@ -1,0 +1,54 @@
+/* VSP_BUNDLE_TABS5_SAFE_V2 - prevents JS crash, loads core modules in-order */
+(function(){
+  'use strict';
+
+/* P64B_OVERLAY_LOADER_V1 */
+(function(){
+  try{
+    if (window.__VSP_P64B_OVERLAY_LOADED) return;
+    window.__VSP_P64B_OVERLAY_LOADED = true;
+    var sc = document.createElement('script');
+    sc.src = '/static/js/vsp_runtime_error_overlay_v1.js?v=' + Date.now();
+    sc.defer = true;
+    (document.head || document.documentElement).appendChild(sc);
+  }catch(_){}
+})();
+
+
+  const scripts = [
+    "/static/js/vsp_tabs3_common_v3.js",
+    "/static/js/vsp_topbar_commercial_v1.js",
+    "/static/js/vsp_ui_shell_v1.js",
+    "/static/js/vsp_cio_shell_apply_v1.js",
+    "/static/js/vsp_polish_apply_p2_safe_v2.js",
+    "/static/js/vsp_fetch_guard_rid_v1.js",
+    "/static/js/vsp_rid_persist_patch_v1.js",
+    "/static/js/vsp_rid_switch_refresh_all_v1.js",
+    "/static/js/vsp_tabs4_autorid_v1.js"
+  ];
+
+  function already(src){
+    return !!document.querySelector('script[src="' + src + '"]');
+  }
+  function loadOne(src){
+    return new Promise((resolve) => {
+      if (already(src)) return resolve({src, ok:true, cached:true});
+      const s = document.createElement("script");
+      s.src = src;
+      s.async = false;
+      s.onload = () => resolve({src, ok:true});
+      s.onerror = () => resolve({src, ok:false});
+      (document.head || document.documentElement).appendChild(s);
+    });
+  }
+
+  (async function(){
+    const results = [];
+    for (const src of scripts){
+      try { results.push(await loadOne(src)); }
+      catch(e){ results.push({src, ok:false, err:String(e||"")}); }
+    }
+    try { console.debug("[VSP] bundle tabs5 loaded", results); } catch(_){}
+    window.__VSP_BUNDLE_TABS5_SAFE_V2 = { ok:true, results };
+  })();
+})();

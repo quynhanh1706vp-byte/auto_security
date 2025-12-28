@@ -1,0 +1,361 @@
+(function () {
+  console.log('[VSP_DASH] vsp_dashboard_enhance_v1.js loaded');
+
+  function $(id) { return document.getElementById(id); }
+
+  function fmtInt(n) {
+    if (n == null || isNaN(n)) return '--';
+    n = Number(n);
+    if (!isFinite(n)) return '--';
+    return n.toLocaleString('en-US');
+  }
+
+  function esc(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function getDashboardPane() {
+    return document.querySelector('#vsp-tab-dashboard, #vsp-dashboard-main');
+  }
+
+  // ============ KPI ============
+
+  
+
+function applyKpiFromDashboard(data) {
+  if (!data) return;
+  var bySev = data.by_severity || {};
+
+  var total = data.total_findings;
+  var score = data.security_posture_score;
+  var topTool = data.top_risky_tool;
+  var topCwe = data.top_impacted_cwe;
+  var topModule = data.top_vulnerable_module;
+
+  // Chuẩn hóa object -> string
+  if (topCwe && typeof topCwe === 'object') {
+    topCwe = topCwe.cwe_id || topCwe.cwe || topCwe.id || topCwe.name || JSON.stringify(topCwe);
+  }
+  if (topModule && typeof topModule === 'object') {
+    topModule = topModule.id || topModule.module || topModule.path || topModule.name || JSON.stringify(topModule);
+  }
+
+  function setIdIfExists(id, value) {
+    var el = $(id);
+    if (!el) return;
+    if (typeof value === 'number') {
+      el.textContent = fmtInt(value);
+    } else {
+      el.textContent = (value != null && value !== '') ? String(value) : '--';
+    }
+  }
+
+  // 1) Map theo label trong .vsp-kpi-card (hàng KPI + top tool/CWE/module)
+  var cards = document.querySelectorAll('.vsp-kpi-card');
+  cards.forEach(function (card) {
+    var labelEl =
+      card.querySelector('.vsp-kpi-label') ||
+      card.querySelector('.vsp-kpi-title') ||
+      card;
+    var valueEl =
+      card.querySelector('.vsp-kpi-value') ||
+      card.querySelector('.vsp-kpi-main-value') ||
+      card.querySelector('.vsp-kpi-number');
+    if (!valueEl || !labelEl) return;
+
+    var label = (labelEl.textContent || '').toUpperCase();
+
+    if (label.indexOf('TOTAL FINDINGS') !== -1) {
+      valueEl.textContent = fmtInt(total);
+    } else if (label.indexOf('SECURITY SCORE') !== -1) {
+      valueEl.textContent = (score != null) ? fmtInt(score) : '--';
+    } else if (label.indexOf('TOP RISKY TOOL') !== -1) {
+      valueEl.textContent = topTool || '--';
+    } else if (label.indexOf('TOP IMPACTED CWE') !== -1) {
+      valueEl.textContent = topCwe || '--';
+    } else if (label.indexOf('TOP VULNERABLE MODULE') !== -1) {
+      valueEl.textContent = topModule || '--';
+    }
+  });
+
+  // 2) Map 6 severity cho .vsp-kpi-pill / .vsp-kpi-severity-pill
+  var pills = document.querySelectorAll('.vsp-kpi-pill, .vsp-kpi-severity-pill');
+  pills.forEach(function (pill) {
+    var labelEl =
+      pill.querySelector('.vsp-kpi-pill-label') ||
+      pill.querySelector('.vsp-kpi-label') ||
+      pill;
+    var valueEl =
+      pill.querySelector('.vsp-kpi-pill-value') ||
+      pill.querySelector('.vsp-kpi-value') ||
+      pill.querySelector('.vsp-kpi-number');
+    if (!valueEl || !labelEl) return;
+
+    var label = (labelEl.textContent || '').toUpperCase().trim();
+    var val = null;
+
+    if (label.indexOf('CRITICAL') === 0) {
+      val = bySev.CRITICAL || 0;
+    } else if (label.indexOf('HIGH') === 0) {
+      val = bySev.HIGH || 0;
+    } else if (label.indexOf('MEDIUM') === 0) {
+      val = bySev.MEDIUM || 0;
+    } else if (label.indexOf('LOW') === 0) {
+      val = bySev.LOW || 0;
+    } else if (label.indexOf('INFO') === 0) {
+      val = bySev.INFO || 0;
+    } else if (label.indexOf('TRACE') === 0) {
+      val = bySev.TRACE || 0;
+    }
+
+    if (val != null) {
+      valueEl.textContent = fmtInt(val);
+    }
+  });
+
+  // 3) Tương thích ID cũ nếu tồn tại (ẩn/hiện đều được)
+  setIdIfExists('vsp-kpi-total-findings', total);
+  setIdIfExists('vsp-kpi-score', score);
+  setIdIfExists('vsp-kpi-top-tool', topTool);
+  setIdIfExists('vsp-kpi-top-cwe', topCwe);
+  setIdIfExists('vsp-kpi-top-module', topModule);
+
+  setIdIfExists('vsp-kpi-sev-critical', bySev.CRITICAL || 0);
+  setIdIfExists('vsp-kpi-sev-high', bySev.HIGH || 0);
+  setIdIfExists('vsp-kpi-sev-medium', bySev.MEDIUM || 0);
+  setIdIfExists('vsp-kpi-sev-low', bySev.LOW || 0);
+  setIdIfExists('vsp-kpi-sev-info', bySev.INFO || 0);
+  setIdIfExists('vsp-kpi-sev-trace', bySev.TRACE || 0);
+
+  console.log('[VSP_DASH] KPI hydrated', {
+    total: total,
+    score: score,
+    topTool: topTool,
+    topCwe: topCwe,
+    topModule: topModule
+  });
+}
+
+
+
+  // ============ CHART HELPERS ============
+
+  function renderSeverityChart(bySev) {
+    var host = $('#vsp-chart-severity');
+    if (!host) return;
+
+    var order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'TRACE'];
+    var max = 0;
+    order.forEach(function (k) {
+      var v = Number(bySev[k] || 0);
+      if (v > max) max = v;
+    });
+    if (!max) max = 1;
+
+    host.innerHTML = order.map(function (sev) {
+      var val = Number(bySev[sev] || 0);
+      var width = Math.max(4, (val / max) * 100);
+      return '' +
+        '<div class="vsp-chart-row">' +
+          '<div class="vsp-chart-label">' + esc(sev) + '</div>' +
+          '<div class="vsp-chart-bar-wrap">' +
+            '<div class="vsp-chart-bar vsp-sev-' + sev.toLowerCase() + '" style="width:' + width + '%"></div>' +
+          '</div>' +
+          '<div class="vsp-chart-value">' + fmtInt(val) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderTrendChart(items) {
+    var host = $('#vsp-chart-trend');
+    if (!host) return;
+
+    items = Array.isArray(items) ? items.slice() : [];
+    if (!items.length) {
+      host.innerHTML = '<div class="vsp-chart-empty">Không có dữ liệu trend.</div>';
+      return;
+    }
+
+    items.sort(function (a, b) {
+      return String(a.created_at || a.finished_at || '').localeCompare(
+        String(b.created_at || b.finished_at || '')
+      );
+    });
+
+    var last = items.slice(-8);
+
+    var max = 0;
+    last.forEach(function (r) {
+      var v = Number(r.total_findings || 0);
+      if (v > max) max = v;
+    });
+    if (!max) max = 1;
+
+    host.innerHTML = last.map(function (r) {
+      var v = Number(r.total_findings || 0);
+      var h = Math.max(6, (v / max) * 100);
+      var label = (r.run_id || '').replace(/^RUN_/, '').slice(0, 10);
+      return '' +
+        '<div class="vsp-chart-col">' +
+          '<div class="vsp-chart-col-bar" style="height:' + h + '%"></div>' +
+          '<div class="vsp-chart-col-label" title="' + esc(r.run_id || '') + '">' + esc(label) + '</div>' +
+          '<div class="vsp-chart-col-value">' + fmtInt(v) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderToolChart(toolAgg) {
+    var host = $('#vsp-chart-tool');
+    if (!host) return;
+
+    var tools = Object.keys(toolAgg);
+    if (!tools.length) {
+      host.innerHTML = '<div class="vsp-chart-empty">Không có dữ liệu tool.</div>';
+      return;
+    }
+
+    tools.sort(function (a, b) {
+      return (toolAgg[b] || 0) - (toolAgg[a] || 0);
+    });
+    var top = tools.slice(0, 5);
+    var max = 0;
+    top.forEach(function (t) { if (toolAgg[t] > max) max = toolAgg[t]; });
+    if (!max) max = 1;
+
+    host.innerHTML = top.map(function (t) {
+      var v = toolAgg[t];
+      var w = Math.max(4, (v / max) * 100);
+      return '' +
+        '<div class="vsp-chart-row">' +
+          '<div class="vsp-chart-label">' + esc(t) + '</div>' +
+          '<div class="vsp-chart-bar-wrap">' +
+            '<div class="vsp-chart-bar" style="width:' + w + '%"></div>' +
+          '</div>' +
+          '<div class="vsp-chart-value">' + fmtInt(v) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderCweChart(cweAgg) {
+    var host = $('#vsp-chart-cwe');
+    if (!host) return;
+
+    var cwes = Object.keys(cweAgg);
+    if (!cwes.length) {
+      host.innerHTML = '<div class="vsp-chart-empty">Không có dữ liệu CWE.</div>';
+      return;
+    }
+
+    cwes.sort(function (a, b) {
+      return (cweAgg[b] || 0) - (cweAgg[a] || 0);
+    });
+    var top = cwes.slice(0, 5);
+    var max = 0;
+    top.forEach(function (c) { if (cweAgg[c] > max) max = cweAgg[c]; });
+    if (!max) max = 1;
+
+    host.innerHTML = top.map(function (c) {
+      var v = cweAgg[c];
+      var w = Math.max(4, (v / max) * 100);
+      return '' +
+        '<div class="vsp-chart-row">' +
+          '<div class="vsp-chart-label">' + esc(c || 'N/A') + '</div>' +
+          '<div class="vsp-chart-bar-wrap">' +
+            '<div class="vsp-chart-bar" style="width:' + w + '%"></div>' +
+          '</div>' +
+          '<div class="vsp-chart-value">' + fmtInt(v) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // ============ FETCH & HYDRATE ============
+
+  async function hydrateDashboard() {
+    var pane = getDashboardPane();
+    if (!pane) {
+      console.warn('[VSP_DASH] hydrateDashboard() no pane, skip');
+      return;
+    }
+
+    console.log('[VSP_DASH] hydrateDashboard on', pane.id);
+
+    // Dashboard KPIs
+    try {
+      var res = await fetch('/api/vsp/dashboard_v3', { cache: 'no-store' });
+      var data = await res.json();
+      applyKpiFromDashboard(data);
+      renderSeverityChart(data.by_severity || {});
+    } catch (e) {
+      console.error('[VSP_DASH] dashboard_v3 error', e);
+    }
+
+    // Trend
+    try {
+      var res2 = await fetch('/api/vsp/runs_index_v3?limit=40', { cache: 'no-store' });
+      var runs = await res2.json();
+      renderTrendChart(runs.items || []);
+    } catch (e) {
+      console.error('[VSP_DASH] runs_index_v3 error', e);
+    }
+
+    // Tool & CWE charts từ datasource
+    try {
+      var res3 = await fetch('/api/vsp/datasource_v2?limit=2000', { cache: 'no-store' });
+      var ds = await res3.json();
+      var items = Array.isArray(ds.items) ? ds.items : (Array.isArray(ds) ? ds : []);
+      var toolAgg = {};
+      var cweAgg = {};
+
+      items.forEach(function (f) {
+        var sev = String(f.severity || f.raw_severity || '').toUpperCase();
+        var weight =
+          sev === 'CRITICAL' ? 4 :
+          sev === 'HIGH' ? 3 :
+          sev === 'MEDIUM' ? 2 :
+          sev === 'LOW' ? 1 : 0.5;
+
+        var tool = f.tool || f.source || 'unknown';
+        toolAgg[tool] = (toolAgg[tool] || 0) + weight;
+
+        var cwe = f.cwe || f.cwe_id || '';
+        if (cwe) {
+          cweAgg[cwe] = (cweAgg[cwe] || 0) + 1;
+        }
+      });
+
+      renderToolChart(toolAgg);
+      renderCweChart(cweAgg);
+    } catch (e) {
+      console.error('[VSP_DASH] datasource_v2 error', e);
+    }
+  }
+
+  function waitAndHydrate() {
+    var count = 0;
+    var max = 40; // ~10s nếu 250ms
+    var timer = setInterval(function () {
+      var pane = getDashboardPane();
+      if (pane) {
+        clearInterval(timer);
+        console.log('[VSP_DASH] Found dashboard pane:', pane.id);
+        hydrateDashboard();
+      } else {
+        count += 1;
+        if (count >= max) {
+          clearInterval(timer);
+          console.warn('[VSP_DASH] Timeout – không tìm thấy dashboard pane (#vsp-tab-dashboard hoặc #vsp-dashboard-main).');
+        }
+      }
+    }, 250);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', waitAndHydrate);
+  } else {
+    waitAndHydrate();
+  }
+})();

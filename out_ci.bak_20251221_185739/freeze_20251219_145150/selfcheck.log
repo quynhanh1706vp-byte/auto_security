@@ -1,0 +1,22 @@
+== VSP UI commercial self-check (P0/P1) @ 2025-12-19 14:51:50 ==
+[BASE] http://127.0.0.1:8910
+
+== 1) Port listening ==
+[32m[PASS] 8910 listening[0m
+== 2) / redirects to /vsp5 (200 or 302 acceptable) ==
+[32m[PASS] / => 302[0m
+== 3) /vsp5 returns 200 ==
+[32m[PASS] /vsp5 => 200[0m
+== 4) /api/vsp/runs contract smoke + 80/80 stability ==
+[32m[PASS] runs?limit=20 JSON ok/items[0m
+[32m[PASS] runs contract fields present (rid_latest/cache_ttl/roots_used/scan_cap_hit)[0m
+[32m[PASS] runs stability 80/80 => 200[0m
+== 5) Export endpoints smoke (optional) ==
+[32m[PASS] rid_latest candidate: khach6_RUN_20251129_143155_027307[0m
+[32m[PASS] export 200 http://127.0.0.1:8910/api/vsp/export_csv?rid=khach6_RUN_20251129_143155_027307[0m
+[32m[PASS] export 200 http://127.0.0.1:8910/api/vsp/export_tgz?rid=khach6_RUN_20251129_143155_027307&scope=reports[0m
+[32m[PASS] export 200 http://127.0.0.1:8910/api/vsp/sha256?rid=khach6_RUN_20251129_143155_027307&name=reports/run_gate_summary.json[0m
+
+== RESULT ==
+OK=10 WARN=0 FAIL=0
+[32mOVERALL=GREEN[0m

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>VSP • Dashboard</title>
+<link rel="stylesheet" href="/static/css/vsp_dark_commercial_p1_2.css"/>
+<link rel="stylesheet" href="/static/css/vsp_dash_only_v1.css?v=1766547793"/>
+</head>
+<body class="vsp-body">
+<div id="vsp-dashboard-main"></div>
+
+<!-- VSP_P1_FINAL_MARKERS_FORCE_V4:vsp5 -->
+<div id="vsp-kpi-testids" style="display:none">
+  <span data-testid="kpi_total"></span>
+  <span data-testid="kpi_critical"></span>
+  <span data-testid="kpi_high"></span>
+  <span data-testid="kpi_medium"></span>
+  <span data-testid="kpi_low"></span>
+  <span data-testid="kpi_info_trace"></span>
+</div>
+
+
+  <div class="topnav vsp5nav">
+    <a class="brand" href="/vsp5">VSP</a>
+    <a href="/vsp5">Dashboard</a>
+    <a href="/runs">Runs &amp; Reports</a>
+    <a href="/data_source">Data Source</a>
+    <a href="/settings">Settings</a>
+    <a href="/rule_overrides">Rule Overrides</a>
+  </div>
+
+  <div id="vsp5_root"></div>
+
+  <!-- scripts: MUST be present for tabs5 contract -->
+  <script src="/static/js/vsp_tabs4_autorid_v1.js?v=1766547793"></script>
+  <script src="/static/js/vsp_topbar_commercial_v1.js?v=1766547793"></script>
+  <!-- keep your existing dashboard logic -->
+  <script src="/static/js/vsp_dashboard_luxe_v1.js?v=1766547793"></script>
+<script defer src="/static/js/vsp_bundle_tabs5_v1.js?v=1766547793"></script>
+<script src="/static/js/vsp_dashboard_consistency_patch_v1.js?v=1766547793"></script>
+<script src="/static/js/vsp_rid_persist_patch_v1.js?v=1766547793"></script>
+<script src="/static/js/vsp_rid_switch_refresh_all_v1.js?v=1766547793"></script>
+</body>
+</html>

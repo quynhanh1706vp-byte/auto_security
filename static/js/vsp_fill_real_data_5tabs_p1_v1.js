@@ -1,0 +1,443 @@
+
+// VSP_P116B_ENC_SHIM
+function enc(v){
+  try { return encodeURIComponent(v==null?'' : String(v)); }
+  catch(e){ return '' + (v==null?'' : v); }
+}
+
+
+  // [P0_V3] commercial-safe base (avoid ReferenceError: BASE is not defined)
+  const BASE = (window.VSP_UI_BASE && String(window.VSP_UI_BASE).trim())
+    ? String(window.VSP_UI_BASE).replace(/\/+$/,'')
+    : (location.origin);
+
+// __VSP_CIO_HELPER_V1
+(function(){
+
+/* __VSP_RID_HELPER_V1 */
+window.__VSP_RID_HELPER_V1 = (function(){
+  function qsGet(){
+    try { return new URLSearchParams(location.search); } catch(e){ return new URLSearchParams(""); }
+  }
+  async function pickRid(){
+    const qs = qsGet();
+    let rid = (qs.get("rid") || qs.get("RID") || localStorage.getItem("vsp_rid") || "").trim();
+    if (rid) { try{ // VSP_P116D_GUARD_SET_VSP_RID
+try {
+  var __rid = (rid);
+  var __s = String(__rid||'');
+  if (__s && !/FILL_REAL_DATA|\.js|\.css/i.test(__s) && /^(VSP_|RUN_)/.test(__s) && /\d/.test(__s)) {
+    localStorage.setItem('vsp_rid', __s);
+  }
+} catch(e) {}
+ }catch(e){} return rid; }
+    // fallback: ask backend
+    try{
+      const r = await fetch("/api/vsp/rid_latest", {cache:"no-store"});
+      const j = await r.json().catch(()=>null);
+    const rid = (j && (j.rid || j.RID) || "").toString().trim() || (latest.rid || latest.run_id || latest.id || "");
+      if (rid) { try{ // VSP_P116D_GUARD_SET_VSP_RID
+try {
+  var __rid = (rid);
+  var __s = String(__rid||'');
+  if (__s && !/FILL_REAL_DATA|\.js|\.css/i.test(__s) && /^(VSP_|RUN_)/.test(__s) && /\d/.test(__s)) {
+    localStorage.setItem('vsp_rid', __s);
+  }
+} catch(e) {}
+ }catch(e){} }
+      return rid || "";
+    }catch(e){ return ""; }
+  }
+  function withRid(url, rid){
+    try{
+      const u = new URL(url, location.origin);
+      if (!u.searchParams.get("rid") && rid) u.searchParams.set("rid", rid);
+      return u.toString();
+    }catch(e){
+      // plain string fallback
+      if (rid && url.indexOf("rid=") < 0){
+        return url + (url.indexOf("?")>=0 ? "&" : "?") + "rid=" + encodeURIComponent(rid);
+      }
+      return url;
+    }
+  }
+  return { pickRid, withRid };
+})();
+
+
+/* VSP_CSUITE_RID_GUARD_V1 (commercial-safe) */
+window.__vspGetRid = window.__vspGetRid || (function(){
+  let _cache = "";
+  function _fromUrl(){
+    try{ return (new URLSearchParams(location.search).get("rid")||"").trim(); }catch(e){ return ""; }
+  }
+  function _fromLS(){
+    try{ return (localStorage.getItem("vsp_rid_last")||"").trim(); }catch(e){ return ""; }
+  }
+  function get(){
+    const u=_fromUrl();
+    if(u){ _cache=u; try{ localStorage.setItem("vsp_rid_last", u);}catch(e){} return u; }
+    if(_cache) return _cache;
+    const ls=_fromLS();
+    if(ls){ _cache=ls; return ls; }
+    return "";
+  }
+  return get;
+})();
+
+  try{
+    window.__VSP_CIO = window.__VSP_CIO || {};
+    const qs = new URLSearchParams(location.search);
+    window.__VSP_CIO.debug = (qs.get("debug")==="1") || (localStorage.getItem("VSP_DEBUG")==="1");
+    window.__VSP_CIO.visible = function(){ return document.visibilityState === "visible"; };
+    window.__VSP_CIO.sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+    window.__VSP_CIO.backoff = async function(fn, opt){
+      opt = opt || {};
+      let delay = opt.delay || 800;
+      const maxDelay = opt.maxDelay || 8000;
+      const maxTries = opt.maxTries || 6;
+      for(let i=0;i<maxTries;i++){
+        if(!window.__VSP_CIO.visible()){
+          await window.__VSP_CIO.sleep(600);
+          continue;
+        }
+        try { return await fn(); }
+        catch(e){
+          if(window.__VSP_CIO.debug) console.warn("[VSP] backoff retry", i+1, e);
+          await window.__VSP_CIO.sleep(delay);
+          delay = Math.min(maxDelay, delay*2);
+        }
+      }
+      throw new Error("backoff_exhausted");
+    };
+    window.__VSP_CIO.api = {
+      ridLatest: ()=>"/api/vsp/rid_latest_v3",
+      runs: (limit,offset)=>`/api/vsp/runs_v3?limit=${limit||50}&offset=${offset||0}`,
+      gate: (rid)=>`/api/vsp/run_gate_v3?rid=${encodeURIComponent(rid||"")}`,
+      findingsPage: (rid,limit,offset)=>`/api/vsp/findings_v3?rid=${encodeURIComponent(rid||"")}&limit=${limit||100}&offset=${offset||0}`,
+      artifact: (rid,kind,download)=>`/api/vsp/artifact_v3?rid=${encodeURIComponent(rid||"")}&kind=${encodeURIComponent(kind||"")}${download?"&download=1":""}`
+    };
+  }catch(_){}
+})();
+
+/* VSP_FILLREAL_IIFE_WRAP_V1 */
+(() => {
+/* VSP_DISABLE_LEGACY_ON_VSP5_V1 */
+  if (String(location.pathname||'').includes('/vsp5')) { return; }
+/* VSP_GUARD_SKIP_ON_RUNS_P0_V1 */
+try {
+  if (location && location.pathname && location.pathname.startsWith('/runs')) {
+    console.warn('[VSP][P0] skip vsp_fill_real_data_5tabs on /runs');
+    return;
+  }
+} catch (e) {}
+
+
+/* VSP_ITEMS_ARRAY_GUARD_P0_V1 */
+(function(){ try{ window.__vsp_to_array = (x)=>Array.isArray(x)?x:[]; }catch(_){ }})();
+
+/* VSP_FILL_REAL_DATA_5TABS_P1_V1 */
+/* VSP_FILLREAL_MOUNT_TO_BODY_P1_V2 */
+(() => {
+  if (window.__vsp_fill_real_data_5tabs_p1_v1) return;
+if(window.__VSP_CIO && window.__VSP_CIO.debug){ window.__vsp_fill_real_data_5tabs_p1_v1 = true; }
+  const $ = (q, root=document) => root.querySelector(q);
+  const el = (tag, attrs={}, children=[]) => {
+    const n=document.createElement(tag);
+    for(const [k,v] of Object.entries(attrs||{})){
+      if (k==="class") n.className=v;
+      else if (k==="html") n.innerHTML=v;
+      else if (k==="text") n.textContent=v;
+      else n.setAttribute(k, String(v));
+    }
+    for(const c of (children||[])) n.appendChild(c);
+    return n;
+  };
+
+  const css = `
+  /* VSP_FILL_REAL_DATA_5TABS_P1_V1 CSS */
+  .vspP1wrap{max-width:1400px;margin:0 auto;padding:14px 14px 0;}
+  .vspP1card{background:#141823;border:1px solid #252c3a;border-radius:12px;padding:12px 12px;margin:10px 0;color:#e6e6e6}
+  .vspP1row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .vspP1k{font-size:12px;color:#b7b7b7}
+  .vspP1v{font-size:13px;color:#e6e6e6}
+  .vspP1btn{display:inline-block;padding:6px 10px;border-radius:10px;border:1px solid #252c3a;background:#0c0f16;color:#e6e6e6;text-decoration:none}
+  .vspP1btn:hover{border-color:#7aa2f7}
+  .vspP1mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px}
+  .vspP1tbl{width:100%;border-collapse:collapse;margin-top:8px}
+  .vspP1tbl th,.vspP1tbl td{border:1px solid #252c3a;padding:6px 8px;font-size:12px;vertical-align:top}
+  .vspP1tbl th{color:#b7b7b7;font-weight:600}
+  .vspP1tag{padding:2px 8px;border:1px solid #252c3a;border-radius:999px;font-size:12px}
+  .vspP1ok{border-color:#2ea043}
+  .vspP1fail{border-color:#f85149}
+  .vspP1warn{border-color:#d29922}
+  textarea.vspP1ta{width:100%;min-height:420px;background:#0c0f16;color:#e6e6e6;border:1px solid #252c3a;border-radius:12px;padding:10px}
+  `;
+  const st = el("style",{id:"VSP_FILL_REAL_DATA_5TABS_P1_V1_CSS", html:css});
+  document.head.appendChild(st);
+  // VSP_FILLREAL_MOUNT_TO_BODY_P1_V2
+  function __vsp_mount_root(){
+    try{
+      let host = document.getElementById("VSP_FILLREAL_P1_HOST");
+      if (host) return host;
+      host = document.createElement("div");
+      host.id = "VSP_FILLREAL_P1_HOST";
+      // prepend to body to be visible on all pages regardless of template
+      (document.body || document.documentElement).prepend(host);
+      console.info("[VSP][fillreal] mounted host");
+  const __vsp_host = __vsp_mount_root();
+
+      return host;
+    }catch(e){
+      try{ console.warn("[VSP][fillreal] mount fail", e); }catch(_){}
+      return null;
+    }
+  }
+
+
+
+  const api = {
+    runs: "/api/vsp/runs?limit=20",
+    runFile: (rid,path) => BASE + "/api/vsp/run_file_allow?rid=" + enc(rid) + "&path=" + enc(path) + "&limit=200",
+    exportCsv: (rid) => `/api/vsp/export_csv?rid=${encodeURIComponent((window.__vspGetRid?window.__vspGetRid():rid)||"")}`,
+    exportTgz: (rid) => `/api/vsp/export_tgz?rid=${encodeURIComponent((window.__vspGetRid?window.__vspGetRid():rid)||"")}&scope=reports`,
+    sha: (rid,name) => `/api/vsp/sha256?rid=${encodeURIComponent((window.__vspGetRid?window.__vspGetRid():rid)||"")}&path=${encodeURIComponent(name)}`,
+    ruleOverrides: "/api/vsp/rule_overrides",
+  };
+
+  async function jget(url){
+    const r = await fetch(url, {credentials:"same-origin"});
+    if(!r.ok) throw new Error(`${r.status} ${url}`);
+    return await r.json();
+  }
+  async function tget(url){
+    const r = await fetch(url, {credentials:"same-origin"});
+    if(!r.ok) throw new Error(`${r.status} ${url}`);
+    return await r.text();
+  }
+
+  function placeTopCard(card){
+    // try common wrappers; else prepend to body
+    const host =
+      $("#main") || $("#content") || $(".container") || $(".vsp-container") || document.body;
+    const wrap = host.classList?.contains("vspP1wrap") ? host : null;
+    if (wrap) wrap.prepend(card);
+    else {
+      const w = el("div",{class:"vspP1wrap"});
+      w.appendChild(card);
+      host.prepend(w);
+    }
+  }
+
+  function statusTag(overall){
+    const s = String(overall||"").toUpperCase();
+    let cls="vspP1tag vspP1warn";
+    if (s.includes("PASS") || s==="OK" || s==="GREEN") cls="vspP1tag vspP1ok";
+    else if (s.includes("FAIL") || s==="RED") cls="vspP1tag vspP1fail";
+    return el("span",{class:cls, text:s || "UNKNOWN"});
+  }
+
+  function csvParseRows(text, maxRows=25){
+    const lines = (text||"").split(/\r?\n/).filter(Boolean);
+    if (!lines.length) return {hdr:[], rows:[]};
+    const split = (ln) => {
+      // simple CSV splitter supporting quoted fields
+      const out=[]; let cur=""; let q=false;
+      for (let i=0;i<ln.length;i++){
+        const c=ln[i];
+        if (c === '"' ) {
+          if (q && ln[i+1]==='"'){ cur+='"'; i++; }
+          else q=!q;
+        } else if (c===',' && !q) { out.push(cur); cur=""; }
+        else cur+=c;
+      }
+      out.push(cur);
+      return out;
+    };
+    const hdr = split(lines[0]);
+    const rows=[];
+    for (let i=1;i<lines.length && rows.length<maxRows;i++){
+      rows.push(split(lines[i]));
+    }
+    return {hdr, rows};
+  }
+
+  async function main(){
+    let runs;
+    try{
+      runs = await jget(api.runs);
+    }catch(e){
+      placeTopCard(el("div",{class:"vspP1card"},[
+        el("div",{class:"vspP1row"},[
+          el("div",{class:"vspP1k", text:"VSP UI Data Panel"}),
+          el("div",{class:"vspP1tag vspP1fail", text:"RUNS API FAIL"}),
+          el("div",{class:"vspP1mono vspP1v", text:String(e)}),
+        ])
+      ]));
+      return;
+    }
+
+    const items = runs.items || runs || [];
+    const latest = items[0] || {};
+const urlRid = (window.__vspGetRid ? window.__vspGetRid() : ((new URLSearchParams(location.search).get("rid")||"").trim()));
+const rid = ((urlRid || (latest && (latest.rid || latest.run_id || latest.id)) || "").toString().trim());
+    // Try load  (best-effort)
+    let gate = null;
+    try{
+      gate = await jget(api.runFile(rid, "reports/run_gate_summary.json"));
+    }catch(_e){
+      // ignore
+    }
+
+    const overall = gate?.overall || gate?.verdict?.overall || gate?.status || latest.overall || latest.gate || "";
+
+    const top = el("div",{class:"vspP1card"});
+    const btns = el("div",{class:"vspP1row"},[
+      el("a",{class:"vspP1btn vspP1mono", href: api.exportTgz(rid), text:"Download reports.tgz"}),
+      el("a",{class:"vspP1btn vspP1mono", href: api.exportCsv(rid), text:"Download findings.csv"}),
+      el("a",{class:"vspP1btn vspP1mono", href: (BASE + "/runs?rid=" + enc(rid)), text:"Open "}),
+      el("a",{class:"vspP1btn vspP1mono", href: (BASE + "/runs?rid=" + encodeURIComponent(rid) + "#sha"), text:"SHA "}),
+    ]);
+
+    top.appendChild(el("div",{class:"vspP1row"},[
+      el("div",{class:"vspP1k", text:"VSP Commercial Data (LIVE)"}),
+      statusTag(overall),
+      el("div",{class:"vspP1k", text:"Latest RID:"}),
+      el("div",{class:"vspP1mono vspP1v", text:rid || "(none)"}),
+    ]));
+    top.appendChild(el("div",{class:"vspP1row"},[
+      el("div",{class:"vspP1k", text:`Runs loaded: ${items.length}`}),
+      btns
+    ]));
+    placeTopCard(top);
+
+    // Per-page fill
+    const path = location.pathname || "";
+    if (path === "/data_source" || /data_source/i.test(path)){
+      // Show preview table from CSV
+      try{
+        const csv = await tget(api.exportCsv(rid));
+        const {hdr, rows} = csvParseRows(csv, 30);
+        const card = el("div",{class:"vspP1card"});
+        card.appendChild(el("div",{class:"vspP1row"},[
+          el("div",{class:"vspP1k", text:"Data Source (preview from findings_unified.csv)"}),
+          el("div",{class:"vspP1k", text:"Rows preview:"}),
+          el("div",{class:"vspP1v vspP1mono", text:String(rows.length)}),
+        ]));
+        const tbl = el("table",{class:"vspP1tbl"});
+        const thead = el("thead");
+        const trh = el("tr");
+        hdr.slice(0,10).forEach(h=> trh.appendChild(el("th",{text:h})));
+        thead.appendChild(trh);
+        tbl.appendChild(thead);
+        const tbody = el("tbody");
+        rows.forEach(r=>{
+          const tr=el("tr");
+          r.slice(0,10).forEach(c=> tr.appendChild(el("td",{text:c})));
+          tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        card.appendChild(tbl);
+        placeTopCard(card);
+      }catch(e){
+        placeTopCard(el("div",{class:"vspP1card"},[
+          el("div",{class:"vspP1row"},[
+            el("div",{class:"vspP1k", text:"Data Source fill FAILED"}),
+            el("div",{class:"vspP1mono vspP1v", text:String(e)}),
+          ])
+        ]));
+      }
+    }
+
+    if (path === "/vsp5" || /vsp5/i.test(path) || path === "/runs" || /runs/i.test(path)){
+      // Show runs list (real)
+      const card = el("div",{class:"vspP1card"});
+      card.appendChild(el("div",{class:"vspP1row"},[
+        el("div",{class:"vspP1k", text:"Runs & Reports (real list from /api/vsp/runs)"}),
+      ]));
+      const tbl = el("table",{class:"vspP1tbl"});
+      const trh = el("tr");
+      ["RID","overall","csv","html","sarif","summary","actions"].forEach(h=> trh.appendChild(el("th",{text:h})));
+      tbl.appendChild(el("thead",{},[trh]));
+      const tb = el("tbody");
+      (Array.isArray(items)?items:[]).slice(0,20).forEach(it=>{
+        const r = it.run_id || it.rid || "";
+        const has = it.has || {};
+        const tr = el("tr");
+        tr.appendChild(el("td",{class:"vspP1mono", text:r}));
+        tr.appendChild(el("td",{text:String(it.overall||it.gate||"")}));
+        tr.appendChild(el("td",{text:String(!!has.csv)}));
+        tr.appendChild(el("td",{text:String(!!has.html)}));
+        tr.appendChild(el("td",{text:String(!!has.sarif)}));
+        tr.appendChild(el("td",{text:String(!!has.summary)}));
+        const act = el("td");
+        act.appendChild(el("a",{class:"vspP1btn vspP1mono", href: api.runFile(r,"reports/"), text:"summary"}));
+        act.appendChild(document.createTextNode(" "));
+        act.appendChild(el("a",{class:"vspP1btn vspP1mono", href: api.exportCsv(r), text:"csv"}));
+        act.appendChild(document.createTextNode(" "));
+        act.appendChild(el("a",{class:"vspP1btn vspP1mono", href: api.exportTgz(r), text:"tgz"}));
+        tr.appendChild(act);
+        tb.appendChild(tr);
+      });
+      tbl.appendChild(tb);
+      card.appendChild(tbl);
+      placeTopCard(card);
+    }
+
+    if (path === "/settings" || /settings/i.test(path)){
+      const card = el("div",{class:"vspP1card"});
+      card.appendChild(el("div",{class:"vspP1row"},[
+        el("div",{class:"vspP1k", text:"Settings (live links + tool legend)"}),
+        el("div",{class:"vspP1k", text:"Latest RID:"}),
+        el("div",{class:"vspP1mono vspP1v", text:rid}),
+      ]));
+      card.appendChild(el("div",{class:"vspP1k", html:`
+        <div class="vspP1mono" style="margin-top:8px">
+        Tools (8): Bandit · Semgrep · Gitleaks · KICS · Trivy · Syft · Grype · CodeQL<br/>
+        Exports: <a href="${api.exportCsv(rid)}">CSV</a> · <a href="${api.exportTgz(rid)}">reports.tgz</a> ·
+        <a href="${api.runFile(rid, "reports/run_gate_summary.json")}"></a> ·
+        <a href="${api.sha(rid,"reports/")}">SHA</a>
+        </div>
+      `}));
+      placeTopCard(card);
+
+      // show gate JSON small if available
+      if (gate){
+        const pre = el("pre",{class:"vspP1mono", text: JSON.stringify(gate, null, 2)});
+        const c2 = el("div",{class:"vspP1card"},[
+          el("div",{class:"vspP1k", text:"Gate summary (live)"}),
+          pre
+        ]);
+        placeTopCard(c2);
+      }
+    }
+
+    if (path === "/rule_overrides" || /rule_overrides/i.test(path)){
+      try{
+        const ro = await jget(api.ruleOverrides);
+        const card = el("div",{class:"vspP1card"});
+        card.appendChild(el("div",{class:"vspP1row"},[
+          el("div",{class:"vspP1k", text:"Rule Overrides (live from /api/vsp/rule_overrides)"}),
+          el("a",{class:"vspP1btn vspP1mono", href: api.ruleOverrides, text:"Open JSON"}),
+        ]));
+        const ta = el("textarea",{class:"vspP1ta vspP1mono", readonly:"readonly"});
+        ta.value = JSON.stringify(ro, null, 2);
+        card.appendChild(ta);
+        placeTopCard(card);
+      }catch(e){
+        placeTopCard(el("div",{class:"vspP1card"},[
+          el("div",{class:"vspP1row"},[
+            el("div",{class:"vspP1k", text:"Rule Overrides load FAILED"}),
+            el("div",{class:"vspP1mono vspP1v", text:String(e)}),
+          ])
+        ]));
+      }
+    }
+  }
+
+  // run after DOM
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();
+
+})();

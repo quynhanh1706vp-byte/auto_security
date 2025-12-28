@@ -1,0 +1,62 @@
+/* VSP_DASHBOARD_POLISH_V1 (Dashboard-only cosmetics; safe globals) */
+:root{
+  --bg0: #070e1a;
+  --bg1: #0b1220;
+  --bg2: rgba(255,255,255,.06);
+  --line: rgba(255,255,255,.10);
+  --txt: rgba(226,232,240,.92);
+  --muted: rgba(148,163,184,.85);
+  --accent: rgba(56,189,248,.88);
+  --accent2: rgba(168,85,247,.66);
+  --shadow: 0 12px 30px rgba(0,0,0,.38);
+  --r: 16px;
+}
+
+html,body{ background: linear-gradient(180deg, var(--bg0), var(--bg1)); color: var(--txt); }
+*{ box-sizing:border-box; }
+a{ color: var(--txt); }
+a:hover{ color: rgba(255,255,255,.98); }
+
+#vsp5_root{
+  padding: 14px 16px;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+/* nice scrollbars (webkit) */
+::-webkit-scrollbar{ width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.14); border-radius: 12px; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.22); }
+
+/* “card-ish” common selectors (best effort) */
+.card, .panel, .box, .kpi, .tile, .vsp-card, .vsp_panel, .vsp_kpi{
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+  backdrop-filter: blur(8px);
+}
+
+/* buttons / pills common */
+button, .btn, .pill, .chip, .tag{
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: var(--txt);
+}
+button:hover, .btn:hover, .pill:hover, .chip:hover, .tag:hover{
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.20);
+}
+
+/* subtle focus */
+:focus{ outline: none; }
+:focus-visible{
+  outline: 2px solid rgba(56,189,248,.40);
+  outline-offset: 2px;
+}
+
+/* gradient accent line for headers if exist */
+h1,h2,h3,.title,.hdr,.header{
+  text-shadow: 0 8px 22px rgba(0,0,0,.35);
+}

@@ -1,0 +1,255 @@
+// VSP_DS_CHARTS_SECTION_V1
+// Tạo 1 section "Data Source – mini charts" bên trong #vsp-tab-datasource
+// và vẽ 2 Chart.js: Severity by tool (stacked bar) + Top directories (horizontal bar).
+
+(function() {
+  const LOG = "[VSP_DS_CHARTS_SECTION]";
+
+  async function loadData() {
+    const res = await fetch("/api/vsp/datasource_v2?limit=1000");
+    const data = await res.json();
+    return data.items || [];
+  }
+
+  function aggregate(items) {
+    const severityOrder = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    const byTool = {};
+    const byDir  = {};
+
+    for (const f of items) {
+      const tool = (f.tool || "unknown").toString();
+      let sev = (f.severity || "INFO").toString().toUpperCase();
+      if (!severityOrder.includes(sev)) sev = "INFO";
+
+      if (!byTool[tool]) {
+        byTool[tool] = {};
+        for (const s of severityOrder) byTool[tool][s] = 0;
+      }
+      byTool[tool][sev] = (byTool[tool][sev] || 0) + 1;
+
+      const path =
+        f.path ||
+        f.file ||
+        f.filepath ||
+        (f.location && (f.location.path || f.location.file)) ||
+        f.relpath ||
+        "";
+      if (path) {
+        const parts = String(path).split("/");
+        const dir = parts.slice(0, 3).join("/") + (parts.length > 3 ? "/..." : "");
+        byDir[dir] = (byDir[dir] || 0) + 1;
+      }
+    }
+
+    const tools = Object.keys(byTool)
+      .sort((a,b) => {
+        const sa = Object.values(byTool[a]).reduce((x,y)=>x+y,0);
+        const sb = Object.values(byTool[b]).reduce((x,y)=>x+y,0);
+        return sb - sa;
+      })
+      .slice(0, 6);
+
+    const dirs = Object.entries(byDir)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0, 6);
+
+    return { severityOrder, tools, byTool, dirs };
+  }
+
+  function ensureSection() {
+    const tab = document.querySelector("#vsp-tab-datasource");
+    if (!tab) return null;
+
+    let section = document.getElementById("vsp-ds-mini-section");
+    if (!section) {
+      section = document.createElement("section");
+      section.id = "vsp-ds-mini-section";
+      section.className = "vsp-ds-mini-section";
+      section.innerHTML = `
+        <div class="vsp-ds-mini-header">
+          <div>
+            <div class="vsp-ds-mini-title">Data Source – mini charts</div>
+            <div class="vsp-ds-mini-subtitle">
+              Severity theo tool và Top directories dựa trên findings_unified.
+            </div>
+          </div>
+        </div>
+        <div class="vsp-ds-mini-grid">
+          <div class="vsp-chart-card">
+            <div class="vsp-chart-card-header">
+              <div class="vsp-chart-card-title">Severity by tool</div>
+              <div class="vsp-chart-card-subtitle">
+                Phân bố CRIT/HIGH/MED/LOW/INFO/TRACE theo từng tool.
+              </div>
+            </div>
+            <div class="vsp-chart-card-body">
+              <div class="vsp-chart-canvas-wrapper">
+                <canvas id="vsp-ds-chart-tools"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="vsp-chart-card">
+            <div class="vsp-chart-card-header">
+              <div class="vsp-chart-card-title">Top directories</div>
+              <div class="vsp-chart-card-subtitle">
+                Thư mục có nhiều findings nhất (từ path).
+              </div>
+            </div>
+            <div class="vsp-chart-card-body">
+              <div class="vsp-chart-canvas-wrapper">
+                <canvas id="vsp-ds-chart-dirs"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      tab.appendChild(section);
+      console.log(LOG, "Đã tạo section mini charts trong Data Source.");
+    }
+    return section;
+  }
+
+  function buildSeverityChart(ctx, agg) {
+    const { severityOrder, tools, byTool } = agg;
+    if (!tools.length) {
+      console.log(LOG, "Không có data cho chart severity-by-tool.");
+      return;
+    }
+
+    const colors = {
+      CRITICAL: "#ef4444",
+      HIGH: "#f97316",
+      MEDIUM: "#eab308",
+      LOW: "#22c55e",
+      INFO: "#0ea5e9",
+      TRACE: "#64748b",
+    };
+
+    const datasets = severityOrder.map((sev) => ({
+      label: sev,
+      data: tools.map((t) => byTool[t][sev] || 0),
+      backgroundColor: colors[sev] || "#6b7280",
+      stack: "severity",
+    }));
+
+    new Chart(ctx, {
+      type: "bar",
+      data: { labels: tools, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#e5e7eb", font: { size: 10 } },
+          },
+          tooltip: { mode: "index", intersect: false },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { display: false },
+          },
+          y: {
+            stacked: true,
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { color: "rgba(148,163,184,0.25)" },
+          },
+        },
+      },
+    });
+  }
+
+  function buildDirsChart(ctx, agg) {
+    const { dirs } = agg;
+    if (!dirs.length) {
+      console.log(LOG, "Không có data cho chart top-directories.");
+      return;
+    }
+    const labels = dirs.map(([dir]) => dir);
+    const values = dirs.map(([, count]) => count);
+
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{ label: "Findings", data: values }],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: "nearest", intersect: true },
+        },
+        scales: {
+          x: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { color: "rgba(148,163,184,0.25)" },
+          },
+          y: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  async function init() {
+    if (typeof Chart === "undefined") {
+      console.warn(LOG, "Chart.js chưa được load (window.Chart undefined).");
+      return;
+    }
+
+    const section = ensureSection();
+    if (!section) {
+      console.warn(LOG, "Không tìm thấy tab Data Source để gắn section.");
+      return;
+    }
+
+    const canvasTools = document.getElementById("vsp-ds-chart-tools");
+    const canvasDirs  = document.getElementById("vsp-ds-chart-dirs");
+    if (!canvasTools || !canvasDirs) {
+      console.warn(LOG, "Không tìm thấy canvas tools/dirs trong section.");
+      return;
+    }
+
+    try {
+      const items = await loadData();
+      if (!items.length) {
+        console.log(LOG, "Không có findings để vẽ mini charts.");
+        return;
+      }
+      const agg = aggregate(items);
+      buildSeverityChart(canvasTools.getContext("2d"), agg);
+      buildDirsChart(canvasDirs.getContext("2d"), agg);
+      console.log(LOG, "Mini charts đã được vẽ.");
+    } catch (e) {
+      console.warn(LOG, "Init error:", e);
+    }
+  }
+
+  function start() {
+    let tries = 0;
+    const maxTries = 30;
+    const timer = setInterval(() => {
+      const tab = document.querySelector("#vsp-tab-datasource");
+      if (tab && typeof Chart !== "undefined") {
+        clearInterval(timer);
+        init();
+      } else if (++tries >= maxTries) {
+        clearInterval(timer);
+        console.warn(LOG, "Give up sau", tries, "lần – không thấy tab hoặc Chart.js.");
+      }
+    }, 400);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();

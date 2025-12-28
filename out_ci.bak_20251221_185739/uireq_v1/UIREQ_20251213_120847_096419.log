@@ -1,0 +1,18 @@
+[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER
+[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data
+[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251213_120847
+[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_120847
+[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===
+[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh
+[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data
+[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_120847
+[VSP_CI_GATE] RUN_ID      = VSP_CI_20251213_120847
+[VSP_CI_GATE] RUNNER      = /home/test/Data/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] ERROR: Không tìm thấy runner hoặc không có quyền chạy: /home/test/Data/bin/run_all_tools_v2.sh
+[VSP_CI_GATE]        Set ENV VSP_RUNNER cho đúng script runner trong SECURITY_BUNDLE.
+[VSP_CI_OUTER] Gate core kết thúc với mã trả về: 5
+[VSP_CI_SUMMARY] ERROR: Không tìm thấy /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_120847/report/summary_unified.json
+[VSP_CI_OUTER] === VSP CI OUTER: THẤT BẠI (RC=1) ===

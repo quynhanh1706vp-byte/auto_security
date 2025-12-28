@@ -1,0 +1,237 @@
+
+/* VSP_P69B_SAFE_GET_V1
+ * Fix blank dashboard by using a SAFE DOM getter based on native getElementById (no recursion),
+ * plus alias fallback for dashboard containers.
+ */
+(function(){
+  try{
+    if (window.__VSP_GET_SAFE) return;
+
+    // Native getElementById (never replaced)
+    function nativeGE(id){
+      try { return Document.prototype.getElementById.call(document, id); }
+      catch(e){ return null; }
+    }
+
+    function canonHost(){
+      return nativeGE("vsp-dashboard-main") || nativeGE("vsp5_root") || document.body;
+    }
+
+    window.__VSP_GET_SAFE = function(id){
+      var el = nativeGE(id);
+      if (!el && id && /dash|dashboard|vsp-dashboard|vsp_dashboard/i.test(String(id))) {
+        var host = canonHost();
+        try{
+          var esc = (window.CSS && CSS.escape) ? CSS.escape(String(id)) : String(id).replace(/[^a-zA-Z0-9_\-]/g,"\\$&");
+          var alias = host.querySelector("#"+esc);
+          if (!alias) {
+            alias = document.createElement("div");
+            alias.id = String(id);
+            host.appendChild(alias);
+          }
+          el = alias;
+        }catch(e){
+          el = host;
+        }
+      }
+      return el;
+    };
+
+    console.info("[VSP] luxe boot marker (P69B)");
+
+    // If still empty after a moment, show a banner (so it won't look dead)
+    window.addEventListener("DOMContentLoaded", function(){
+      setTimeout(function(){
+        try{
+          var m = nativeGE("vsp-dashboard-main");
+          if (m && m.children && m.children.length === 0 && !m.querySelector("[data-vsp-p69b-banner]")) {
+            var note = document.createElement("div");
+            note.setAttribute("data-vsp-p69b-banner","1");
+            note.style.padding = "14px 16px";
+            note.style.margin = "10px 0";
+            note.style.border = "1px solid rgba(255,255,255,.12)";
+            note.style.borderRadius = "10px";
+            note.style.background = "rgba(255,255,255,.04)";
+            note.style.color = "rgba(255,255,255,.75)";
+            note.textContent = "[VSP] Dashboard JS loaded but rendered nothing yet. Check DevTools Console/Network for errors.";
+            m.appendChild(note);
+          }
+        }catch(e){}
+      }, 1500);
+    }, {once:true});
+  }catch(e){}
+})();
+
+
+/* P66_LUXE_API_COMPAT_V1: rewrite legacy API urls to v2 + attach rid when possible */
+(function(){
+  if (window.__vspFetchCompatPatched) return;
+  window.__vspFetchCompatPatched = true;
+
+  function getRid(){
+    try{
+      const u = new URL(location.href);
+      return u.searchParams.get("rid") || u.searchParams.get("run_id") || "";
+    }catch(e){ return ""; }
+  }
+
+  function normalizeToRel(url){
+    try{
+      if (typeof url !== "string") return "";
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        const u = new URL(url);
+        if (u.origin !== location.origin) return url; // cross-origin: don't touch
+        return u.pathname + u.search;
+      }
+      return url;
+    }catch(e){ return url; }
+  }
+
+  function rewriteRel(url){
+    try{
+      url = normalizeToRel(url);
+
+      // map old endpoints
+      url = url.replace("/api/vsp/top_findings_v1", "/api/vsp/top_findings_v2");
+      url = url.replace("/api/vsp/top_findings_v0", "/api/vsp/top_findings_v2");
+
+      // datasource dashboard mode -> datasource?rid=<rid>
+      if (url.includes("/api/vsp/datasource") && url.includes("mode=dashboard")) {
+        const rid = getRid();
+        url = "/api/vsp/datasource" + (rid ? ("?rid="+encodeURIComponent(rid)) : "");
+      }
+
+      // if calling datasource without rid, attach rid if we have one
+      if (url.startsWith("/api/vsp/datasource") && !url.includes("rid=")) {
+        const rid = getRid();
+        if (rid) url += (url.includes("?") ? "&" : "?") + "rid=" + encodeURIComponent(rid);
+      }
+
+      return url;
+    }catch(e){ return url; }
+  }
+
+  const _fetch = window.fetch;
+  window.fetch = function(input, init){
+    try{
+      if (typeof input === "string") {
+        return _fetch.call(this, rewriteRel(input), init);
+      }
+      if (input && typeof input === "object" && input.url) {
+        const newUrl = rewriteRel(input.url);
+        if (typeof newUrl === "string" && newUrl !== input.url) {
+          input = new Request(newUrl, input);
+        }
+      }
+    }catch(e){}
+    return _fetch.call(this, input, init);
+  };
+})();
+
+/* VSP_DASHBOARD_LUXE_SAFE_V2 - minimal, no-crash dashboard bootstrap */
+(function(){
+  'use strict';
+
+  function el(tag, attrs){
+    const x = document.createElement(tag);
+    if(attrs){ for(const k of Object.keys(attrs)) x.setAttribute(k, attrs[k]); }
+    return x;
+  }
+  function safeText(x, t){ try{ x.textContent = t; } catch(_){} }
+
+  function renderOverlay(stats){
+    const id="vsp_dash_luxe_safe_v2";
+    let box = __VSP_GET_SAFE(id);
+    if(!box){
+      box = el("div", { id });
+      box.style.position="fixed";
+      box.style.right="14px";
+      box.style.bottom="14px";
+      box.style.zIndex="99999";
+      box.style.padding="12px 14px";
+      box.style.borderRadius="14px";
+      box.style.background="rgba(10,16,28,0.92)";
+      box.style.border="1px solid rgba(255,255,255,0.08)";
+      box.style.boxShadow="0 10px 30px rgba(0,0,0,0.35)";
+      box.style.fontFamily="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto";
+      box.style.fontSize="12px";
+      box.style.color="rgba(255,255,255,0.86)";
+      box.style.minWidth="260px";
+
+      const title = el("div");
+      title.style.fontWeight="700";
+      title.style.marginBottom="8px";
+      safeText(title, "VSP Dashboard (SAFE)");
+      box.appendChild(title);
+
+      const body = el("div", { id: id+"_body" });
+      box.appendChild(body);
+
+      document.body.appendChild(box);
+    }
+    const body = __VSP_GET_SAFE(id+"_body");
+    if(!body) return;
+
+    body.innerHTML = "";
+    const lines = [
+      ["RID", stats.rid || "(none)"],
+      ["Total", String(stats.total || 0)],
+      ["CRITICAL", String(stats.CRITICAL||0)],
+      ["HIGH", String(stats.HIGH||0)],
+      ["MEDIUM", String(stats.MEDIUM||0)],
+      ["LOW", String(stats.LOW||0)],
+      ["INFO", String(stats.INFO||0)],
+      ["TRACE", String(stats.TRACE||0)]
+    ];
+    for(const [k,v] of lines){
+      const row = el("div");
+      row.style.display="flex";
+      row.style.justifyContent="space-between";
+      row.style.gap="10px";
+      row.style.padding="2px 0";
+      const a=el("span"); a.style.opacity="0.75"; safeText(a,k);
+      const b=el("span"); b.style.fontWeight="700"; safeText(b,v);
+      row.appendChild(a); row.appendChild(b);
+      body.appendChild(row);
+    }
+  }
+
+  function normSev(s){
+    s = String(s||"").toUpperCase().trim();
+    if(["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].includes(s)) return s;
+    if(s==="INFORMATIONAL") return "INFO";
+    return "TRACE";
+  }
+
+  async function fetchTop(){
+    const u = "/api/vsp/top_findings_v2?limit=200";
+    const res = await fetch(u, { credentials:"same-origin" });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  }
+
+  async function boot(){
+    const stats = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,total:0,rid:(window.__VSP_RID||null)};
+    try{
+      const j = await fetchTop();
+      const items = Array.isArray(j.items) ? j.items : [];
+      stats.total = (typeof j.total==="number") ? j.total : items.length;
+      stats.rid = j.run_id || j.rid || stats.rid || null;
+      for(const it of items){
+        const sev = normSev(it.severity || it.sev || it.level);
+        stats[sev] = (stats[sev]||0) + 1;
+      }
+    }catch(e){
+      stats.err = String(e||"");
+      try{ console.warn("[VSP] dashboard safe fetch failed", e); }catch(_){}
+    }
+    renderOverlay(stats);
+    window.__VSP_DASHBOARD_LUXE_SAFE_V2 = { ok:true, stats };
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", () => boot().catch(()=>{}));
+  } else {
+    boot().catch(()=>{});
+  }
+})();

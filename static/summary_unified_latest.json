@@ -1,0 +1,51 @@
+{
+  "run": "RUN_20251123_173436",
+  "total": 9053,
+  "critical": 0,
+  "high": 162,
+  "medium": 8881,
+  "low": 10,
+  "info": 0,
+  "by_tool": {
+    "semgrep": {
+      "critical": 0,
+      "high": 121,
+      "medium": 8875,
+      "low": 0,
+      "info": 0,
+      "total": 8996
+    },
+    "bandit": {
+      "critical": 0,
+      "high": 0,
+      "medium": 4,
+      "low": 1,
+      "info": 0,
+      "total": 5
+    },
+    "gitleaks": {
+      "critical": 0,
+      "high": 26,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "total": 26
+    },
+    "trivy_fs": {
+      "critical": 0,
+      "high": 14,
+      "medium": 1,
+      "low": 9,
+      "info": 0,
+      "total": 24
+    },
+    "grype": {
+      "critical": 0,
+      "high": 1,
+      "medium": 1,
+      "low": 0,
+      "info": 0,
+      "total": 2
+    }
+  }
+}

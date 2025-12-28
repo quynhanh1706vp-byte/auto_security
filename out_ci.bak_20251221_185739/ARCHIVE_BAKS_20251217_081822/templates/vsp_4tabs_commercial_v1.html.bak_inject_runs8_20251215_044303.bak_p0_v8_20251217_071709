@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VSP 2025 – Commercial UI (4 Tabs)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/css/vsp_ui_4tabs_commercial_v1.css">
+</head>
+<body>
+  <div class="vsp-shell">
+    <aside class="vsp-side">
+      <div class="vsp-brand">
+        <div class="vsp-logo"></div>
+        <div>
+          <div class="vsp-title">VersaSecure Platform</div>
+          <div class="vsp-sub">VSP 2025 • UI gateway 8910</div>
+        </div>
+      </div>
+
+      <nav class="vsp-nav" id="nav">
+        <button data-tab="dashboard" class="active">
+          Dashboard <span class="vsp-pill" id="pill-overall">…</span>
+        </button>
+        <button data-tab="runs">
+          Runs &amp; Reports <span class="vsp-pill" id="pill-runs">…</span>
+        </button>
+        <button data-tab="settings">
+          Settings <span class="vsp-pill">env</span>
+        </button>
+        <button data-tab="data">
+          Data Source <span class="vsp-pill" id="pill-art">…</span>
+        </button>
+      </nav>
+
+      <div style="margin-top:16px" class="vsp-muted">
+        <div style="font-size:12px;line-height:1.5">
+          Route: <span class="vsp-mono">/vsp4</span><br/>
+          API: <span class="vsp-mono">/api/vsp/run_status_v2</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="vsp-main">
+      <div class="vsp-top">
+        <div class="vsp-h1" id="page-title">Dashboard</div>
+        <div class="vsp-actions">
+          <select id="run-picker" class="vsp-select"></select>
+          <button class="vsp-btn" id="btn-refresh">Refresh</button>
+          <a class="vsp-btn" href="/" title="Back to legacy UI">Legacy UI</a>
+        </div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard">
+        <div id="vsp-kpis-commercial">
+          <!-- reuse KPI contract from your previous bind script (same id) -->
+          <div class="vsp-kpi-grid">
+            <div class="vsp-kpi"><div class="k">Overall Verdict</div><div class="v" id="kpi-overall">…</div><div class="s" id="kpi-overall-sub"></div></div>
+            <div class="vsp-kpi"><div class="k">Gate Overall</div><div class="v" id="kpi-gate">…</div><div class="s" id="kpi-gate-sub"></div></div>
+            <div class="vsp-kpi"><div class="k">Tools A</div><div class="v" id="kpi-gitleaks">…</div><div class="s" id="kpi-gitleaks-sub"></div></div>
+            <div class="vsp-kpi"><div class="k">Tools B</div><div class="v" id="kpi-codeql">…</div><div class="s" id="kpi-codeql-sub"></div></div>
+          </div>
+        </div>
+
+        <div class="vsp-grid vsp-grid-2">
+          <div class="vsp-card">
+            <div class="vsp-row" style="justify-content:space-between">
+              <div style="font-weight:800">Gate Summary</div>
+              <div class="vsp-muted" id="gate-ts">…</div>
+            </div>
+            <div id="gate-bytool" style="margin-top:10px"></div>
+          </div>
+
+          <div class="vsp-card">
+            <div style="font-weight:800;margin-bottom:8px">Run Meta</div>
+            <div class="vsp-muted" style="font-size:12px;line-height:1.6" id="run-meta">…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RUNS -->
+      <section id="tab-runs" style="display:none">
+<!-- === VSP4_EXPORT_DS_V1 === -->
+        <div class="vsp-card" style="margin-bottom:14px">
+          <div class="vsp-row" style="justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-weight:800">Export (selected run)</div>
+              <div class="vsp-muted" style="font-size:12px;line-height:1.6;margin-top:4px">
+                UI sẽ tự dò endpoint export khả dụng. Nút nào có link thật thì bật.
+              </div>
+            </div>
+            <div class="vsp-row">
+              <a class="vsp-btn" id="btn-exp-html" href="#" target="_blank" rel="noopener">HTML</a>
+              <a class="vsp-btn" id="btn-exp-pdf"  href="#" target="_blank" rel="noopener">PDF</a>
+              <a class="vsp-btn" id="btn-exp-zip"  href="#" target="_blank" rel="noopener">ZIP</a>
+              <a class="vsp-btn" id="btn-open-artindex" href="#" target="_blank" rel="noopener">Artifacts JSON</a>
+            </div>
+          </div>
+          <div class="vsp-muted" style="font-size:12px;margin-top:8px" id="exp-hint">…</div>
+        </div>
+
+        <div class="vsp-card">
+          <div class="vsp-row" style="justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:800">Runs (latest 20)</div>
+            <div class="vsp-muted" style="font-size:12px">badges: overall + degraded_n</div>
+          </div>
+          <div style="overflow:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Overall</th>
+                  <th>Gate</th>
+                  <th>Gitleaks</th>
+                  <th>CodeQL</th>
+                  <th>Degraded<<!-- === VSP4_8TOOLS_HEADER_V1 === -->/th>
+                </tr>
+              </thead>
+              <tbody id="runs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="tab-settings" style="display:none">
+        <div class="vsp-card">
+          <div style="font-weight:800;margin-bottom:8px">Settings (UI-side)</div>
+          <div class="vsp-muted" style="font-size:12px;line-height:1.6">
+            Đây là placeholder “commercial”: UI hiển thị các toggle/timeout. Hiện tại chưa nối backend settings write,
+            nên các toggle sẽ lưu LocalStorage. Khi bạn làm backend settings route, chỉ cần bind vào đây.
+          </div>
+
+          <div class="vsp-grid" style="margin-top:12px">
+            <div class="vsp-row">
+              <span class="vsp-badge vsp-badge-muted"><span class="vsp-dot vsp-dot-muted"></span>ENABLE_CODEQL</span>
+              <select id="set-enable-codeql" class="vsp-select">
+                <option value="1">ON</option>
+                <option value="0">OFF</option>
+              </select>
+
+              <span class="vsp-badge vsp-badge-muted"><span class="vsp-dot vsp-dot-muted"></span>TIMEOUT_CODEQL</span>
+              <input id="set-timeout-codeql" class="vsp-select vsp-mono" value="3600s"/>
+
+              <span class="vsp-badge vsp-badge-muted"><span class="vsp-dot vsp-dot-muted"></span>TIMEOUT_KICS</span>
+              <input id="set-timeout-kics" class="vsp-select vsp-mono" value="1800s"/>
+            </div>
+
+            <div class="vsp-card" style="padding:12px">
+              <div style="font-weight:800;margin-bottom:6px">Hardening proof</div>
+              <div class="vsp-muted" style="font-size:12px;line-height:1.6" id="hardening-proof">
+                • KICS: docker <span class="vsp-mono">--pull=never</span> enforced<br/>
+                • KICS image digest: (optional) set env <span class="vsp-mono">VSP_KICS_IMAGE=checkmarx/kics@sha256:...</span><br/>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DATA SOURCE -->
+      <section id="tab-data" style="display:none">
+        <!-- === VSP4_DATASOURCE_V1 === -->
+
+        <div class="vsp-card">
+          <div class="vsp-row" style="justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:800">Artifacts index (selected run)</div>
+            <div class="vsp-muted" style="font-size:12px" id="art-count">…</div>
+          </div>
+          <div class="vsp-grid" style="margin-top:10px;gap:12px">
+    <div class="vsp-card" style="padding:12px">
+      <div style="font-weight:800;margin-bottom:6px">Status V2 JSON</div>
+      <div id="ds-statusv2" class="vsp-mono" style="font-size:12px;white-space:pre-wrap"></div>
+    </div>
+
+    <div class="vsp-card" style="padding:12px">
+      <div style="font-weight:800;margin-bottom:6px">Artifacts index JSON</div>
+      <div id="ds-artjson" class="vsp-mono" style="font-size:12px;white-space:pre-wrap"></div>
+      <div id="art-list" class="vsp-mono" style="display:none"></div>
+    </div>
+
+    <div class="vsp-card" style="padding:12px">
+      <div class="vsp-row" style="justify-content:space-between">
+        <div style="font-weight:800">Findings preview (best-effort)</div>
+        <div class="vsp-muted" style="font-size:12px" id="ds-findings-hint">…</div>
+      </div>
+      <div style="overflow:auto;margin-top:8px">
+        <table>
+          <thead><tr id="ds-findings-head"></tr></thead>
+          <tbody id="ds-findings-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script defer src="/static/js/vsp_ui_4tabs_commercial_v1.js"></script>
+</body>
+</html>

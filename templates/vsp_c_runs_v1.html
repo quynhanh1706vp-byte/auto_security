@@ -1,0 +1,32 @@
+{% extends "vsp_c_base_v1.html" %}
+{% block body %}
+  <div class="panel">
+    <div class="h">
+      <div>
+        <div class="hh">Runs & Reports</div>
+        <div class="hh2">Pick a RID → open Dashboard / Data Source</div>
+      </div>
+      <div class="hh2 mono" id="runs-meta">…</div>
+    </div>
+
+    <div class="row" style="margin-bottom:10px">
+      <input class="input" id="runs-q" placeholder="Filter by RID / label / date (client-side)" />
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:340px">RID</th>
+          <th style="width:220px">LABEL/TS</th>
+          <th class="muted">ACTIONS</th>
+        </tr>
+      </thead>
+      <tbody id="runs-tb">
+        <tr><td colspan="3" class="muted">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/vsp_c_runs_v1.js?v={{ asset_v }}"></script>
+{% endblock %}

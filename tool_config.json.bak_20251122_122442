@@ -1,0 +1,94 @@
+[
+  {
+    "id": "gitleaks",
+    "name": "Gitleaks",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "offline",
+      "online",
+      "ci/cd"
+    ],
+    "note": "secrets"
+  },
+  {
+    "id": "semgrep",
+    "name": "Semgrep",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "offline",
+      "online",
+      "ci/cd"
+    ],
+    "note": "SAST"
+  },
+  {
+    "id": "bandit",
+    "name": "Bandit",
+    "enabled": true,
+    "level": "fast",
+    "modes": [
+      "offline",
+      "ci/cd"
+    ],
+    "note": "Python"
+  },
+  {
+    "id": "trivy-secret",
+    "name": "Trivy Secret",
+    "enabled": true,
+    "level": "fast",
+    "modes": [
+      "offline",
+      "ci/cd"
+    ],
+    "note": "secrets"
+  },
+  {
+    "id": "trivy-misconfig",
+    "name": "Trivy Misconfig",
+    "enabled": true,
+    "level": "fast",
+    "modes": [
+      "offline",
+      "ci/cd"
+    ],
+    "note": "IaC"
+  },
+  {
+    "id": "trivy-vuln",
+    "name": "Trivy Vuln",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "offline",
+      "online",
+      "ci/cd"
+    ],
+    "note": "Image/FS vuln"
+  },
+  {
+    "id": "grype",
+    "name": "Grype",
+    "enabled": true,
+    "level": "fast",
+    "modes": [
+      "offline",
+      "ci/cd"
+    ],
+    "note": "SBOM"
+  },
+  {
+    "id": "codeql",
+    "name": "CodeQL",
+    "enabled": true,
+    "level": "aggr",
+    "modes": [
+      "offline",
+      "online",
+      "ci/cd"
+    ],
+    "note": "SAST (CodeQL multi-lang)"
+  }
+]

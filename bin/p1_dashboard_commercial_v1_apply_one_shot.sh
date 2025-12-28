@@ -1,0 +1,609 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need python3; need date; need grep
+
+TS="$(date +%Y%m%d_%H%M%S)"
+
+BUNDLE="static/js/vsp_bundle_commercial_v2.js"
+DASH="static/js/vsp_dashboard_commercial_v1.js"
+TPL="templates/vsp_dashboard_2025.html"
+
+[ -f "$BUNDLE" ] || { echo "[ERR] missing $BUNDLE"; exit 2; }
+mkdir -p "$(dirname "$DASH")"
+
+cp -f "$BUNDLE" "${BUNDLE}.bak_dashv1_${TS}"
+echo "[BACKUP] ${BUNDLE}.bak_dashv1_${TS}"
+
+if [ -f "$TPL" ]; then
+  cp -f "$TPL" "${TPL}.bak_dashv1_${TS}"
+  echo "[BACKUP] ${TPL}.bak_dashv1_${TS}"
+else
+  echo "[WARN] missing $TPL (skip template patch)"
+fi
+
+# 1) Write NEW dashboard renderer (single source + strict contract)
+python3 - <<'PY'
+from pathlib import Path
+import textwrap
+
+p = Path("static/js/vsp_dashboard_commercial_v1.js")
+p.write_text(textwrap.dedent(r"""
+/* VSP_P1_DASHBOARD_COMMERCIAL_V1 (Single Renderer; Strict Contract; CIO-level layout)
+   Data sources (commercial truth):
+   - /api/vsp/rid_latest_gate_root     => latest RID (CI run)
+   - /api/vsp/run_file_allow?rid=...&path=run_gate_summary.json
+   - /api/vsp/run_file_allow?rid=...&path=findings_unified.json
+   NO schema guessing: mismatch => "Data contract mismatch"
+*/
+(() => {
+  if (window.__vsp_dash_commercial_v1_loaded) return;
+  window.__vsp_dash_commercial_v1_loaded = true;
+
+  window.__VSP_DASH_VERSION__ = "1.0.0";
+  console.log("[VSP][DashCommercialV1] boot v=" + window.__VSP_DASH_VERSION__);
+
+  const TOOL_ORDER = ["Bandit","Semgrep","Gitleaks","KICS","Trivy","Syft","Grype","CodeQL"];
+  const SEV_ORDER = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+
+  function el(tag, attrs={}, children=[]) {
+    const n = document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs||{})) {
+      if (k === "class") n.className = v;
+      else if (k === "html") n.innerHTML = v;
+      else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, String(v));
+    }
+    for (const c of (children||[])) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    return n;
+  }
+
+  function injectCSSOnce(){
+    if (document.getElementById("VSP_P1_DASHBOARD_COMMERCIAL_CSS_V1")) return;
+    const css = `
+      .vspCioWrap{padding:18px 18px 28px 18px; max-width:1400px; margin:0 auto;}
+      .vspRow{display:flex; gap:12px; flex-wrap:wrap;}
+      .vspCard{background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px 14px;}
+      .vspCard h3{margin:0 0 8px 0; font-size:12px; opacity:.85; font-weight:600; letter-spacing:.02em;}
+      .vspBig{font-size:22px; font-weight:800; line-height:1.1;}
+      .vspSub{opacity:.8; font-size:12px;}
+      .vspPills{display:flex; gap:8px; flex-wrap:wrap;}
+      .vspPill{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px;
+               border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.03); cursor:pointer; user-select:none;}
+      .vspDot{width:9px; height:9px; border-radius:50%;}
+      .vspBadge{padding:6px 10px; border-radius:999px; font-weight:800; font-size:12px; border:1px solid rgba(255,255,255,0.14);}
+      .vspBtn{display:inline-flex; gap:8px; align-items:center; padding:8px 10px; border-radius:12px; cursor:pointer;
+              border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.03); text-decoration:none; color:inherit;}
+      .vspBtn:hover{background:rgba(255,255,255,0.06);}
+      .vspTable{width:100%; border-collapse:collapse; font-size:12px;}
+      .vspTable th,.vspTable td{padding:8px 8px; border-bottom:1px solid rgba(255,255,255,0.08); vertical-align:top;}
+      .vspTable th{opacity:.8; text-align:left; font-weight:700;}
+      .vspMiniBars{display:flex; gap:6px; align-items:flex-end; height:60px; padding:6px 0;}
+      .vspBar{flex:1; background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.10); border-radius:8px;}
+      .vspWarn{padding:10px 12px; border-radius:12px; border:1px solid rgba(255,200,0,0.25); background:rgba(255,200,0,0.06); font-size:12px;}
+      .vspErr{padding:10px 12px; border-radius:12px; border:1px solid rgba(255,0,0,0.25); background:rgba(255,0,0,0.06); font-size:12px;}
+      .vspGrid2{display:grid; grid-template-columns: 1.2fr .8fr; gap:12px;}
+      @media (max-width: 980px){ .vspGrid2{grid-template-columns: 1fr;} }
+      .vspKpiClick{cursor:pointer;}
+      .vspKpiClick:hover{background:rgba(255,255,255,0.06);}
+      .vspMuted{opacity:.72;}
+      .vspMono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    `;
+    document.head.appendChild(el("style",{id:"VSP_P1_DASHBOARD_COMMERCIAL_CSS_V1", html:css}));
+  }
+
+  async function fetchJSON(url){
+    const res = await fetch(url, {credentials:"same-origin"});
+    const text = await res.text();
+    let j = null;
+    try { j = JSON.parse(text); } catch (e) {
+      throw new Error("Non-JSON response ("+res.status+")");
+    }
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    return j;
+  }
+
+  function pickRID(obj){
+    if (!obj || typeof obj !== "object") return null;
+    // accept common keys without schema guessing on tool data, only RID lookup
+    return obj.rid || obj.run_id || obj.latest_rid || obj.id || null;
+  }
+
+  function normStatus(s){
+    const v = String(s||"").toUpperCase();
+    if (v.includes("PASS") || v==="GREEN") return "GREEN";
+    if (v.includes("WARN") || v==="AMBER" || v==="YELLOW") return "AMBER";
+    if (v.includes("FAIL") || v==="RED") return "RED";
+    if (v.includes("MISSING")) return "MISSING";
+    return v || "UNKNOWN";
+  }
+
+  function statusDot(status){
+    const s = normStatus(status);
+    // no hardcoded colors requested; use simple mapping via CSS inline opacity
+    // we'll still encode minimal style for readability
+    let bg = "rgba(200,200,200,0.8)";
+    if (s==="GREEN") bg="rgba(0,220,120,0.85)";
+    if (s==="AMBER") bg="rgba(255,200,0,0.85)";
+    if (s==="RED") bg="rgba(255,70,70,0.85)";
+    if (s==="MISSING") bg="rgba(160,160,160,0.85)";
+    return el("span",{class:"vspDot", style:"background:"+bg});
+  }
+
+  function overallBadge(status){
+    const s = normStatus(status);
+    let b = "rgba(200,200,200,0.10)", br="rgba(255,255,255,0.16)";
+    if (s==="GREEN"){ b="rgba(0,220,120,0.10)"; br="rgba(0,220,120,0.25)"; }
+    if (s==="AMBER"){ b="rgba(255,200,0,0.10)"; br="rgba(255,200,0,0.25)"; }
+    if (s==="RED"){ b="rgba(255,70,70,0.10)"; br="rgba(255,70,70,0.25)"; }
+    return el("span",{class:"vspBadge", style:`background:${b};border-color:${br}`}, [s]);
+  }
+
+  function strictContractOrThrow(gate, findings){
+    // Strict contract: findings.meta.counts_by_severity must exist, findings.findings array must exist
+    const meta = findings && findings.meta;
+    const cbs = meta && meta.counts_by_severity;
+    if (!cbs || typeof cbs !== "object") throw new Error("Data contract mismatch: missing findings.meta.counts_by_severity");
+    if (!Array.isArray(findings.findings)) throw new Error("Data contract mismatch: missing findings.findings[]");
+    // gate summary expected to be object; tolerate missing keys but require object
+    if (!gate || typeof gate !== "object") throw new Error("Data contract mismatch: gate summary not object");
+  }
+
+  function sumCounts(counts){
+    let t = 0;
+    for (const k of SEV_ORDER) t += Number(counts[k]||0);
+    return t;
+  }
+
+  function getCountsBySeverity(findings){
+    const c = findings.meta.counts_by_severity || {};
+    const out = {};
+    for (const k of SEV_ORDER) out[k] = Number(c[k]||0);
+    return out;
+  }
+
+  function extractToolStatus(gate, toolName){
+    // Prefer gate.by_tool[tool], else gate.tools[tool], else gate[tool]
+    const bt = gate.by_tool && gate.by_tool[toolName];
+    const tt = gate.tools && gate.tools[toolName];
+    const raw = bt || tt || gate[toolName] || null;
+    if (raw && typeof raw === "object"){
+      return {
+        status: raw.status || raw.overall || raw.result || raw.state || "UNKNOWN",
+        degraded: Boolean(raw.degraded),
+        reason: raw.degraded_reason || raw.reason || raw.note || ""
+      };
+    }
+    return {status: raw || "UNKNOWN", degraded:false, reason:""};
+  }
+
+  function extractOverall(gate){
+    return gate.overall_status || gate.overall || gate.status || "UNKNOWN";
+  }
+
+  function extractDegradedCount(gate){
+    let d = 0;
+    for (const t of TOOL_ORDER){
+      const st = extractToolStatus(gate, t);
+      if (st.degraded) d++;
+      if (normStatus(st.status)==="MISSING") d++; // treat missing as degraded visibility
+    }
+    if (gate.meta && typeof gate.meta.degraded_tools_count === "number") return gate.meta.degraded_tools_count;
+    return d;
+  }
+
+  function topReasonsPanel(gate){
+    // Explain why RED: derive from gate summary common fields
+    const reasons = [];
+    const r1 = gate.reasons || gate.top_reasons || gate.fail_reasons;
+    if (Array.isArray(r1)) reasons.push(...r1.map(x => (typeof x==="string"? x : (x.reason||x.title||JSON.stringify(x)))));
+    // fallback: scan by_tool for RED / degraded reasons
+    for (const t of TOOL_ORDER){
+      const st = extractToolStatus(gate, t);
+      const ns = normStatus(st.status);
+      if (ns==="RED" || st.degraded || ns==="MISSING"){
+        const msg = `${t}: ${ns}` + (st.reason ? ` — ${st.reason}` : "");
+        reasons.push(msg);
+      }
+    }
+    const uniq = [];
+    const seen = new Set();
+    for (const r of reasons){
+      const s = String(r||"").trim();
+      if (!s) continue;
+      const key = s.slice(0,220);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(s);
+      if (uniq.length >= 8) break;
+    }
+    const box = el("div",{class:"vspCard"},[
+      el("h3",{},["Explain why ", el("span",{class:"vspMono"},["RED/Degraded"])]),
+      uniq.length ? el("ul",{style:"margin:0; padding-left:18px;"}, uniq.map(x=>el("li",{class:"vspMuted",style:"margin:6px 0;"},[x])))
+                  : el("div",{class:"vspSub vspMuted"},["No reasons found in gate summary."])
+    ]);
+    return box;
+  }
+
+  function render(root, ctx){
+    const {rid, gate, findings} = ctx;
+    const overall = normStatus(extractOverall(gate));
+    const counts = getCountsBySeverity(findings);
+    const total = sumCounts(counts);
+    const degraded = extractDegradedCount(gate);
+
+    // Header strip
+    const header = el("div",{class:"vspCard"},[
+      el("div",{class:"vspRow", style:"align-items:center; justify-content:space-between;"},[
+        el("div",{class:"vspRow", style:"align-items:center;"},[
+          el("div",{},[
+            el("div",{class:"vspSub vspMono"},["RID: ", rid]),
+            el("div",{style:"display:flex; gap:10px; align-items:center; margin-top:6px;"},[
+              overallBadge(overall),
+              el("span",{class:"vspSub"},["Degraded: ", String(degraded), "/", String(TOOL_ORDER.length)]),
+            ])
+          ])
+        ]),
+        el("div",{class:"vspRow", style:"align-items:center;"},[
+          el("a",{class:"vspBtn", href:"/runs", title:"Open Runs & Reports"},["Open Runs"]),
+          el("a",{class:"vspBtn", href:"/data_source", title:"Open Data Source"},["Open Data Source"]),
+          el("a",{class:"vspBtn", href:"/runs?rid="+encodeURIComponent(rid), title:"Exports live in Runs (PDF/ZIP)"},["Export PDF/ZIP"]),
+        ])
+      ])
+    ]);
+
+    // KPI row
+    function kpiCard(title, value, sevKey=null){
+      const card = el("div",{class:"vspCard vspKpiClick", style:"min-width:180px; flex:1;"},[
+        el("h3",{},[title]),
+        el("div",{class:"vspBig"},[String(value)]),
+        sevKey ? el("div",{class:"vspSub vspMuted"},["Click to filter findings: ", sevKey]) : el("div",{class:"vspSub vspMuted"},[""])
+      ]);
+      if (sevKey){
+        card.addEventListener("click", () => {
+          window.__vsp_dash_filter_sev = sevKey;
+          const ev = new CustomEvent("VSP_DASH_FILTER_CHANGED", {detail:{sev:sevKey}});
+          window.dispatchEvent(ev);
+        });
+      }
+      return card;
+    }
+
+    const kpis = el("div",{class:"vspRow"},[
+      kpiCard("Total findings", total, null),
+      kpiCard("CRITICAL", counts.CRITICAL, "CRITICAL"),
+      kpiCard("HIGH", counts.HIGH, "HIGH"),
+      kpiCard("MEDIUM", counts.MEDIUM, "MEDIUM"),
+      kpiCard("LOW", counts.LOW, "LOW"),
+    ]);
+
+    // Tool lane
+    const toolLane = el("div",{class:"vspCard"},[
+      el("h3",{},["Tool Lane (8 tools)"]),
+      el("div",{class:"vspPills"}, TOOL_ORDER.map(t => {
+        const st = extractToolStatus(gate, t);
+        const ns = normStatus(st.status);
+        const pill = el("div",{class:"vspPill", title:(st.reason||"")},[
+          statusDot(ns),
+          el("span",{class:"vspMono", style:"font-weight:800;"},[t]),
+          el("span",{class:"vspSub vspMuted"},[ns + (st.degraded ? " (degraded)" : "")]),
+        ]);
+        pill.addEventListener("click", () => {
+          // safe default: jump to Runs (no assumption about evidence file paths)
+          window.location.href = "/runs?rid=" + encodeURIComponent(rid);
+        });
+        return pill;
+      }))
+    ]);
+
+    // Trend mini (best effort)
+    const trend = el("div",{class:"vspCard"},[
+      el("h3",{},["Trend (last 10 runs)"]),
+      el("div",{class:"vspSub vspMuted", id:"vspTrendNote"},["Loading runs…"]),
+      el("div",{class:"vspMiniBars", id:"vspTrendBars"},[]),
+    ]);
+
+    // Top findings table
+    const tblWrap = el("div",{class:"vspCard"},[
+      el("h3",{},["Top Findings (fix-first)"]),
+      el("div",{class:"vspSub vspMuted", id:"vspFilterHint"},["Filter: none"]),
+      el("table",{class:"vspTable"},[
+        el("thead",{},[
+          el("tr",{},[
+            el("th",{},["Severity"]),
+            el("th",{},["Tool"]),
+            el("th",{},["Title"]),
+            el("th",{},["Location"]),
+          ])
+        ]),
+        el("tbody",{id:"vspTopFindingsBody"},[])
+      ])
+    ]);
+
+    // Audit / ISO readiness (lightweight, honest)
+    const audit = el("div",{class:"vspCard"},[
+      el("h3",{},["Audit / ISO readiness (quick)"]),
+      el("div",{class:"vspSub vspMuted"},[
+        "Evidence loaded: ",
+        "run_gate_summary.json ✅, findings_unified.json ✅. ",
+        "Full ISO mapping requires rule_id → control mapping table (phase P1)."
+      ]),
+      el("div",{class:"vspWarn", style:"margin-top:10px;"},[
+        "ISO quick hint (placeholder): A.5 Access control, A.8 Asset mgmt, A.8.9 Config mgmt — cần map thực từ rule_id/tool."
+      ])
+    ]);
+
+    // Layout grid
+    const grid = el("div",{class:"vspGrid2"},[
+      el("div",{class:"vspRow", style:"flex-direction:column; gap:12px;"},[
+        header,
+        kpis,
+        toolLane,
+        el("div",{class:"vspRow", style:"gap:12px;"},[trend, topReasonsPanel(gate)]),
+        tblWrap,
+      ]),
+      el("div",{class:"vspRow", style:"flex-direction:column; gap:12px;"},[
+        audit,
+        el("div",{class:"vspCard"},[
+          el("h3",{},["Data contract"]),
+          el("div",{class:"vspSub vspMono"},["findings.meta.counts_by_severity + findings[] required"]),
+          el("div",{class:"vspSub vspMono"},["gate summary object required (overall/by_tool recommended)"]),
+        ])
+      ])
+    ]);
+
+    root.innerHTML = "";
+    root.appendChild(el("div",{class:"vspCioWrap"},[grid]));
+
+    // Fill Top Findings
+    const tbody = root.querySelector("#vspTopFindingsBody");
+    const filterHint = root.querySelector("#vspFilterHint");
+
+    function sevRank(s){
+      const v = String(s||"").toUpperCase();
+      const i = SEV_ORDER.indexOf(v);
+      return i>=0 ? i : 999;
+    }
+
+    function normFinding(f){
+      const sev = String(f.severity||f.sev||f.level||"").toUpperCase();
+      const tool = f.tool || f.source || f.engine || f.detector || "";
+      const title = f.title || f.message || f.rule_name || f.rule_id || f.id || "(no title)";
+      const loc = (() => {
+        const path = f.path || (f.location && f.location.path) || (f.file && f.file.path) || "";
+        const line = f.line || (f.location && f.location.line) || (f.start && f.start.line) || "";
+        return (path ? path : "(no path)") + (line ? (":" + line) : "");
+      })();
+      return {sev, tool, title, loc};
+    }
+
+    function renderFindings(){
+      const want = window.__vsp_dash_filter_sev || null;
+      filterHint.textContent = "Filter: " + (want || "none");
+      const rows = findings.findings.map(normFinding)
+        .filter(x => !want || x.sev === want)
+        .sort((a,b)=> sevRank(a.sev)-sevRank(b.sev));
+      const top = rows.slice(0, 12);
+      tbody.innerHTML = "";
+      for (const r of top){
+        tbody.appendChild(el("tr",{},[
+          el("td",{class:"vspMono"},[r.sev || "UNKNOWN"]),
+          el("td",{class:"vspMono"},[String(r.tool||"")]),
+          el("td",{},[String(r.title||"")]),
+          el("td",{class:"vspMono vspMuted"},[String(r.loc||"")]),
+        ]));
+      }
+      if (!top.length){
+        tbody.appendChild(el("tr",{},[
+          el("td",{colspan:"4", class:"vspSub vspMuted"},["No findings to display (filtered or empty)."])
+        ]));
+      }
+    }
+
+    window.addEventListener("VSP_DASH_FILTER_CHANGED", renderFindings);
+    renderFindings();
+
+    // Trend (best effort): /api/vsp/runs?limit=10
+    (async () => {
+      const note = root.querySelector("#vspTrendNote");
+      const bars = root.querySelector("#vspTrendBars");
+      try{
+        const runs = await fetchJSON("/api/vsp/runs?limit=10");
+        const arr = Array.isArray(runs) ? runs : (runs.runs || runs.items || []);
+        if (!Array.isArray(arr) || !arr.length){
+          note.textContent = "No runs data (backend returns empty).";
+          return;
+        }
+        // Expect each item to have counts_by_severity or at least overall
+        const pts = arr.map(x => {
+          const rid2 = x.rid || x.run_id || x.id || "";
+          const c = (x.counts_by_severity || (x.meta && x.meta.counts_by_severity)) || null;
+          const totalCH = c ? (Number(c.CRITICAL||0) + Number(c.HIGH||0)) : null;
+          return {rid:rid2, totalCH};
+        }).slice(0,10).reverse();
+
+        const max = Math.max(1, ...pts.map(p => Number(p.totalCH||0)));
+        bars.innerHTML = "";
+        for (const p of pts){
+          const h = p.totalCH==null ? 10 : Math.max(6, Math.round((p.totalCH/max)*60));
+          const bar = el("div",{class:"vspBar", title:(p.rid?("RID "+p.rid):"") + (p.totalCH==null ? " (no counts)" : (" C+H="+p.totalCH)), style:"height:"+h+"px"});
+          bars.appendChild(bar);
+        }
+        note.textContent = "Bar = (CRITICAL + HIGH) for last runs (best effort).";
+      }catch(e){
+        note.textContent = "Trend unavailable: " + String(e.message||e);
+      }
+    })();
+  }
+
+  async function boot(){
+    injectCSSOnce();
+
+    // find mount
+    let mount = document.getElementById("vsp_dashboard_mount_v1");
+    if (!mount){
+      // best-effort: reuse existing dashboard container if present
+      mount = document.getElementById("vsp_dashboard") || document.getElementById("dashboard") || null;
+    }
+    if (!mount){
+      mount = el("div",{id:"vsp_dashboard_mount_v1"});
+      // insert near top of body content
+      const main = document.querySelector("main") || document.body;
+      main.insertBefore(mount, main.firstChild);
+    }
+
+    // Resolve RID (commercial truth)
+    let rid = window.__VSP_RID_LATEST_GATE_ROOT__ || window.__vsp_rid_latest_gate_root || null;
+    if (!rid){
+      try{
+        const j = await fetchJSON("/api/vsp/rid_latest_gate_root");
+        rid = pickRID(j) || (j && j.data && pickRID(j.data)) || null;
+      }catch(e){
+        // Do NOT fallback to schema guessing of run data; show error
+        mount.innerHTML = "";
+        mount.appendChild(el("div",{class:"vspCioWrap"},[
+          el("div",{class:"vspErr"},[
+            el("div",{style:"font-weight:800;"},["Cannot resolve rid_latest_gate_root"]),
+            el("div",{class:"vspSub vspMuted"},["Expected endpoint: /api/vsp/rid_latest_gate_root"]),
+          ])
+        ]));
+        console.error("[VSP][DashCommercialV1] rid_latest_gate_root failed:", e);
+        return;
+      }
+    }
+
+    // Fetch truth files
+    const gateUrl = "/api/vsp/run_file_allow?rid="+encodeURIComponent(rid)+"&path=run_gate_summary.json";
+    const findUrl = "/api/vsp/run_file_allow?rid="+encodeURIComponent(rid)+"&path=findings_unified.json";
+    try{
+      const gate = await fetchJSON(gateUrl);
+      const findings = await fetchJSON(findUrl);
+
+      // Some APIs wrap {ok:true,data:{...}}; accept wrapper only here (transport), not schema guessing of tool fields
+      const gateObj = gate && gate.data ? gate.data : gate;
+      const findObj = findings && findings.data ? findings.data : findings;
+
+      strictContractOrThrow(gateObj, findObj);
+
+      console.log("[VSP][DashCommercialV1] ok rid="+rid+" findings="+(findObj.findings?findObj.findings.length:"?"));
+      render(mount, {rid, gate:gateObj, findings:findObj});
+    }catch(e){
+      mount.innerHTML = "";
+      mount.appendChild(el("div",{class:"vspCioWrap"},[
+        el("div",{class:"vspErr"},[
+          el("div",{style:"font-weight:800;"},["Data contract mismatch / load failed"]),
+          el("div",{class:"vspSub vspMuted"},[String(e.message||e)]),
+          el("div",{class:"vspSub vspMuted"},["Required: findings.meta.counts_by_severity + findings.findings[]"]),
+          el("div",{class:"vspSub vspMuted vspMono"},["RID: "+rid]),
+        ])
+      ]));
+      console.error("[VSP][DashCommercialV1] load/render failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+""").lstrip(), encoding="utf-8")
+print("[OK] wrote", p)
+PY
+
+# 2) Patch bundle to become loader/hook (loads DashCommercialV1; does NOT contain dash logic)
+python3 - <<'PY'
+from pathlib import Path
+import time, re
+
+p = Path("static/js/vsp_bundle_commercial_v2.js")
+s = p.read_text(encoding="utf-8", errors="replace")
+
+marker = "VSP_P1_DASHBOARD_LOADER_HOOK_V1"
+if marker in s:
+    print("[OK] bundle already patched:", marker)
+else:
+    hook = r'''
+/* ===================== VSP_P1_DASHBOARD_LOADER_HOOK_V1 =====================
+   Commercial rule: vsp_bundle_commercial_v2.js acts as LOADER/HOOK only.
+   Dashboard logic lives in: /static/js/vsp_dashboard_commercial_v1.js
+*/
+(()=> {
+  try{
+    if (window.__vsp_p1_dashboard_loader_hook_v1) return;
+    window.__vsp_p1_dashboard_loader_hook_v1 = true;
+
+    const path = (location && location.pathname) ? location.pathname : "";
+    const isDash = (path === "/vsp5" || path === "/dashboard" || path === "/") ||
+                   document.querySelector('meta[name="vsp-page"][content="dashboard"]') ||
+                   document.getElementById("vsp_dashboard") ||
+                   document.getElementById("dashboard");
+
+    if (!isDash) return;
+
+    // Prevent "double nav" feeling: we will render DashCommercialV1 into mount,
+    // and we DO NOT require Gate Story JS on dashboard.
+    const id = "VSP_DASH_COMMERCIAL_V1_JS";
+    if (document.getElementById(id)) return;
+
+    const sc = document.createElement("script");
+    sc.id = id;
+    sc.defer = true;
+    sc.src = "/static/js/vsp_dashboard_commercial_v1.js?v=" + (window.__VSP_ASSET_V__ || Date.now());
+    document.head.appendChild(sc);
+
+    console.log("[VSP][Bundle] loader hooked -> DashCommercialV1");
+  }catch(e){
+    console.warn("[VSP][Bundle] loader hook failed:", e);
+  }
+})();
+/* ===================== /VSP_P1_DASHBOARD_LOADER_HOOK_V1 ===================== */
+'''
+    s2 = s.rstrip() + "\n\n" + hook + "\n"
+    p.write_text(s2, encoding="utf-8")
+    print("[OK] appended loader hook marker:", marker)
+PY
+
+# 3) Best-effort: remove Gate Story JS include from dashboard template (avoid 2 nav/2 renderers)
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+p = Path("templates/vsp_dashboard_2025.html")
+if not p.exists():
+    print("[SKIP] template missing:", p)
+    raise SystemExit(0)
+
+s = p.read_text(encoding="utf-8", errors="replace")
+marker = "VSP_P1_DASHBOARD_TEMPLATE_DETACH_GATE_STORY_V1"
+if marker in s:
+    print("[OK] template already patched:", marker)
+    raise SystemExit(0)
+
+# remove script tag that references vsp_dashboard_gate_story_v1.js (common include form)
+s2, n = re.subn(
+    r'\n?\s*<script[^>]+vsp_dashboard_gate_story_v1\.js[^>]*>\s*</script>\s*',
+    '\n',
+    s,
+    flags=re.I
+)
+
+# add marker comment near end of head or before </body>
+insert = "\n<!-- %s: Gate Story JS detached on dashboard (DashCommercialV1 owns renderer) -->\n" % marker
+if "</head>" in s2:
+    s2 = s2.replace("</head>", insert + "</head>", 1)
+else:
+    s2 = insert + s2
+
+p.write_text(s2, encoding="utf-8")
+print("[OK] template patched; removed gate story script tags:", n)
+PY
+
+echo "== sanity checks =="
+node --check "$DASH" >/dev/null 2>&1 && echo "[OK] node --check $DASH" || echo "[WARN] node --check failed (node may be missing)"
+node --check "$BUNDLE" >/dev/null 2>&1 && echo "[OK] node --check $BUNDLE" || echo "[WARN] node --check failed (node may be missing)"
+
+echo
+echo "[DONE] DashCommercialV1 applied."
+echo "Next:"
+echo "  1) restart UI service (gunicorn/systemd) as you usually do"
+echo "  2) open /vsp5 and check console: [VSP][DashCommercialV1] boot + ok rid=..."

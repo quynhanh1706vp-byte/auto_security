@@ -1,0 +1,88 @@
+/* VSP_P0_FETCH_SHIM_V2 (rewrite + timing + error surfacing) */
+(()=> {
+  if (window.__vsp_p0_fetch_shim_v2) return;
+  window.__vsp_p0_fetch_shim_v2 = true;
+
+  const THRESH_MS = 800;
+
+  function ensureOverlay(){
+    let el = document.getElementById("vspFetchOverlayV2");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "vspFetchOverlayV2";
+    el.style.cssText = [
+      "position:fixed","top:10px","right:10px","z-index:999999",
+      "max-width:520px","font:12px/1.35 ui-monospace,Menlo,Consolas,monospace",
+      "background:rgba(0,0,0,.55)","border:1px solid rgba(255,255,255,.10)",
+      "border-radius:10px","padding:10px","backdrop-filter: blur(6px)",
+      "color:#e5e7eb"
+    ].join(";");
+    el.innerHTML = `<div style="font-weight:700;margin-bottom:6px">VSP fetch</div>
+                    <div id="vspFetchLinesV2"></div>`;
+    document.addEventListener("DOMContentLoaded", ()=> document.body.appendChild(el), {once:true});
+    if (document.body) document.body.appendChild(el);
+    return el;
+  }
+  function logLine(msg){
+    try{
+      ensureOverlay();
+      const box = document.getElementById("vspFetchLinesV2");
+      if (!box) return;
+      const div = document.createElement("div");
+      div.textContent = msg;
+      box.prepend(div);
+      while (box.children.length > 12) box.removeChild(box.lastChild);
+    }catch(e){}
+  }
+
+  // Surface runtime errors
+  window.addEventListener("error", (e)=>{
+    logLine("[ERR] " + (e.message || "error"));
+    console.error("[VSP][window.error]", e);
+  });
+  window.addEventListener("unhandledrejection", (e)=>{
+    logLine("[ERR] unhandledrejection");
+    console.error("[VSP][unhandledrejection]", e);
+  });
+
+  const origFetch = window.fetch ? window.fetch.bind(window) : null;
+  if (!origFetch) {
+    console.warn("[VSP] fetch shim V2: no fetch()");
+    return;
+  }
+
+  function rewriteUrl(u){
+    try{
+      const url = String(u);
+      // canonical: any rid_latest -> rid_latest_gate_root
+      if (url.includes("/api/vsp/rid_latest_gate_root")) return url;
+      if (url.includes("/api/vsp/rid_latest")) return url.replace("/api/vsp/rid_latest", "/api/vsp/rid_latest_gate_root");
+      return url;
+    }catch(e){ return u; }
+  }
+
+  window.fetch = async function(input, init){
+    const t0 = performance.now();
+    const u0 = (typeof input === "string" || input instanceof URL) ? String(input) : (input && input.url) ? String(input.url) : String(input);
+    const u1 = rewriteUrl(u0);
+
+    let realInput = input;
+    if (u1 !== u0) {
+      if (typeof input === "string" || input instanceof URL) realInput = u1;
+      else realInput = new Request(u1, input);
+    }
+
+    try{
+      const resp = await origFetch(realInput, init);
+      const dt = performance.now() - t0;
+      if (dt > THRESH_MS) logLine(`[SLOW ${Math.round(dt)}ms] ${resp.status} ${u1}`);
+      return resp;
+    }catch(err){
+      const dt = performance.now() - t0;
+      logLine(`[FAIL ${Math.round(dt)}ms] ${u1}`);
+      throw err;
+    }
+  };
+
+  console.log("[VSP] fetch shim active: VSP_P0_FETCH_SHIM_V2");
+})();

@@ -1,0 +1,109 @@
+(function () {
+  console.log("[VSP_RUNS] vsp_runs_tab_simple_v2.js loaded");
+
+  const tbody = document.getElementById("vsp-runs-tbody");
+  const btnApply = document.getElementById("vsp-runs-apply");
+  const btnReset = document.getElementById("vsp-runs-reset");
+  const inputFrom = document.getElementById("vsp-runs-from");
+  const inputTo = document.getElementById("vsp-runs-to");
+  const selectSeverity = document.getElementById("vsp-runs-severity");
+  const inputTool = document.getElementById("vsp-runs-tool");
+  const inputProfile = document.getElementById("vsp-runs-profile");
+
+  let allRuns = [];
+
+  async function loadRuns() {
+    try {
+      const resp = await fetch("/api/vsp/runs_index_v3_fs?limit=200");
+      const data = await resp.json();
+      if (!resp.ok || !data.items) {
+        console.error("[VSP_RUNS] load error", data);
+        return;
+      }
+      allRuns = data.items;
+      renderRuns(allRuns);
+    } catch (err) {
+      console.error("[VSP_RUNS] loadRuns error", err);
+    }
+  }
+
+  function getSelectedSeverities() {
+    if (!selectSeverity) return [];
+    return Array.from(selectSeverity.options)
+      .filter(o => o.selected)
+      .map(o => o.value);
+  }
+
+  function renderRuns(runs) {
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    runs.forEach(item => {
+      const tr = document.createElement("tr");
+      const runId = item.run_id || "";
+      const createdAt = item.created_at || "";
+      const profile = item.profile || "";
+      const total = item.totals ? item.totals.total_findings || item.totals.total || "" : "";
+      const gate = item.ci_gate_status || item.gate_status || "";
+      tr.innerHTML = `
+        <td>${runId}</td>
+        <td>${createdAt}</td>
+        <td>${profile}</td>
+        <td>${total}</td>
+        <td>${gate}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyFilter() {
+    let filtered = [...allRuns];
+    const from = inputFrom && inputFrom.value ? inputFrom.value : null;
+    const to = inputTo && inputTo.value ? inputTo.value : null;
+    const severities = getSelectedSeverities();
+    const tool = (inputTool && inputTool.value || "").trim().toLowerCase();
+    const profile = (inputProfile && inputProfile.value || "").trim().toLowerCase();
+
+    filtered = filtered.filter(item => {
+      const created = (item.created_at || "").slice(0, 10); // YYYY-MM-DD
+      if (from && created && created < from) return false;
+      if (to && created && created > to) return false;
+
+      if (profile) {
+        const p = (item.profile || "").toLowerCase();
+        if (!p.includes(profile)) return false;
+      }
+
+      if (tool) {
+        const byTool = item.by_tool || {};
+        const toolNames = Object.keys(byTool).map(x => x.toLowerCase());
+        if (!toolNames.some(x => x.includes(tool))) return false;
+      }
+
+      if (severities.length > 0) {
+        const totals = item.by_severity || item.totals_by_severity || {};
+        const hasAny = severities.some(sev => (totals[sev] || 0) > 0);
+        if (!hasAny) return false;
+      }
+
+      return true;
+    });
+
+    renderRuns(filtered);
+  }
+
+  function resetFilter() {
+    if (inputFrom) inputFrom.value = "";
+    if (inputTo) inputTo.value = "";
+    if (inputTool) inputTool.value = "";
+    if (inputProfile) inputProfile.value = "";
+    if (selectSeverity) {
+      Array.from(selectSeverity.options).forEach(o => o.selected = false);
+    }
+    renderRuns(allRuns);
+  }
+
+  if (btnApply) btnApply.addEventListener("click", applyFilter);
+  if (btnReset) btnReset.addEventListener("click", resetFilter);
+
+  document.addEventListener("DOMContentLoaded", loadRuns);
+})();

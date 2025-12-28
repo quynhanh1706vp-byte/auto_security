@@ -1,0 +1,122 @@
+/* vsp_datasource_tab_v1.js
+ * Commercial Data Source tab:
+ * - calls /api/vsp/run_findings_preview_v1/<RID>?limit=&offset=&tool=&severity=&q=
+ * - renders table, no console spam
+ */
+(function(){
+  const $ = (s)=>document.querySelector(s);
+  const esc = (s)=>String(s??"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+
+  function showPane(){
+    const pane = $("#vsp-pane-datasource");
+    if(!pane) return false;
+    // if router hides panes elsewhere, we just ensure ours visible when hash matches
+    const h = (location.hash||"").replace("#","").trim().toLowerCase();
+    if(h === "datasource"){
+      pane.style.display = "";
+    }
+    return true;
+  }
+
+  async function load(offset){
+    const pane = $("#vsp-pane-datasource");
+    if(!pane) return;
+
+    const rid = ($("#vsp-ds-rid")?.value||"").trim();
+    const tool = ($("#vsp-ds-tool")?.value||"").trim();
+    const sev  = ($("#vsp-ds-sev")?.value||"").trim();
+    const q    = ($("#vsp-ds-q")?.value||"").trim();
+
+    const meta = $("#vsp-ds-meta");
+    const tb   = $("#vsp-ds-tbody");
+    if(!rid){
+      if(meta) meta.textContent = "Run ID is required.";
+      if(tb) tb.innerHTML = "";
+      return;
+    }
+
+    const limit = 50;
+    const off = Math.max(0, Number(offset||0));
+    const qs = new URLSearchParams({limit:String(limit), offset:String(off)});
+    if(tool) qs.set("tool", tool);
+    if(sev)  qs.set("severity", sev);
+    if(q)    qs.set("q", q);
+
+    const url = `/api/vsp/run_findings_preview_v1/${encodeURIComponent(rid)}?` + qs.toString();
+    if(meta) meta.textContent = "Loading…";
+
+    try{
+      const r = await fetch(url, {cache:"no-store"});
+      const j = await r.json().catch(()=>null);
+      if(!j || !j.ok){
+        if(meta) meta.textContent = `Not ready (${r.status})`;
+        if(tb) tb.innerHTML = "";
+        return;
+      }
+
+      const total = j.total ?? 0;
+      const has = !!j.has_findings;
+      const file = j.file || null;
+      const warn = j.warning || null;
+      const lim = j.limit ?? limit;
+      const curOff = j.offset ?? off;
+
+      if(meta){
+        meta.textContent =
+          `RID=${rid} • total=${total} • showing ${curOff+1}-${Math.min(curOff+lim,total)} • ` +
+          (has ? "has_findings=YES" : "has_findings=NO") +
+          (warn ? ` • warning=${warn}` : "") +
+          (file ? ` • file=${file}` : "");
+      }
+
+      const items = Array.isArray(j.items) ? j.items : [];
+      if(tb){
+        tb.innerHTML = items.map(it=>{
+          const tool2 = esc(it.tool||"");
+          const sev2  = esc(it.severity||"");
+          const title = esc(it.title||"");
+          const file2 = esc(it.file||"");
+          const line  = esc(it.line||"");
+          const rule  = esc(it.rule_id||"");
+          return `<tr>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${tool2}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${sev2}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${title}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${file2}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${line}</td>
+            <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,.06);">${rule}</td>
+          </tr>`;
+        }).join("");
+      }
+
+      // remember for Next
+      pane.dataset.vspDsOffset = String(curOff);
+      pane.dataset.vspDsTotal  = String(total);
+      pane.dataset.vspDsLimit  = String(lim);
+
+    }catch(_e){
+      if(meta) meta.textContent = "Load failed (network).";
+      if(tb) tb.innerHTML = "";
+    }
+  }
+
+  function bind(){
+    const btn = $("#vsp-ds-load");
+    const nxt = $("#vsp-ds-next");
+    if(btn) btn.addEventListener("click", ()=>load(0));
+    if(nxt) nxt.addEventListener("click", ()=>{
+      const pane = $("#vsp-pane-datasource");
+      const off = Number(pane?.dataset?.vspDsOffset||"0");
+      const lim = Number(pane?.dataset?.vspDsLimit||"50");
+      load(off + lim);
+    });
+  }
+
+  function boot(){
+    if(!showPane()) return;
+    bind();
+  }
+
+  window.addEventListener("hashchange", ()=>{ showPane(); });
+  document.addEventListener("DOMContentLoaded", boot);
+})();

@@ -1,0 +1,99 @@
+from flask import Blueprint, request, jsonify
+import os
+import json
+from typing import List, Dict, Any, Optional
+
+bp = Blueprint("vsp_datasource_v2", __name__, url_prefix="/api/vsp")
+
+BASE_DIR = "/home/test/Data/SECURITY_BUNDLE"
+OUT_DIR = os.path.join(BASE_DIR, "out")
+
+
+def _find_latest_run() -> Optional[str]:
+    """
+    Ưu tiên:
+      1) RUN_VSP_FULL_EXT_*
+      2) RUN_VSP_FULL_*
+      3) các RUN_VSP_* khác
+    """
+    if not os.path.isdir(OUT_DIR):
+        return None
+
+    candidates = []
+    for name in os.listdir(OUT_DIR):
+        if not name.startswith("RUN_VSP"):
+            continue
+        full = os.path.join(OUT_DIR, name)
+        if not os.path.isdir(full):
+            continue
+
+        if "FULL_EXT" in name:
+            prio = 2
+        elif "FULL" in name:
+            prio = 1
+        else:
+            prio = 0
+        candidates.append((prio, name, full))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: (x[0], x[1]))
+    return candidates[-1][2]   # path
+
+
+def _load_findings(run_dir: str) -> List[Dict[str, Any]]:
+    path = os.path.join(run_dir, "report", "findings_unified.json")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
+@bp.get("/datasource_v2")
+def datasource_v2():
+    """
+    /api/vsp/datasource_v2?severity=HIGH&tool=kics&limit=10
+    """
+    run_dir = _find_latest_run()
+    if not run_dir:
+        return jsonify({
+            "ok": False,
+            "error": "No VSP run directory found in out/",
+            "run_id": None,
+            "total": 0,
+            "items": [],
+        }), 200
+
+    run_id = os.path.basename(run_dir)
+    findings = _load_findings(run_dir)
+
+    sev = request.args.get("severity")
+    tool = request.args.get("tool")
+    limit = request.args.get("limit", type=int) or 100
+    offset = request.args.get("offset", type=int) or 0
+
+    def _match(f: Dict[str, Any]) -> bool:
+        eff = (f.get("severity_effective") or f.get("severity") or "").upper()
+        if sev and eff != sev.upper():
+            return False
+        if tool and str(f.get("tool") or "").lower() != tool.lower():
+            return False
+        return True
+
+    filtered = [f for f in findings if _match(f)]
+    total = len(filtered)
+    sliced = filtered[offset: offset + limit]
+
+    return jsonify({
+        "ok": True,
+        "run_id": run_id,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": sliced,
+    })

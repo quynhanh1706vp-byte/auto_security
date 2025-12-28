@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+UI="/home/test/Data/SECURITY_BUNDLE/ui"
+cd "$UI"
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+OUT="$UI/out_ci"; TS="$(date +%Y%m%d_%H%M%S)"
+EVID="$OUT/p63_runtime_${TS}"; mkdir -p "$EVID"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need node; need curl; need python3; need head; need wc
+
+log(){ echo "[$(date +%H:%M:%S)] $*" | tee -a "$EVID/summary.txt" >/dev/null; }
+
+log "== [P63] Runtime gate (PW v7, module-safe, no-hang) =="
+log "UI=$UI"
+log "BASE=$BASE"
+log "EVID=$EVID"
+
+# quick HTTP warm (retry)
+for p in /vsp5 /runs /data_source /settings /rule_overrides; do
+  ok=0
+  for i in 1 2 3; do
+    code="$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 6 "$BASE$p" || true)"
+    log "[HTTP] $p try#$i => $code"
+    [ "$code" = "200" ] && ok=1 && break
+    sleep 0.4
+  done
+  [ "$ok" = "1" ] || { log "[ERR] tab not 200: $p"; exit 2; }
+done
+
+# pick RID
+RID="$(curl -fsS --connect-timeout 2 --max-time 8 "$BASE/api/vsp/top_findings_v2?limit=1" \
+  | python3 -c 'import sys,json; j=json.load(sys.stdin); print(j.get("rid") or j.get("run_id") or "")' || true)"
+log "RID=$RID"
+[ -n "$RID" ] || { log "[ERR] RID empty"; exit 2; }
+
+cat > "$EVID/pw_gate.js" <<'JS'
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
+
+const BASE = process.env.VSP_UI_BASE || 'http://127.0.0.1:8910';
+const RID = process.env.VSP_RID || '';
+const EVID = process.env.VSP_EVID || process.cwd();
+
+function jlog(file, obj){
+  fs.appendFileSync(path.join(EVID, file), JSON.stringify(obj) + "\n");
+}
+function writeJson(file, obj){
+  fs.writeFileSync(path.join(EVID, file), JSON.stringify(obj, null, 2));
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+(async () => {
+  const started = new Date().toISOString();
+  let consoleErr = 0, pageErr = 0, reqFail = 0;
+
+  const browser = await chromium.launch({ headless: true });
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+
+  page.on('console', msg => {
+    const type = msg.type();
+    const text = msg.text();
+    const loc = msg.location();
+    const rec = { ts: new Date().toISOString(), type, text, location: loc };
+    if (type === 'error') { consoleErr++; jlog('console_error.jsonl', rec); }
+    else if (type === 'warning') jlog('console_warn.jsonl', rec);
+    else jlog('console_log.jsonl', rec);
+  });
+
+  page.on('pageerror', err => {
+    pageErr++;
+    jlog('pageerror.jsonl', { ts: new Date().toISOString(), message: String(err) });
+  });
+
+  page.on('requestfailed', req => {
+    const failure = req.failure() || {};
+    const errText = String(failure.errorText || '');
+    const url = req.url();
+    // IGNORE common aborts due to navigation/replace
+    if (errText.includes('net::ERR_ABORTED')) return;
+    reqFail++;
+    jlog('requestfailed.jsonl', { ts: new Date().toISOString(), url, errorText: errText, method: req.method(), resourceType: req.resourceType() });
+  });
+
+  const tabs = [
+    `/vsp5?rid=${encodeURIComponent(RID)}`,
+    `/runs?rid=${encodeURIComponent(RID)}`,
+    `/data_source?rid=${encodeURIComponent(RID)}`,
+    `/settings?rid=${encodeURIComponent(RID)}`,
+    `/rule_overrides?rid=${encodeURIComponent(RID)}`
+  ];
+
+  for (let i=0;i<tabs.length;i++){
+    const p = tabs[i];
+    const url = BASE + p;
+    const tag = `tab${i+1}`;
+    try{
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await sleep(1200);
+      const html = await page.content();
+      fs.writeFileSync(path.join(EVID, `page_${tag}.html`), html);
+
+      // screenshot: never hang
+      const shot = page.screenshot({ path: path.join(EVID, `page_${tag}.png`), timeout: 15000 });
+      await Promise.race([
+        shot,
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('screenshot_timeout')), 17000))
+      ]).catch(e=>{
+        jlog('screenshot_warn.jsonl', { ts: new Date().toISOString(), tab: p, warn: String(e) });
+      });
+    }catch(e){
+      pageErr++;
+      jlog('pageerror.jsonl', { ts: new Date().toISOString(), tab: p, message: String(e) });
+    }
+  }
+
+  await browser.close();
+
+  const ok = (consoleErr === 0 && pageErr === 0 && reqFail === 0);
+  writeJson('verdict.json', {
+    ok,
+    ts: new Date().toISOString(),
+    base: BASE,
+    rid: RID,
+    evidence_dir: EVID,
+    console_error_lines: consoleErr,
+    pageerror_lines: pageErr,
+    requestfailed_lines: reqFail,
+    started
+  });
+
+  process.exit(ok ? 0 : 2);
+})();
+JS
+
+log "== [RUN] playwright =="
+export NODE_PATH="$UI/node_modules"
+export VSP_UI_BASE="$BASE"
+export VSP_RID="$RID"
+export VSP_EVID="$EVID"
+node "$EVID/pw_gate.js" >"$EVID/pw_gate.out" 2>"$EVID/pw_gate.err" || true
+
+if [ -f "$EVID/verdict.json" ]; then
+  log "[OK] verdict.json written"
+else
+  log "[FAIL] verdict.json missing -> runtime script did not run"
+  tail -n 60 "$EVID/pw_gate.err" 2>/dev/null | tee -a "$EVID/summary.txt" >/dev/null || true
+  exit 2
+fi
+
+log "[INFO] console_error_lines=$(wc -l <"$EVID/console_error.jsonl" 2>/dev/null || echo 0) pageerror_lines=$(wc -l <"$EVID/pageerror.jsonl" 2>/dev/null || echo 0) requestfailed_lines=$(wc -l <"$EVID/requestfailed.jsonl" 2>/dev/null || echo 0)"
+log "[DONE] Evidence=$EVID"

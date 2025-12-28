@@ -1,0 +1,59 @@
+/* VSP_PANE_TOGGLE_SAFE_V2: show ONLY active pane by hash route */
+(function(){
+  'use strict';
+
+  function routeFromHash(){
+    let h = (location.hash||"").trim();
+    if (!h) return "dashboard";
+    if (h[0] === "#") h = h.slice(1);
+    h = h.split(/[?&]/)[0].trim();
+    if (!h) return "dashboard";
+    // normalize aliases
+    if (h === "run" || h === "reports") h = "runs";
+    if (h === "artifacts") h = "datasource";
+    return h;
+  }
+
+  const map = {
+    dashboard: "vsp-dashboard-main",
+    runs:      "vsp-runs-main",
+    datasource:"vsp-datasource-main",
+    settings:  "vsp-settings-main",
+    rules:     "vsp-rules-main"
+  };
+
+  function setDisplay(id, on){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = on ? "" : "none";
+  }
+
+  function apply(){
+    const r = routeFromHash();
+    const activeId = map[r] || map.dashboard;
+
+    // hide all known panes
+    Object.values(map).forEach(id => setDisplay(id, false));
+
+    // show active
+    setDisplay(activeId, true);
+
+    // extra safety: if non-dashboard route, force hide dashboard even if DOM duplicated
+    if (r !== "dashboard") {
+      setDisplay(map.dashboard, false);
+      // also hide any stray dashboard blocks if they exist
+      document.querySelectorAll('[data-pane="dashboard"], .vsp-dashboard-pane, .vsp-dashboard-main').forEach(x=>{
+        try{ x.style.display = "none"; }catch(_){}
+      });
+    }
+  }
+
+  window.addEventListener("hashchange", apply);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", apply, {once:true});
+  } else apply();
+
+  // late apply for async injected panes
+  setTimeout(apply, 200);
+  setTimeout(apply, 800);
+})();

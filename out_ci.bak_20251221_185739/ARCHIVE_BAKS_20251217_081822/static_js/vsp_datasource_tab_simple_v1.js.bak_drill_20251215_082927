@@ -1,0 +1,75 @@
+(function () {
+  console.log("[VSP_DS] vsp_datasource_tab_simple_v1.js loaded");
+
+  const tbody = document.getElementById("vsp-ds-tbody");
+  const inputSeverity = document.getElementById("vsp-ds-severity");
+  const inputTool = document.getElementById("vsp-ds-tool");
+  const inputCwe = document.getElementById("vsp-ds-cwe");
+  const inputPath = document.getElementById("vsp-ds-path");
+  const btnApply = document.getElementById("vsp-ds-apply");
+  const btnReset = document.getElementById("vsp-ds-reset");
+
+  let allFindings = [];
+
+  async function loadData() {
+    try {
+      const resp = await fetch("/api/vsp/datasource_v2?limit=500");
+      const data = await resp.json();
+      if (!resp.ok || !data.items) {
+        console.error("[VSP_DS] load error", data);
+        return;
+      }
+      allFindings = data.items;
+      render(allFindings);
+    } catch (err) {
+      console.error("[VSP_DS] loadData error", err);
+    }
+  }
+
+  function render(items) {
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    items.forEach(f => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${f.run_id || ""}</td>
+        <td>${f.tool || ""}</td>
+        <td>${f.severity || ""}</td>
+        <td>${f.cwe_id || ""}</td>
+        <td>${f.file_path || ""}</td>
+        <td>${f.rule_id || ""}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyFilter() {
+    const sev = (inputSeverity && inputSeverity.value || "").trim().toUpperCase();
+    const tool = (inputTool && inputTool.value || "").trim().toLowerCase();
+    const cwe = (inputCwe && inputCwe.value || "").trim().toUpperCase();
+    const path = (inputPath && inputPath.value || "").trim().toLowerCase();
+
+    const filtered = allFindings.filter(f => {
+      if (sev && (f.severity || "").toUpperCase() !== sev) return false;
+      if (tool && !(f.tool || "").toLowerCase().includes(tool)) return false;
+      if (cwe && !(f.cwe_id || "").toUpperCase().includes(cwe)) return false;
+      if (path && !(f.file_path || "").toLowerCase().includes(path)) return false;
+      return true;
+    });
+
+    render(filtered);
+  }
+
+  function resetFilter() {
+    if (inputSeverity) inputSeverity.value = "";
+    if (inputTool) inputTool.value = "";
+    if (inputCwe) inputCwe.value = "";
+    if (inputPath) inputPath.value = "";
+    render(allFindings);
+  }
+
+  if (btnApply) btnApply.addEventListener("click", applyFilter);
+  if (btnReset) btnReset.addEventListener("click", resetFilter);
+
+  document.addEventListener("DOMContentLoaded", loadData);
+})();

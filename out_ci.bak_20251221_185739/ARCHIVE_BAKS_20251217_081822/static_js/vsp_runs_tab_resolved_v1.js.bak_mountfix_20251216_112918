@@ -1,0 +1,270 @@
+/* VSP_RUNS_TAB_RESOLVED_V1 (commercial): filter by dataset flags from API fields only */
+(function(){
+  'use strict';
+
+  const API_RUNS = "/api/vsp/runs_index_v3_fs_resolved";
+  const EXPORT_BASE = "/api/vsp/run_export_v3";   // /<rid>?fmt=html|zip|pdf
+  const STATUS_BASE = "/api/vsp/run_status_v2";   // /<rid>
+  const ART_BASE   = "/api/vsp/artifacts_index_v1"; // /<rid> (if exists)
+
+  function $(sel, root){ return (root||document).querySelector(sel); }
+  function $all(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+  function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function toBoolOrNull(v){
+    if (v === true || v === false) return v;
+    if (v === 1 || v === 0) return !!v;
+    if (typeof v === "string"){
+      const t = v.trim().toLowerCase();
+      if (t === "1" || t === "true" || t === "yes") return true;
+      if (t === "0" || t === "false" || t === "no") return false;
+    }
+    return null;
+  }
+  function flagToAttr(v){ return v === true ? "1" : v === false ? "0" : "?"; }
+  function attrToTri(v){
+    if (v === "1") return true;
+    if (v === "0") return false;
+    return null;
+  }
+
+  function pickApiFlagOnly(item, keys){
+    // Commercial rule: ONLY trust explicit fields from API; if missing => unknown ("?")
+    for (const k of keys){
+      if (Object.prototype.hasOwnProperty.call(item, k)){
+        const b = toBoolOrNull(item[k]);
+        if (b !== null) return b;
+        // if API provided but not parseable, still treat unknown
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function normalizeRuns(json){
+    const items = (json && (json.items || json.data || json.runs)) || [];
+    return Array.isArray(items) ? items : [];
+  }
+
+  function ensureRunsRoot(){
+    return (
+      $("#tab-runs") ||
+      $("#vsp4-runs") ||
+      $("[data-tab='runs']") ||
+      $("#runs") ||
+      document.body
+    );
+  }
+
+  function ensureUI(root){
+    // toolbar
+    let tb = $("#vsp-runs-toolbar", root);
+    if (!tb){
+      tb = document.createElement("div");
+      tb.id = "vsp-runs-toolbar";
+      tb.className = "vsp-card vsp-card--tight";
+      tb.style.marginBottom = "12px";
+      tb.innerHTML = `
+        <div class="vsp-row" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="opacity:.9">Limit</label>
+            <select id="vsp-runs-limit" class="vsp-input">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="opacity:.9">Has findings</label>
+            <select id="vsp-runs-filter-hf" class="vsp-input">
+              <option value="all" selected>All</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+              <option value="?">Unknown</option>
+            </select>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label style="opacity:.9">Degraded</label>
+            <select id="vsp-runs-filter-deg" class="vsp-input">
+              <option value="all" selected>All</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+              <option value="?">Unknown</option>
+            </select>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center; flex:1; min-width:220px;">
+            <label style="opacity:.9">Search</label>
+            <input id="vsp-runs-search" class="vsp-input" placeholder="run_id / target / status..." style="flex:1; min-width:180px;" />
+          </div>
+
+          <button id="vsp-runs-refresh" class="vsp-btn">Refresh</button>
+          <span id="vsp-runs-meta" style="opacity:.8"></span>
+        </div>
+      `;
+      // place toolbar near top of runs tab
+      root.prepend(tb);
+    }
+
+    // table
+    let table = $("#vsp-runs-table", root);
+    if (!table){
+      table = document.createElement("table");
+      table.id = "vsp-runs-table";
+      table.className = "vsp-table";
+      table.style.width = "100%";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th style="width:200px;">Time</th>
+            <th>Run ID</th>
+            <th style="width:140px;">Target</th>
+            <th style="width:120px;">Status</th>
+            <th style="width:120px;">Findings</th>
+            <th style="width:120px;">Degraded</th>
+            <th style="width:220px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="vsp-runs-tbody"></tbody>
+      `;
+      root.appendChild(table);
+    }
+
+    return { tb, table, tbody: $("#vsp-runs-tbody", root) || table.querySelector("tbody") };
+  }
+
+  function buildRow(item){
+    const rid = String(item.run_id || item.rid || item.id || "");
+    const created = item.ts || item.created_at || item.created || item.time || item.started_at || "";
+    const target = item.target_id || item.target || item.profile || item.app || "";
+    const status = item.status || item.stage || item.state || "";
+
+    // Commercial: only trust explicit fields (no heuristic text scan)
+    const hasFindings = pickApiFlagOnly(item, ["has_findings","hasFindings","hasFinding","findings_present"]);
+    const degraded    = pickApiFlagOnly(item, ["degraded","is_degraded","degraded_any","degradedAny","tool_degraded"]);
+
+    const tr = document.createElement("tr");
+    tr.dataset.hasFindings = flagToAttr(hasFindings);
+    tr.dataset.degraded = flagToAttr(degraded);
+    tr.setAttribute("data-has-findings", tr.dataset.hasFindings);
+    tr.setAttribute("data-degraded", tr.dataset.degraded);
+
+    const hfLabel = tr.dataset.hasFindings === "1" ? "YES" : tr.dataset.hasFindings === "0" ? "NO" : "UNKNOWN";
+    const degLabel = tr.dataset.degraded === "1" ? "YES" : tr.dataset.degraded === "0" ? "NO" : "UNKNOWN";
+
+    const exportHtml = rid ? `${EXPORT_BASE}/${encodeURIComponent(rid)}?fmt=html` : "#";
+    const exportZip  = rid ? `${EXPORT_BASE}/${encodeURIComponent(rid)}?fmt=zip`  : "#";
+    const exportPdf  = rid ? `${EXPORT_BASE}/${encodeURIComponent(rid)}?fmt=pdf`  : "#";
+    const statusUrl  = rid ? `${STATUS_BASE}/${encodeURIComponent(rid)}` : "#";
+    const artUrl     = rid ? `${ART_BASE}/${encodeURIComponent(rid)}`    : "#";
+
+    tr.innerHTML = `
+      <td>${esc(created)}</td>
+      <td><code>${esc(rid)}</code></td>
+      <td>${esc(target)}</td>
+      <td>${esc(status)}</td>
+      <td><span class="vsp-pill">${esc(hfLabel)}</span></td>
+      <td><span class="vsp-pill">${esc(degLabel)}</span></td>
+      <td style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="vsp-btn vsp-btn--ghost" href="${esc(statusUrl)}" target="_blank" rel="noopener">status</a>
+        <a class="vsp-btn vsp-btn--ghost" href="${esc(artUrl)}" target="_blank" rel="noopener">artifacts</a>
+        <a class="vsp-btn vsp-btn--ghost" href="${esc(exportHtml)}" target="_blank" rel="noopener">html</a>
+        <a class="vsp-btn vsp-btn--ghost" href="${esc(exportZip)}" target="_blank" rel="noopener">zip</a>
+        <a class="vsp-btn vsp-btn--ghost" href="${esc(exportPdf)}" target="_blank" rel="noopener">pdf</a>
+      </td>
+    `;
+    return tr;
+  }
+
+  function applyFilters(root){
+    const hf = $("#vsp-runs-filter-hf", root)?.value || "all";
+    const dg = $("#vsp-runs-filter-deg", root)?.value || "all";
+    const q  = ($("#vsp-runs-search", root)?.value || "").trim().toLowerCase();
+
+    const rows = $all("#vsp-runs-tbody tr", root);
+    let shown = 0;
+
+    for (const tr of rows){
+      const rhf = tr.getAttribute("data-has-findings") || tr.dataset.hasFindings || "?";
+      const rdg = tr.getAttribute("data-degraded") || tr.dataset.degraded || "?";
+
+      let ok = true;
+      if (hf !== "all" && rhf !== hf) ok = false;
+      if (dg !== "all" && rdg !== dg) ok = false;
+
+      if (ok && q){
+        const hay = (tr.textContent || "").toLowerCase();
+        if (!hay.includes(q)) ok = false;
+      }
+
+      tr.hidden = !ok;
+      if (ok) shown++;
+    }
+
+    const meta = $("#vsp-runs-meta", root);
+    if (meta) meta.textContent = `Showing ${shown}/${rows.length}`;
+  }
+
+  async function loadRuns(root){
+    const limit = parseInt($("#vsp-runs-limit", root)?.value || "50", 10) || 50;
+    const url = `${API_RUNS}?limit=${encodeURIComponent(String(limit))}&hide_empty=0&filter=1`;
+    const meta = $("#vsp-runs-meta", root);
+    if (meta) meta.textContent = "Loading...";
+
+    const res = await fetch(url, { credentials: "same-origin" });
+    const json = await res.json().catch(() => ({}));
+    const items = normalizeRuns(json);
+
+    // cache for other tabs/debug
+    window.__vspRunsItems = items;
+
+    const {tbody} = ensureUI(root);
+    tbody.innerHTML = "";
+    for (const it of items){
+      tbody.appendChild(buildRow(it));
+    }
+    applyFilters(root);
+
+    // also show counts per flag quickly
+    const rows = $all("#vsp-runs-tbody tr", root);
+    const c = { hf1:0,hf0:0,hfu:0,dg1:0,dg0:0,dgu:0 };
+    for (const tr of rows){
+      const rhf = tr.getAttribute("data-has-findings") || "?";
+      const rdg = tr.getAttribute("data-degraded") || "?";
+      if (rhf === "1") c.hf1++; else if (rhf === "0") c.hf0++; else c.hfu++;
+      if (rdg === "1") c.dg1++; else if (rdg === "0") c.dg0++; else c.dgu++;
+    }
+    if (meta){
+      meta.textContent = `Loaded ${rows.length}. has_findings: Y=${c.hf1} N=${c.hf0} U=${c.hfu} | degraded: Y=${c.dg1} N=${c.dg0} U=${c.dgu}`;
+    }
+  }
+
+  function bind(root){
+    const refresh = $("#vsp-runs-refresh", root);
+    const limit = $("#vsp-runs-limit", root);
+    const hf = $("#vsp-runs-filter-hf", root);
+    const dg = $("#vsp-runs-filter-deg", root);
+    const q  = $("#vsp-runs-search", root);
+
+    if (refresh) refresh.addEventListener("click", () => loadRuns(root).catch(e => console.error("[VSP_RUNS] load error", e)));
+    if (limit) limit.addEventListener("change", () => loadRuns(root).catch(e => console.error("[VSP_RUNS] load error", e)));
+
+    const onFilter = () => applyFilters(root);
+    if (hf) hf.addEventListener("change", onFilter);
+    if (dg) dg.addEventListener("change", onFilter);
+    if (q)  q.addEventListener("input", onFilter);
+  }
+
+  function init(){
+    const root = ensureRunsRoot();
+    ensureUI(root);
+    bind(root);
+    loadRuns(root).catch(e => console.error("[VSP_RUNS] init load error", e));
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

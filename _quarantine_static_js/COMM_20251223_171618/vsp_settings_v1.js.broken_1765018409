@@ -1,0 +1,379 @@
+/* =========================================================
+ * VSP_SETTINGS_V1 – Commercial Settings UI
+ *  - GET  /api/vsp/settings/get
+ *  - POST /api/vsp/settings/update   (nếu backend hỗ trợ)
+ * Hỗ trợ cả 2 dạng payload:
+ *  (A) Cũ: { ok, env:{profile, root_dir}, tools:{gitleaks:{enabled,label},...} }
+ *  (B) Mới: { ok, profile, root, run_dir_base, scan:{...}, tools:{gitleaks:true/false,...} }
+ * ======================================================= */
+
+(function () {
+  const API_SETTINGS_GET = "/api/vsp/settings/get";
+  const API_SETTINGS_UPDATE = "/api/vsp/settings/update";
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function esc(v) {
+    if (v === null || v === undefined) return "";
+    return String(v);
+  }
+
+  async function fetchJson(url, opts) {
+    const resp = await fetch(url, opts || {});
+    const ct = resp.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      throw new Error("Not JSON, status " + resp.status);
+    }
+    const data = await resp.json();
+    if (!resp.ok) {
+      const err = new Error("HTTP " + resp.status);
+      err.payload = data;
+      throw err;
+    }
+    return data;
+  }
+
+  // Chuẩn hoá dữ liệu settings từ API cũ / mới về 1 object duy nhất
+  function normalizeSettings(raw) {
+    const out = {
+      profile: "EXT+",
+      root: "",
+      run_dir_base: "",
+      scan: {
+        mode: "code",
+        code_src: "/home/test/Data/khach6",
+        url_target: "https://staging-zt.lab.linksafe.vn",
+        url_login_profile: "itim_local"
+      },
+      tools: {}
+    };
+
+    if (!raw || raw.ok === false) return out;
+
+    // Kiểu mới
+    if (raw.profile || raw.root || raw.run_dir_base || raw.scan || raw.tools) {
+      if (raw.profile) out.profile = String(raw.profile);
+      if (raw.root) out.root = String(raw.root);
+      if (raw.run_dir_base) out.run_dir_base = String(raw.run_dir_base);
+      if (raw.scan && typeof raw.scan === "object") {
+        if (raw.scan.mode === "code" || raw.scan.mode === "url") {
+          out.scan.mode = raw.scan.mode;
+        }
+        if (raw.scan.code_src) out.scan.code_src = String(raw.scan.code_src);
+        if (raw.scan.url_target) out.scan.url_target = String(raw.scan.url_target);
+        if (raw.scan.url_login_profile) {
+          out.scan.url_login_profile = String(raw.scan.url_login_profile);
+        }
+      }
+      if (raw.tools && typeof raw.tools === "object") {
+        Object.keys(raw.tools).forEach(function (k) {
+          const v = raw.tools[k];
+          if (typeof v === "boolean") {
+            out.tools[k] = v;
+          } else if (v && typeof v.enabled === "boolean") {
+            out.tools[k] = v.enabled;
+          } else {
+            out.tools[k] = true;
+          }
+        });
+      }
+      if (!out.root && raw.root_dir) {
+        out.root = String(raw.root_dir);
+      }
+      return out;
+    }
+
+    // Kiểu cũ: env + tools
+    if (raw.env && typeof raw.env === "object") {
+      if (raw.env.profile) out.profile = String(raw.env.profile);
+      if (raw.env.root_dir) {
+        out.root = String(raw.env.root_dir);
+        out.run_dir_base = out.root + "/out";
+      }
+    }
+
+    if (raw.tools && typeof raw.tools === "object") {
+      Object.keys(raw.tools).forEach(function (k) {
+        const v = raw.tools[k];
+        if (v && typeof v.enabled === "boolean") {
+          out.tools[k] = v.enabled;
+        } else {
+          out.tools[k] = true;
+        }
+      });
+    }
+
+    return out;
+  }
+
+  function buildHtml(settings) {
+    const profile = esc(settings.profile || "EXT+");
+    const root = esc(settings.root || "");
+    const runDirBase = esc(settings.run_dir_base || "");
+
+    const scan = settings.scan || {};
+    const scanMode = esc(scan.mode || "code");
+    const codeSrc = esc(scan.code_src || "/home/test/Data/khach6");
+    const urlTarget = esc(scan.url_target || "https://staging-zt.lab.linksafe.vn");
+    const urlLoginProfile = esc(scan.url_login_profile || "itim_local");
+
+    const tools = settings.tools || {};
+
+    function checked(b) {
+      return b ? "checked" : "";
+    }
+
+    return (
+      '<div class="vsp-settings-root">' +
+      '  <div class="vsp-settings-row vsp-settings-row-main">' +
+
+      '    <div class="vsp-card vsp-settings-card">' +
+      '      <div class="vsp-card-header">General configuration</div>' +
+      '      <div class="vsp-card-body">' +
+
+      '        <div class="vsp-form-row">' +
+      '          <label for="vsp-set-profile">Profile</label>' +
+      '          <select id="vsp-set-profile" data-field="profile" class="vsp-input">' +
+      '            <option value="FAST"' + (profile === "FAST" ? " selected" : "") + '>FAST</option>' +
+      '            <option value="EXT"' + (profile === "EXT" ? " selected" : "") + '>EXT</option>' +
+      '            <option value="EXT+"' + (profile === "EXT+" ? " selected" : "") + '>EXT+</option>' +
+      '            <option value="AGGR"' + (profile === "AGGR" ? " selected" : "") + '>AGGR</option>' +
+      '            <option value="FULL"' + (profile === "FULL" ? " selected" : "") + '>FULL</option>' +
+      '          </select>' +
+      '          <p class="vsp-help-text">Profile điều khiển độ "nặng" của stack.</p>' +
+      '        </div>' +
+
+      '        <div class="vsp-form-row">' +
+      '          <label for="vsp-set-root">ROOT (project root)</label>' +
+      '          <input id="vsp-set-root" data-field="root" class="vsp-input" type="text"' +
+      '                 placeholder="/home/test/Data/SECURITY_BUNDLE"' +
+      '                 value="' + root + '"/>' +
+      '        </div>' +
+
+      '        <div class="vsp-form-row">' +
+      '          <label for="vsp-set-run-dir-base">RUN_DIR base</label>' +
+      '          <input id="vsp-set-run-dir-base" data-field="run_dir_base" class="vsp-input" type="text"' +
+      '                 placeholder="/home/test/Data/SECURITY_BUNDLE/out"' +
+      '                 value="' + runDirBase + '"/>' +
+      '          <p class="vsp-help-text">Thư mục chứa RUN_VSP_FULL_EXT_YYYYmmdd_HHMMSS.</p>' +
+      '        </div>' +
+
+      '        <hr class="vsp-settings-separator"/>' +
+
+      '        <div class="vsp-form-row">' +
+      '          <label>Scan targets</label>' +
+      '          <div class="vsp-radio-group">' +
+      '            <label>' +
+      '              <input type="radio" name="vsp-scan-mode" value="code"' +
+                     (scanMode === "code" ? " checked" : "") + '/>' +
+      '              <span>Source code (VSP 8-tool stack)</span>' +
+      '            </label>' +
+      '            <label>' +
+      '              <input type="radio" name="vsp-scan-mode" value="url"' +
+                     (scanMode === "url" ? " checked" : "") + '/>' +
+      '              <span>Application URL (ANY-URL / AATE)</span>' +
+      '            </label>' +
+      '          </div>' +
+      '        </div>' +
+
+      '        <div class="vsp-form-row vsp-scan-code-block">' +
+      '          <label for="vsp-scan-code-src">Default source path</label>' +
+      '          <input id="vsp-scan-code-src" class="vsp-input" type="text"' +
+      '                 placeholder="/home/test/Data/khach6"' +
+      '                 value="' + codeSrc + '"/>' +
+      '          <p class="vsp-help-text">SRC mặc định cho bin/run_vsp_full_ext.sh.</p>
+        <!-- VSP_SETTINGS_RUNBTN_20251206 -->
+        <div class=\"vsp-settings-run-row\">
+          <button type=\"button\" class=\"vsp-btn-primary\" id=\"vsp-run-full-ext-btn\">
+            Run FULL EXT scan
+          </button>
+          <span class=\"vsp-help-inline\">
+            Sử dụng profile &amp; SRC ở trên để chạy bin/run_vsp_full_ext.sh.
+          </span>
+        </div>
+        ' +
+      '        </div>' +
+
+      '        <div class="vsp-form-row vsp-scan-url-block">' +
+      '          <label for="vsp-scan-url-target">Default target URL</label>' +
+      '          <input id="vsp-scan-url-target" class="vsp-input" type="text"' +
+      '                 placeholder="https://staging-zt.lab.linksafe.vn"' +
+      '                 value="' + urlTarget + '"/>' +
+      '        </div>' +
+
+      '        <div class="vsp-form-row vsp-scan-url-block">' +
+      '          <label for="vsp-scan-url-login">Login profile (ANY-URL)</label>' +
+      '          <input id="vsp-scan-url-login" class="vsp-input" type="text"' +
+      '                 placeholder="itim_local"' +
+      '                 value="' + urlLoginProfile + '"/>' +
+      '          <p class="vsp-help-text">Khớp với profile login engine ANY-URL.</p>' +
+      '        </div>' +
+
+      '      </div>' +
+      '    </div>' +
+
+      '    <div class="vsp-card vsp-settings-card">' +
+      '      <div class="vsp-card-header">Tool stack</div>' +
+      '      <div class="vsp-card-body">' +
+      '        <table class="vsp-table vsp-table-compact vsp-table-tools">' +
+      '          <thead>' +
+      '            <tr>' +
+      '              <th style="width: 90px;">Enabled</th>' +
+      '              <th>Key</th>' +
+      '              <th>Tool</th>' +
+      '            </tr>' +
+      '          </thead>' +
+      '          <tbody>' +
+                   [
+                     ["gitleaks", "Gitleaks (Secrets)"],
+                     ["semgrep", "Semgrep (SAST)"],
+                     ["bandit", "Bandit (Python)"],
+                     ["trivy_fs", "Trivy FS"],
+                     ["syft", "Syft (SBOM)"],
+                     ["grype", "Grype (Vuln)"],
+                     ["kics", "KICS (IaC)"],
+                     ["codeql", "CodeQL (multi-lang)"]
+                   ].map(function (row) {
+                     var key = row[0];
+                     var label = row[1];
+                     return (
+                       '<tr>' +
+                       '  <td>' +
+                       '    <label class="vsp-switch">' +
+                       '      <input type="checkbox" data-tool-key="' + key + '" ' +
+                              checked(tools[key] !== false) + '/>' +
+                       '      <span class="vsp-switch-slider"></span>' +
+                       '    </label>' +
+                       '  </td>' +
+                       '  <td>' + key + '</td>' +
+                       '  <td>' + label + '</td>' +
+                       '</tr>'
+                     );
+                   }).join("") +
+      '          </tbody>' +
+      '        </table>' +
+      '      </div>' +
+      '    </div>' +
+
+      '  </div>' +
+
+      '  <div class="vsp-settings-row vsp-settings-row-footer">' +
+      '    <button class="vsp-btn vsp-btn-primary vsp-settings-save">Save settings</button>' +
+      '    <span class="vsp-settings-status" id="vsp-settings-status"></span>' +
+      '  </div>' +
+
+      '</div>'
+    );
+  }
+
+  function setStatus(text, ok) {
+    var el = $("vsp-settings-status");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.remove("is-ok", "is-err");
+    if (!text) return;
+    el.classList.add(ok ? "is-ok" : "is-err");
+  }
+
+  function updateScanVisibility(rootEl) {
+    var modeEl = rootEl.querySelector('input[name="vsp-scan-mode"]:checked');
+    var mode = modeEl ? modeEl.value : "code";
+    var codeBlocks = rootEl.querySelectorAll(".vsp-scan-code-block");
+    var urlBlocks = rootEl.querySelectorAll(".vsp-scan-url-block");
+    codeBlocks.forEach(function (el) {
+      el.style.display = mode === "code" ? "block" : "none";
+    });
+    urlBlocks.forEach(function (el) {
+      el.style.display = mode === "url" ? "block" : "none";
+    });
+  }
+
+  function collectData(rootEl) {
+    var profile = rootEl.querySelector('[data-field="profile"]').value.trim() || "EXT+";
+    var root = rootEl.querySelector('[data-field="root"]').value.trim();
+    var runDirBase = rootEl.querySelector('[data-field="run_dir_base"]').value.trim();
+
+    var modeEl = rootEl.querySelector('input[name="vsp-scan-mode"]:checked');
+    var mode = modeEl ? modeEl.value : "code";
+
+    var codeSrc = rootEl.querySelector("#vsp-scan-code-src").value.trim();
+    var urlTarget = rootEl.querySelector("#vsp-scan-url-target").value.trim();
+    var urlLogin = rootEl.querySelector("#vsp-scan-url-login").value.trim();
+
+    var tools = {};
+    rootEl.querySelectorAll("[data-tool-key]").forEach(function (cb) {
+      var key = cb.getAttribute("data-tool-key");
+      tools[key] = cb.checked;
+    });
+
+    return {
+      profile: profile,
+      root: root,
+      run_dir_base: runDirBase,
+      scan: {
+        mode: mode,
+        code_src: codeSrc,
+        url_target: urlTarget,
+        url_login_profile: urlLogin
+      },
+      tools: tools
+    };
+  }
+
+  function bindEvents(rootEl) {
+    rootEl.querySelectorAll('input[name="vsp-scan-mode"]').forEach(function (r) {
+      r.addEventListener("change", function () {
+        updateScanVisibility(rootEl);
+      });
+    });
+    updateScanVisibility(rootEl);
+
+    var btn = rootEl.querySelector(".vsp-settings-save");
+    if (!btn) return;
+    btn.addEventListener("click", async function () {
+      try {
+        setStatus("Saving...", true);
+        var payload = collectData(rootEl);
+        var data = await fetchJson(API_SETTINGS_UPDATE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!data || data.ok === false) {
+          throw new Error((data && data.error) || "save_failed");
+        }
+        setStatus("Saved.", true);
+      } catch (e) {
+        console.warn("[VSP][SETTINGS] save error:", e);
+        setStatus("Save failed (backend chưa hỗ trợ / lỗi API).", false);
+      }
+    });
+  }
+
+  async function initSettings() {
+    var tab = $("tab-settings");
+    if (!tab) return;
+
+    var settings = {
+      profile: "EXT+",
+      root: "",
+      run_dir_base: "",
+      scan: {},
+      tools: {}
+    };
+
+    try {
+      var raw = await fetchJson(API_SETTINGS_GET);
+      settings = normalizeSettings(raw);
+    } catch (e) {
+      console.warn("[VSP][SETTINGS] load error:", e);
+    }
+
+    tab.innerHTML = buildHtml(settings);
+    bindEvents(tab);
+  }
+
+  document.addEventListener("DOMContentLoaded", initSettings);
+})();

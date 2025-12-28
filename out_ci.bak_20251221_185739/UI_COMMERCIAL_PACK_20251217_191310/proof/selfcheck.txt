@@ -1,0 +1,49 @@
+== VSP COMMERCIAL SELFCHECK P0 ==
+== [1] /vsp4 scripts ==
+     1	/static/js/vsp_bundle_commercial_v2.js?v=1765967899
+== [2] /vsp4 strip headers ==
+Content-Type: text/html; charset=utf-8
+X-VSP-STRIP-P: P0_V2
+Cache-Control: no-store
+X-VSP-BUNDLEONLY: STRIP_PSCRIPT_P0_V1
+== [3] latest_rid_v1 ==
+{
+    "ci_run_dir": "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956",
+    "ok": true,
+    "rid": "VSP_CI_20251215_034956"
+}
+== [4] health (if exists) ==
+HTTP/1.1 200 OK
+Server: gunicorn
+Date: Wed, 17 Dec 2025 12:13:10 GMT
+Connection: keep-alive
+Content-Type: text/html; charset=utf-8
+== [5] recent errors ==
+[2025-12-17 19:03:33 +0700] [934995] [INFO] Handling signal: term
+[2025-12-17 19:03:33 +0700] [934998] [INFO] Worker exiting (pid: 934998)
+[2025-12-17 19:03:34 +0700] [936377] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:03:34 +0700] [936377] [INFO] Listening at: http://127.0.0.1:8910 (936377)
+[2025-12-17 19:03:34 +0700] [936377] [INFO] Using worker: gthread
+[2025-12-17 19:03:34 +0700] [936379] [INFO] Booting worker with pid: 936379
+[2025-12-17 19:03:34 +0700] [936380] [INFO] Booting worker with pid: 936380
+[2025-12-17 19:03:35 +0700] [934997] [INFO] Worker exiting (pid: 934997)
+[2025-12-17 19:09:23 +0700] [936377] [INFO] Handling signal: term
+[2025-12-17 19:09:24 +0700] [936380] [INFO] Parent changed, shutting down: <Worker 936380>
+[2025-12-17 19:09:24 +0700] [936380] [INFO] Worker exiting (pid: 936380)
+[2025-12-17 19:09:24 +0700] [936379] [INFO] Parent changed, shutting down: <Worker 936379>
+[2025-12-17 19:09:24 +0700] [936379] [INFO] Worker exiting (pid: 936379)
+[2025-12-17 19:09:24 +0700] [938830] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:09:24 +0700] [938830] [INFO] Listening at: http://127.0.0.1:8910 (938830)
+[2025-12-17 19:09:24 +0700] [938830] [INFO] Using worker: gthread
+[2025-12-17 19:09:24 +0700] [938832] [INFO] Booting worker with pid: 938832
+[2025-12-17 19:09:24 +0700] [938833] [INFO] Booting worker with pid: 938833
+[2025-12-17 19:11:26 +0700] [938830] [INFO] Handling signal: term
+[2025-12-17 19:11:26 +0700] [938832] [INFO] Worker exiting (pid: 938832)
+[2025-12-17 19:11:26 +0700] [938833] [INFO] Worker exiting (pid: 938833)
+[2025-12-17 19:11:26 +0700] [938830] [INFO] Shutting down: Master
+[2025-12-17 19:11:28 +0700] [939724] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:11:28 +0700] [939724] [INFO] Listening at: http://127.0.0.1:8910 (939724)
+[2025-12-17 19:11:28 +0700] [939724] [INFO] Using worker: gthread
+[2025-12-17 19:11:28 +0700] [939726] [INFO] Booting worker with pid: 939726
+[2025-12-17 19:11:28 +0700] [939727] [INFO] Booting worker with pid: 939727
+== DONE ==

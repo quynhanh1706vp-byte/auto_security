@@ -1,0 +1,38 @@
+/* VSP_DASH_ONLY_V1 */
+:root{
+  --bg:#0b1220;
+  --card: rgba(255,255,255,.04);
+  --bd: rgba(255,255,255,.10);
+  --txt: rgba(226,232,240,.92);
+  --muted: rgba(148,163,184,.88);
+  --good: rgba(34,197,94,.9);
+  --warn: rgba(245,158,11,.95);
+  --bad:  rgba(239,68,68,.92);
+  --accent: rgba(56,189,248,.9);
+  --r: 16px;
+}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+a{color:var(--txt);text-decoration:none}
+.topnav{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);background:rgba(0,0,0,.22);position:sticky;top:0;z-index:9999}
+.topnav a{font-size:12px;padding:8px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px}
+.topnav a:hover{background:rgba(255,255,255,.06)}
+.wrap{max-width:1200px;margin:16px auto;padding:0 14px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.kpi{min-width:180px;flex:1}
+.kpi .v{font-size:22px;font-weight:700}
+.kpi .l{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);font-size:12px}
+.btn{cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:var(--txt);border-radius:999px;padding:8px 10px;font-size:12px}
+.btn:hover{background:rgba(255,255,255,.10)}
+.small{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns: repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:900px){ .grid{grid-template-columns: repeat(2,minmax(0,1fr));} }
+.tool{padding:10px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.18)}
+.tool .t{font-size:12px;color:var(--muted)}
+.tool .s{font-size:12px;font-weight:700}
+.s-ok{color:var(--good)} .s-miss{color:var(--warn)} .s-bad{color:var(--bad)}
+pre{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;color:rgba(226,232,240,.92)}
+table{width:100%;border-collapse:collapse}
+td,th{border-bottom:1px solid rgba(255,255,255,.08);padding:8px 6px;font-size:12px;text-align:left}
+th{color:var(--muted);font-weight:600}

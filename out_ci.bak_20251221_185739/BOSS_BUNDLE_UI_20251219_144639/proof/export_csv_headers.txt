@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Server: gunicorn
+Date: Fri, 19 Dec 2025 07:46:39 GMT
+Connection: keep-alive
+Content-Disposition: attachment; filename=khach6_RUN_20251129_143155_027307.findings_unified.20251219_144639.csv
+Content-Type: text/csv; charset=utf-8
+Content-Length: 47
+Last-Modified: Fri, 19 Dec 2025 07:46:39 GMT
+Cache-Control: no-cache
+ETag: "1766130399.6233218-47-1170220448"
+X-VSP-FILLREAL: P1_V5
+

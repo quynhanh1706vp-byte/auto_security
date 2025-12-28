@@ -1,0 +1,344 @@
+from flask import Blueprint, jsonify
+from pathlib import Path
+import json
+import os
+
+bp = Blueprint("vsp_dashboard_v3", __name__)
+
+# ROOT = /home/test/Data/SECURITY_BUNDLE (hard-code cho chắc)
+ROOT = Path("/home/test/Data/SECURITY_BUNDLE")
+OUT_DIR = ROOT / "out"
+
+
+def _get_latest_vsp_run_dir():
+    """
+    1) Nếu có env VSP_RUN_DIR thì dùng đúng thư mục đó.
+    2) Nếu không, tìm RUN_VSP_FULL_EXT_* mới nhất trong OUT_DIR.
+    """
+    env_run = os.environ.get("VSP_RUN_DIR")
+    if env_run:
+        p = Path(env_run)
+        if (p / "report" / "summary_unified.json").is_file():
+            print(f"[VSP][DASH] dùng VSP_RUN_DIR={p}")
+            return p
+        else:
+            print(f"[VSP][DASH][WARN] VSP_RUN_DIR={env_run} không hợp lệ.")
+
+    candidates = sorted(OUT_DIR.glob("RUN_VSP_FULL_EXT_*"), reverse=True)
+    for c in candidates:
+        if (c / "report" / "summary_unified.json").is_file():
+            print(f"[VSP][DASH] auto chọn run={c.name}")
+            return c
+
+    print(f"[VSP][DASH][ERR] Không tìm thấy RUN_VSP_FULL_EXT_* trong {OUT_DIR}")
+    return None
+
+
+def _safe_int(val):
+    try:
+        return int(val)
+    except Exception:
+        try:
+            return int(float(val))
+        except Exception:
+            return 0
+
+
+def _safe_float(val):
+    try:
+        return float(val)
+    except Exception:
+        return None
+
+
+@bp.route("/api/vsp/dashboard_v3", methods=["GET"])
+def vsp_dashboard_v3():
+    """
+    Dashboard v3:
+      - Nếu tìm được RUN VSP FULL EXT:
+          + Trả về total_findings, 6 bucket severity, security_score (nếu có),
+            top_risky_tool, top_cwe, top_module.
+      - Nếu KHÔNG tìm được:
+          + Trả về ok=false + message như hiện tại.
+    """
+    run_dir = _get_latest_vsp_run_dir()
+    if not run_dir:
+        return jsonify({
+            "ok": False,
+            "run_id": None,
+            "message": "Không tìm thấy RUN_VSP_FULL_EXT_* hoặc findings_unified.json rỗng."
+        })
+
+    summary_path = run_dir / "report" / "summary_unified.json"
+    if not summary_path.is_file():
+        print(f"[VSP][DASH][ERR] Không thấy summary_unified.json trong {run_dir}")
+        return jsonify({
+            "ok": False,
+            "run_id": None,
+            "message": "Không tìm thấy RUN_VSP_FULL_EXT_* hoặc findings_unified.json rỗng."
+        })
+
+    try:
+        with summary_path.open(encoding="utf-8") as f:
+            summary = json.load(f)
+    except Exception as exc:
+        print(f"[VSP][DASH][ERR] Đọc summary_unified.json lỗi: {exc}")
+        return jsonify({
+            "ok": False,
+            "run_id": None,
+            "message": "Không tìm thấy RUN_VSP_FULL_EXT_* hoặc findings_unified.json rỗng."
+        })
+
+    if not summary:
+        print(f"[VSP][DASH][ERR] summary_unified.json rỗng: {summary_path}")
+        return jsonify({
+            "ok": False,
+            "run_id": None,
+            "message": "Không tìm thấy RUN_VSP_FULL_EXT_* hoặc findings_unified.json rỗng."
+        })
+
+    run_id = summary.get("run_id") or run_dir.name
+
+    # 6 bucket severity
+    raw_sev = (
+        summary.get("severity")
+        or (summary.get("summary") or {}).get("by_severity")
+        or {}
+    )
+
+    sev = {
+        "CRITICAL": _safe_int(raw_sev.get("CRITICAL", 0)),
+        "HIGH":     _safe_int(raw_sev.get("HIGH", 0)),
+        "MEDIUM":   _safe_int(raw_sev.get("MEDIUM", 0)),
+        "LOW":      _safe_int(raw_sev.get("LOW", 0)),
+        "INFO":     _safe_int(raw_sev.get("INFO", 0)),
+        "TRACE":    _safe_int(raw_sev.get("TRACE", 0)),
+    }
+
+    # total_findings
+    total_findings = summary.get("total_findings")
+    if total_findings is None:
+        total_findings = sum(sev.values())
+    total_findings = _safe_int(total_findings)
+
+    # security_score: nếu 0/None => để None (UI hiển thị N/A)
+    security_score_raw = (
+        summary.get("security_score")
+        or (summary.get("summary") or {}).get("security_score")
+    )
+    security_score = _safe_float(security_score_raw)
+    if not security_score:
+        security_score = None
+
+    # Top risky tool
+    top_risky_tool = "-"
+    by_tool = (summary.get("summary") or {}).get("by_tool") or {}
+    best_tool = None
+    best_val = -1
+    for tool_name, meta in by_tool.items():
+        if isinstance(meta, dict):
+            val = meta.get("total") or meta.get("TOTAL") or meta.get("count") or 0
+        else:
+            val = meta or 0
+        v = _safe_int(val)
+        if v > best_val:
+            best_val = v
+            best_tool = tool_name
+    if best_tool:
+        top_risky_tool = best_tool
+
+    # Top CWE
+    top_cwe = "-"
+    by_cwe = (summary.get("summary") or {}).get("by_cwe") or {}
+    best_cwe = None
+    best_val = -1
+    for cwe_id, meta in by_cwe.items():
+        if isinstance(meta, dict):
+            val = meta.get("total") or meta.get("TOTAL") or meta.get("count") or 0
+        else:
+            val = meta or 0
+        v = _safe_int(val)
+        if v > best_val:
+            best_val = v
+            best_cwe = cwe_id
+    if best_cwe:
+        top_cwe = best_cwe
+
+    # Top module
+    top_module = "-"
+    by_module = (summary.get("summary") or {}).get("by_module") or {}
+    best_mod = None
+    best_val = -1
+    for mod, meta in by_module.items():
+        if isinstance(meta, dict):
+            val = meta.get("total") or meta.get("TOTAL") or meta.get("count") or 0
+        else:
+            val = meta or 0
+        v = _safe_int(val)
+        if v > best_val:
+            best_val = v
+            best_mod = mod
+    if best_mod:
+        top_module = best_mod
+
+    payload = {
+        "ok": True,
+        "run_id": run_id,
+        "total_findings": total_findings,
+        "security_score": security_score,
+        "by_severity": sev,
+        "severity": sev,
+        "top_risky_tool": top_risky_tool,
+        "top_cwe": top_cwe,
+        "top_module": top_module,
+        "ts": summary.get("ts"),
+    }
+
+    print(
+        f"[VSP][DASH] run={run_id}, "
+        f"total_findings={total_findings}, score={security_score}"
+    )
+    return jsonify(payload)
+
+
+
+# === [VSP][EXTRA_API_V1] Trend, Top Findings, Datasource stats, Settings ===
+from datetime import datetime, timedelta
+from pathlib import Path as _Path
+import json as _json
+from flask import request
+
+ROOT = _Path("/home/test/Data/SECURITY_BUNDLE")
+OUT_DIR = ROOT / "out"
+SETTINGS_PATH = ROOT / "config" / "vsp_settings.json"
+SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _get_latest_run_dir():
+    candidates = sorted(OUT_DIR.glob("RUN_VSP_*"), reverse=True)
+    for run_dir in candidates:
+        fu = run_dir / "report" / "findings_unified.json"
+        if fu.exists():
+            return run_dir
+    return None
+
+
+def _load_latest_dashboard_payload():
+    run_dir = _get_latest_run_dir()
+    if not run_dir:
+        return {"total_findings": 0, "by_severity": {}, "by_tool": {}}
+
+    summary_path = run_dir / "report" / "summary_unified.json"
+    if summary_path.exists():
+        with summary_path.open("r", encoding="utf-8") as f:
+            data = _json.load(f)
+        return {
+            "run_id": run_dir.name,
+            "total_findings": data.get("total_findings", 0),
+            "by_severity": data.get("by_severity", {},),
+            "by_tool": data.get("by_tool", {},),
+            "security_score": data.get("security_score", 0),
+            "top_risky_tool": data.get("top_risky_tool"),
+            "top_cwe": data.get("top_cwe"),
+            "top_module": data.get("top_module"),
+        }
+    return {"total_findings": 0, "by_severity": {}, "by_tool": {}}
+
+
+@bp.route("/api/vsp/trend_v1", methods=["GET"])
+def api_vsp_trend_v1():
+    payload = _load_latest_dashboard_payload()
+    total = int(payload.get("total_findings", 0))
+    today = datetime.utcnow().date()
+    series = []
+    for i in range(7):  # hôm nay -6 -> hôm nay
+        d = today - timedelta(days=(6 - i))
+        series.append({"date": d.isoformat(), "total": total})
+    return jsonify(series)
+
+
+@bp.route("/api/vsp/top_findings_v1", methods=["GET"])
+def api_vsp_top_findings_v1():
+    run_dir = _get_latest_run_dir()
+    if not run_dir:
+        return jsonify({"items": []})
+    fu_path = run_dir / "report" / "findings_unified.json"
+    if not fu_path.exists():
+        return jsonify({"items": []})
+
+    with fu_path.open("r", encoding="utf-8") as f:
+        findings = _json.load(f)
+
+    high_crit = [
+        f for f in findings
+        if str(f.get("severity_effective") or f.get("severity") or "").upper()
+        in ("CRITICAL", "HIGH")
+    ]
+    sev_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4, "TRACE": 5}
+    high_crit.sort(
+        key=lambda x: sev_rank.get(
+            str(x.get("severity_effective") or x.get("severity") or "").upper(), 99
+        )
+    )
+
+    top = []
+    for fitem in high_crit[:10]:
+        sev = str(fitem.get("severity_effective") or fitem.get("severity") or "")
+        tool = fitem.get("tool") or fitem.get("source_tool") or ""
+        rule = fitem.get("rule_id") or fitem.get("id") or ""
+        file_path = fitem.get("file") or fitem.get("location") or ""
+        line = fitem.get("line") or fitem.get("start_line")
+        location = f"{file_path}:{line}" if (file_path and line) else file_path
+        top.append(
+            {"severity": sev, "rule_id": rule, "location": location, "tool": tool}
+        )
+
+    return jsonify({"items": top})
+
+
+@bp.route("/api/vsp/datasource_stats_v1", methods=["GET"])
+def api_vsp_datasource_stats_v1():
+    payload = _load_latest_dashboard_payload()
+    return jsonify(
+        {
+            "by_severity": payload.get("by_severity", {},),
+            "by_tool": payload.get("by_tool", {},),
+        }
+    )
+
+
+def _load_settings():
+    if SETTINGS_PATH.exists():
+        with SETTINGS_PATH.open("r", encoding="utf-8") as f:
+            return _json.load(f)
+    return {
+        "profile": "default",
+        "tools": {
+            "semgrep": True,
+            "gitleaks": True,
+            "bandit": True,
+            "trivy_fs": True,
+            "grype": True,
+            "kics": True,
+            "codeql": True,
+            "syft": True,
+        },
+        "limits": {
+            "max_findings_per_tool": 5000,
+            "top_findings_limit": 10,
+        },
+    }
+
+
+@bp.route("/api/vsp/settings/get", methods=["GET"])
+def api_vsp_settings_get():
+    cfg = _load_settings()
+    return jsonify(cfg)
+
+
+@bp.route("/api/vsp/settings/save", methods=["POST"])
+def api_vsp_settings_save():
+    payload = request.get_json(force=True) or {}
+    with SETTINGS_PATH.open("w", encoding="utf-8") as f:
+        _json.dump(payload, f, indent=2, ensure_ascii=False)
+    return jsonify({"ok": True})

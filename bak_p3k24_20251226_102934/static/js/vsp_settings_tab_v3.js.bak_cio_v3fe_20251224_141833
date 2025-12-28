@@ -1,0 +1,195 @@
+
+// VSP_SETTINGS_TAB_V3_P1
+(function(){
+  const API = {
+    get:  "/api/ui/settings_v2",
+    save: "/api/ui/settings_v2_save_v2",
+  };
+
+  function $(sel, root=document){ return root.querySelector(sel); }
+  function toast(msg, ok=true){
+    let el = $("#vsp_toast");
+    if(!el){
+      el = document.createElement("div");
+      el.id="vsp_toast";
+      el.style.position="fixed";
+      el.style.right="16px";
+      el.style.bottom="16px";
+      el.style.padding="10px 12px";
+      el.style.borderRadius="10px";
+      el.style.fontSize="13px";
+      el.style.background="rgba(20,24,30,.92)";
+      el.style.border="1px solid rgba(255,255,255,.12)";
+      el.style.color="#e6eef7";
+      el.style.zIndex="99999";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity="1";
+    setTimeout(()=>{ 
+
+/* VSP_RUNFILEALLOW_FETCH_GUARD_V3C
+   - prevent 404 spam when rid missing/invalid
+   - auto add default path when missing
+   - covers fetch + XMLHttpRequest
+*/
+(()=> {
+  try {
+    if (window.__vsp_runfileallow_fetch_guard_v3c) return;
+    window.__vsp_runfileallow_fetch_guard_v3c = true;
+
+    function _isLikelyRid(rid){
+      if(!rid || typeof rid !== "string") return false;
+      if(rid.length < 6) return false;
+      if(rid.includes("{") || rid.includes("}")) return false;
+      return /^[A-Za-z0-9_\-]+$/.test(rid);
+    }
+
+    function _fix(url0){
+      try{
+        if(!url0 || typeof url0 !== "string") return {action:"pass"};
+        if(!url0.includes("/api/vsp/run_file")) return {action:"pass"};
+        const u = new URL(url0, window.location.origin);
+        const rid = u.searchParams.get("rid") || "";
+        const path = u.searchParams.get("path") || "";
+        if(!_isLikelyRid(rid)) return {action:"skip"};
+        if(!path){
+          u.searchParams.set("path","run_gate_summary.json");
+          return {action:"rewrite", url: u.toString().replace(window.location.origin,"")};
+        }
+        return {action:"pass"};
+      }catch(e){
+        return {action:"pass"};
+      }
+    }
+
+    // fetch
+    const _origFetch = window.fetch ? window.fetch.bind(window) : null;
+    if (_origFetch){
+      window.fetch = function(input, init){
+        try{
+          const url0 = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+          const fx = _fix(url0);
+          if (fx.action === "skip"){
+            const body = JSON.stringify({ok:false, skipped:true, reason:"no rid"});
+            return Promise.resolve(new Response(body, {status:200, headers:{"Content-Type":"application/json; charset=utf-8"}}));
+          }
+          if (fx.action === "rewrite"){
+            if (typeof input === "string") input = fx.url;
+            else input = new Request(fx.url, input);
+          }
+        }catch(e){}
+        return _origFetch(input, init);
+      };
+    }
+
+    // XHR
+    const XHR = window.XMLHttpRequest;
+    if (XHR && XHR.prototype && XHR.prototype.open){
+      const _open = XHR.prototype.open;
+      XHR.prototype.open = function(method, url, async, user, password){
+        try{
+          const url0 = (typeof url === "string") ? url : "";
+          const fx = _fix(url0);
+          if (fx.action === "skip"){
+            const body = encodeURIComponent(JSON.stringify({ok:false, skipped:true, reason:"no rid"}));
+            url = "data:application/json;charset=utf-8," + body;
+          } else if (fx.action === "rewrite"){
+            url = fx.url;
+          }
+        }catch(e){}
+        return _open.call(this, method, url, async, user, password);
+      };
+    }
+  } catch(e) {}
+})();
+
+el.style.opacity="0"; }, ok?1800:2600);
+  }
+
+  async function jget(url){
+    const r = await fetch(url, {cache:"no-store"});
+    const t = await r.text();
+    let j=null; try{ j=JSON.parse(t); }catch(e){}
+    if(!r.ok) throw new Error(`HTTP_${r.status}: ${t.slice(0,220)}`);
+    return j||{};
+  }
+  async function jpost(url, obj){
+    const r = await fetch(url, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(obj||{})
+    });
+    const t = await r.text();
+    let j=null; try{ j=JSON.parse(t); }catch(e){}
+    if(!r.ok) throw new Error(`HTTP_${r.status}: ${t.slice(0,220)}`);
+    return j||{};
+  }
+
+  function render(root){
+    root.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="font-size:18px;font-weight:700">Settings</div>
+        <div style="opacity:.65;font-size:12px">/api/ui/settings_v2</div>
+        <div style="flex:1"></div>
+        <button id="btn_effective" class="vsp_btn">Show effective</button>
+        <button id="btn_reload" class="vsp_btn">Reload</button>
+        <button id="btn_save" class="vsp_btn vsp_btn_primary">Save</button>
+      </div>
+      <div id="path_line" style="opacity:.7;font-size:12px;margin-bottom:8px"></div>
+      <div style="display:grid;grid-template-columns:1fr;gap:10px">
+        <textarea id="ta" spellcheck="false" style="width:100%;height:260px;resize:vertical;background:#0b1220;color:#dbe8ff;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;font-size:12px;line-height:1.35"></textarea>
+        <pre id="effective" style="display:none;white-space:pre-wrap;background:#0b1220;color:#cfe2ff;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px;font-size:12px"></pre>
+        <div id="status" style="font-size:12px;opacity:.75">Loading...</div>
+      </div>
+    `;
+
+    const ta = $("#ta", root);
+    const st = $("#status", root);
+    const eff = $("#effective", root);
+    const pathLine = $("#path_line", root);
+
+    async function load(){
+      st.textContent="Loading...";
+      try{
+        const j = await jget(API.get);
+        pathLine.textContent = `path: ${j.path||""}`;
+        ta.value = JSON.stringify(j.settings||{}, null, 2);
+        eff.textContent = JSON.stringify(j.effective||{}, null, 2);
+        st.textContent = "OK";
+      }catch(e){
+        st.textContent = "ERROR: " + e.message;
+        toast("Settings load failed", false);
+      }
+    }
+
+    $("#btn_reload", root).onclick = ()=>load();
+    $("#btn_effective", root).onclick = ()=>{
+      eff.style.display = (eff.style.display==="none" ? "block" : "none");
+    };
+    $("#btn_save", root).onclick = async ()=>{
+      try{
+        const obj = JSON.parse(ta.value||"{}");
+        const j = await jpost(API.save, {settings: obj});
+        toast("Saved settings");
+        st.textContent = "OK";
+        if(j && j.effective) eff.textContent = JSON.stringify(j.effective, null, 2);
+      }catch(e){
+        toast("Save failed: " + e.message, false);
+        st.textContent = "ERROR: " + e.message;
+      }
+    };
+
+    load();
+  }
+
+  function boot(){
+    const root = document.getElementById("vsp_tab_root");
+    if(!root) return;
+    render(root);
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot);
+  }else boot();
+})();

@@ -1,0 +1,4 @@
+78:Traceback (most recent call last):
+96:TypeError: unhashable type: 'dict'
+98:Traceback (most recent call last):
+117:TypeError: unhashable type: 'dict'

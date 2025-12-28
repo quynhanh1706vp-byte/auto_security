@@ -1,0 +1,126 @@
+(function () {
+  console.log('[VSP_DS_TAB] vsp_datasource_tab_simple_v1.js loaded');
+
+  const TAB_HASH = 'datasource';
+  const TAB_ID = 'vsp-tab-datasource';
+
+  function $(id) { return document.getElementById(id); }
+  function fmtInt(n) { if (n == null || isNaN(n)) return '--'; return Number(n).toLocaleString('en-US'); }
+
+  async function fetchData(limit) {
+    const url = `/api/vsp/datasource_v2?limit=${limit || 500}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.items)) return data.items;
+    return [];
+  }
+
+  function renderTable(container, items) {
+    if (!items || items.length === 0) {
+      container.innerHTML = `
+        <div style="padding:16px; font-size:13px; opacity:0.7;">
+          Không có finding nào (datasource_v2 rỗng).
+        </div>
+      `;
+      return;
+    }
+
+    const rows = items.slice(0, 300).map((f, idx) => {
+      const tool  = f.tool  || f.source || '--';
+      const sev   = f.severity || f.level || 'INFO';
+      const rule  = f.rule_id || f.check_id || f.rule || '--';
+      const file  = f.file || f.path || '--';
+      const line  = f.line || f.start_line || f.end_line || '';
+      return `
+        <tr style="border-bottom:1px solid rgba(148,163,184,0.15);">
+          <td style="padding:6px 8px; font-size:11px; opacity:0.7;">${idx + 1}</td>
+          <td style="padding:6px 8px; font-size:11px;">${sev}</td>
+          <td style="padding:6px 8px; font-size:11px;">${tool}</td>
+          <td style="padding:6px 8px; font-size:11px;">${rule}</td>
+          <td style="padding:6px 8px; font-size:11px;">${file}</td>
+          <td style="padding:6px 8px; font-size:11px; text-align:right;">${line}</td>
+        </tr>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="padding:16px 16px 8px 16px;">
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+          Data Source
+        </div>
+        <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+          Bảng unified findings (tối đa 300 dòng, từ datasource_v2)
+        </div>
+      </div>
+      <div style="padding:0 16px 16px 16px;">
+        <div style="overflow:auto; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.95);">
+          <table style="width:100%; border-collapse:collapse; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color:#e5e7eb;">
+            <thead>
+              <tr style="background:rgba(15,23,42,0.98);">
+                <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">#</th>
+                <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">Sev</th>
+                <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">Tool</th>
+                <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">Rule</th>
+                <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">File</th>
+                <th style="padding:6px 8px; font-size:11px; text-align:right; opacity:0.7;">Line</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  let loaded = false;
+
+  async function hydrateTab() {
+    const container = $(TAB_ID);
+    if (!container) {
+      console.warn('[VSP_DS_TAB] Không thấy #' + TAB_ID);
+      return;
+    }
+    if (loaded) return;
+    loaded = true;
+
+    container.innerHTML = `
+      <div style="padding:16px; font-size:12px; opacity:0.7;">
+        Đang tải findings từ <code>/api/vsp/datasource_v2</code>...
+      </div>
+    `;
+    try {
+      const items = await fetchData(500);
+      renderTable(container, items);
+      console.log('[VSP_DS_TAB] Hydrated datasource tab với', items.length, 'items');
+    } catch (e) {
+      console.error('[VSP_DS_TAB] Lỗi khi load datasource_v2', e);
+      container.innerHTML = `
+        <div style="padding:16px; font-size:12px; color:#fecaca;">
+          Lỗi khi tải datasource_v2: ${e}
+        </div>
+      `;
+    }
+  }
+
+  function onHashChange() {
+    const h = (window.location.hash || '').replace('#', '') || 'dashboard';
+    if (h === TAB_HASH) {
+      hydrateTab();
+    }
+  }
+
+  function init() {
+    window.addEventListener('hashchange', onHashChange);
+    onHashChange();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+})();

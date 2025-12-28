@@ -1,0 +1,145 @@
+
+
+
+// VSP_P1_DASH_RENDER_V6C_IN_BUNDLE
+(function(){
+  if (window.__VSP_DASH_RENDER_V6C) return;
+  window.__VSP_DASH_RENDER_V6C = true;
+
+  function ensureCanvas(holderId){
+    var el = document.getElementById(holderId);
+    if (!el) return null;
+    var tag = (el.tagName||"").toLowerCase();
+    if (tag === "canvas") return el;
+    var c = el.querySelector && el.querySelector("canvas");
+    if (!c){
+      c = document.createElement("canvas");
+      c.style.width="100%";
+      c.style.height="260px";
+      el.innerHTML="";     // clear placeholder
+      el.appendChild(c);
+    }
+    return c;
+  }
+
+  async function getRid(){
+    try{
+      var u = new URL(window.location.href);
+      var rid = u.searchParams.get("rid");
+      if (rid) return rid;
+    }catch(e){}
+    try{
+      var r = await fetch("/api/vsp/runs?limit=1", {cache:"no-store"});
+      var j = await r.json();
+      if (j && j.items && j.items[0] && j.items[0].run_id) return j.items[0].run_id;
+    }catch(e){}
+    return "";
+  }
+
+  function parseDonut(j){
+    if (j?.charts?.severity?.donut) return j.charts.severity.donut;
+    if (j?.donut?.labels && j?.donut?.values) return j.donut;
+    if (Array.isArray(j?.severity_distribution))
+      return { labels: j.severity_distribution.map(x=>x.sev), values: j.severity_distribution.map(x=>x.count) };
+    return null;
+  }
+  function parseTrend(j){
+    if (j?.charts?.trend?.series) return j.charts.trend.series;
+    if (j?.trend?.labels && j?.trend?.values) return j.trend;
+    if (Array.isArray(j?.findings_trend))
+      return { labels: j.findings_trend.map(x=>x.rid), values: j.findings_trend.map(x=>x.total) };
+    return null;
+  }
+  function parseBarCritHigh(j){
+    if (j?.charts?.crit_high_by_tool?.bar) return j.charts.crit_high_by_tool.bar;
+    if (j?.bar_crit_high?.labels) return j.bar_crit_high;
+    if (Array.isArray(j?.critical_high_by_tool)){
+      var labels = j.critical_high_by_tool.map(x=>x.tool);
+      var crit = j.critical_high_by_tool.map(x=>x.critical||0);
+      var high = j.critical_high_by_tool.map(x=>x.high||0);
+      return { labels: labels, series: [{name:"CRITICAL",data:crit},{name:"HIGH",data:high}] };
+    }
+    return null;
+  }
+  function parseTopCwe(j){
+    if (j?.charts?.top_cwe?.series) return j.charts.top_cwe.series;
+    if (j?.top_cwe?.labels && j?.top_cwe?.values) return j.top_cwe;
+    if (Array.isArray(j?.top_cwe_exposure))
+      return { labels: j.top_cwe_exposure.map(x=>x.cwe), values: j.top_cwe_exposure.map(x=>x.count) };
+    return { labels: [], values: [] };
+  }
+
+  function destroyKey(k){ try{ window[k]?.destroy?.(); }catch(e){} window[k]=null; }
+
+  async function renderOnce(){
+    if (!window.Chart) return false;
+
+    var a=document.getElementById("vsp-chart-severity");
+    var b=document.getElementById("vsp-chart-trend");
+    var c=document.getElementById("vsp-chart-bytool");
+    var d=document.getElementById("vsp-chart-topcwe");
+    if (!a || !b || !c || !d) return false;
+
+    var rid = await getRid();
+    if (!rid) return false;
+
+    var resp = await fetch("/api/vsp/dash_charts?rid="+encodeURIComponent(rid), {cache:"no-store"});
+    var j = await resp.json();
+
+    var donut=parseDonut(j), trend=parseTrend(j), bar=parseBarCritHigh(j), top=parseTopCwe(j);
+
+    var c1=ensureCanvas("vsp-chart-severity");
+    if (c1 && donut){
+      destroyKey("__VSP_DONUT_V6C");
+      window.__VSP_DONUT_V6C = new Chart(c1, {type:"doughnut",
+        data:{labels:donut.labels,datasets:[{data:donut.values}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+      });
+    }
+
+    var c2=ensureCanvas("vsp-chart-trend");
+    if (c2 && trend){
+      destroyKey("__VSP_TREND_V6C");
+      window.__VSP_TREND_V6C = new Chart(c2, {type:"line",
+        data:{labels:trend.labels,datasets:[{data:trend.values}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+      });
+    }
+
+    var c3=ensureCanvas("vsp-chart-bytool");
+    if (c3 && bar){
+      destroyKey("__VSP_BYTOOL_V6C");
+      var s0=bar.series?.[0]?.data||[], s1=bar.series?.[1]?.data||[];
+      window.__VSP_BYTOOL_V6C = new Chart(c3, {type:"bar",
+        data:{labels:bar.labels,datasets:[{label:"CRITICAL",data:s0},{label:"HIGH",data:s1}]},
+        options:{responsive:true,maintainAspectRatio:false}
+      });
+    }
+
+    var c4=ensureCanvas("vsp-chart-topcwe");
+    if (c4 && top){
+      destroyKey("__VSP_TOPCWE_V6C");
+      window.__VSP_TOPCWE_V6C = new Chart(c4, {type:"bar",
+        data:{labels:top.labels,datasets:[{data:top.values}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+      });
+    }
+
+    console.log("[VSP][DASH][V6C] rendered rid=", rid);
+    return true;
+  }
+
+  var tries=0;
+  var t=setInterval(function(){
+    tries++;
+    renderOnce().then(function(ok){
+      if (ok || tries>=20){
+        clearInterval(t);
+        if (!ok) console.warn("[VSP][DASH][V6C] gave up (Chart/container missing)");
+      }
+    }).catch(function(e){
+      if (tries>=20){ clearInterval(t); console.warn("[VSP][DASH][V6C] error", e); }
+    });
+  }, 500);
+})();
+

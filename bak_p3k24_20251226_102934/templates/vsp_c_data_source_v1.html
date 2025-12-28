@@ -1,0 +1,37 @@
+{% extends "vsp_c_base_v1.html" %}
+{% block body %}
+  <div class="panel">
+    <div class="h">
+      <div>
+        <div class="hh">Data Source</div>
+        <div class="hh2">Preview unified findings (first 200 rows) • client filter</div>
+      </div>
+      <div class="hh2 mono" id="ds-meta">…</div>
+    </div>
+
+    <div class="row" style="margin-bottom:10px">
+      <input class="input" id="ds-q" placeholder="Filter by severity/tool/title/file (client-side)" />
+      <button class="btn" id="ds-more">Next +200</button>
+      <span class="pill" id="ds-off">offset=0</span>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:140px">SEVERITY</th>
+          <th>TITLE</th>
+          <th style="width:110px">TOOL</th>
+          <th style="width:260px">FILE</th>
+        </tr>
+      </thead>
+      <tbody id="ds-tb">
+        <tr><td colspan="4" class="muted">Loading…</td></tr>
+      </tbody>
+    </table>
+    <div class="spacer"></div>
+    <div class="muted mono" id="ds-from">from_path: …</div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/vsp_c_data_source_v1.js?v={{ asset_v }}"></script>
+{% endblock %}

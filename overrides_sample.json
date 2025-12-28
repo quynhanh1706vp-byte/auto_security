@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "profile": "EXT+",
+  "total_overrides": 2,
+  "items": [
+    {
+      "id": "GITLEAKS_GENERIC_SECRET",
+      "tool": "gitleaks",
+      "current_severity": "HIGH",
+      "override_severity": "LOW",
+      "scope": "path:^tests/",
+      "description": "Giảm mức cho test data",
+      "active": true,
+      "affected_count": 23
+    },
+    {
+      "id": "SEMGREP_PYTHON_SQL",
+      "tool": "semgrep",
+      "current_severity": "MEDIUM",
+      "override_severity": "CRITICAL",
+      "scope": null,
+      "description": "Tăng mức cho SQL injection patterns",
+      "active": true,
+      "affected_count": 5
+    }
+  ]
+}

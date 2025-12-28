@@ -1,0 +1,690 @@
+// ======================================================================
+// VSP_PATCH_5TABS_V2 – FULL (đã thêm clamp chiều cao chart)
+// ======================================================================
+
+(function () {
+  "use strict";
+
+  function qs(sel) { return document.querySelector(sel); }
+  function qsa(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+  // ---------------------- helpers chung ----------------------
+  function findKpiValueByLabel(labelRegex) {
+    var all = document.body.getElementsByTagName("*");
+    for (var i = 0; i < all.length; i++) {
+      var node = all[i];
+      if (node.children && node.children.length) continue;
+      var text = (node.textContent || "").trim();
+      if (!text) continue;
+      if (!labelRegex.test(text)) continue;
+
+      var card = node.closest(".vsp-kpi-card") ||
+                 node.closest(".kpi-card") ||
+                 node.closest("[data-vsp-kpi-card]") ||
+                 node.parentElement;
+      if (!card) continue;
+
+      var v = card.querySelector("[data-vsp-kpi-value], .vsp-kpi-value, .kpi-value, .kpi-number, strong, span");
+      if (v) return v;
+
+      var candidates = card.querySelectorAll("div, span, strong");
+      for (var j = 0; j < candidates.length; j++) {
+        var c = candidates[j];
+        if (c === node) continue;
+        var t = (c.textContent || "").trim();
+        if (!t) continue;
+        return c;
+      }
+    }
+    return null;
+  }
+
+  function findCanvasByTitle(labelRegex) {
+    var all = document.body.getElementsByTagName("*");
+    for (var i = 0; i < all.length; i++) {
+      var node = all[i];
+      if (node.children && node.children.length) continue;
+      var text = (node.textContent || "").trim();
+      if (!text) continue;
+      if (!labelRegex.test(text)) continue;
+
+      var parent = node;
+      for (var depth = 0; depth < 4 && parent; depth++) {
+        var canvas = parent.querySelector && parent.querySelector("canvas");
+        if (canvas) return canvas;
+        parent = parent.parentElement;
+      }
+    }
+    return null;
+  }
+
+  // ---------------------- DASHBOARD TOP CWE + KPI ----------------------
+  function findTopCweValueEl() {
+    var direct = qs("[data-vsp-kpi-top-cwe]");
+    if (direct) return direct;
+
+    var all = document.body.getElementsByTagName("*");
+    for (var i = 0; i < all.length; i++) {
+      var node = all[i];
+      if (node.children && node.children.length) continue;
+      var text = (node.textContent || "").trim();
+      if (!text) continue;
+      if (!/TOP IMPACTED CWE/i.test(text)) continue;
+
+      var card = node.closest(".vsp-kpi-card") ||
+                 node.closest("[data-vsp-kpi-card]") ||
+                 node.parentElement;
+      if (!card) continue;
+
+      var v = card.querySelector("[data-vsp-kpi-top-cwe], .vsp-kpi-value, .kpi-value, .kpi-number, strong, span");
+      if (v) return v;
+
+      var candidates = card.querySelectorAll("div, span, strong");
+      for (var j = 0; j < candidates.length; j++) {
+        var c = candidates[j];
+        if (c === node) continue;
+        var t = (c.textContent || "").trim();
+        if (!t) continue;
+        if (/Most frequent CWE/i.test(t)) continue;
+        return c;
+      }
+    }
+    return null;
+  }
+
+  function computeSecurityPostureScore(bySeverity) {
+    bySeverity = bySeverity || {};
+    var crit = bySeverity.CRITICAL || 0;
+    var high = bySeverity.HIGH || 0;
+    var med  = bySeverity.MEDIUM || 0;
+    var low  = bySeverity.LOW || 0;
+    var info = bySeverity.INFO || 0;
+    var trace= bySeverity.TRACE || 0;
+
+    var score;
+    if (crit > 0 || high > 0) score = 0;
+    else if (med > 0)        score = 60;
+    else if (low || info || trace) score = 80;
+    else score = 100;
+
+    if (score < 0) score = 0;
+    if (score > 100) score = 100;
+    return score;
+  }
+
+  function computeTopRiskyTool(dash) {
+    var bestTool = null;
+    var bestScore = -1;
+
+    if (dash.by_tool_severity && typeof dash.by_tool_severity === "object") {
+      Object.keys(dash.by_tool_severity).forEach(function (tool) {
+        var sev = dash.by_tool_severity[tool] || {};
+        var s = (sev.CRITICAL || 0) * 10 +
+                (sev.HIGH || 0) *  3 +
+                (sev.MEDIUM || 0);
+        if (s > bestScore) {
+          bestScore = s;
+          bestTool = tool;
+        }
+      });
+    } else if (dash.by_tool && typeof dash.by_tool === "object") {
+      Object.keys(dash.by_tool).forEach(function (tool) {
+        var s = dash.by_tool[tool] || 0;
+        if (s > bestScore) {
+          bestScore = s;
+          bestTool = tool;
+        }
+      });
+    }
+
+    return bestTool;
+  }
+
+  function fillDashboardTopModuleKpi() {
+    var valueEl = findKpiValueByLabel(/TOP VULNERABLE MODULE/i);
+    if (!valueEl) return;
+
+    fetch("/api/vsp/datasource_v2?limit=500")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        var items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+          valueEl.textContent = "–";
+          return;
+        }
+
+        var scores = {};
+        items.forEach(function (f) {
+          var sev = (f.severity || "").toUpperCase();
+          var weight = 0;
+          if (sev === "CRITICAL") weight = 5;
+          else if (sev === "HIGH") weight = 3;
+          else if (sev === "MEDIUM") weight = 1;
+
+          if (f.cve) weight += 2;
+
+          var mod = f.module || "";
+          var file = f.file || f.path || "";
+          if (!mod && file) {
+            var parts = file.split("/");
+            if (parts.length >= 3)      mod = parts.slice(0, 3).join("/");
+            else if (parts.length >= 2) mod = parts.slice(0, 2).join("/");
+            else                        mod = parts[0];
+          }
+          if (!mod) mod = "(unknown)";
+
+          if (!scores[mod]) scores[mod] = 0;
+          scores[mod] += weight;
+        });
+
+        var bestMod = null;
+        var bestScore = -1;
+        Object.keys(scores).forEach(function (m) {
+          if (scores[m] > bestScore) {
+            bestScore = scores[m];
+            bestMod = m;
+          }
+        });
+
+        valueEl.textContent = bestMod || "–";
+      })
+      .catch(function () {
+        valueEl.textContent = "–";
+      });
+  }
+
+  function patchDashboardFromData(dash) {
+    // TOP IMPACTED CWE
+    var valueEl = findTopCweValueEl();
+    var hiId = null;
+    if (Array.isArray(dash.top_cwe) && dash.top_cwe.length && typeof dash.top_cwe[0].id === "string") {
+      hiId = dash.top_cwe[0].id;
+    } else if (typeof dash.highest_impacted_cwe === "string") {
+      hiId = dash.highest_impacted_cwe;
+    } else if (dash.highest_impacted_cwe && typeof dash.highest_impacted_cwe.id === "string") {
+      hiId = dash.highest_impacted_cwe.id;
+    }
+    if (valueEl) valueEl.textContent = hiId || "–";
+    console.log("[VSP_PATCH][DASH] Top impacted CWE =", hiId);
+
+    // SECURITY POSTURE SCORE
+    var score = computeSecurityPostureScore(dash.by_severity || {});
+    var postureEl = findKpiValueByLabel(/SECURITY POSTURE SCORE/i);
+    if (postureEl) postureEl.textContent = score + " / 100";
+
+    // TOP RISKY TOOL
+    var riskyTool = computeTopRiskyTool(dash);
+    var riskyEl = findKpiValueByLabel(/TOP RISKY TOOL/i);
+    if (riskyEl) riskyEl.textContent = riskyTool || "–";
+
+    // TOP VULNERABLE MODULE
+    fillDashboardTopModuleKpi();
+  }
+
+  function patchDashboardKpis() {
+    fetch("/api/vsp/dashboard_v3")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (dash) {
+        console.log("[VSP] /api/vsp/dashboard_v3 =>", dash);
+        patchDashboardFromData(dash);
+      })
+      .catch(function (err) {
+        console.error("[VSP_PATCH][DASH] Error:", err);
+      });
+  }
+
+  // ---------------------- CLAMP CHIỀU CAO CHART DASHBOARD ----------------------
+  function clampDashboardChartsHeight() {
+    var labelRegexes = [
+      /Severity distribution/i,
+      /Trend over time/i,
+      /Critical & High by tool/i,
+      /Top CWE exposure/i
+    ];
+
+    labelRegexes.forEach(function (re) {
+      var all = document.body.getElementsByTagName("*");
+      for (var i = 0; i < all.length; i++) {
+        var node = all[i];
+        if (node.children && node.children.length) continue;
+        var text = (node.textContent || "").trim();
+        if (!text) continue;
+        if (!re.test(text)) continue;
+
+        var parent = node.parentElement;
+        for (var d = 0; d < 4 && parent; d++) {
+          if (parent.style) {
+            parent.style.maxHeight = "360px";
+            parent.style.overflow  = "hidden";
+          }
+          parent = parent.parentElement;
+        }
+        break;
+      }
+    });
+  }
+
+  // ---------------------- TAB 2 – RUNS & REPORTS ----------------------
+  function findRunsTbody() {
+    var tb = qs("[data-vsp-runs-tbody]");
+    if (tb) return tb;
+
+    var tables = qsa("table");
+    for (var i = 0; i < tables.length; i++) {
+      var t = tables[i];
+      var ths = t.querySelectorAll("thead th, thead td");
+      if (!ths.length) continue;
+      var first = (ths[0].textContent || "").trim();
+      if (!/^run id$/i.test(first)) continue;
+
+      var body = t.querySelector("tbody");
+      if (body) return body;
+    }
+    return null;
+  }
+
+  function patchRunsTab() {
+    var tbody = findRunsTbody();
+    if (!tbody) {
+      console.log("[VSP_PATCH][RUNS] Không tìm thấy bảng Run history, skip.");
+      return;
+    }
+
+    function formatDate(value) {
+      if (!value) return "–";
+      try {
+        var d = new Date(value);
+        if (isNaN(d.getTime())) return String(value);
+        return d.toISOString().slice(0, 19).replace("T", " ");
+      } catch (e) {
+        return String(value);
+      }
+    }
+
+    fetch("/api/vsp/runs_index_v3?limit=50")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (runs) {
+        if (!Array.isArray(runs)) {
+          console.warn("[VSP_PATCH][RUNS] Response != array:", runs);
+          return;
+        }
+
+        console.log("[VSP_PATCH][RUNS] Loaded runs:", runs.length);
+
+        var totalRuns = runs.length;
+        var last10 = runs.slice(0, 10);
+        var okCount = 0, failCount = 0;
+        var totalFindings = 0;
+        var totalTools = 0, toolsRuns = 0;
+        var toolsUniverse = {};
+
+        last10.forEach(function (run) {
+          if (run.status === "OK" || run.status === "SUCCESS") okCount++;
+          else if (run.status === "FAIL" || run.status === "ERROR") failCount++;
+
+          if (typeof run.total_findings === "number") {
+            totalFindings += run.total_findings;
+          }
+          if (run.by_tool && typeof run.by_tool === "object") {
+            var keys = Object.keys(run.by_tool);
+            totalTools += keys.length;
+            toolsRuns++;
+            keys.forEach(function (k) { toolsUniverse[k] = true; });
+          }
+        });
+
+        var avgFindings = last10.length ? Math.round(totalFindings / last10.length) : 0;
+        var avgTools    = toolsRuns ? (totalTools / toolsRuns).toFixed(1) : "0.0";
+        var toolCount   = Object.keys(toolsUniverse).length;
+
+        var elTotal = findKpiValueByLabel(/TOTAL RUNS/i);
+        var elLast  = findKpiValueByLabel(/LAST 10 RUNS/i);
+        var elAvg   = findKpiValueByLabel(/AVG FINDINGS\s*\/\s*RUN/i);
+        var elTools = findKpiValueByLabel(/TOOLS ENABLED\s*\/\s*RUN/i);
+
+        if (elTotal) elTotal.textContent = String(totalRuns);
+        if (elLast)  elLast.textContent  = okCount + " / " + failCount;
+        if (elAvg)   elAvg.textContent   = String(avgFindings);
+        if (elTools) elTools.textContent = avgTools + " / " + toolCount;
+
+        tbody.innerHTML = "";
+        if (!runs.length) {
+          var trEmpty = document.createElement("tr");
+          var tdEmpty = document.createElement("td");
+          tdEmpty.colSpan = 13;
+          tdEmpty.textContent = "No runs.";
+          trEmpty.appendChild(tdEmpty);
+          tbody.appendChild(trEmpty);
+          return;
+        }
+
+        runs.forEach(function (run) {
+          var tr = document.createElement("tr");
+          function td(text) {
+            var cell = document.createElement("td");
+            cell.textContent = text;
+            return cell;
+          }
+
+          var runId   = run.run_id || run.id || "–";
+          var ts      = formatDate(run.started_at || run.timestamp || run.ts);
+          var profile = run.profile || run.mode || "EXT+";
+          var src     = run.src_path || run.root_dir || "–";
+          var url     = run.target_url || "–";
+          var sev     = run.by_severity || {};
+          var crit    = sev.CRITICAL || 0;
+          var high    = sev.HIGH || 0;
+          var med     = sev.MEDIUM || 0;
+          var low     = sev.LOW || 0;
+          var info    = sev.INFO || 0;
+          var trace   = sev.TRACE || 0;
+          var total   = typeof run.total_findings === "number"
+                        ? run.total_findings
+                        : crit + high + med + low + info + trace;
+          var tools   = run.by_tool ? Object.keys(run.by_tool).join(",")
+                       : (run.tools || "–");
+
+          tr.appendChild(td(runId));
+          tr.appendChild(td(ts));
+          tr.appendChild(td(profile));
+          tr.appendChild(td(src));
+          tr.appendChild(td(url));
+          tr.appendChild(td(String(crit)));
+          tr.appendChild(td(String(high)));
+          tr.appendChild(td(String(med)));
+          tr.appendChild(td(String(low)));
+          tr.appendChild(td(String(info)));
+          tr.appendChild(td(String(trace)));
+          tr.appendChild(td(String(total)));
+          tr.appendChild(td(tools));
+
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(function (err) {
+        console.error("[VSP_PATCH][RUNS] Error:", err);
+      });
+  }
+
+  // ---------------------- TAB 3 – DATA SOURCE ----------------------
+  var SEV_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+
+  function findDataSourceTbody() {
+    var tb = qs("[data-vsp-ds-tbody]");
+    if (tb) return tb;
+
+    var tables = qsa("table");
+    for (var i = 0; i < tables.length; i++) {
+      var t = tables[i];
+      var ths = t.querySelectorAll("thead th, thead td");
+      if (!ths.length) continue;
+
+      var headerTexts = [];
+      for (var j = 0; j < ths.length; j++) {
+        headerTexts.push((ths[j].textContent || "").trim());
+      }
+      var hasSeverity = headerTexts.some(function (x) { return /^severity$/i.test(x); });
+      var hasTool     = headerTexts.some(function (x) { return /^tool$/i.test(x); });
+      var hasFile     = headerTexts.some(function (x) { return /^file$/i.test(x); });
+
+      if (hasSeverity && hasTool && hasFile) {
+        var body = t.querySelector("tbody");
+        if (body) return body;
+      }
+    }
+    return null;
+  }
+
+  function renderDataSourceTable(tbody, items) {
+    tbody.innerHTML = "";
+    if (!Array.isArray(items) || !items.length) {
+      var trEmpty = document.createElement("tr");
+      var tdEmpty = document.createElement("td");
+      tdEmpty.colSpan = 10;
+      tdEmpty.textContent = "No findings.";
+      trEmpty.appendChild(tdEmpty);
+      tbody.appendChild(trEmpty);
+      return;
+    }
+
+    items.forEach(function (f) {
+      var tr = document.createElement("tr");
+      function td(text) {
+        var cell = document.createElement("td");
+        cell.textContent = text;
+        return cell;
+      }
+
+      tr.appendChild(td(f.severity || "–"));
+      tr.appendChild(td(f.tool || "–"));
+      tr.appendChild(td(f.file || f.path || "–"));
+      tr.appendChild(td(f.line != null ? String(f.line) : "–"));
+      tr.appendChild(td(f.rule_id || f.rule || "–"));
+      tr.appendChild(td(f.message || "–"));
+      tr.appendChild(td(f.cwe || "–"));
+      tr.appendChild(td(f.cve || "–"));
+      tr.appendChild(td(f.module || "–"));
+      tr.appendChild(td(Array.isArray(f.tags) ? f.tags.join(",") : (f.tags || "–")));
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function drawDataSourceCharts(items) {
+    if (typeof Chart === "undefined") {
+      console.log("[VSP_PATCH][DS] Chart.js not found, skip charts.");
+      return;
+    }
+
+    var sevCounts = {};
+    SEV_ORDER.forEach(function (s) { sevCounts[s] = 0; });
+    var cweCounts = {};
+
+    items.forEach(function (f) {
+      var sev = (f.severity || "").toUpperCase();
+      if (sevCounts.hasOwnProperty(sev)) sevCounts[sev]++;
+
+      var cwe = (f.cwe || "").trim();
+      if (cwe) {
+        if (!cweCounts[cwe]) cweCounts[cwe] = 0;
+        cweCounts[cwe]++;
+      }
+    });
+
+    var donutCanvas = findCanvasByTitle(/Severity donut/i);
+    if (donutCanvas) {
+      var ctxDonut = donutCanvas.getContext("2d");
+      new Chart(ctxDonut, {
+        type: "doughnut",
+        data: {
+          labels: SEV_ORDER,
+          datasets: [{
+            data: SEV_ORDER.map(function (s) { return sevCounts[s] || 0; })
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: "bottom" } }
+        }
+      });
+    }
+
+    var cweEntries = Object.keys(cweCounts).map(function (k) {
+      return { id: k, count: cweCounts[k] };
+    }).sort(function (a, b) { return b.count - a.count; }).slice(0, 5);
+
+    var cweCanvas = findCanvasByTitle(/Top CWE/i);
+    if (cweCanvas && cweEntries.length) {
+      var ctxCwe = cweCanvas.getContext("2d");
+      new Chart(ctxCwe, {
+        type: "bar",
+        data: {
+          labels: cweEntries.map(function (e) { return e.id; }),
+          datasets: [{
+            data: cweEntries.map(function (e) { return e.count; })
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { autoSkip: false } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+  }
+
+  function patchDataSourceTab() {
+    var tbody = findDataSourceTbody();
+    if (!tbody) {
+      console.log("[VSP_PATCH][DS] Không tìm thấy bảng unified findings, skip.");
+      return;
+    }
+
+    fetch("/api/vsp/datasource_v2?limit=500")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        var items = Array.isArray(data.items) ? data.items : [];
+        console.log("[VSP_PATCH][DS] Loaded items:", items.length);
+        renderDataSourceTable(tbody, items);
+        drawDataSourceCharts(items);
+      })
+      .catch(function (err) {
+        console.error("[VSP_PATCH][DS] Error:", err);
+      });
+  }
+
+  // ---------------------- INIT ----------------------
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      patchDashboardKpis();
+      clampDashboardChartsHeight();   // NEW: khoá chiều cao chart dashboard
+      patchRunsTab();
+      patchDataSourceTab();
+    } catch (err) {
+      console.error("[VSP_PATCH] Init error:", err);
+    }
+  });
+
+})();
+
+
+// ======================= VSP_DASHBOARD_TOPLISTS_V1 =======================
+// Đọc vsp_dashboard_extras_latest.json và fill 2 bảng:
+//  - Top risk findings (CRIT/HIGH)
+//  - Top noisy paths (MED/LOW/INFO/TRACE)
+(function () {
+  function findTbodyByCardTitle(keyword) {
+    if (!keyword) return null;
+    keyword = String(keyword).toLowerCase();
+    const cards = document.querySelectorAll(
+      ".dashboard-card, .card, section, .kpi-card"
+    );
+    for (const el of cards) {
+      const titleEl = el.querySelector("h2, h3, h4, .card-title, .panel-title");
+      if (!titleEl) continue;
+      const txt = (titleEl.textContent || "").toLowerCase();
+      if (!txt.includes(keyword)) continue;
+      const tbody = el.querySelector("tbody");
+      if (tbody) return tbody;
+    }
+    return null;
+  }
+
+  function renderTopRisks(extras) {
+    const list = (extras && extras.top_risk_findings) || [];
+    if (!list.length) {
+      console.log("[VSP][EXTRAS] Không có dữ liệu top_risk_findings.");
+      return;
+    }
+    const tbody =
+      findTbodyByCardTitle("top risk findings") ||
+      findTbodyByCardTitle("priority triage");
+    if (!tbody) {
+      console.log("[VSP][EXTRAS] Không tìm thấy tbody cho Top risk findings.");
+      return;
+    }
+    tbody.innerHTML = "";
+    list.forEach(function (item) {
+      const tr = document.createElement("tr");
+      const loc =
+        (item.location ||
+          (item.file || "") +
+            (item.line ? ":" + String(item.line) : "")) || "-";
+      const cols = [
+        item.severity || "-",
+        item.tool || "-",
+        loc,
+        item.rule_id || ""
+      ];
+      cols.forEach(function (text) {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTopNoisy(extras) {
+    const list = (extras && extras.top_noisy_paths) || [];
+    if (!list.length) {
+      console.log("[VSP][EXTRAS] Không có dữ liệu top_noisy_paths.");
+      return;
+    }
+    const tbody = findTbodyByCardTitle("top noisy paths");
+    if (!tbody) {
+      console.log("[VSP][EXTRAS] Không tìm thấy tbody cho Top noisy paths.");
+      return;
+    }
+    tbody.innerHTML = "";
+    list.forEach(function (item) {
+      const tr = document.createElement("tr");
+      const cols = [
+        item.path || "-",
+        String(item.total || 0),
+        item.noise_level || "-"
+      ];
+      cols.forEach(function (text) {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function loadExtrasAndRender() {
+    if (!window.location.pathname.includes("/security_bundle")) return;
+    fetch("/static/data/vsp_dashboard_extras_latest.json", { cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        console.log("[VSP][EXTRAS] Loaded extras cho run", data.run_id);
+        renderTopRisks(data);
+        renderTopNoisy(data);
+      })
+      .catch(function (err) {
+        console.warn("[VSP][EXTRAS] Lỗi load extras:", err);
+      });
+  }
+
+  window.addEventListener("DOMContentLoaded", loadExtrasAndRender);
+})();\n

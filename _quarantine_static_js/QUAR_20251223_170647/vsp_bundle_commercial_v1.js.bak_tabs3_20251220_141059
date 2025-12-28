@@ -1,0 +1,41 @@
+
+/* VSP_FETCH_DESCRIPTOR_SAFE_P0_V1 */
+(function(){
+  try{
+    if (window.__vsp_fetch_descriptor_safe_p0_v1) return;
+    window.__vsp_fetch_descriptor_safe_p0_v1 = true;
+
+    function canOverrideFetch(){
+      try{
+        const d = Object.getOwnPropertyDescriptor(window, "fetch");
+        if (!d) return true;
+        // if accessor exists, allow (setter may exist)
+        if (d.get || d.set) return true;
+        // data descriptor: must be writable OR configurable to redefine
+        if (d.writable) return true;
+        if (d.configurable) return true;
+        return false;
+      }catch(_){ return false; }
+    }
+
+    // Provide a helper for other wrappers to use
+    window.__vsp_can_override_fetch = canOverrideFetch;
+
+    // If someone already wrapped fetch and locked it, don't crash future code.
+    // We DO NOT wrap here; we only prevent TypeError by advising wrappers to check __vsp_can_override_fetch().
+  }catch(_){}
+})();
+
+/* VSP_BUNDLE_COMMERCIAL_V1_STUB_P1_V1
+   This file was broken (syntax error). Keep as safe stub that loads v2. */
+(function(){
+  try{
+    if (window.__vsp_bundle_commercial_v1_stub) return;
+    window.__vsp_bundle_commercial_v1_stub = true;
+    var s=document.createElement("script");
+    s.src="/static/js/vsp_bundle_commercial_v2.js";
+    s.defer=true;
+    (document.head||document.documentElement).appendChild(s);
+    console.warn("[VSP] v1 bundle stub loaded -> redirected to v2");
+  }catch(e){}
+})();

@@ -1,0 +1,170 @@
+from flask import Flask, render_template, request, jsonify
+from pathlib import Path
+import json
+import datetime
+import subprocess
+
+# ROOT của SECURITY_BUNDLE
+ROOT = Path("/home/test/Data/SECURITY_BUNDLE")
+UI_ROOT = ROOT / "ui" / "my_flask_app"
+
+app = Flask(
+    __name__,
+    template_folder=str(UI_ROOT / "templates"),
+    static_folder=str(UI_ROOT / "static"),
+)
+
+# ---- Load findings từ RUN_CURRENT ----
+def load_findings_current():
+    run_dir = ROOT / "out" / "RUN_CURRENT"
+    findings_file = run_dir / "findings_unified_v2.json"
+    if not findings_file.exists():
+        findings_file = run_dir / "findings_unified.json"
+
+    findings = []
+    if findings_file.exists():
+        try:
+            data = json.loads(findings_file.read_text())
+            # Một số format bọc trong {"findings": [...]}
+            if isinstance(data, dict) and "findings" in data:
+                data = data["findings"]
+            if isinstance(data, list):
+                findings = data
+        except Exception:
+            findings = []
+
+    return run_dir, findings
+
+# ---- Build VSP_DATA đơn giản: total + 6 severity ----
+def build_vsp_data():
+    run_dir, findings = load_findings_current()
+    sev_keys = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"]
+    sev = {k: 0 for k in sev_keys}
+    for f in findings:
+        s = str(f.get("severity", "")).upper()
+        if s in sev:
+            sev[s] += 1
+    total = sum(sev.values())
+    return {
+        "run_dir": str(run_dir),
+        "total": total,
+        "severity": sev,
+    }
+
+# ---- ROUTES ----\n
+# ---- VSP_DEMO_API_V1 – API cho 5 tab (Dashboard + Runs) ----
+
+@app.route("/api/vsp/dashboard_summary")
+def api_vsp_dashboard_summary():
+    """Trả về summary cho TAB 1 (Dashboard).
+    Dựa trên RUN_CURRENT/report/summary_unified.json
+    """
+    data = build_vsp_data()  # đã dùng summary_unified.json
+    return jsonify({
+        "run_dir": data.get("run_dir"),
+        "total_findings": data.get("total"),
+        "by_severity": data.get("severity", {}),
+        "by_tool": data.get("by_tool", {}),
+    })
+
+@app.route("/api/vsp/runs_index")
+def api_vsp_runs_index():
+    """Trả run_index.json cho TAB 2 (Runs & Reports)."""
+    out_dir = ROOT / "out"
+    idx_file = out_dir / "run_index.json"
+    if not idx_file.exists():
+        # Nếu chưa có, cố gắng tự build 1 lần
+        try:
+            import subprocess
+            subprocess.run(
+                ["python3", str(ROOT / "bin" / "build_vsp_run_index_v1.py")],
+                cwd=str(ROOT),
+                check=False,
+            )
+        except Exception:
+            pass
+
+    if idx_file.exists():
+        try:
+            import json
+            data = json.loads(idx_file.read_text())
+            return jsonify({"runs": data})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"runs": []})
+
+### VSP_DEMO_API_V1
+
+
+@app.route("/")
+def root():
+    data = build_vsp_data()
+    return render_template("vsp_5tabs_full.html", vsp_data=data)
+
+@app.route("/vsp_demo")
+def vsp_demo():
+    data = build_vsp_data()
+    return render_template("vsp_5tabs_full.html", vsp_data=data)
+
+# API cho nút RUN FULL SCAN trên Dashboard
+@app.route("/api/vsp/run_full", methods=["POST"])
+def api_vsp_run_full():
+    data = request.get_json(force=True, silent=True) or {}
+    target_url = str(data.get("target_url", "")).strip()
+    src_path   = str(data.get("src_path", "")).strip()
+    profile    = str(data.get("profile", "EXT") or "EXT").upper()
+
+    if not target_url or not src_path:
+        return jsonify({"error": "Missing target_url or src_path"}), 400
+
+    now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = f"RUN_VSP_{profile}_{now}"
+    run_dir = ROOT / "out" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # TODO: nếu bạn dùng script FULL khác thì đổi tên ở đây
+    cmd = [
+        str(ROOT / "bin" / "run_all_with_grype_fix.sh"),
+        src_path,
+        str(run_dir),
+        profile.lower(),
+    ]
+
+    try:
+        res = subprocess.run(
+            cmd,
+            cwd=str(ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        (run_dir / "_vsp_run.log").write_text(res.stdout or "")
+
+        # Cập nhật symlink RUN_CURRENT -> run mới
+        cur = ROOT / "out" / "RUN_CURRENT"
+        try:
+            if cur.is_symlink() or cur.exists():
+                cur.unlink()
+        except Exception:
+            pass
+        try:
+            cur.symlink_to(run_dir.name)
+        except Exception:
+            pass
+
+        if res.returncode != 0:
+            return jsonify({
+                "run_id": run_id,
+                "status": "failed",
+                "error": f"scan exited with code {res.returncode}",
+            }), 500
+
+        return jsonify({"run_id": run_id, "status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8950, debug=True)

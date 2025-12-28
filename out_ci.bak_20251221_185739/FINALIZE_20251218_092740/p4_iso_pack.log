@@ -1,0 +1,35 @@
+== VSP ISO EVIDENCE PACK P4 ==
+[BASE]=http://127.0.0.1:8910 [TS]=20251218_093358
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[OK] wrote /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso/ISO_EVIDENCE_INDEX.json
+[OK] wrote /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso/ISO_27001_MAP.csv
+[BACKUP] /home/test/Data/SECURITY_BUNDLE/bin/pack_report.sh.bak_iso_20251218_093358
+[WARN] cannot find insertion needle; skip patch safely
+== rebuild report tgz ==
+[OK] packed: /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/VSP_CI_20251215_034956__REPORT.tgz
+[OK] SHA256SUMS -> /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/SHA256SUMS.txt
+[OPEN] /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/VSP_CI_20251215_034956__REPORT.tgz
+[HINT] Verify:
+  cd "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956" && sha256sum -c SHA256SUMS.txt
+== verify sha ==
+VSP_CI_20251215_034956__REPORT.tgz: OK
+== repack audit bundle ==
+== VSP AUDIT BUNDLE P2 ==
+[BASE]=http://127.0.0.1:8910
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[BDIR]=out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359
+[OK] COMMERCIAL_LATEST=out_ci/COMMERCIAL_20251218_092728
+[OK] packed: out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.tgz
+[OK] sha256: out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.SHA256SUMS.txt
+== DONE ==
+[OPEN] out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.tgz
+[HINT] Verify:
+  cd "out_ci" && sha256sum -c "AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.SHA256SUMS.txt"
+  # if minisign:
+  minisign -Vm "AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.SHA256SUMS.txt" -p "${KEY_PUB:-/home/test/.minisign/mykey.pub}"
+== DONE P4 ISO ==
+[ISO_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso
+[HINT] open ISO files:
+  ls -la "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso"

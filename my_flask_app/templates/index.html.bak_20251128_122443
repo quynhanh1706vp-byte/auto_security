@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flask + PDF export demo</title>
+</head>
+<body>
+  <h1>Flask + PDF export demo</h1>
+  <p>Nhấn nút bên dưới để xuất PDF từ HTML.</p>
+  <form method="POST" action="/generate-pdf">
+    <button type="submit">Generate PDF</button>
+  </form>
+</body>
+</html>

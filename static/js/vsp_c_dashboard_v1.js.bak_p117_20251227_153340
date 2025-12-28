@@ -1,0 +1,116 @@
+/* VSP_P116D_RID_SANITIZE_AUTOLATEST_V1 */
+(() => {
+  const $ = (sel) => document.querySelector(sel);
+
+  function qparam(name){
+    try { return new URLSearchParams(location.search).get(name); } catch(e){ return null; }
+  }
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = (v === null || v === undefined) ? "" : String(v);
+  }
+
+  function isValidRid(r){
+    if (!r) return false;
+    r = String(r).trim();
+    if (!r) return false;
+
+    // reject obvious junk
+    const bad = ["FILL_REAL_DATA", ".js", ".css", "VSP_FILL_", "TABS_P1_V1"];
+    const up = r.toUpperCase();
+    if (bad.some(x => up.includes(x))) return false;
+
+    // accept common real run ids
+    if (/^(VSP_CI_\d{8}_\d{6})$/.test(r)) return true;
+    if (/^(RUN_)/.test(r) && /\d/.test(r) && r.length > 12) return true;
+    if (/^(RUN_VSP_)/.test(r) && /\d/.test(r)) return true;
+
+    // generic: must start with VSP_ or RUN_ and contain digits, only safe chars
+    if (!/^(VSP_|RUN_)/.test(r)) return false;
+    if (!/\d/.test(r)) return false;
+    if (!/^[A-Za-z0-9_:-]+$/.test(r)) return false;
+    return true;
+  }
+
+  async function fetchJson(url){
+    const r = await fetch(url, { credentials: "same-origin" });
+    const t = await r.text();
+    let j=null; try{ j=JSON.parse(t); }catch(e){}
+    return { ok:r.ok, status:r.status, json:j, text:t };
+  }
+
+  async function resolveRid(){
+    // 0) URL rid
+    let rid = qparam("rid");
+    if (rid !== null) rid = (rid || "").trim();
+    if (isValidRid(rid)) return rid;
+
+    // if URL had invalid rid, remove it (avoid loops)
+    if (rid !== null && rid && !isValidRid(rid)) {
+      try {
+        const u = new URL(location.href);
+        u.searchParams.delete("rid");
+        location.replace(u.toString());
+        return null;
+      } catch(e) {}
+    }
+
+    // 1) Latest from API (preferred)
+    const runs = await fetchJson(`/api/ui/runs_v3?limit=1&include_ci=1`);
+    const latest = (runs?.json?.items?.[0]?.rid || "").trim();
+    if (isValidRid(latest)) return latest;
+
+    // 2) localStorage (only if valid)
+    try {
+      const last = (localStorage.getItem("vsp_rid") || "").trim();
+      if (isValidRid(last)) return last;
+      if (last && !isValidRid(last)) localStorage.removeItem("vsp_rid");
+    } catch(e){}
+
+    return "";
+  }
+
+  // minimal render: show RID + status; other modules can fill the rest
+  async function main(){
+    const rid = await resolveRid();
+    if (rid === null) return; // redirected
+
+    // persist only if valid
+    if (isValidRid(rid)) {
+      try { localStorage.setItem("vsp_rid", rid); } catch(e){}
+      try { window.VSP_RID = rid; } catch(e){}
+    }
+
+    // if URL missing rid, add it (stable deep link)
+    try {
+      const u = new URL(location.href);
+      const cur = (u.searchParams.get("rid") || "").trim();
+      if (!cur && isValidRid(rid)) {
+        u.searchParams.set("rid", rid);
+        location.replace(u.toString());
+        return;
+      }
+    } catch(e){}
+
+    setText("p-rid", rid || "(no rid)");
+    setText("k-status", rid ? "OK" : "DEGRADED");
+
+    // refresh button bypass
+    const br = document.getElementById("b-refresh");
+    if (br && !br.dataset.p116d){
+      br.dataset.p116d="1";
+      br.addEventListener("click", () => {
+        const u = new URL(location.href);
+        u.searchParams.set("nocache","1");
+        location.href = u.toString();
+      });
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", main);
+  } else {
+    main();
+  }
+})();

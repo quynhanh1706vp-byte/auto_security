@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Deploy VSP UI from a release tgz safely (backup + restore on fail)
+# Usage:
+#   RID=VSP_CI_... bash bin/p0_deploy_from_release_safe_v1.sh /path/to/VSP_UI_COMMERCIAL_xxx.tgz
+set -u
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  echo "[ERR] Do NOT source this script. Run: bash ${BASH_SOURCE[0]} <release.tgz>"
+  return 2
+fi
+set -euo pipefail
+
+REL_TGZ="${1:-}"
+[ -n "$REL_TGZ" ] || { echo "[ERR] missing release tgz path"; exit 2; }
+[ -f "$REL_TGZ" ] || { echo "[ERR] not found: $REL_TGZ"; exit 2; }
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+SVC="${VSP_UI_SVC:-vsp-ui-8910.service}"
+RID="${RID:-VSP_CI_20251218_114312}"
+ROOT="/home/test/Data/SECURITY_BUNDLE/ui"
+PENDING="$ROOT/out_ci/DEPLOY_PENDING_RESTART_${TS}.txt"
+TS="$(date +%Y%m%d_%H%M%S)"
+STAGE="/tmp/vsp_ui_stage_${TS}"
+BKP="/home/test/Data/SECURITY_BUNDLE/ui/out_ci/DEPLOY_BACKUP_${TS}"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need tar; need mkdir; need cp; need python3; need curl
+command -v systemctl >/dev/null 2>&1 || true
+command -v sudo >/dev/null 2>&1 || true
+
+echo "[INFO] REL_TGZ=$REL_TGZ"
+echo "[INFO] BASE=$BASE SVC=$SVC RID=$RID"
+mkdir -p "$STAGE" "$BKP"
+
+echo "== [0] extract release to stage =="
+tar -xzf "$REL_TGZ" -C "$STAGE"
+TOP="$(find "$STAGE" -maxdepth 1 -mindepth 1 -type d | head -n 1 || true)"
+[ -n "$TOP" ] || { echo "[ERR] cannot detect top dir inside tgz"; exit 2; }
+
+CODE="$TOP/code"
+[ -d "$CODE" ] || { echo "[ERR] missing code/ in release: $CODE"; exit 2; }
+
+REQ_PY=(vsp_demo_app.py wsgi_vsp_ui_gateway.py)
+for f in "${REQ_PY[@]}"; do
+  [ -f "$CODE/$f" ] || { echo "[ERR] missing $f in release code/"; exit 2; }
+done
+
+echo "== [1] backup current working files =="
+cp -f "$ROOT/vsp_demo_app.py" "$BKP/" 2>/dev/null || true
+cp -f "$ROOT/wsgi_vsp_ui_gateway.py" "$BKP/" 2>/dev/null || true
+mkdir -p "$BKP/static_js"
+cp -f "$ROOT/static/js/vsp_fill_real_data_5tabs_p1_v1.js" "$BKP/static_js/" 2>/dev/null || true
+cp -f "$ROOT/static/js/vsp_bundle_tabs5_v1.js" "$BKP/static_js/" 2>/dev/null || true
+cp -f "$ROOT/static/js/vsp_tabs4_autorid_v1.js" "$BKP/static_js/" 2>/dev/null || true
+echo "[OK] backup dir: $BKP"
+
+restore(){
+  echo "[RESTORE] rollback from $BKP"
+  [ -f "$BKP/vsp_demo_app.py" ] && cp -f "$BKP/vsp_demo_app.py" "$ROOT/vsp_demo_app.py" || true
+  [ -f "$BKP/wsgi_vsp_ui_gateway.py" ] && cp -f "$BKP/wsgi_vsp_ui_gateway.py" "$ROOT/wsgi_vsp_ui_gateway.py" || true
+  if [ -d "$BKP/static_js" ]; then
+    cp -f "$BKP/static_js/"*.js "$ROOT/static/js/" 2>/dev/null || true
+  fi
+}
+
+echo "== [2] install release files =="
+cp -f "$CODE/vsp_demo_app.py" "$ROOT/vsp_demo_app.py"
+cp -f "$CODE/wsgi_vsp_ui_gateway.py" "$ROOT/wsgi_vsp_ui_gateway.py"
+
+# optional: copy any js shipped in code/
+mkdir -p "$ROOT/static/js"
+for j in "$CODE"/*.js; do
+  [ -f "$j" ] || continue
+  cp -f "$j" "$ROOT/static/js/"
+done
+
+echo "== [3] compile check (fail => restore) =="
+python3 -m py_compile "$ROOT/vsp_demo_app.py" || { restore; exit 2; }
+python3 -m py_compile "$ROOT/wsgi_vsp_ui_gateway.py" || { restore; exit 2; }
+
+echo "== [4] restart service (no password prompt) =="
+if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+  sudo systemctl daemon-reload || true
+  sudo systemctl restart "$SVC" || { echo "[ERR] restart failed"; restore; exit 2; }
+elif command -v systemctl >/dev/null 2>&1; then
+  systemctl restart "$SVC" || { echo "[ERR] restart failed (need sudo?)"; restore; exit 2; }
+else
+  echo "[WARN] systemctl not available; skipping restart"
+fi
+
+echo "== [5] wait port =="
+for i in $(seq 1 120); do
+  curl -fsS --connect-timeout 1 --max-time 2 "$BASE/vsp5" >/dev/null 2>&1 && break
+  sleep 0.25
+  [ "$i" -eq 120 ] && { echo "[ERR] UI not reachable: $BASE"; restore; exit 2; }
+done
+
+echo "== [6] smoke (must be GREEN) =="
+if [ -f "$ROOT/bin/vsp_ui_ops_safe_v2.sh" ]; then
+  RID="$RID" bash "$ROOT/bin/vsp_ui_ops_safe_v2.sh" smoke || { restore; exit 2; }
+elif [ -f "$ROOT/bin/p0_go_live_smoke_v1.sh" ]; then
+  RID="$RID" bash "$ROOT/bin/p0_go_live_smoke_v1.sh" || { restore; exit 2; }
+else
+  echo "[WARN] no smoke script found; skipping"
+fi
+
+echo "[OK] DEPLOY GREEN ✅  backup=$BKP"

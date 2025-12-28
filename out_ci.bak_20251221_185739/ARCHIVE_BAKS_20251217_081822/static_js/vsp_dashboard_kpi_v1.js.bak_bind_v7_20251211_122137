@@ -1,0 +1,187 @@
+/**
+ * VSP Dashboard KPI binder V6
+ * - Không động vào text cũ (dấu "-").
+ * - Với mỗi card có label ("TOTAL FINDINGS", "CRITICAL", ...),
+ *   tạo 1 overlay số riêng bên trong card.
+ */
+(function () {
+  const LOG = "[VSP][KPI_V6]";
+
+  function ensureStyle() {
+    if (document.getElementById("vsp-kpi-overlay-style")) return;
+    const style = document.createElement("style");
+    style.id = "vsp-kpi-overlay-style";
+    style.textContent = `
+      .vsp-kpi-overlay-number {
+        display: block;
+        margin-top: 4px;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+      }
+      .vsp-kpi-overlay-number--small {
+        font-size: 16px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function formatNumber(n) {
+    if (typeof n !== "number") n = Number(n || 0);
+    if (!isFinite(n)) return "0";
+    try {
+      return n.toLocaleString("en-US");
+    } catch (e) {
+      return String(n);
+    }
+  }
+
+  function findLabelNodes(upperMatch) {
+    const root =
+      document.querySelector("#vsp-tab-dashboard") || document.body;
+    const all = root.querySelectorAll("*");
+    const out = [];
+    all.forEach((el) => {
+      const t = (el.textContent || "").trim();
+      if (!t) return;
+      const u = t.toUpperCase();
+      if (u.indexOf(upperMatch) !== -1) {
+        out.push(el);
+      }
+    });
+    return out;
+  }
+
+  function getCardContainer(labelEl) {
+    if (!labelEl) return null;
+    // Ưu tiên div bao ngoài
+    let container = labelEl.closest("div");
+    if (!container) container = labelEl.parentElement;
+    return container || null;
+  }
+
+  function ensureOverlay(container, size) {
+    if (!container) return null;
+    let overlay = container.querySelector(".vsp-kpi-overlay-number");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "vsp-kpi-overlay-number";
+      container.appendChild(overlay);
+    }
+    if (size === "small") {
+      overlay.classList.add("vsp-kpi-overlay-number--small");
+    }
+    return overlay;
+  }
+
+  function bindLabel(labelMatch, valueObj, formatter, size) {
+    const upperMatch = labelMatch.toUpperCase();
+    const labels = findLabelNodes(upperMatch);
+    let bound = 0;
+
+    labels.forEach((labelEl) => {
+      const card = getCardContainer(labelEl);
+      const overlay = ensureOverlay(card, size);
+      if (!overlay) return;
+      overlay.textContent = formatter(valueObj);
+      bound += 1;
+    });
+
+    console.log(LOG, "Bound", labelMatch, "x", bound, "->", valueObj);
+  }
+
+  function bindFromData(data) {
+    if (!data || typeof data !== "object") return;
+    ensureStyle();
+
+    const sev = data.severity_cards || {};
+    const total = Number(data.total_findings || 0);
+    const score =
+      typeof data.security_posture_score === "number"
+        ? data.security_posture_score
+        : null;
+
+    const topTool = data.top_risky_tool || null;
+    const topCwe = data.top_impacted_cwe || null;
+    const topModule = data.top_vulnerable_module || null;
+
+    // TOTAL FINDINGS
+    bindLabel("TOTAL FINDINGS", total, formatNumber, "big");
+
+    // Severity buckets
+    bindLabel("CRITICAL", Number(sev.CRITICAL || 0), formatNumber, "big");
+    bindLabel("HIGH", Number(sev.HIGH || 0), formatNumber, "big");
+    bindLabel("MEDIUM", Number(sev.MEDIUM || 0), formatNumber, "big");
+    bindLabel("LOW", Number(sev.LOW || 0), formatNumber, "big");
+
+    // INFO + TRACE (số nhiều, cho nhỏ lại)
+    const infoTrace =
+      Number(sev.INFO || 0) + Number(sev.TRACE || 0);
+    bindLabel("INFO + TRACE", infoTrace, formatNumber, "small");
+
+    // SECURITY POSTURE SCORE
+    bindLabel(
+      "SECURITY POSTURE SCORE",
+      score === null ? "N/A" : score,
+      (v) => (v === "N/A" ? "N/A" : v + " / 100"),
+      "small"
+    );
+
+    // TOP RISKY TOOL
+    bindLabel(
+      "TOP RISKY TOOL",
+      topTool,
+      (obj) => {
+        if (!obj || !obj.label) return "N/A";
+        const n = obj.crit_high || obj.count || 0;
+        return obj.label + " (" + n + ")";
+      },
+      "small"
+    );
+
+    // TOP IMPACTED CWE
+    bindLabel(
+      "TOP IMPACTED CWE",
+      topCwe,
+      (obj) => {
+        if (!obj || !obj.label) return "N/A";
+        const n = obj.count || 0;
+        return obj.label + " (" + n + ")";
+      },
+      "small"
+    );
+
+    // TOP VULNERABLE MODULE
+    bindLabel(
+      "TOP VULNERABLE MODULE",
+      topModule,
+      (obj) => {
+        if (!obj || !obj.label) return "N/A";
+        const n = obj.count || 0;
+        return obj.label + " (" + n + ")";
+      },
+      "small"
+    );
+  }
+
+  async function loadDashboardKpi() {
+    try {
+      const res = await fetch("/api/vsp/dashboard_v3");
+      if (!res.ok) {
+        console.error(LOG, "HTTP", res.status);
+        return;
+      }
+      const data = await res.json();
+      console.log(LOG, "Dashboard data:", data);
+      bindFromData(data);
+    } catch (err) {
+      console.error(LOG, "Error loading dashboard KPI:", err);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    loadDashboardKpi();
+  });
+
+  window.vspReloadDashboardKPI = loadDashboardKpi;
+})();

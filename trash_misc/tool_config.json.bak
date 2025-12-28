@@ -1,0 +1,60 @@
+{
+  "tools": [
+    {
+      "id": "gitleaks",
+      "name": "Gitleaks",
+      "enabled": true,
+      "level": "aggr",
+      "modes": ["Offline", "Online", "CI/CD"]
+    },
+    {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "enabled": true,
+      "level": "aggr",
+      "modes": ["Offline", "Online", "CI/CD"]
+    },
+    {
+      "id": "bandit",
+      "name": "Bandit",
+      "enabled": true,
+      "level": "fast",
+      "modes": ["Offline", "CI/CD"]
+    },
+    {
+      "id": "trivy_secret",
+      "name": "Trivy Secret",
+      "enabled": true,
+      "level": "fast",
+      "modes": ["Offline", "CI/CD"]
+    },
+    {
+      "id": "trivy_misconfig",
+      "name": "Trivy Misconfig",
+      "enabled": true,
+      "level": "fast",
+      "modes": ["Offline", "CI/CD"]
+    },
+    {
+      "id": "trivy_vuln",
+      "name": "Trivy Vuln",
+      "enabled": true,
+      "level": "aggr",
+      "modes": ["Offline", "Online", "CI/CD"]
+    },
+    {
+      "id": "grype",
+      "name": "Grype",
+      "enabled": true,
+      "level": "fast",
+      "modes": ["Offline", "CI/CD"]
+    },
+    {
+      "id": "codeql",
+      "name": "CodeQL",
+      "enabled": true,
+      "level": "deep",
+      "modes": ["Offline", "CI/CD"]
+    }
+  ]
+}

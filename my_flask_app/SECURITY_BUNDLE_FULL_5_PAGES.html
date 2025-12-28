@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SECURITY_BUNDLE – Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg-main: #020617;
+      --bg-sidebar: #020617;
+      --bg-card: #02071b;
+      --border-subtle: rgba(148, 163, 184, 0.25);
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --primary: #22c55e;
+      --accent: #38bdf8;
+      --critical: #f97373;
+      --high: #fb923c;
+      --medium: #eab308;
+      --low: #22c55e;
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.65);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+        "SF Pro Text", "Segoe UI", sans-serif;
+      color: var(--text-main);
+      background: radial-gradient(circle at top left, #02071b, #000014 65%);
+      min-height: 100vh;
+    }
+
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+      padding: 16px 24px 24px;
+      gap: 16px;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 240px;
+      background: linear-gradient(180deg, #02071b, #020617);
+      border-radius: var(--radius-xl);
+      padding: 20px 18px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .sb-header-title {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .sb-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .sb-profile {
+      margin-top: 16px;
+      padding: 10px 12px;
+      border-radius: var(--radius-lg);
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .sb-profile-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .sb-profile-name {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .sb-profile-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .sb-nav { margin-top: 22px; }
+
+    .sb-nav-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .sb-nav-item {
+      padding: 9px 10px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+
+    .sb-nav-item span { pointer-events: none; }
+
+    .sb-nav-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.6);
+      pointer-events: none;
+    }
+
+    .sb-nav-item.active {
+      background: radial-gradient(circle at top left, #22c55e, #16a34a);
+      color: #020617;
+      font-weight: 500;
+    }
+
+    .sb-nav-item.active .sb-nav-dot { background: #020617; }
+
+    .sb-footer {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sb-tag-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sb-pill {
+      border-radius: var(--radius-pill);
+      padding: 4px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .sb-pill.primary {
+      border: none;
+      background: radial-gradient(circle at top left, #22c55e, #16a34a);
+      color: #020617;
+    }
+
+    /* MAIN SHELL */
+    .main-shell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .top-banner {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px dashed rgba(148, 163, 184, 0.4);
+      align-self: flex-start;
+      margin-left: 4px;
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    /* MAIN PANEL – 1 màu cho mọi tab */
+    .main {
+      flex: 1;
+      border-radius: var(--radius-xl);
+      padding: 18px 20px 20px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+      min-height: 0;
+      background: radial-gradient(circle at top left, #02071b, #020617 60%);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .tab-panel { display:none; flex:1; min-height:0; flex-direction:column; gap:12px; }
+    .tab-panel.active { display:flex; }
+
+    /* HEADER */
+    .main-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mh-left { display:flex; flex-direction:column; gap:4px; }
+
+    .mh-title-line {
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .mh-title-strong {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .mh-sub { font-size:12px; color:var(--text-muted); }
+    .mh-sub strong { color:var(--text-main); }
+
+    .mh-meta-row {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .mh-chip {
+      border-radius: var(--radius-pill);
+      padding: 4px 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--text-muted);
+    }
+
+    .mh-chip strong { color:var(--text-main); }
+
+    .mh-right { display:flex; align-items:center; gap:10px; }
+
+    .mh-critical-stat {
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: var(--radius-pill);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      color: var(--text-muted);
+    }
+
+    .mh-critical-stat strong { color:var(--critical); margin-left:4px; }
+
+    .btn-run {
+      border-radius: var(--radius-pill);
+      padding: 9px 18px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #020617;
+      background: radial-gradient(circle at top left, #22c55e, #16a34a);
+      box-shadow: 0 14px 25px rgba(34, 197, 94, 0.42);
+      transition: transform 0.08s ease, box-shadow 0.12s ease;
+      white-space: nowrap;
+    }
+
+    .btn-run:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(34, 197, 94, 0.55);
+    }
+
+    .main-header-bottom {
+      margin-top: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .mhb-chip {
+      border-radius: var(--radius-pill);
+      padding: 4px 9px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      color: var(--text-muted);
+    }
+
+    .mhb-chip span { color:var(--text-main); }
+
+    /* KPI */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .kpi-card {
+      border-radius: var(--radius-lg);
+      padding: 10px 12px;
+      background: radial-gradient(circle at top left, #02071b, #020617);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 64px;
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .kpi-value { font-size:18px; font-weight:600; }
+
+    .kpi-tag {
+      font-size: 11px;
+      border-radius: var(--radius-pill);
+      padding: 2px 8px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      align-self: flex-start;
+      color: var(--text-muted);
+    }
+
+    .kpi-card.total {
+      background: radial-gradient(circle at top left, #06b6d4, #0369a1);
+    }
+    .kpi-card.total .kpi-value,
+    .kpi-card.total .kpi-label,
+    .kpi-card.total .kpi-tag {
+      color: #0f172a;
+    }
+
+    .kpi-card.critical { background: radial-gradient(circle at top left, #f97373, #b91c1c); }
+    .kpi-card.high     { background: radial-gradient(circle at top left, #fb923c, #c2410c); }
+    .kpi-card.medium   { background: radial-gradient(circle at top left, #eab308, #a16207); }
+    .kpi-card.low      { background: radial-gradient(circle at top left, #22c55e, #15803d); }
+
+    .kpi-card.critical .kpi-value,
+    .kpi-card.critical .kpi-label,
+    .kpi-card.high .kpi-value,
+    .kpi-card.high .kpi-label,
+    .kpi-card.medium .kpi-value,
+    .kpi-card.medium .kpi-label,
+    .kpi-card.low .kpi-value,
+    .kpi-card.low .kpi-label {
+      color: #020617;
+    }
+
+    .kpi-card.critical .kpi-tag,
+    .kpi-card.high .kpi-tag,
+    .kpi-card.medium .kpi-tag,
+    .kpi-card.low .kpi-tag {
+      border-color: rgba(15, 23, 42, 0.5);
+      color: rgba(15, 23, 42, 0.8);
+    }
+
+    /* GRID */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.15fr);
+      gap: 14px;
+      align-items: flex-start;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .left-col,
+    .right-col {
+      display: grid;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .left-col { grid-template-rows: auto minmax(0, 1fr); }
+    .right-col { grid-template-rows: minmax(0, 1.1fr) auto auto; }
+
+    .card {
+      border-radius: var(--radius-lg);
+      background: radial-gradient(circle at top left, #02071b, #020617);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.78);
+      padding: 12px 14px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+    }
+
+    .card-sub { font-size:11px; color:var(--text-muted); }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .table th,
+    .table td {
+      padding: 4px 4px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .table th {
+      font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .table tr + tr td { border-top: 1px solid rgba(15, 23, 42, 0.9); }
+
+    .table tr:nth-child(odd)  td { background: rgba(15, 23, 42, 0.4); }
+    .table tr:nth-child(even) td { background: rgba(15, 23, 42, 0.16); }
+
+    .chip-severity {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #020617;
+    }
+
+    .chip-critical { background: linear-gradient(135deg, #fecaca, #f97373); }
+    .chip-high     { background: linear-gradient(135deg, #fed7aa, #fb923c); }
+    .chip-medium   { background: linear-gradient(135deg, #fef08a, #eab308); }
+
+    /* TREND – mảnh, có trục X/Y, không sáng */
+    .trend-area {
+      position: relative;
+      flex: 1;
+      min-height: 70px;
+      height: 70px;
+      border-radius: 12px;
+      background: #020617;
+      padding: 4px 10px 12px;
+      overflow: hidden;
+      border: 1px solid rgba(30, 64, 175, 0.5);
+    }
+
+    .trend-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: none; /* tắt glow */
+    }
+
+    .trend-x-axis {
+      position: absolute;
+      left: 26px;
+      right: 14px;
+      bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: rgba(148, 163, 184, 0.7);
+    }
+
+    .trend-x-axis span { white-space: nowrap; }
+
+    /* BAR CHART – tắt glow, màu trầm */
+    .bar-wrapper {
+      flex: 1;
+      min-height: 140px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;  /* giãn đều, không dính sát nhau */
+      gap: 6px;
+      padding: 6px 4px 4px;
+    }
+
+    .bar,
+    .bar-muted {
+      flex: 0 0 12%;                  /* cột mảnh hơn */
+      max-width: 40px;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .bar {
+      background: linear-gradient(180deg, #facc15, #b45309);
+      box-shadow: none;
+      height: 120px;
+    }
+
+    .bar-muted {
+      height: 28px;
+      background: linear-gradient(180deg,
+                  rgba(148, 163, 184, 0.5),
+                  rgba(15, 23, 42, 1));
+      box-shadow: none;
+    }
+
+    .bar-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .section-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1200px) {
+      .app-shell { padding:12px 12px 16px; }
+      .sidebar   { width:220px; }
+      .dashboard-grid {
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .app-shell { flex-direction:column; }
+      .sidebar {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 14px 16px;
+      }
+      .sb-footer { display:none; }
+
+      .dashboard-grid { grid-template-columns:minmax(0,1fr); }
+      .left-col  { grid-template-rows:auto auto; }
+      .right-col { grid-template-rows:auto auto auto; }
+      .kpi-row   { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .sidebar { flex-direction:column; }
+      .kpi-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 520px) {
+      .kpi-row { grid-template-columns:minmax(0,1fr); }
+      .mh-right {
+        flex-direction: column;
+        align-items: flex-end;
+      }
+      .btn-run {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div>
+        <div class="sb-header-title">Security scan</div>
+        <div class="sb-title">SECURITY_BUNDLE</div>
+
+        <div class="sb-profile">
+          <div class="sb-profile-label">Profile</div>
+          <div class="sb-profile-name">EXT – Multi-tool offline</div>
+          <div class="sb-profile-meta">
+            Last run: 2025-11-28 03:49 • SRC: /home/tests/Data/CODE_202110225_P
+          </div>
+        </div>
+
+        <nav class="sb-nav">
+          <div class="sb-nav-title">Main</div>
+          <div class="sb-nav-item active" data-tab="dashboard">
+            <div class="sb-nav-dot"></div>
+            <span>Dashboard</span>
+          </div>
+          <div class="sb-nav-item" data-tab="runs">
+            <div class="sb-nav-dot"></div>
+            <span>Runs &amp; Reports</span>
+          </div>
+          <div class="sb-nav-item" data-tab="data">
+            <div class="sb-nav-dot"></div>
+            <span>Data Source</span>
+          </div>
+          <div class="sb-nav-item" data-tab="settings">
+            <div class="sb-nav-dot"></div>
+            <span>Settings</span>
+          </div>
+          <div class="sb-nav-item" data-tab="rules">
+            <div class="sb-nav-dot"></div>
+            <span>Rule Overrides</span>
+          </div>
+        </nav>
+      </div>
+
+      <div class="sb-footer">
+        <div class="sb-tag-row">
+          <span>DEPSECOPS – ISO 27001</span>
+          <span class="sb-pill">CIO level</span>
+        </div>
+        <div class="sb-tag-row">
+          <span>Profile</span>
+          <span class="sb-pill primary">EXT+</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="main-shell">
+      <div class="top-banner">
+        SECURITY_BUNDLE • Enterprise Security Profile EXT+ • Multi-tool scan (Semgrep, Gitleaks, Trivy, Grype, …)
+      </div>
+
+      <!-- DASHBOARD -->
+      <main class="main tab-panel active" id="tab-dashboard">
+        <section>
+          <div class="main-header-top">
+            <div class="mh-left">
+              <div class="mh-title-line">Security_bundle</div>
+              <div class="mh-title-strong">Multi-tool offline scan – Mode: Aggressive – Profile: EXT+</div>
+              <div class="mh-sub">
+                SRC: <strong>/home/tests/Data/CODE_20110225_P</strong> • Target:
+                <strong>https://app.example.com</strong> • Tools enabled: <strong>6 / 7</strong>
+              </div>
+              <div class="mh-meta-row">
+                <div class="mh-chip">MODE <strong>Offline – cached DB</strong></div>
+                <div class="mh-chip">LAST RUN <strong>RUN_20251128_115421</strong></div>
+              </div>
+            </div>
+            <div class="mh-right">
+              <div class="mh-critical-stat">CRITICAL / HIGH: <strong>0 / 170</strong></div>
+              <button class="btn-run">● Run scan</button>
+            </div>
+          </div>
+
+          <div class="main-header-bottom">
+            <div class="mhb-chip">Target: <span>https://app.example.com</span></div>
+            <div class="mhb-chip">Source: <span>/home/tests/Data/CODE_20110225_P</span></div>
+          </div>
+        </section>
+
+        <section class="kpi-row">
+          <div class="kpi-card total">
+            <div class="kpi-label">Total findings (all tools)</div>
+            <div class="kpi-value">9071</div>
+            <div class="kpi-tag">All buckets</div>
+          </div>
+          <div class="kpi-card critical">
+            <div class="kpi-label">Critical</div>
+            <div class="kpi-value">0</div>
+            <div class="kpi-tag">Severity bucket</div>
+          </div>
+          <div class="kpi-card high">
+            <div class="kpi-label">High</div>
+            <div class="kpi-value">170</div>
+            <div class="kpi-tag">Severity bucket</div>
+          </div>
+          <div class="kpi-card medium">
+            <div class="kpi-label">Medium (noise bucket)</div>
+            <div class="kpi-value">8891</div>
+            <div class="kpi-tag">Bulk of findings</div>
+          </div>
+          <div class="kpi-card low">
+            <div class="kpi-label">Low risk</div>
+            <div class="kpi-value">10</div>
+            <div class="kpi-tag">Cosmetic</div>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <!-- LEFT -->
+          <div class="left-col">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">By tool – severity buckets</div>
+                  <div class="card-sub">Counts per tool, last run</div>
+                </div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Tool</th><th>C</th><th>H</th><th>M</th><th>L</th>
+                      <th>Info</th><th>Trace</th><th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Semgrep</td><td>0</td><td>346</td><td>8851</td>
+                      <td>0</td><td>0</td><td>0</td><td>8897</td>
+                    </tr>
+                    <tr>
+                      <td>Gitleaks</td><td>0</td><td>26</td><td>0</td>
+                      <td>0</td><td>0</td><td>0</td><td>26</td>
+                    </tr>
+                    <tr>
+                      <td>Grype</td><td>0</td><td>1</td><td>1</td>
+                      <td>0</td><td>0</td><td>0</td><td>2</td>
+                    </tr>
+                    <tr>
+                      <td>Trivy FS</td><td>0</td><td>8</td><td>12</td>
+                      <td>0</td><td>0</td><td>0</td><td>20</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Trend – last runs</div>
+                  <div class="card-sub">Total findings over time</div>
+                </div>
+              </div>
+              <div class="trend-area">
+                <svg class="trend-svg" viewBox="0 0 100 36" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="trendFillFinal" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.10" />
+                      <stop offset="100%" stop-color="#22c55e" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+
+                  <!-- gridline ngang rất nhẹ -->
+                  <g stroke="rgba(148,163,184,0.14)" stroke-width="0.22">
+                    <line x1="14" y1="10"  x2="96" y2="10"  />
+                    <line x1="14" y1="18.5" x2="96" y2="18.5" />
+                    <line x1="14" y1="27"  x2="96" y2="27"  />
+                  </g>
+
+                  <!-- trục Y mềm, mảnh -->
+                  <line x1="14" y1="7" x2="14" y2="30.5"
+                        stroke="rgba(148,163,184,0.40)" stroke-width="0.35" />
+
+                  <!-- tick + label nhỏ đồng bộ -->
+                  <line x1="13.4" y1="27"  x2="14" y2="27"
+                        stroke="rgba(148,163,184,0.65)" stroke-width="0.35" />
+                  <line x1="13.4" y1="18.5" x2="14" y2="18.5"
+                        stroke="rgba(148,163,184,0.65)" stroke-width="0.35" />
+                  <line x1="13.4" y1="10"  x2="14" y2="10"
+                        stroke="rgba(148,163,184,0.65)" stroke-width="0.35" />
+
+                  <text x="5" y="28.2" font-size="1.8"
+                        fill="rgba(148,163,184,0.80)">2.5k</text>
+                  <text x="5" y="19.8" font-size="1.8"
+                        fill="rgba(148,163,184,0.80)">3.5k</text>
+                  <text x="5" y="11.4" font-size="1.8"
+                        fill="rgba(148,163,184,0.80)">4.5k</text>
+
+                  <!-- baseline X rất mảnh -->
+                  <line x1="14" y1="30.5" x2="96" y2="30.5"
+                        stroke="rgba(148,163,184,0.30)" stroke-width="0.30" />
+
+                  <!-- area + line đẩy lên cao hơn để khung bớt trống -->
+                  <path d="M14,23.5 L24,23.3 L36,22.8 L48,21
+                           L60,18.8 L72,16.1 L84,14 L96,12.2
+                           L96,30.5 L14,30.5 Z"
+                        fill="url(#trendFillFinal)" />
+
+                  <polyline points="14,23.5 24,23.3 36,22.8 48,21
+                                    60,18.8 72,16.1 84,14 96,12.2"
+                            stroke="#4ade80" stroke-width="0.8"
+                            stroke-opacity="0.9" fill="none"
+                            stroke-linejoin="round" stroke-linecap="round" />
+
+                  <g fill="#4ade80">
+                    <circle cx="14" cy="23.5" r="0.7" />
+                    <circle cx="36" cy="22.8" r="0.7" />
+                    <circle cx="60" cy="18.8" r="0.7" />
+                    <circle cx="84" cy="14"   r="0.7" />
+                    <circle cx="96" cy="12.2" r="0.8" />
+                  </g>
+                </svg>
+                <div class="trend-x-axis">
+                  <span>RUN_01</span>
+                  <span>RUN_04</span>
+                  <span>RUN_07</span>
+                  <span>RUN_10</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- RIGHT -->
+          <div class="right-col">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Severity buckets – last run</div>
+                  <div class="card-sub">Interactive overview</div>
+                </div>
+              </div>
+              <div class="bar-wrapper">
+                <div class="bar-muted"></div>
+                <div class="bar"></div>
+                <div class="bar-muted"></div>
+                <div class="bar-muted"></div>
+                <div class="bar-muted"></div>
+              </div>
+              <div class="bar-label-row">
+                <span>Critical</span><span>High</span><span>Medium</span>
+                <span>Low</span><span>Info/Trace</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Top risk findings</div>
+                  <div class="card-sub">Highest impact items to triage first</div>
+                </div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Severity</th><th>Rule / ID / Location</th><th>Tool</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="chip-severity chip-critical">Critical</span></td>
+                      <td>generic_auth_token_leak – src/runner.py:76</td>
+                      <td>Semgrep</td>
+                    </tr>
+                    <tr>
+                      <td><span class="chip-severity chip-high">High</span></td>
+                      <td>Secret exposed – config.py (GITLAB_TOKEN)</td>
+                      <td>Gitleaks</td>
+                    </tr>
+                    <tr>
+                      <td><span class="chip-severity chip-medium">Medium</span></td>
+                      <td>HTTP only on Docker compose v3.1:34</td>
+                      <td>Trivy FS</td>
+                    </tr>
+                    <tr>
+                      <td><span class="chip-severity chip-medium">Medium</span></td>
+                      <td>Unpinned version – requirements.txt:12</td>
+                      <td>Semgrep</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Top noisy paths</div>
+                  <div class="card-sub">Medium / Low / Info / Trace</div>
+                </div>
+              </div>
+              <div style="overflow-x:auto;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Path</th><th>M</th><th>L</th><th>Info</th><th>Trace</th><th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>tests/</td><td>4200</td><td>10</td><td>0</td><td>0</td><td>4210</td>
+                    </tr>
+                    <tr>
+                      <td>examples/</td><td>700</td><td>0</td><td>0</td><td>0</td><td>700</td>
+                    </tr>
+                    <tr>
+                      <td>docs/</td><td>650</td><td>45</td><td>0</td><td>0</td><td>695</td>
+                    </tr>
+                    <tr>
+                      <td>scripts/</td><td>90</td><td>25</td><td>0</td><td>0</td><td>115</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- RUNS & REPORTS -->
+      <main class="main tab-panel" id="tab-runs">
+        <section>
+          <div class="mh-left">
+            <div class="mh-title-line">Runs &amp; Reports</div>
+            <div class="mh-title-strong">History of SECURITY_BUNDLE runs</div>
+            <div class="section-note">
+              Mỗi dòng tương ứng một lần scan. Sau này BE chỉ cần trả JSON / DB list run để fill bảng này.
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Recent runs</div>
+              <div class="card-sub">Sample data – nối BE để thay bằng dữ liệu thật</div>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Run ID</th><th>Timestamp</th><th>Profile</th>
+                  <th>Critical</th><th>High</th><th>Total</th><th>Report</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>RUN_20251128_115421</td><td>2025-11-28 11:54</td>
+                  <td>EXT+</td><td>0</td><td>170</td><td>9071</td><td>HTML / PDF</td>
+                </tr>
+                <tr>
+                  <td>RUN_20251127_101233</td><td>2025-11-27 10:12</td>
+                  <td>EXT+</td><td>0</td><td>162</td><td>8840</td><td>HTML / PDF</td>
+                </tr>
+                <tr>
+                  <td>RUN_20251126_083055</td><td>2025-11-26 08:30</td>
+                  <td>FAST</td><td>0</td><td>51</td><td>2310</td><td>HTML / PDF</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- DATA SOURCE -->
+      <main class="main tab-panel" id="tab-data">
+        <section>
+          <div class="mh-left">
+            <div class="mh-title-line">Data Source</div>
+            <div class="mh-title-strong">findings_unified.json &amp; summary_unified.json</div>
+            <div class="section-note">
+              Panel này dùng để debug dữ liệu: xem nguồn tool, path JSON, số lượng finding per severity, v.v.
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Files</div>
+              <div class="card-sub">Mapping giữa RUN_DIR và JSON để BE trả về</div>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Type</th><th>Path (example)</th><th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>summary_unified.json</td>
+                  <td>out/RUN_20251128_115421/report/summary_unified.json</td>
+                  <td>Tổng hợp theo tool &amp; severity, dùng cho KPI + chart.</td>
+                </tr>
+                <tr>
+                  <td>findings_unified.json</td>
+                  <td>out/RUN_20251128_115421/report/findings_unified.json</td>
+                  <td>Danh sách finding chi tiết, dùng cho Data Source / export CSV.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- SETTINGS -->
+      <main class="main tab-panel" id="tab-settings">
+        <section>
+          <div class="mh-left">
+            <div class="mh-title-line">Settings</div>
+            <div class="mh-title-strong">Tool configuration &amp; profiles</div>
+            <div class="section-note">
+              Chỗ này sau BE sẽ bind với <code>tool_config.json</code>, chọn profile EXT / FAST / QUICK, bật tắt từng tool.
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Tools</div>
+              <div class="card-sub">Demo layout – BE map sang config thật</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:12px;">
+            <div>
+              <strong>Semgrep</strong><br/>
+              Mode: EXT+ • Languages: Python, JS<br/>
+              Status: Enabled
+            </div>
+            <div>
+              <strong>Gitleaks</strong><br/>
+              Secret scan (repo + FS)<br/>
+              Status: Enabled
+            </div>
+            <div>
+              <strong>Trivy FS</strong><br/>
+              File-system vuln scan<br/>
+              Status: Enabled
+            </div>
+            <div>
+              <strong>Grype</strong><br/>
+              SBOM-based dependency scan<br/>
+              Status: Enabled
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- RULE OVERRIDES -->
+      <main class="main tab-panel" id="tab-rules">
+        <section>
+          <div class="mh-left">
+            <div class="mh-title-line">Rule Overrides</div>
+            <div class="mh-title-strong">Custom severity &amp; allowlist</div>
+            <div class="section-note">
+              Sau này BE sẽ cho phép override severity / ignore theo rule ID, path hoặc tag (VD: test/, examples/).
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Examples</div>
+              <div class="card-sub">Rule ID &gt; New severity / Action</div>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Rule ID</th><th>Current</th><th>Override</th><th>Scope</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>SEM_GIT_SECRET_GENERIC</td>
+                  <td>HIGH</td>
+                  <td>MEDIUM</td>
+                  <td>Path: tests/</td>
+                </tr>
+                <tr>
+                  <td>TRIVY_DOCKER_NO_TAG</td>
+                  <td>MEDIUM</td>
+                  <td>IGNORE</td>
+                  <td>Path: examples/</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.sb-nav-item').forEach(function (item) {
+      item.addEventListener('click', function () {
+        var tab = item.getAttribute('data-tab');
+        if (!tab) return;
+
+        document.querySelectorAll('.sb-nav-item').forEach(function (i) {
+          i.classList.toggle('active', i === item);
+        });
+
+        document.querySelectorAll('.tab-panel').forEach(function (panel) {
+          panel.classList.toggle('active', panel.id === 'tab-' + tab);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

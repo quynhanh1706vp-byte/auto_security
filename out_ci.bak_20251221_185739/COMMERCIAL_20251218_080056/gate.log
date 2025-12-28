@@ -1,0 +1,17 @@
+== VSP COMMERCIAL AUTO-FIX + GATE P2 ==
+[BASE]=http://127.0.0.1:8910
+[TS]=20251218_080056
+== SNAP latest_rid_v1 ==
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+== HEALTH endpoints ==
+[HTTP] 200 http://127.0.0.1:8910/vsp4
+[HTTP] 200 http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/dashboard_commercial_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/findings_latest_v1?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/rule_overrides_v1
+[HEALTH_FAILS]=0
+== VERIFY SHA ==
+== EXPORT TGZ (HEAD) ==
+== STABILITY 10min (no non-200) ==

@@ -1,0 +1,7 @@
+[HTTP] 200 http://127.0.0.1:8910/vsp4
+[HTTP] 200 http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/dashboard_commercial_v2
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/findings_latest_v1?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/rule_overrides_v1

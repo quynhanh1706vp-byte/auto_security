@@ -1,0 +1,1243 @@
+/* VSP_P2_TREND_PATH_FORCE_V2 */
+/* VSP_P0_CIO_SCRUB_NA_ALL_V1P4C */
+"use strict";
+
+
+// __VSP_CIO_HELPER_V1
+(function(){
+  try{
+    window.__VSP_CIO = window.__VSP_CIO || {};
+    const qs = new URLSearchParams(location.search);
+    window.__VSP_CIO.debug = (qs.get("debug")==="1") || (localStorage.getItem("VSP_DEBUG")==="1");
+    window.__VSP_CIO.visible = function(){ return document.visibilityState === "visible"; };
+    window.__VSP_CIO.sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+    window.__VSP_CIO.backoff = async function(fn, opt){
+      opt = opt || {};
+      let delay = opt.delay || 800;
+      const maxDelay = opt.maxDelay || 8000;
+      const maxTries = opt.maxTries || 6;
+      for(let i=0;i<maxTries;i++){
+        if(!window.__VSP_CIO.visible()){
+          await window.__VSP_CIO.sleep(600);
+          continue;
+        }
+        try { return await fn(); }
+        catch(e){
+          if(window.__VSP_CIO.debug) console.warn("[VSP] backoff retry", i+1, e);
+          await window.__VSP_CIO.sleep(delay);
+          delay = Math.min(maxDelay, delay*2);
+        }
+      }
+      throw new Error("backoff_exhausted");
+    };
+    window.__VSP_CIO.api = {
+      ridLatest: ()=>"/api/vsp/rid_latest_v3",
+      runs: (limit,offset)=>`/api/vsp/runs_v3?limit=${limit||50}&offset=${offset||0}`,
+      gate: (rid)=>`/api/vsp/run_gate_v3?rid=${encodeURIComponent(rid||"")}`,
+      findingsPage: (rid,limit,offset)=>`/api/vsp/findings_v3?rid=${encodeURIComponent(rid||"")}&limit=${limit||100}&offset=${offset||0}`,
+      artifact: (rid,kind,download)=>`/api/vsp/artifact_v3?rid=${encodeURIComponent(rid||"")}&kind=${encodeURIComponent(kind||"")}${download?"&download=1":""}`
+    };
+  }catch(_){}
+})();
+
+/**
+ * VSP_DASHBOARD_LIVE_V2 – ALL-IN-ONE (datasource + fallback v1/v3)
+ */
+
+(function () {
+  const API_SUMMARY      = "/api/vsp/datasource?mode=dashboard";
+  const API_DS_SEV       = (sev, limit) =>
+    "/api/vsp/datasource?severity=" + encodeURIComponent(sev) + "&limit=" + (limit || 1);
+  const API_RUNS_V3      = "/api/vsp/runs_index_v3_v3";
+  const API_RUNS_V1      = "/api/vsp/runs";
+  const API_TREND_V1     = "/api/vsp/trend_v1?path=";
+  const API_SETTINGS     = "/api/vsp/settings/get";
+  const API_OVERRIDES    = "/api/vsp/overrides/list";
+  const API_DASHBOARD_V3 = "/api/vsp/dashboard_v3";
+
+  const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      const err = new Error("HTTP " + res.status + " for " + url);
+      err.status = res.status;
+      throw err;
+    }
+    return await res.json();
+  }
+
+  function safeInt(v) {
+    if (v == null) return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function setNoData(container, msg) {
+    if (!container) return;
+    container.innerHTML =
+      '<p style="font-size:12px;color:#9ca3c7;">' + msg + "</p>";
+  }
+
+  /* ========== KPI + DONUT ========== */
+
+  let donutChart = null;
+
+  function renderKpisAndDonut(dash, bySev) {
+    const sev = bySev || {};
+    const fmt = (n) => n.toLocaleString("en-US");
+
+    const crit  = safeInt(sev.CRITICAL);
+    const high  = safeInt(sev.HIGH);
+    const med   = safeInt(sev.MEDIUM);
+    const low   = safeInt(sev.LOW);
+    const info  = safeInt(sev.INFO);
+    const trace = safeInt(sev.TRACE);
+
+    const totalFromSev = crit + high + med + low + info + trace;
+    const total =
+      safeInt(dash.total_findings) ||
+      safeInt(dash.total) ||
+      totalFromSev;
+
+    const elTotal = $("kpi-total-findings");
+    if (elTotal) elTotal.textContent = fmt(total);
+
+    const elCrit = $("kpi-critical");
+    if (elCrit) elCrit.textContent = fmt(crit);
+
+    const elHigh = $("kpi-high");
+    if (elHigh) elHigh.textContent = fmt(high);
+
+    const elMed = $("kpi-medium");
+    if (elMed) elMed.textContent = fmt(med);
+
+    const elLow = $("kpi-low");
+    if (elLow) elLow.textContent = fmt(low);
+
+    const elInfoTrace = $("kpi-info-trace");
+    if (elInfoTrace) elInfoTrace.textContent = fmt(info + trace);
+
+    const lastRunId = $("vsp-last-run-id");
+    if (lastRunId) lastRunId.textContent = dash.run_id || "–";
+
+    const lastRunTs = $("vsp-last-run-ts");
+    if (lastRunTs) {
+      const ts = dash.ts || dash.last_run_ts || dash.last_ts;
+      lastRunTs.textContent = ts ? ts : "Last run: –";
+    }
+
+    // Donut
+    const canvas = $("severity_donut_chart");
+    if (canvas && typeof Chart !== "undefined") {
+      if (donutChart) donutChart.destroy();
+      donutChart = new Chart(canvas, {
+        type: "doughnut",
+        data: {
+          labels: ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"],
+          datasets: [
+            {
+              data: [crit, high, med, low, info, trace],
+              backgroundColor: [
+                "#ff4b6a",
+                "#ff9f43",
+                "#ffd166",
+                "#4ade80",
+                "#38bdf8",
+                "#a855f7",
+              ],
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "70%",
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+
+    // fallback trend 1 điểm, sẽ bị override nếu initTrend() load được nhiều điểm
+    renderTrend([{ label: dash.run_id || "Last run", total }]);
+  }
+
+  async function computeSeverityBucketsFromDatasource() {
+    const buckets = {
+      CRITICAL: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+      INFO: 0,
+      TRACE: 0,
+    };
+
+    const promises = SEVERITIES.map(async (sev) => {
+      try {
+        const resp = await fetchJson(API_DS_SEV(sev, 1));
+        const total = safeInt(resp.total || resp.total_findings || resp.count);
+        buckets[sev] = total;
+      } catch (err) {
+        console.warn("[VSP] severity", sev, "error:", err);
+      }
+    });
+
+    await Promise.all(promises);
+    return buckets;
+  }
+
+  /* ========== TREND ========== */
+
+  let trendChart = null;
+
+  function renderTrend(points) {
+    const canvas = $("trend_line_chart");
+    if (!canvas || typeof Chart === "undefined") return;
+    if (!Array.isArray(points) || !points.length) return;
+
+    const labels = points.map((p) => p.label || "");
+    const totals = points.map((p) => safeInt(p.total || p.total_findings));
+
+    // Destroy mọi chart đang gắn với canvas này (kể cả không lưu trong trendChart)
+    if (typeof Chart.getChart === "function") {
+      try {
+        const existing = Chart.getChart(canvas);
+        if (existing) existing.destroy();
+      } catch (e) {
+        console.warn("[VSP][TREND] Chart.getChart destroy error:", e);
+      }
+    }
+
+    if (trendChart) {
+      try {
+        trendChart.destroy();
+      } catch (e) {
+        console.warn("[VSP][TREND] trendChart.destroy error:", e);
+      }
+      trendChart = null;
+    }
+
+    trendChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Total findings",
+            data: totals,
+            tension: 0.35,
+            borderWidth: 2,
+            pointRadius: 3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { maxRotation: 45, minRotation: 45 },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(148,163,210,0.25)" },
+          },
+        },
+      },
+    });
+  }
+
+  async function initTrend() {
+    // 1) trend_v1 nếu có
+    try {
+      const t = await fetchJson(API_TREND_V1);
+      const pts = Array.isArray(t.points) ? t.points : [];
+      if (pts.length) {
+        renderTrend(pts);
+        return;
+      }
+    } catch (e) {
+      console.warn("[VSP] trend_v1 error:", e);
+    }
+
+    // 2) runs_index_v3 nếu có
+    try {
+      const runs = await fetchJson(API_RUNS_V3);
+      if (Array.isArray(runs) && runs.length) {
+        const pts = runs
+          .slice(0, 10)
+          .map((r) => ({
+            label: r.run_id || "",
+            total: r.total_findings || r.total || 0,
+          }))
+          .reverse();
+        renderTrend(pts);
+        return;
+      }
+    } catch (e) {
+      console.warn("[VSP] runs_index_v3 error (trend):", e);
+    }
+    // fallback = 1 điểm đã vẽ sẵn bởi renderKpisAndDonut
+  }
+
+      /* ========== TOP CWE BAR ========== */
+
+  let topCweChart = null;
+
+  function ensureTopCweCanvas() {
+    let canvas = $("top_cwe_chart");
+    if (canvas) return canvas;
+
+    const table = document.querySelector("#top-cwe-table");
+    if (table) {
+      table.style.display = "none";
+      const parent = table.parentElement || table.parentNode || table;
+      canvas = document.createElement("canvas");
+      canvas.id = "top_cwe_chart";
+      canvas.style.width = "100%";
+      canvas.style.height = "210px";
+      parent.appendChild(canvas);
+      return canvas;
+    }
+    return null;
+  }
+
+  function renderTopCweBarFromInsights(items) {
+    const canvas = ensureTopCweCanvas();
+    if (!canvas || typeof Chart === "undefined") return;
+
+    const arr = Array.isArray(items) ? items : [];
+    if (!arr.length) {
+      console.debug("[VSP] renderTopCweBarFromInsights: empty items");
+      return;
+    }
+
+    const labels = arr.map((it) => it.cwe || "UNKNOWN");
+    const totals = arr.map((it) => safeInt(it.count || 0));
+
+    if (topCweChart) {
+      topCweChart.destroy();
+    }
+
+    topCweChart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Findings",
+            data: totals,
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.parsed.y || 0;
+                return `  ${v} findings`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { maxRotation: 45, minRotation: 45 },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(148,163,210,0.25)" },
+          },
+        },
+      },
+    });
+  }
+
+  async function initTopCweFromInsights() {
+    try {
+      const data = await fetchJson(API_TOP_CWE_V1);
+      if (!data || data.ok === false) {
+        console.warn("[VSP] TOPCWE – insights ok=false hoặc data rỗng", data && data.error);
+        return;
+      }
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) {
+        console.warn("[VSP] TOPCWE – empty items from insights");
+        return;
+      }
+      renderTopCweBarFromInsights(items);
+    } catch (e) {
+      console.warn("[VSP] TOPCWE – insights fetch error:", e);
+    }
+  }
+
+  // Giữ hàm initTopCwe cũ để loadAll() vẫn gọi được,
+  // nhưng bên trong chỉ còn gọi insights.
+  async function initTopCwe(summary) {  // summary không dùng nữa
+    await initTopCweFromInsights();
+  }
+
+/* ========== TOP FINDINGS ========== */
+
+  async function initTopFindings() {
+    const tbody = document.querySelector("#top-findings-table tbody");
+    if (!tbody) return;
+
+    try {
+      const resp = await fetchJson(API_DS_SEV("CRITICAL", 5));
+      const items = Array.isArray(resp.items) ? resp.items : [];
+      if (!items.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="10" style="color:#9ca3c7;font-size:11px;">Không load được dữ liệu top findings.</td></tr>';
+        return;
+      }
+
+      const rows = items
+        .map((it) => {
+          const sev =
+            '<span class="vsp-severity-badge vsp-severity-critical">CRITICAL</span>';
+          const loc = it.location || it.file || it.path || "";
+          const rule = it.rule || it.rule_id || it.cwe || "";
+          const tool = it.tool || it.source || "";
+          return (
+            "<tr>" +
+            "<td>" + sev + "</td>" +
+            "<td>" + escHtml(loc) + "</td>" +
+            "<td>" + escHtml(rule) + "</td>" +
+            "<td>" + escHtml(tool) + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      tbody.innerHTML = rows;
+    } catch (e) {
+      console.warn("[VSP] initTopFindings error:", e);
+      tbody.innerHTML =
+        '<tr><td colspan="10" style="color:#9ca3c7;font-size:11px;">Không load được dữ liệu top findings.</td></tr>';
+    }
+  }
+
+  /* ========== RUNS TAB ========== */
+
+  function renderRunsTable(runs) {
+    const container = $("vsp-runs-container");
+    if (!container) return;
+
+    if (!Array.isArray(runs) || !runs.length) {
+      setNoData(container, "Không load được dữ liệu runs.");
+      return;
+    }
+
+    const rows = runs
+      .slice(0, 20)
+      .map((r) => {
+        const sev = r.by_severity || r.severity || {};
+        return (
+          "<tr>" +
+          "<td>" + escHtml(r.run_id || r.id || "") + "</td>" +
+          "<td>" + safeInt(r.total_findings || r.total) + "</td>" +
+          "<td>" + safeInt(sev.CRITICAL) + "</td>" +
+          "<td>" + safeInt(sev.HIGH) + "</td>" +
+          "<td>" + safeInt(sev.MEDIUM) + "</td>" +
+          "<td>" + safeInt(sev.LOW) + "</td>" +
+          "</tr>"
+        );
+      })
+      .join("");
+
+    container.innerHTML =
+      '<table class="vsp-table">' +
+      "<thead><tr>" +
+      "<th>Run ID</th>" +
+      "<th>Total</th>" +
+      "<th>CRI</th>" +
+      "<th>HIGH</th>" +
+      "<th>MED</th>" +
+      "<th>LOW</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>";
+  }
+
+  async function initRunsTab() {
+    const container = $("vsp-runs-container");
+    if (!container) return;
+
+    // ưu tiên v3, fallback v1
+    try {
+      const runs = await fetchJson(API_RUNS_V3);
+      renderRunsTable(runs);
+      return;
+    } catch (e) {
+      console.warn("[VSP] runs_index_v3 error (tab):", e);
+    }
+
+    try {
+      const runs = await fetchJson(API_RUNS_V1);
+      renderRunsTable(runs);
+    } catch (e) {
+      console.warn("[VSP] /api/vsp/runs (v1) error:", e);
+      setNoData(
+        container,
+        "Không load được dữ liệu runs (API /api/vsp/runs_index_v3_v3 và /api/vsp/runs đều chưa sẵn sàng)."
+      );
+    }
+  }
+
+  /* ========== DATA SOURCE TAB ========== */
+
+  async function initDatasourceTab(summary, bySevComputed) {
+    const container = $("vsp-datasource-container");
+    if (!container) return;
+
+    try {
+      const sev =
+        bySevComputed ||
+        summary.by_severity ||
+        summary.severity ||
+        summary.by_severity_buckets ||
+        {};
+
+      let byTool =
+        summary.by_tool ||
+        summary.by_tool_severity ||
+        summary.by_tools ||
+        summary.tools ||
+        {};
+
+      // nếu datasource không có by_tool – thử lấy từ dashboard_v3
+      if (!Object.keys(byTool).length) {
+        try {
+          const dash = await fetchJson(API_DASHBOARD_V3);
+          byTool = dash.by_tool || {};
+        } catch (e) {
+          console.warn("[VSP] dashboard_v3 by_tool fallback error:", e);
+        }
+      }
+
+      const sevRows = SEVERITIES.map((s) => {
+        return (
+          "<tr><td>" +
+          s +
+          "</td><td>" +
+          safeInt(sev[s]) +
+          "</td></tr>"
+        );
+      }).join("");
+
+      const toolKeys = Object.keys(byTool || {});
+      const toolRows = toolKeys
+        .sort()
+        .map((tool) => {
+          const raw = byTool[tool] || {};
+          const d = raw.by_severity || raw.severity || raw;
+          return (
+            "<tr>" +
+            "<td>" + escHtml(tool) + "</td>" +
+            "<td>" + safeInt(d.CRITICAL) + "</td>" +
+            "<td>" + safeInt(d.HIGH) + "</td>" +
+            "<td>" + safeInt(d.MEDIUM) + "</td>" +
+            "<td>" + safeInt(d.LOW) + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      const rightTable =
+        toolKeys.length === 0
+          ? "<p style='font-size:12px;color:#9ca3c7;'>Không có dữ liệu theo tool.</p>"
+          : '<table class="vsp-table">' +
+            "<thead><tr><th>Tool</th><th>CRI</th><th>HIGH</th><th>MED</th><th>LOW</th></tr></thead>" +
+            "<tbody>" + toolRows + "</tbody></table>";
+
+      container.innerHTML =
+        '<div style="display:grid;grid-template-columns:35% 65%;gap:12px;">' +
+        '<div>' +
+        '<h3 style="margin:0 0 6px;font-size:13px;">Tổng quan theo mức độ</h3>' +
+        '<table class="vsp-table">' +
+        "<thead><tr><th>Severity</th><th>Count</th></tr></thead>" +
+        "<tbody>" + sevRows + "</tbody></table>" +
+        "</div>" +
+        '<div>' +
+        '<h3 style="margin:0 0 6px;font-size:13px;">Theo tool</h3>' +
+        rightTable +
+        "</div>" +
+        "</div>";
+    } catch (e) {
+      console.warn("[VSP] initDatasourceTab error:", e);
+      setNoData(
+        container,
+        "Không load được datasource (API /api/vsp/datasource?mode=dashboard chưa sẵn sàng)."
+      );
+    }
+  }
+
+  /* ========== SETTINGS TAB ========== */
+
+  async function initSettingsTab() {
+    const container = $("vsp-settings-container");
+    if (!container) return;
+
+    try {
+      const cfg = await fetchJson(API_SETTINGS);
+      container.innerHTML =
+        "<h3 style='margin:0 0 6px;font-size:13px;'>Cấu hình VSP EXT+ (đọc từ API)</h3>" +
+        "<pre style='font-size:11px;white-space:pre-wrap;border-radius:8px;background:#020617;padding:8px;border:1px solid rgba(148,163,210,0.35);'>" +
+        escHtml(JSON.stringify(cfg, null, 2)) +
+        "</pre>";
+    } catch (e) {
+      console.warn("[VSP] initSettingsTab error:", e);
+      setNoData(
+        container,
+        "Không load được cấu hình (API /api/vsp/settings/get chưa sẵn sàng)."
+      );
+    }
+  }
+
+  /* ========== RULE OVERRIDES TAB ========== */
+
+  async function initOverridesTab() {
+    const container = $("vsp-overrides-container");
+    if (!container) return;
+
+    try {
+      const resp = await fetchJson(API_OVERRIDES);
+      const raw = Array.isArray(resp.items) ? resp.items : resp;
+      let list;
+
+      if (Array.isArray(raw)) {
+        list = raw;
+      } else if (raw && typeof raw === "object") {
+        list = Object.keys(raw).map((k) => raw[k]);
+      } else {
+        throw new Error("invalid overrides format");
+      }
+
+      const rows = list
+        .map((it) => {
+          return (
+            "<tr>" +
+            "<td>" + escHtml(it.id || it.name || "") + "</td>" +
+            "<td>" + escHtml(it.pattern || it.rule || "") + "</td>" +
+            "<td>" + escHtml(it.reason || "") + "</td>" +
+            "</tr>"
+          );
+        })
+        .join("");
+
+      container.innerHTML =
+        "<h3 style='margin:0 0 6px;font-size:13px;'>Rule overrides</h3>" +
+        '<table class="vsp-table">' +
+        "<thead><tr><th>ID</th><th>Pattern / Rule</th><th>Reason</th></tr></thead>" +
+        "<tbody>" + rows + "</tbody></table>";
+    } catch (e) {
+      console.warn("[VSP] initOverridesTab error:", e);
+      setNoData(
+        container,
+        "Không load được danh sách override (API /api/vsp/overrides/list chưa sẵn sàng)."
+      );
+    }
+  }
+
+  /* ========== MAIN LOAD ========== */
+
+  async function loadAll() {
+    try {
+      const resp = await fetchJson(API_SUMMARY);
+      const summary = resp.summary || resp;
+
+      const dash = {
+        run_id: resp.run_id || summary.run_id,
+        ts: resp.ts || summary.ts,
+        total_findings:
+          summary.total_findings ||
+          summary.total ||
+          summary.total_findings_unified,
+      };
+
+      const bySev = await computeSeverityBucketsFromDatasource();
+
+      renderKpisAndDonut(dash, bySev);
+      await initTrend();
+      renderTopCweBar(summary);
+      await initTopFindings();
+
+      await initRunsTab();
+      await initDatasourceTab(summary, bySev);
+      await initSettingsTab();
+      await initOverridesTab();
+    } catch (e) {
+      console.error("[VSP] loadAll error:", e);
+    }
+  }
+
+  window.VSP_DASHBOARD_LIVE_V2_INIT = function () {
+    loadAll().catch((err) => console.error("[VSP] loadAll outer error:", err));
+  };
+})();
+
+
+
+/* ========== TOP CWE FROM INSIGHTS V1 ========== */
+
+function renderTopCweBarFromInsights(items) {
+  const canvas = ensureTopCweCanvas();
+  if (!canvas || typeof Chart === "undefined") return;
+
+  const arr = Array.isArray(items) ? items : [];
+  if (!arr.length) {
+    console.debug("[VSP] renderTopCweBarFromInsights: empty items");
+    return;
+  }
+
+  const labels = arr.map((it) => it.cwe || "UNKNOWN");
+  const totals = arr.map((it) => safeInt(it.count || 0));
+
+  if (topCweChart) {
+    try {
+      topCweChart.destroy();
+    } catch (e) {
+      console.warn("[VSP] destroy topCweChart error:", e);
+    }
+  }
+
+  topCweChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Findings",
+          data: totals,
+          borderWidth: 1,
+          // Màu để Chart.js tự chọn, UI theme đã lo phần nền
+        }
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: "rgba(148,163,210,0.25)" },
+        },
+        y: {
+          ticks: { autoSkip: false },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+async function initTopCweFromInsights() {
+  if (typeof API_TOP_CWE_V1 === "undefined") {
+    console.warn("[VSP] API_TOP_CWE_V1 not defined – skip Top CWE chart.");
+    return;
+  }
+  try {
+    const data = await fetchJson(API_TOP_CWE_V1 + "?limit=5");
+    const items = data && Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      console.warn("[VSP] top_cwe_v1: no items");
+      return;
+    }
+    renderTopCweBarFromInsights(items);
+  } catch (e) {
+    console.warn("[VSP] top_cwe_v1 error:", e);
+  }
+}
+
+// ======================= TOP_CWE_PATCH_V3 =======================
+// Bind TOP CWE từ /api/vsp/dashboard_v3 (hoặc window.__vspTopCweInit)
+(function () {
+  function bindTopCwe(payload) {
+    try {
+      if (!payload) {
+        console.warn("[VSP][TOP_CWE] Không có payload");
+        return;
+      }
+
+      // Hỗ trợ 2 dạng:
+      // 1) { run_id, top_cwe: [...] }
+      // 2) { ok, payload: { run_id, top_cwe: [...] } }
+      var topList = null;
+
+      if (Array.isArray(payload.top_cwe)) {
+        topList = payload.top_cwe;
+      } else if (payload.payload && Array.isArray(payload.payload.top_cwe)) {
+        topList = payload.payload.top_cwe;
+      }
+
+      if (!topList || !topList.length) {
+        console.warn("[VSP][TOP_CWE] Không có top_cwe trong payload");
+        return;
+      }
+
+      var top = topList[0] || {};
+      var label = top.id || '0';
+      var count = (top.count != null) ? top.count : 0;
+
+      var labelNodes = document.querySelectorAll("[data-vsp-topcwe-label]");
+      for (var i = 0; i < labelNodes.length; i++) {
+        labelNodes[i].textContent = label;
+      }
+
+      var countNodes = document.querySelectorAll("[data-vsp-topcwe-count]");
+      for (var j = 0; j < countNodes.length; j++) {
+        countNodes[j].textContent = String(count);
+      }
+
+      console.log("[VSP][TOP_CWE] Bound TOP CWE =", label, "count =", count);
+    } catch (err) {
+      console.error("[VSP][TOP_CWE] bindTopCwe error:", err);
+    }
+  }
+
+  // expose global để chỗ khác gọi được
+if(window.__VSP_CIO && window.__VSP_CIO.debug){ window.__vspBindTopCwe = bindTopCwe; }
+  function initTopCweFromInsights() {
+    try {
+      if (window.__vspTopCweInit) {
+        console.log("[VSP][TOP_CWE] Dùng window.__vspTopCweInit");
+        bindTopCwe(window.__vspTopCweInit);
+        return;
+      }
+
+      fetch("/api/vsp/dashboard_v3")
+        .then(function (res) {
+          if (!res.ok) {
+            throw new Error("HTTP " + res.status);
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          console.log("[VSP][TOP_CWE] Nhận data từ /api/vsp/dashboard_v3", data);
+          bindTopCwe(data);
+        })
+        .catch(function (err) {
+          console.error("[VSP][TOP_CWE] Fetch /api/vsp/dashboard_v3 lỗi:", err);
+        });
+    } catch (err) {
+      console.error("[VSP][TOP_CWE] initTopCweFromInsights error:", err);
+    }
+  }
+
+  // cũng expose global nếu muốn gọi tay
+  window.initTopCweFromInsights = initTopCweFromInsights;
+
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      initTopCweFromInsights();
+    } catch (err) {
+      console.error("[VSP][TOP_CWE] DOMContentLoaded hook error:", err);
+    }
+  });
+})();
+
+// ======================= VSP_ADVANCED_KPI_V1 =======================
+// Bind 4 advanced KPI vào layout CIO-level:
+// - Security Posture Score (0–100)
+// - Top risky tool
+// - Top impacted CWE  (lấy thẳng từ top_cwe[0].id)
+// - Top vulnerable module
+
+function vspBindAdvancedKpis(dash) {
+  try {
+    if (!dash) {
+      console.warn("[VSP][ADV_KPI] Không có dashboard data để bind.");
+      return;
+    }
+
+    // 1) Security Posture Score
+    var scoreEl = document.querySelector("[data-vsp-kpi-posture-score]");
+    if (scoreEl) {
+      var score = null;
+      if (typeof dash.security_posture_score === "number") {
+        score = dash.security_posture_score;
+      } else if (dash.security_posture && typeof dash.security_posture.score === "number") {
+        score = dash.security_posture.score;
+      }
+      if (typeof score === "number") {
+        scoreEl.textContent = String(score);
+      } else {
+        scoreEl.textContent = "0";
+      }
+    }
+
+    // 2) Top risky tool
+    var riskyEl = document.querySelector("[data-vsp-kpi-top-risky-tool]");
+    if (riskyEl) {
+      var risky = dash.top_risky_tool
+        || (dash.security_posture && dash.security_posture.top_risky_tool)
+        || null;
+      if (risky && typeof risky.tool === "string") {
+        riskyEl.textContent = risky.tool.toUpperCase();
+      } else if (typeof risky === "string") {
+        riskyEl.textContent = risky.toUpperCase();
+      } else {
+        riskyEl.textContent = "–";
+      }
+    }
+
+    // 3) Top impacted CWE – luôn ưu tiên từ top_cwe[0].id
+    var cweEl = document.querySelector("[data-vsp-kpi-top-cwe]");
+    if (cweEl) {
+      var hiId = null;
+      if (Array.isArray(dash.top_cwe) && dash.top_cwe.length && typeof dash.top_cwe[0].id === "string") {
+        hiId = dash.top_cwe[0].id;
+      } else if (typeof dash.highest_impacted_cwe === "string") {
+        hiId = dash.highest_impacted_cwe;
+      } else if (dash.highest_impacted_cwe && typeof dash.highest_impacted_cwe.id === "string") {
+        hiId = dash.highest_impacted_cwe.id;
+      }
+      cweEl.textContent = hiId || "–";
+    }
+
+    // 4) Top vulnerable module
+    var modEl = document.querySelector("[data-vsp-kpi-top-module]");
+    if (modEl) {
+      var mod = dash.top_vulnerable_module
+        || (dash.security_posture && dash.security_posture.top_vulnerable_module)
+        || null;
+      if (mod && typeof mod.name === "string") {
+        modEl.textContent = mod.name;
+      } else if (typeof mod === "string") {
+        modEl.textContent = mod;
+      } else {
+        modEl.textContent = "–";
+      }
+    }
+
+    console.log("[VSP][ADV_KPI] Bound advanced KPIs (CWE từ top_cwe[0].id).");
+  } catch (err) {
+    console.error("[VSP][ADV_KPI] bind error:", err);
+  }
+}
+
+
+
+// VSP_P1_DASH_FORCE_RENDER_FROM_API_V5
+(function(){
+  if (window.__VSP_DASH_RENDER_V5) return;
+  window.__VSP_DASH_RENDER_V5 = true;
+
+  function pickCanvas(ids){
+    for (const id of ids){
+      const el = document.getElementById(id);
+      if (el && typeof el.getContext === "function") return el;
+    }
+    return null;
+  }
+
+  async function getLatestRid(){
+    try{
+      const r = await fetch("/api/vsp/rid_latest_v3", {cache:"no-store"});
+      const j = await r.json();
+      return (j && j.items && j.items[0] && j.items[0].run_id) ? j.items[0].run_id : "";
+    }catch(e){ return ""; }
+  }
+
+  function getRidFromUrl(){
+    try{
+      const u = new URL(window.location.href);
+      return u.searchParams.get("rid") || "";
+    }catch(e){ return ""; }
+  }
+
+  function parseDonut(j){
+    if (j && j.charts && j.charts.severity && j.charts.severity.donut) return j.charts.severity.donut;
+    if (j && j.donut && j.donut.labels && j.donut.values) return j.donut;
+    if (j && Array.isArray(j.severity_distribution)){
+      return { labels: j.severity_distribution.map(x=>x.sev), values: j.severity_distribution.map(x=>x.count) };
+    }
+    if (j && Array.isArray(j.sev_dist)){
+      return { labels: j.sev_dist.map(x=>x.sev), values: j.sev_dist.map(x=>x.count) };
+    }
+    return null;
+  }
+
+  function parseTrend(j){
+    if (j && j.charts && j.charts.trend && j.charts.trend.series) return j.charts.trend.series;
+    if (j && j.trend && j.trend.labels && j.trend.values) return j.trend;
+    if (j && Array.isArray(j.findings_trend)){
+      return { labels: j.findings_trend.map(x=>x.rid), values: j.findings_trend.map(x=>x.total) };
+    }
+    return null;
+  }
+
+  function parseBarCritHigh(j){
+    if (j && j.charts && j.charts.crit_high_by_tool && j.charts.crit_high_by_tool.bar) return j.charts.crit_high_by_tool.bar;
+    if (j && j.bar_crit_high && j.bar_crit_high.labels) return j.bar_crit_high;
+    if (j && Array.isArray(j.critical_high_by_tool)){
+      const labels = j.critical_high_by_tool.map(x=>x.tool);
+      const crit = j.critical_high_by_tool.map(x=>x.critical||0);
+      const high = j.critical_high_by_tool.map(x=>x.high||0);
+      return { labels, series: [{name:"CRITICAL",data:crit},{name:"HIGH",data:high}] };
+    }
+    return null;
+  }
+
+  function renderDonut(donut){
+    if (!window.Chart || !donut) return;
+    const canvas = pickCanvas([
+      "severity_donut_chart","chart-severity-donut","severity_donut",
+      "vsp_chart_ds_severity","vsp-ds-severity-donut","chart_severity_donut"
+    ]);
+    if (!canvas) return;
+    try{ window.__VSP_DONUT_CHART_V5 && window.__VSP_DONUT_CHART_V5.destroy(); }catch(e){}
+    window.__VSP_DONUT_CHART_V5 = new Chart(canvas, {
+      type: "doughnut",
+      data: { labels: donut.labels, datasets: [{ data: donut.values }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+    });
+  }
+
+  function renderTrend(tr){
+    if (!window.Chart || !tr) return;
+    const canvas = pickCanvas([
+      "findings_trend_chart","chart-findings-trend","findings_trend",
+      "vsp_chart_trend","chart_findings_trend"
+    ]);
+    if (!canvas) return;
+    try{ window.__VSP_TREND_CHART_V5 && window.__VSP_TREND_CHART_V5.destroy(); }catch(e){}
+    window.__VSP_TREND_CHART_V5 = new Chart(canvas, {
+      type: "line",
+      data: { labels: tr.labels, datasets: [{ data: tr.values }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+    });
+  }
+
+  function renderBar(bar){
+    if (!window.Chart || !bar) return;
+    const canvas = pickCanvas([
+      "critical_high_by_tool_chart","chart-critical-high-by-tool","crit_high_by_tool",
+      "vsp_chart_crit_high","chart_crit_high"
+    ]);
+    if (!canvas) return;
+    const s0 = (bar.series && bar.series[0]) ? bar.series[0].data : [];
+    const s1 = (bar.series && bar.series[1]) ? bar.series[1].data : [];
+    try{ window.__VSP_BAR_CHART_V5 && window.__VSP_BAR_CHART_V5.destroy(); }catch(e){}
+    window.__VSP_BAR_CHART_V5 = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels: bar.labels,
+        datasets: [
+          { label: "CRITICAL", data: s0 },
+          { label: "HIGH", data: s1 }
+        ]
+      },
+      options: { responsive:true, maintainAspectRatio:false }
+    });
+  }
+
+  async function main(){
+    try{
+      let rid = getRidFromUrl();
+      if (!rid) rid = await getLatestRid();
+      if (!rid) return;
+
+      const r = await fetch("/api/vsp/dash_charts?rid=" + encodeURIComponent(rid), {cache:"no-store"});
+      const j = await r.json();
+
+      renderDonut(parseDonut(j));
+      renderTrend(parseTrend(j));
+      renderBar(parseBarCritHigh(j));
+    }catch(e){
+      console.warn("[VSP][DASH][V5] render failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();
+
+
+
+
+// VSP_P1_DASH_RENDER_V6B_RETRY_VSPCHART
+(function(){
+  if (window.__VSP_DASH_RENDER_V6B) return;
+  window.__VSP_DASH_RENDER_V6B = true;
+
+  function ensureCanvas(holderId){
+    var el = document.getElementById(holderId);
+    if (!el) return null;
+
+    var tag = (el.tagName || "").toLowerCase();
+    if (tag === "canvas") return el;
+
+    var c = el.querySelector && el.querySelector("canvas");
+    if (!c) {
+      c = document.createElement("canvas");
+      c.style.width = "100%";
+      c.style.height = "260px";
+      el.innerHTML = "";     // <-- nếu chạy được thì placeholder phải biến mất
+      el.appendChild(c);
+    }
+    return c;
+  }
+
+  async function getRid(){
+    try{
+      var u = new URL(window.location.href);
+      var rid = u.searchParams.get("rid");
+      if (rid) return rid;
+    }catch(e){}
+    try{
+      var r = await fetch("/api/vsp/rid_latest_v3", {cache:"no-store"});
+      var j = await r.json();
+      if (j && j.items && j.items[0] && j.items[0].run_id) return j.items[0].run_id;
+    }catch(e){}
+    return "";
+  }
+
+  function parseDonut(j){
+    if (j && j.charts && j.charts.severity && j.charts.severity.donut) return j.charts.severity.donut;
+    if (j && j.donut && j.donut.labels && j.donut.values) return j.donut;
+    if (j && Array.isArray(j.severity_distribution)){
+      return { labels: j.severity_distribution.map(x=>x.sev), values: j.severity_distribution.map(x=>x.count) };
+    }
+    return null;
+  }
+  function parseTrend(j){
+    if (j && j.charts && j.charts.trend && j.charts.trend.series) return j.charts.trend.series;
+    if (j && j.trend && j.trend.labels && j.trend.values) return j.trend;
+    if (j && Array.isArray(j.findings_trend)){
+      return { labels: j.findings_trend.map(x=>x.rid), values: j.findings_trend.map(x=>x.total) };
+    }
+    return null;
+  }
+  function parseBarCritHigh(j){
+    if (j && j.charts && j.charts.crit_high_by_tool && j.charts.crit_high_by_tool.bar) return j.charts.crit_high_by_tool.bar;
+    if (j && j.bar_crit_high && j.bar_crit_high.labels) return j.bar_crit_high;
+    if (j && Array.isArray(j.critical_high_by_tool)){
+      var labels = j.critical_high_by_tool.map(x=>x.tool);
+      var crit = j.critical_high_by_tool.map(x=>x.critical||0);
+      var high = j.critical_high_by_tool.map(x=>x.high||0);
+      return { labels: labels, series: [{name:"CRITICAL",data:crit},{name:"HIGH",data:high}] };
+    }
+    return null;
+  }
+  function parseTopCwe(j){
+    if (j && j.charts && j.charts.top_cwe && j.charts.top_cwe.series) return j.charts.top_cwe.series;
+    if (j && j.top_cwe && j.top_cwe.labels && j.top_cwe.values) return j.top_cwe;
+    if (j && Array.isArray(j.top_cwe_exposure)){
+      return { labels: j.top_cwe_exposure.map(x=>x.cwe), values: j.top_cwe_exposure.map(x=>x.count) };
+    }
+    return { labels: [], values: [] };
+  }
+
+  function destroyKey(k){
+    try{ if (window[k] && window[k].destroy) window[k].destroy(); }catch(e){}
+    window[k]=null;
+  }
+
+  async function tryRenderOnce(){
+    // must have chart + containers
+    if (!window.Chart) return false;
+
+    var a = document.getElementById("vsp-chart-severity");
+    var b = document.getElementById("vsp-chart-trend");
+    var c = document.getElementById("vsp-chart-bytool");
+    var d = document.getElementById("vsp-chart-topcwe");
+    if (!a || !b || !c || !d) return false;
+
+    var rid = await getRid();
+    if (!rid) return false;
+
+    var resp = await fetch("/api/vsp/dash_charts?rid=" + encodeURIComponent(rid), {cache:"no-store"});
+    var j = await resp.json();
+
+    var donut = parseDonut(j);
+    var trend = parseTrend(j);
+    var bar = parseBarCritHigh(j);
+    var top = parseTopCwe(j);
+
+    // render 4
+    var c1 = ensureCanvas("vsp-chart-severity");
+    if (c1 && donut){
+      destroyKey("__VSP_DONUT_V6B");
+      window.__VSP_DONUT_V6B = new Chart(c1, { type:"doughnut",
+        data:{ labels: donut.labels, datasets:[{data:donut.values}] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}} }
+      });
+    }
+
+    var c2 = ensureCanvas("vsp-chart-trend");
+    if (c2 && trend){
+      destroyKey("__VSP_TREND_V6B");
+      window.__VSP_TREND_V6B = new Chart(c2, { type:"line",
+        data:{ labels: trend.labels, datasets:[{data:trend.values}] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}} }
+      });
+    }
+
+    var c3 = ensureCanvas("vsp-chart-bytool");
+    if (c3 && bar){
+      destroyKey("__VSP_BYTOOL_V6B");
+      var s0 = (bar.series && bar.series[0] && bar.series[0].data) ? bar.series[0].data : [];
+      var s1 = (bar.series && bar.series[1] && bar.series[1].data) ? bar.series[1].data : [];
+      window.__VSP_BYTOOL_V6B = new Chart(c3, { type:"bar",
+        data:{ labels: bar.labels, datasets:[{label:"CRITICAL",data:s0},{label:"HIGH",data:s1}] },
+        options:{ responsive:true, maintainAspectRatio:false }
+      });
+    }
+
+    var c4 = ensureCanvas("vsp-chart-topcwe");
+    if (c4 && top){
+      destroyKey("__VSP_TOPCWE_V6B");
+      window.__VSP_TOPCWE_V6B = new Chart(c4, { type:"bar",
+        data:{ labels: top.labels, datasets:[{data:top.values}] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}} }
+      });
+    }
+
+    console.log("[VSP][DASH][V6B] rendered rid=", rid);
+    return true;
+  }
+
+  // retry loop (for late Chart.js load or dynamic DOM)
+  var tries = 0;
+  var timer = setInterval(function(){
+    tries++;
+    tryRenderOnce().then(function(ok){
+      if (ok || tries >= 20){
+        clearInterval(timer);
+        if (!ok) console.warn("[VSP][DASH][V6B] gave up after tries=", tries, " (check if Chart.js loaded + containers exist)");
+      }
+    }).catch(function(e){
+      // keep retrying a few times
+      if (tries >= 20){
+        clearInterval(timer);
+        console.warn("[VSP][DASH][V6B] error:", e);
+      }
+    });
+  }, 500);
+})();
+

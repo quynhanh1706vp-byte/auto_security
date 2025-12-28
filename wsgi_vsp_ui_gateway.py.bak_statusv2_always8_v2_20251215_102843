@@ -1,0 +1,8 @@
+# coding: utf-8
+"""
+FORCE FULL VSP UI GATEWAY
+- Make gunicorn serve the real Flask app (vsp_demo_app.app)
+- Avoid any exportpdf-only/preempt wrappers hijacking /api/vsp/*
+"""
+from vsp_demo_app import app as application  # gunicorn entrypoint
+app = application

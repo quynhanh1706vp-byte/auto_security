@@ -1,0 +1,121 @@
+/* VSP_P2_RUNS_KPI_COMPACT_V3 (no heavy canvas, hide blank panels) */
+(()=> {
+  if (window.__vsp_runs_kpi_compact_v3) return;
+  window.__vsp_runs_kpi_compact_v3 = true;
+
+  const $ = (q)=> document.querySelector(q);
+
+  async function fetchKpi(days){
+    const q = encodeURIComponent(String(days||30));
+    const urls = [`/api/ui/runs_kpi_v2?days=${q}`, `/api/ui/runs_kpi_v1?days=${q}`];
+    let lastErr = null;
+    for (const u of urls){
+      try{
+        const r = await fetch(u, {cache:"no-store"});
+        const j = await r.json();
+        if (j && j.ok) return j;
+        lastErr = new Error(j?.err || "not ok");
+      }catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("kpi fetch failed");
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return false;
+    el.textContent = (v===null || v===undefined) ? "—" : String(v);
+    return true;
+  }
+
+  function hideIfBlankCanvas(){
+    // if your old patch left canvases that become huge white blocks: hide them unless trend labels exist
+    const c1 = document.getElementById("vsp_runs_kpi_canvas_overall");
+    const c2 = document.getElementById("vsp_runs_kpi_canvas_sev");
+    // also allow wrappers
+    const w1 = document.getElementById("vsp_runs_kpi_canvas_wrap_overall") || (c1? c1.parentElement : null);
+    const w2 = document.getElementById("vsp_runs_kpi_canvas_wrap_sev") || (c2? c2.parentElement : null);
+    // default: hide (we render compact)
+    if (w1) w1.style.display = "none";
+    if (w2) w2.style.display = "none";
+  }
+
+  function renderCompactTrend(rootId, labels, seriesMap){
+    const root = document.getElementById(rootId);
+    if (!root) return;
+    if (!labels || !labels.length){
+      root.innerHTML = '<div style="color:#94a3b8;font-size:12px">No trend data</div>';
+      return;
+    }
+    // compact bars per day (stacked)
+    const keys = Object.keys(seriesMap);
+    const n = labels.length;
+    let max = 1;
+    for (let i=0;i<n;i++){
+      let sum = 0;
+      for (const k of keys) sum += (Number(seriesMap[k][i]||0) || 0);
+      if (sum > max) max = sum;
+    }
+    const rows = labels.slice(-14).map((d, idx)=>{
+      // map to last 14 points
+      const i = labels.length - 14 + idx;
+      let seg = '';
+      let sum = 0;
+      for (const k of keys){
+        const v = Number(seriesMap[k][i]||0) || 0;
+        sum += v;
+      }
+      const width = Math.max(2, Math.round((sum/max)*260));
+      seg = `<div style="height:8px;width:${width}px;border-radius:6px;background:rgba(148,163,184,.25)"></div>`;
+      return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+        <div style="width:92px;color:#94a3b8;font-size:11px">${d}</div>
+        ${seg}
+        <div style="color:#cbd5e1;font-size:11px">${sum}</div>
+      </div>`;
+    }).join("");
+    root.innerHTML = `<div style="margin-top:6px">${rows}</div>`;
+  }
+
+  async function boot(){
+    // keep layout stable; do not create huge blocks
+    hideIfBlankCanvas();
+
+    const daysSel = document.getElementById("vsp_runs_kpi_days");
+    const days = daysSel ? Number(daysSel.value||30) : 30;
+
+    try{
+      const j = await fetchKpi(days);
+
+      // if your template has these ids from previous patch, they will update; if not, nothing breaks.
+      setText("vsp_runs_kpi_total_runs", j.total_runs);
+      setText("vsp_runs_kpi_green", j.by_overall?.GREEN ?? 0);
+      setText("vsp_runs_kpi_amber", j.by_overall?.AMBER ?? 0);
+      setText("vsp_runs_kpi_red", j.by_overall?.RED ?? 0);
+      setText("vsp_runs_kpi_unknown", j.by_overall?.UNKNOWN ?? 0);
+      setText("vsp_runs_kpi_has_findings", j.has_findings);
+
+      // Optional: compact trends if placeholders exist
+      const to = j.trend_overall || {};
+      const ts = j.trend_sev || {};
+      renderCompactTrend("vsp_runs_kpi_trend_overall_compact", to.labels||[], {
+        GREEN: to.GREEN||[], AMBER: to.AMBER||[], RED: to.RED||[], UNKNOWN: to.UNKNOWN||[]
+      });
+      renderCompactTrend("vsp_runs_kpi_trend_sev_compact", ts.labels||[], {
+        CRITICAL: ts.CRITICAL||[], HIGH: ts.HIGH||[]
+      });
+
+      // degraded/duration (safe)
+      setText("vsp_runs_kpi_degraded_count", j.degraded?.count ?? 0);
+      const avg = j.duration?.avg_s;
+      const p95 = j.duration?.p95_s;
+      setText("vsp_runs_kpi_dur_avg", (avg==null? "—" : Math.round(avg)));
+      setText("vsp_runs_kpi_dur_p95", (p95==null? "—" : Math.round(p95)));
+
+    }catch(e){
+      // don't spam; just quietly keep page usable
+      console.warn("[RUNS_KPI_COMPACT_V3] failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();

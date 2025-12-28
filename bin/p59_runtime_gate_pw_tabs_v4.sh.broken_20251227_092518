@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+UI="/home/test/Data/SECURITY_BUNDLE/ui"
+cd "$UI"
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+OUT="$UI/out_ci"
+TS="$(date +%Y%m%d_%H%M%S)"
+EVID="$OUT/p59_runtime_${TS}"
+mkdir -p "$EVID"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need node; need curl; need head; need wc
+
+echo "== [P59 v4] Runtime gate (Playwright, no-hang, with stack) ==" | tee "$EVID/summary.txt"
+echo "[INFO] UI=$UI" | tee -a "$EVID/summary.txt"
+echo "[INFO] BASE=$BASE" | tee -a "$EVID/summary.txt"
+echo "[INFO] EVID=$EVID" | tee -a "$EVID/summary.txt"
+
+# quick HTTP probes (retry /vsp5)
+probe(){
+  local p="$1"
+  local ok=0
+  for i in 1 2 3; do
+    local code
+    code="$(curl -sS -o /dev/null -m 4 -w "%{http_code}" "$BASE$p" 2>/dev/null || echo 000)"
+    echo "[HTTP] $p try#$i => $code" | tee -a "$EVID/summary.txt"
+    if [ "$code" = "200" ]; then ok=1; break; fi
+    sleep 1
+  done
+  [ "$ok" = "1" ] || { echo "[ERR] tab not 200: $p" | tee -a "$EVID/summary.txt"; exit 3; }
+}
+probe "/vsp5"
+probe "/runs"
+probe "/data_source"
+probe "/settings"
+probe "/rule_overrides"
+
+# ensure playwright resolvable in UI
+node -e "require('playwright'); console.log('OK_PLAYWRIGHT_REQUIRE');" >/dev/null 2>&1 \
+  && echo "[OK] playwright resolvable in UI (require)" | tee -a "$EVID/summary.txt" \
+  || { echo "[ERR] playwright not installed in UI folder. Run: bash bin/p56h4a_install_playwright_local_v1.sh" | tee -a "$EVID/summary.txt"; exit 4; }
+
+cat > "$EVID/pw_gate.js" <<'JS'
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8910';
+const EVID = process.env.EVID || process.cwd();
+
+function jwriteLine(file, obj){
+  fs.appendFileSync(path.join(EVID, file), JSON.stringify(obj) + "\n");
+}
+function now(){ return new Date().toISOString(); }
+
+async function safeShot(page, file){
+  const p = path.join(EVID, file);
+  try{
+    // viewport screenshot only: avoids "fonts fullPage hang"
+    await page.screenshot({ path: p, fullPage: false, timeout: 5000 });
+    return {ok:true};
+  }catch(e){
+    jwriteLine('pw_internal.jsonl', {ts: now(), type:'screenshot_error', file, msg: String(e && e.message || e)});
+    return {ok:false, err: String(e && e.message || e)};
+  }
+}
+
+async function gotoFast(page, url){
+  // "commit" is much more resilient than domcontentloaded when the page has JS errors
+  await page.goto(url, { waitUntil: 'commit', timeout: 25000 });
+  // small settle time
+  await page.waitForTimeout(800);
+}
+
+(async () => {
+  const tabs = [
+    ['/vsp5', 'vsp5'],
+    ['/runs', 'runs'],
+    ['/data_source', 'data_source'],
+    ['/settings', 'settings'],
+    ['/rule_overrides', 'rule_overrides'],
+  ];
+
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 1400, height: 900 },
+    ignoreHTTPSErrors: true,
+  });
+
+  const page = await context.newPage();
+  page.setDefaultTimeout(20000);
+  page.setDefaultNavigationTimeout(25000);
+
+  // capture console
+  page.on('console', (msg) => {
+    const type = msg.type();
+    if (type === 'error' || type === 'warning'){
+      jwriteLine('console.jsonl', { ts: now(), type, text: msg.text(), location: msg.location() });
+    }
+  });
+
+  // capture pageerror with stack
+  page.on('pageerror', (err) => {
+    jwriteLine('pageerror.jsonl', { ts: now(), name: err.name, message: err.message, stack: err.stack || null });
+  });
+
+  // capture request failed
+  page.on('requestfailed', (req) => {
+    jwriteLine('requestfailed.jsonl', { ts: now(), url: req.url(), failure: req.failure() });
+  });
+
+  // run tabs
+  for (const [p, tag] of tabs){
+    const url = BASE + p;
+    jwriteLine('nav.jsonl', { ts: now(), step: 'goto', url, tag });
+    try{
+      await gotoFast(page, url);
+    }catch(e){
+      jwriteLine('pageerror.jsonl', { ts: now(), name: 'GotoError', message: String(e && e.message || e), stack: (e && e.stack) ? e.stack : null });
+      // still attempt shot + html
+    }
+
+    // dump html (even if broken)
+    try{
+      const html = await page.content();
+      fs.writeFileSync(path.join(EVID, `page_${tag}.html`), html);
+    }catch(e){
+      jwriteLine('pw_internal.jsonl', {ts: now(), type:'content_error', tag, msg: String(e && e.message || e)});
+    }
+
+    await safeShot(page, `page_${tag}.png`);
+  }
+
+  await context.close();
+  await browser.close();
+
+  // verdict counts
+  const countLines = (f) => {
+    try { return fs.readFileSync(path.join(EVID,f),'utf-8').trim().split('\n').filter(Boolean).length; }
+    catch(e){ return 0; }
+  };
+  const consoleErr = countLines('console.jsonl');
+  const pageErr = countLines('pageerror.jsonl');
+  const reqFail = countLines('requestfailed.jsonl');
+
+  const ok = (consoleErr === 0 && pageErr === 0);
+  const verdict = { ok, ts: now(), base: BASE, evidence_dir: EVID, console_error_lines: consoleErr, pageerror_lines: pageErr, requestfailed_lines: reqFail };
+  fs.writeFileSync(path.join(EVID,'verdict.json'), JSON.stringify(verdict, null, 2));
+
+  process.exit(ok ? 0 : 6);
+})();
+JS
+
+echo "== [RUN] playwright (no hang) ==" | tee -a "$EVID/summary.txt"
+BASE="$BASE" EVID="$EVID" node "$EVID/pw_gate.js" >"$EVID/pw_gate.out" 2>"$EVID/pw_gate.err" || true
+
+# summarize
+ce=$(grep -c '^' "$EVID/console.jsonl" 2>/dev/null || echo 0)
+pe=$(grep -c '^' "$EVID/pageerror.jsonl" 2>/dev/null || echo 0)
+rf=$(grep -c '^' "$EVID/requestfailed.jsonl" 2>/dev/null || echo 0)
+echo "[INFO] console_error_lines=$ce pageerror_lines=$pe requestfailed_lines=$rf" | tee -a "$EVID/summary.txt"
+
+cat "$EVID/verdict.json" | tee -a "$EVID/summary.txt"
+echo "[DONE] Evidence=$EVID" | tee -a "$EVID/summary.txt"
+
+# Print quick pointers
+echo "---- pageerror head ----" | tee -a "$EVID/summary.txt"
+head -n 20 "$EVID/pageerror.jsonl" 2>/dev/null | tee -a "$EVID/summary.txt" || true
+echo "---- console error head ----" | tee -a "$EVID/summary.txt"
+head -n 20 "$EVID/console.jsonl" 2>/dev/null | tee -a "$EVID/summary.txt" || true

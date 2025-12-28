@@ -1,0 +1,161 @@
+from flask import Blueprint, jsonify
+import os
+import json
+from typing import Dict, Any, List, Tuple, Optional
+
+bp = Blueprint("vsp_dashboard_v3", __name__, url_prefix="/api/vsp")
+
+BASE_DIR = "/home/test/Data/SECURITY_BUNDLE"
+OUT_DIR = os.path.join(BASE_DIR, "out")
+
+
+def _find_latest_run() -> Optional[str]:
+    if not os.path.isdir(OUT_DIR):
+        return None
+
+    candidates: List[Tuple[int, str, str]] = []
+    for name in os.listdir(OUT_DIR):
+        if not name.startswith("RUN_VSP"):
+            continue
+        full = os.path.join(OUT_DIR, name)
+        if not os.path.isdir(full):
+            continue
+
+        if "FULL_EXT" in name:
+            prio = 2
+        elif "FULL" in name:
+            prio = 1
+        else:
+            prio = 0
+        candidates.append((prio, name, full))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: (x[0], x[1]))
+    return candidates[-1][2]
+
+
+def _load_findings(run_dir: str) -> List[Dict[str, Any]]:
+    path = os.path.join(run_dir, "report", "findings_unified.json")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def _load_summary(run_dir: str, findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    summary_path = os.path.join(run_dir, "report", "summary_unified.json")
+    summary: Dict[str, Any] = {}
+
+    if os.path.exists(summary_path):
+        try:
+            with open(summary_path, "r", encoding="utf-8") as f:
+                summary = json.load(f) or {}
+        except Exception:
+            summary = {}
+
+    # By severity
+    by_severity: Dict[str, int] = {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0,
+    }
+
+    # By tool
+    by_tool: Dict[str, int] = {}
+
+    if findings:
+        for f in findings:
+            sev = (f.get("severity_effective") or f.get("severity") or "INFO").upper()
+            sev = sev if sev in by_severity else "INFO"
+            by_severity[sev] += 1
+
+            tool = (f.get("tool") or "unknown").lower()
+            by_tool[tool] = by_tool.get(tool, 0) + 1
+
+    total_findings = sum(by_severity.values())
+
+    # Nếu summary_unified.json có sẵn, ưu tiên lấy
+    if "by_severity" in summary and isinstance(summary["by_severity"], dict):
+        by_severity.update({k.upper(): int(v) for k, v in summary["by_severity"].items()})
+        total_findings = int(summary.get("total_findings", total_findings or sum(by_severity.values())))
+
+    if "by_tool" in summary and isinstance(summary["by_tool"], dict):
+        by_tool.update({k: int(v) for k, v in summary["by_tool"].items()})
+
+    security_score = summary.get("security_score", 0)
+
+    # Top risky tool = tool có CRITICAL+HIGH nhiều nhất (simple heuristic)
+    tool_risk: Dict[str, int] = {}
+    for f in findings:
+        sev = (f.get("severity_effective") or f.get("severity") or "").upper()
+        if sev not in ("CRITICAL", "HIGH"):
+            continue
+        t = (f.get("tool") or "unknown").lower()
+        tool_risk[t] = tool_risk.get(t, 0) + 1
+
+    top_risky_tool = None
+    if tool_risk:
+        top_risky_tool = sorted(tool_risk.items(), key=lambda x: x[1], reverse=True)[0][0]
+
+    # Top CWE & Module
+    cwe_count: Dict[str, int] = {}
+    module_count: Dict[str, int] = {}
+    for f in findings:
+        cwe = f.get("cwe") or f.get("cwe_id")
+        if cwe:
+            cwe_count[str(cwe)] = cwe_count.get(str(cwe), 0) + 1
+
+        module = f.get("module") or f.get("target") or f.get("file")
+        if module:
+            module_count[str(module)] = module_count.get(str(module), 0) + 1
+
+    top_cwe = None
+    if cwe_count:
+        top_cwe = sorted(cwe_count.items(), key=lambda x: x[1], reverse=True)[0][0]
+
+    top_module = None
+    if module_count:
+        top_module = sorted(module_count.items(), key=lambda x: x[1], reverse=True)[0][0]
+
+    return {
+        "total_findings": int(total_findings),
+        "by_severity": by_severity,
+        "by_tool": by_tool,
+        "security_score": security_score,
+        "top_risky_tool": top_risky_tool,
+        "top_cwe": top_cwe,
+        "top_module": top_module,
+    }
+
+
+@bp.get("/dashboard_v3")
+def dashboard_v3():
+    """
+    Dashboard v3 – dùng cho UI VSP 2025
+    """
+    run_dir = _find_latest_run()
+    if not run_dir:
+        return jsonify({
+            "ok": False,
+            "error": "No VSP run directory found",
+        }), 200
+
+    run_id = os.path.basename(run_dir)
+    findings = _load_findings(run_dir)
+    summary = _load_summary(run_dir, findings)
+
+    payload = {
+        "ok": True,
+        "run_id": run_id,
+        **summary,
+    }
+    return jsonify(payload)

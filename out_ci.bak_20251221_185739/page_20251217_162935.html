@@ -1,0 +1,481 @@
+
+  try {
+  return null;
+}
+
+<!DOCTYPE html>
+<div style='position:sticky;top:0;z-index:5'><span id='vsp-rid-label' style='margin-left:12px;opacity:.85;font-size:12px'>RID: (none)</span></div>
+
+<html lang="en">
+<head>
+  <script src="/static/js/vsp_drilldown_stub_safe_v1.js?v=1765945236"></script>
+
+  <script src="/static/js/vsp_hash_normalize_v1.js?v=1765944602"></script>
+
+
+<script>
+/* P0_DD_GLOBAL_LOCK_HEAD_V1 */
+(function(){
+  try{
+    if (typeof window === "undefined") return;
+
+    // store real impl here if any script sets it correctly
+    if (typeof window.__vsp_dd_real !== "function") window.__vsp_dd_real = null;
+
+    function __vsp_dd_stub(){
+      try{ console.info("[VSP][P0] drilldown stub invoked"); }catch(_){}
+      return {open:function(){},show:function(){},close:function(){},destroy:function(){}};
+    }
+
+    function __vsp_dd_get(){
+      return (typeof window.__vsp_dd_real === "function") ? window.__vsp_dd_real : __vsp_dd_stub;
+    }
+
+    // LOCK: always returns a function; ignores non-function overwrites
+    try{
+      Object.defineProperty(window, "VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2", {
+        configurable: false,
+        enumerable: true,
+        get: function(){ return __vsp_dd_get(); },
+        set: function(v){
+          if (typeof v === "function") {
+            window.__vsp_dd_real = v;
+            try{ console.info("[VSP][P0] drilldown real impl accepted"); }catch(_){}
+          } else {
+            try{ console.warn("[VSP][P0] blocked drilldown overwrite (non-function):", v); }catch(_){}
+          }
+        }
+      });
+    }catch(e){
+      // if defineProperty fails, fallback: force function value
+      window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = __vsp_dd_get();
+    }
+
+    // ensure initial value is callable
+    if (typeof window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 !== "function") {
+      window.__vsp_dd_real = null;
+    }
+  }catch(_){}
+})();
+</script>
+
+
+  <meta charset="UTF-8">
+  <title>VSP 2025 – Commercial UI (5 Tabs)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/css/vsp_ui_4tabs_commercial_v1.css?v=20251215_090230">
+
+<style id="VSP_DARK_FILTER_CONTROLS_V1">
+/* commercial dark: stop white inputs/selects */
+select, input[type="text"], input[type="number"], input[type="search"], textarea {
+  background: rgba(15, 23, 42, 0.65) !important;
+  color: rgba(255,255,255,0.92) !important;
+  border: 1px solid rgba(148,163,184,0.22) !important;
+  outline: none !important;
+}
+select option { background: #0b1220 !important; color: rgba(255,255,255,0.92) !important; }
+input::placeholder, textarea::placeholder { color: rgba(148,163,184,0.75) !important; }
+</style>
+
+
+<!-- VSP_UI_GLOBAL_SHIMS_COMMERCIAL_P0_V1 -->
+
+
+<script>window.__VSP_ASSET_V='20251217_142944';</script>
+</head>
+<body>
+
+<!-- === VSP_TPL_EMBED_RID_P1_V1 === -->
+<div id="vsp-rid-embed" data-rid="" style="display:none"></div>
+
+
+
+<!-- VSP_EXPORT_BUTTONS_V1 BEGIN -->
+<div class="vsp-card" style="margin-top:12px">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="vsp-btn" id="btn-export-html">Export HTML</button>
+    <button class="vsp-btn" id="btn-export-zip">Export ZIP</button>
+    <button class="vsp-btn" id="btn-export-pdf">Export PDF</button>
+    <span style="opacity:.75;font-size:12px">RID: <span id="export-rid">(auto)</span></span>
+  </div>
+</div>
+<script>
+(function(){
+  function pickRid(){
+    // try: current selected in runs tab; else dashboard_v3 run_id; else first item of runs index
+    const el = document.querySelector("[data-vsp-selected-run-id]");
+    if (el && el.getAttribute("data-vsp-selected-run-id")) return el.getAttribute("data-vsp-selected-run-id");
+    return null;
+  }
+  async function ensureRid(){
+    let rid = pickRid();
+    if (!rid){
+      try{
+        const d = await fetch("/api/vsp/dashboard_v3");
+        if (d.ok){
+          const j = await d.json();
+          if (j && j.run_id) rid = j.run_id;
+        }
+      }catch(e){}
+    }
+    if (!rid){
+      try{
+        const r = await fetch("/api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1");
+        if (r.ok){
+          const j = await r.json();
+          rid = (j.items && j.items[0] && j.items[0].run_id) ? j.items[0].run_id : null;
+        }
+      }catch(e){}
+    }
+    document.getElementById("export-rid").textContent = rid || "(none)";
+    return rid;
+  }
+  async function go(fmt){
+    const rid = await ensureRid();
+    if (!rid){ alert("No run_id available"); return; }
+    const url = `/api/vsp/run_export_v3/${encodeURIComponent(rid)}?fmt=${fmt}`;
+    window.open(url, "_blank");
+  }
+  document.getElementById("btn-export-html").addEventListener("click", ()=>go("html"));
+  document.getElementById("btn-export-zip").addEventListener("click", ()=>go("zip"));
+  document.getElementById("btn-export-pdf").addEventListener("click", ()=>go("pdf"));
+  ensureRid();
+})();
+</script>
+<!-- VSP_EXPORT_BUTTONS_V1 END -->
+
+
+  <div class="vsp-shell">
+    <aside class="vsp-side">
+      <div class="vsp-brand">
+        <div class="vsp-logo"></div>
+        <div>
+          <div class="vsp-title">VersaSecure Platform</div>
+          <div class="vsp-sub">VSP 2025 • UI gateway 8910</div>
+        </div>
+      </div>
+
+      <nav class="vsp-nav" id="nav">
+        <button data-tab="dashboard" class="active">
+          Dashboard <span class="vsp-pill" id="pill-overall">…</span>
+        </button>
+        <button data-tab="runs">
+          Runs &amp; Reports <span class="vsp-pill" id="pill-runs">…</span>
+        </button>
+        <button data-tab="settings">
+          Settings <span class="vsp-pill">env</span>
+        </button>
+        <button data-tab="data">
+          Data Source <span class="vsp-pill" id="pill-art">…</span>
+        </button>
+<!-- VSP_RULE_OVERRIDES_TAB_FORCE_V2 -->
+<a class="vsp-nav-item vsp-tab" href="#rules" data-tab="rules" id="tab-rules">Rule Overrides</a>
+
+      </nav>
+
+      <div style="margin-top:16px" class="vsp-muted">
+        <div style="font-size:12px;line-height:1.5">
+          Route: <span class="vsp-mono">/vsp4</span><br/>
+          API: <span class="vsp-mono">/api/vsp/run_status_v2</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="vsp-main">
+      <div class="vsp-top">
+        <div class="vsp-h1" id="page-title">Dashboard</div>
+        <div class="vsp-actions">
+          <select id="run-picker" class="vsp-select"></select>
+          <button class="vsp-btn" id="btn-refresh">Refresh</button>
+          <a class="vsp-btn" href="/" title="Back to legacy UI">Legacy UI</a>
+        </div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard">
+        <div id="vsp-kpis-commercial">
+          <!-- reuse KPI contract from your previous bind script (same id) -->
+          <div class="vsp-kpi-grid">
+            <div class="vsp-kpi"><div class="k">Overall Verdict</div><div class="v" id="kpi-overall">…</div><div class="s" id="kpi-overall-sub"></div></div>
+            <div class="vsp-kpi"><div class="k">Gate Overall</div><div class="v" id="kpi-gate">…</div><div class="s" id="kpi-gate-sub"></div></div>
+            <div class="vsp-kpi"><div class="k">Tools A</div><div class="v" id="kpi-gitleaks">…</div><div class="s" id="kpi-gitleaks-sub"></div></div>
+            <div class="vsp-kpi"><div class="k">Tools B</div><div class="v" id="kpi-codeql">…</div><div class="s" id="kpi-codeql-sub"></div></div>
+          </div>
+        </div>
+
+        <div class="vsp-grid vsp-grid-2">
+          <div class="vsp-card">
+            <div class="vsp-row" style="justify-content:space-between">
+              <div style="font-weight:800">Gate Summary</div>
+              <div class="vsp-muted" id="gate-ts">…</div>
+            </div>
+            <div id="gate-bytool" style="margin-top:10px"></div>
+          </div>
+
+          <div class="vsp-card">
+            <div style="font-weight:800;margin-bottom:8px">Run Meta</div>
+            <div class="vsp-muted" style="font-size:12px;line-height:1.6" id="run-meta">…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RUNS -->
+      <section id="tab-runs" style="display:none">
+<div data-vsp-runs-mount="1"></div>
+
+<!-- === VSP4_EXPORT_DS_V1 === -->
+        <div class="vsp-card" style="margin-bottom:14px">
+          <div class="vsp-row" style="justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-weight:800">Export (selected run)</div>
+              <div class="vsp-muted" style="font-size:12px;line-height:1.6;margin-top:4px">
+                UI sẽ tự dò endpoint export khả dụng. Nút nào có link thật thì bật.
+              </div>
+            </div>
+            <div class="vsp-row">
+              <a class="vsp-btn" id="btn-exp-html" href="#" target="_blank" rel="noopener">HTML</a>
+              <a class="vsp-btn" id="btn-exp-pdf"  href="#" target="_blank" rel="noopener">PDF</a>
+              <a class="vsp-btn" id="btn-exp-zip"  href="#" target="_blank" rel="noopener">ZIP</a>
+              <a class="vsp-btn" id="btn-open-artindex" href="#" target="_blank" rel="noopener">Artifacts JSON</a>
+            </div>
+          </div>
+          <div class="vsp-muted" style="font-size:12px;margin-top:8px" id="exp-hint">…</div>
+        </div>
+
+        <div class="vsp-card">
+          <div class="vsp-row" style="justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:800">Runs (latest 20)</div>
+            <div class="vsp-muted" style="font-size:12px">badges: overall + degraded_n</div>
+          </div>
+          <div style="overflow:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Overall</th>
+                  <th>Gate</th>
+                  <th>Gitleaks</th>
+                  <th>CodeQL</th>
+                  <th>Degraded<<!-- === VSP4_8TOOLS_HEADER_V1 === -->/th>
+                </tr>
+              </thead>
+              <tbody id="runs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="tab-settings" style="display:none">
+        <div class="vsp-card">
+          <div style="font-weight:800;margin-bottom:8px">Settings (UI-side)</div>
+          <div class="vsp-muted" style="font-size:12px;line-height:1.6">
+            Đây là placeholder “commercial”: UI hiển thị các toggle/timeout. Hiện tại chưa nối backend settings write,
+            nên các toggle sẽ lưu LocalStorage. Khi bạn làm backend settings route, chỉ cần bind vào đây.
+          </div>
+
+          <div class="vsp-grid" style="margin-top:12px">
+            <div class="vsp-row">
+              <span class="vsp-badge vsp-badge-muted"><span class="vsp-dot vsp-dot-muted"></span>ENABLE_CODEQL</span>
+              <select id="set-enable-codeql" class="vsp-select">
+                <option value="1">ON</option>
+                <option value="0">OFF</option>
+              </select>
+
+              <span class="vsp-badge vsp-badge-muted"><span class="vsp-dot vsp-dot-muted"></span>TIMEOUT_CODEQL</span>
+              <input id="set-timeout-codeql" class="vsp-select vsp-mono" value="3600s"/>
+
+              <span class="vsp-badge vsp-badge-muted"><span class="vsp-dot vsp-dot-muted"></span>TIMEOUT_KICS</span>
+              <input id="set-timeout-kics" class="vsp-select vsp-mono" value="1800s"/>
+            </div>
+
+            <div class="vsp-card" style="padding:12px">
+              <div style="font-weight:800;margin-bottom:6px">Hardening proof</div>
+              <div class="vsp-muted" style="font-size:12px;line-height:1.6" id="hardening-proof">
+                • KICS: docker <span class="vsp-mono">--pull=never</span> enforced<br/>
+                • KICS image digest: (optional) set env <span class="vsp-mono">VSP_KICS_IMAGE=checkmarx/kics@sha256:...</span><br/>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DATA SOURCE -->
+      <section id="tab-data" style="display:none">
+        <!-- === VSP4_DATASOURCE_V1 === -->
+
+        <div class="vsp-card">
+          <div class="vsp-row" style="justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:800">Artifacts index (selected run)</div>
+            <div class="vsp-muted" style="font-size:12px" id="art-count">…</div>
+          </div>
+          <div class="vsp-grid" style="margin-top:10px;gap:12px">
+    <div class="vsp-card" style="padding:12px">
+      <div style="font-weight:800;margin-bottom:6px">Status V2 JSON</div>
+      <div id="ds-statusv2" class="vsp-mono" style="font-size:12px;white-space:pre-wrap"></div>
+    </div>
+
+    <div class="vsp-card" style="padding:12px">
+      <div style="font-weight:800;margin-bottom:6px">Artifacts index JSON</div>
+      <div id="ds-artjson" class="vsp-mono" style="font-size:12px;white-space:pre-wrap"></div>
+      <div id="art-list" class="vsp-mono" style="display:none"></div>
+    </div>
+
+    <div class="vsp-card" style="padding:12px">
+      <div class="vsp-row" style="justify-content:space-between">
+        <div style="font-weight:800">Findings preview (best-effort)</div>
+        <div class="vsp-muted" style="font-size:12px" id="ds-findings-hint">…</div>
+      </div>
+      <div style="overflow:auto;margin-top:8px">
+        <table>
+          <thead><tr id="ds-findings-head"></tr></thead>
+          <tbody id="ds-findings-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+        </div>
+      </section>
+    
+<!-- === VSP_DATASOURCE_PANE_V1 === -->
+<section id="vsp-pane-datasource" class="vsp-pane" style="display:none;">
+  <div style="padding:14px 16px;">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div style="font-weight:700; letter-spacing:.2px;">Data Source</div>
+      <div style="opacity:.7; font-size:12px;">Preview unified findings per run (commercial)</div>
+    </div>
+
+    <div style="margin-top:12px; display:grid; grid-template-columns: 1.2fr .7fr .7fr 1.2fr auto; gap:10px; align-items:end;">
+      <div>
+        <div style="font-size:12px; opacity:.75; margin-bottom:6px;">Run ID</div>
+        <input id="vsp-ds-rid" class="vsp-input" placeholder="RUN_VSP_CI_YYYYmmdd_HHMMSS" style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:12px; opacity:.75; margin-bottom:6px;">Tool</div>
+        <input id="vsp-ds-tool" class="vsp-input" placeholder="e.g. SEMGREP" style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:12px; opacity:.75; margin-bottom:6px;">Severity</div>
+        <input id="vsp-ds-sev" class="vsp-input" placeholder="CRITICAL/HIGH/..." style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:12px; opacity:.75; margin-bottom:6px;">Search</div>
+        <input id="vsp-ds-q" class="vsp-input" placeholder="rule/file/title..." style="width:100%;">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="vsp-ds-load" class="vsp-btn">Load</button>
+        <button id="vsp-ds-next" class="vsp-btn vsp-btn-ghost">Next</button>
+      </div>
+    </div>
+
+    <div id="vsp-ds-meta" style="margin-top:10px; font-size:12px; opacity:.8;"></div>
+
+    <div style="margin-top:10px; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden;">
+      <div style="overflow:auto; max-height: 55vh;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead style="position:sticky; top:0; background:rgba(2,6,23,.92);">
+            <tr>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);">Tool</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);">Severity</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);">Title</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);">File</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);">Line</th>
+              <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);">Rule</th>
+            </tr>
+          </thead>
+          <tbody id="vsp-ds-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- === /VSP_DATASOURCE_PANE_V1 === -->
+
+</main>
+  </div>
+
+  
+
+
+
+
+
+
+<!-- VSP_P2_TPL_CONTAINERS_CACHEBUST_V1 -->
+<script>
+  // Ensure stable containers for JS/router (commercial hardening)
+  (function(){
+    function ensure(id, parentSel, attrs){
+      if (document.getElementById(id)) return;
+      var host = document.querySelector(parentSel) || document.body;
+      var d = document.createElement("div");
+      d.id = id;
+      if (attrs) {
+        for (var k in attrs) d.setAttribute(k, attrs[k]);
+      }
+      host.appendChild(d);
+    }
+
+    // dashboard main container
+    document.addEventListener("DOMContentLoaded", function(){
+      ensure("vsp-dashboard-main", "body", {"data-vsp-main":"dashboard"});
+      // datasource content container
+      ensure("vsp4-datasource", "body", {"data-tab-content":"datasource"});
+    });
+  })();
+</script>
+
+
+<div id="vsp-dashboard-main" data-tab-content="dashboard" style="display:none"></div>
+
+<div id="vsp-pane-runs" data-tab-content="runs" style="display:none"></div>
+
+<div id="vsp-pane-settings" data-tab-content="settings" style="display:none"></div>
+  
+
+  
+
+
+<!-- VSP_RULE_OVERRIDES_PANEL_V1 BEGIN -->
+<section class="vsp-panel" data-panel="rules" id="panel-rules" style="display:none">
+  <div class="vsp-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <h3 style="margin:0">Rule Overrides</h3>
+        <div style="opacity:.75;font-size:12px">Edit rule overrides used by gate/unify (persisted as JSON)</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="vsp-btn" id="btn-rules-reload">Reload</button>
+        <button class="vsp-btn" id="btn-rules-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="vsp-card" style="margin-top:12px">
+    <div style="opacity:.8;font-size:12px;margin-bottom:6px">JSON (edit carefully)</div>
+    <textarea id="rules-json" spellcheck="false" style="width:100%;min-height:420px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;font-size:12px;line-height:1.35;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.25);color:inherit"></textarea>
+    <div id="rules-msg" style="margin-top:10px;font-size:12px;opacity:.85"></div>
+  </div>
+</section>
+<!-- VSP_RULE_OVERRIDES_PANEL_V1 END -->
+
+
+
+
+
+<!-- VSP_NAV_SCROLL_AUTOFIX_V1 -->
+
+
+
+
+<!-- VSP_RID_STATE_V1 -->
+
+
+
+<script defer src="/static/js/vsp_bundle_commercial_v1.js?v=1765963769"></script>
+
+  <script src="/static/js/vsp_ui_features_v1.js?v=1765944602"></script>
+  <script src="/static/js/vsp_ui_loader_route_v1.js?v=1765944602"></script>
+  <script src="/static/js/vsp_tabs_hash_router_v1.js" defer></script>
+</body>
+</html>

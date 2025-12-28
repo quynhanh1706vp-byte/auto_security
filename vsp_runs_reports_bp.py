@@ -1,0 +1,148 @@
+from __future__ import annotations
+from pathlib import Path
+import time
+from flask import Blueprint, jsonify, request, render_template, send_file
+
+MARK = "VSP_RUNS_REPORTS_BP_SAFE_P0_V1"
+OUT_ROOT = Path("/home/test/Data/SECURITY_BUNDLE/out").resolve()
+
+bp = Blueprint("vsp_runs_reports_bp", __name__)
+
+def _is_run_dir(p: Path) -> bool:
+    if not p.is_dir():
+        return False
+    name = p.name
+    return ("_RUN_" in name) or name.startswith("RUN_") or name.startswith("CODE_") or name.endswith("_RUN")
+
+def _pick_html_report(run_dir: Path):
+    cands = [
+        run_dir / "report" / "index.html",
+        run_dir / "reports" / "index.html",
+        run_dir / "reports" / "findings_unified.html",
+        run_dir / "report.html",
+    ]
+    for fp in cands:
+        if fp.exists():
+            try:
+                return str(fp.relative_to(run_dir))
+            except Exception:
+                return None
+    for sub in ("report","reports"):
+        d = run_dir / sub
+        if d.exists():
+            for fp in sorted(d.rglob("*.html"))[:1]:
+                try:
+                    return str(fp.relative_to(run_dir))
+                except Exception:
+                    pass
+    return None
+
+def _has(run_dir: Path):
+    htmlp = _pick_html_report(run_dir)
+    return {
+        "summary": ((run_dir/"SUMMARY.txt").exists() or (run_dir/"reports/SUMMARY.txt").exists()),
+        "json": (run_dir/"findings_unified.json").exists(),
+        "csv": (run_dir/"reports"/"findings_unified.csv").exists(),
+        "sarif": (run_dir/"reports"/"findings_unified.sarif").exists(),
+        "html": bool(htmlp),
+        "html_path": htmlp,
+    }
+
+@bp.get("/runs")
+def runs_page():
+    return render_template("vsp_runs_reports_v1.html")
+
+@bp.get("/api/vsp/runs")
+def api_runs():
+    # VSP_P1_FIX_RUNS500_SPEED_V1: cap for commercial UI performance
+    limit = request.args.get("limit","")
+    try:
+        limit = int(limit) if str(limit).strip() else 50
+    except Exception:
+        limit = 50
+    if limit < 1: limit = 1
+    if limit > 200: limit = 200
+
+    try:
+        limit = int(request.args.get("limit","100"))
+    except Exception:
+        limit = 100
+    limit = max(1, min(limit, 1000))
+
+    items = []
+    if OUT_ROOT.exists():
+        for p in OUT_ROOT.iterdir():
+            if not _is_run_dir(p):
+                continue
+            try:
+                st = p.stat()
+                mtime = int(st.st_mtime)
+            except Exception:
+                mtime = 0
+            items.append({
+                "run_id": p.name,
+                "path": str(p),
+                "mtime": mtime,
+                "mtime_h": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(mtime)) if mtime else "n/a",
+                "has": _has(p),
+            })
+
+    items.sort(key=lambda x: x.get("mtime",0), reverse=True)
+    items = items[:limit]
+    return jsonify({"ok": True, "who": MARK, "root": str(OUT_ROOT), "items": items, "items_len": len(items)})
+
+@bp.get("/api/vsp/run_file")
+def api_run_file():
+    """
+    Commercial contract:
+    - Accept BOTH:
+      * rid + name
+      * run_id + path
+    - Strict allowlist under reports/
+    """
+    run_id = (request.args.get("run_id","") or request.args.get("rid","") or request.args.get("run","") or "").strip()
+    rel    = (request.args.get("path","")   or request.args.get("name","") or request.args.get("rel","") or "").strip()
+
+    if not run_id or not rel:
+        return jsonify({"ok": False, "error": "MISSING_PARAMS"}), 400
+
+    rel = rel.lstrip("/")
+
+    ALLOWED = {
+        "reports/index.html",
+        "reports/run_gate_summary.json",
+        "reports/findings_unified.json",
+        "reports/SUMMARY.txt",
+        "reports/SHA256SUMS.txt",
+    }
+    if rel not in ALLOWED:
+        return jsonify({"ok": False, "err": "not allowed"}), 404
+
+    rd = (OUT_ROOT / run_id).resolve()
+    if not rd.exists():
+        return jsonify({"ok": False, "error": "NO_SUCH_RUN"}), 404
+
+    rp = (rd / rel).resolve()
+    if str(rp).find(str(rd)) != 0:
+        return jsonify({"ok": False, "error": "PATH_TRAVERSAL"}), 400
+    if (not rp.exists()) or (not rp.is_file()):
+        return jsonify({"ok": False, "error": "NO_FILE"}), 404
+    # VSP_P1_RUN_FILE_DEFAULT_DOWNLOAD_V1: default download for non-HTML reports
+    q = (request.args.get("download","") or "").strip().lower()
+    want_dl = True if rel != "reports/index.html" else False
+    if q in ("0","false","no","n"): want_dl = False
+    if q in ("1","true","yes","y"): want_dl = True
+    return send_file(str(rp), as_attachment=want_dl, download_name=rp.name)
+
+# VSP_P1_BP_FIX_RUNS500_RUNFILE_CONTRACT_V7
+# VSP_BP_RUN_FILE_ALLOW_SHA256SUMS_P1_V1
+
+# VSP_FORCE_ALLOW_SHA256SUMS_RUN_FILE_V1
+
+# VSP_P1_ALLOW_SHA256SUMS_GLOBAL_V1
+
+# VSP_P1_HAS_SHA_AND_DOWNLOAD_V1
+
+# VSP_P1_FIX_RUNS500_SPEED_V1
+
+# VSP_P1_RUN_FILE_DEFAULT_DOWNLOAD_V1

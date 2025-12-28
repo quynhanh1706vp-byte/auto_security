@@ -1,0 +1,214 @@
+(function () {
+  console.log('[VSP_DS_MINI_CHARTS_V1] loaded');
+
+  if (typeof Chart === 'undefined') {
+    console.warn('[VSP_DS_MINI_CHARTS_V1] Chart.js -, skip mini charts.');
+    return;
+  }
+
+  var charts = {};
+
+  function ensureStyle() {
+    if (document.getElementById('vsp-ds-mini-style')) return;
+    var s = document.createElement('style');
+    s.id = 'vsp-ds-mini-style';
+    s.textContent = `
+      #vsp-ds-mini-charts {
+        margin-top: 1.5rem;
+        display: grid;
+        grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+        gap: 1.5rem;
+      }
+      #vsp-ds-mini-charts-card {
+        grid-column: span 2 / span 2;
+      }
+      .vsp-ds-mini-card {
+        background: rgba(15,23,42,0.9);
+        border-radius: 0.75rem;
+        border: 1px solid rgba(148,163,184,0.25);
+        padding: 0.75rem 1rem;
+      }
+      .vsp-ds-mini-title {
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #9ca3af;
+        margin-bottom: 0.4rem;
+      }
+      .vsp-ds-mini-chart {
+        width: 100%;
+        height: 220px;
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function aggregate(items) {
+    var sev = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0, 0 };
+    var byTool = {};
+
+    items.forEach(function (it) {
+      var s = (it.severity || it.level || '').toUpperCase();
+      if (!sev.hasOwnProperty(s)) {
+        if (s === 'WARN' || s === 'WARNING') s = 'LOW';
+        else if (s === 'ERROR') s = 'HIGH';
+      }
+      if (sev.hasOwnProperty(s)) sev[s]++;
+
+      var tool = it.tool || it.source || '—';
+      byTool[tool] = (byTool[tool] || 0) + 1;
+    });
+
+    return { sev: sev, byTool: byTool };
+  }
+
+  function buildSevDonut(ctx, sevAgg) {
+    if (charts.severity) { charts.severity.destroy(); }
+
+    var keys = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'TRACE'];
+    var data = keys.map(function (k) { return sevAgg[k] || 0; });
+
+    charts.severity = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Critical', 'High', 'Medium', 'Low', 'Info', 'Trace'],
+        datasets: [{
+          data: data,
+          backgroundColor: [
+            '#f97373',
+            '#fb923c',
+            '#facc15',
+            '#22c55e',
+            '#38bdf8',
+            '#a855f7'
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '60%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#e5e7eb',
+              usePointStyle: true,
+              boxWidth: 10
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function buildByTool(ctx, byToolMap) {
+    if (charts.byTool) { charts.byTool.destroy(); }
+
+    var entries = Object.keys(byToolMap).map(function (k) {
+      return { tool: k, count: byToolMap[k] };
+    }).sort(function (a, b) {
+      return b.count - a.count;
+    }).slice(0, 8);
+
+    if (!entries.length) return;
+
+    var labels = entries.map(function (x) { return x.tool; });
+    var data = entries.map(function (x) { return x.count; });
+
+    charts.byTool = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Findings',
+          data: data,
+          backgroundColor: '#38bdf8'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(148,163,184,0.18)' },
+            ticks: { color: '#9ca3af' }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#e5e7eb' }
+          }
+        }
+      }
+    });
+  }
+
+  function hydrateDs() {
+    var pane = document.getElementById('vsp-datasource-main');
+    if (!pane) {
+      console.warn('[VSP_DS_MINI_CHARTS_V1] Không thấy #vsp-datasource-main');
+      return;
+    }
+
+    fetch('/api/vsp/datasource_v2?limit=500')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var items = Array.isArray(data.items) ? data.items : data.data || [];
+        if (!Array.isArray(items)) items = [];
+
+        ensureStyle();
+
+        var existing = document.getElementById('vsp-ds-mini-charts');
+        if (existing) existing.remove();
+
+        var wrap = document.createElement('div');
+        wrap.id = 'vsp-ds-mini-charts';
+
+        wrap.innerHTML =
+          '<div class="vsp-ds-mini-card">' +
+            '<div class="vsp-ds-mini-title">Severity breakdown</div>' +
+            '<canvas id="vsp-ds-mini-sev" class="vsp-ds-mini-chart"></canvas>' +
+          '</div>' +
+          '<div class="vsp-ds-mini-card">' +
+            '<div class="vsp-ds-mini-title">Findings by tool</div>' +
+            '<canvas id="vsp-ds-mini-tool" class="vsp-ds-mini-chart"></canvas>' +
+          '</div>';
+
+        // chèn sau bảng data source (hoặc cuối pane)
+        var table = pane.querySelector('table');
+        if (table && table.parentNode) {
+          table.parentNode.parentNode.insertBefore(wrap, table.parentNode.nextSibling);
+        } else {
+          pane.appendChild(wrap);
+        }
+
+        var agg = aggregate(items);
+        var ctxSev = document.getElementById('vsp-ds-mini-sev').getContext('2d');
+        var ctxTool = document.getElementById('vsp-ds-mini-tool').getContext('2d');
+
+        buildSevDonut(ctxSev, agg.sev);
+        buildByTool(ctxTool, agg.byTool);
+
+        console.log('[VSP_DS_MINI_CHARTS_V1] hydrated mini charts');
+      })
+      .catch(function (err) {
+        console.error('[VSP_DS_MINI_CHARTS_V1] error', err);
+      });
+  }
+
+  function onReady(fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn);
+    } else {
+      fn();
+    }
+  }
+
+  onReady(function () {
+    // đợi pane + table simple V1 dựng xong rồi mới vẽ
+    setTimeout(hydrateDs, 1000);
+  });
+})();

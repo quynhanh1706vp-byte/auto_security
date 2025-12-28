@@ -1,0 +1,98 @@
+/* VSP_P0_RUNS_GUARD_FINAL_V1 */
+(()=> {
+  if (window.__vsp_p0_runs_guard_final_v1) return;
+  window.__vsp_p0_runs_guard_final_v1 = true;
+
+  const STATE = window.__vsp_runs_guard_state_v1 = window.__vsp_runs_guard_state_v1 || {
+    lastOkAt: 0,
+    lastOk: null,
+    inflight: null,
+    lastErrAt: 0,
+    lastErr: ""
+  };
+
+  function _now(){ return Date.now(); }
+
+  function _asArray(x){ return Array.isArray(x) ? x : []; }
+
+  async function _xhrJson(url, timeoutMs){
+    return await new Promise((resolve, reject)=>{
+      try{
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.responseType = "text";
+        xhr.timeout = Math.max(1000, timeoutMs||5000);
+        xhr.onload = ()=> {
+          try{
+            const t = xhr.responseText || "";
+            const obj = t ? JSON.parse(t) : {};
+            resolve(obj);
+          }catch(e){ reject(e); }
+        };
+        xhr.onerror = ()=> reject(new Error("xhr error"));
+        xhr.ontimeout = ()=> reject(new Error("xhr timeout"));
+        xhr.send(null);
+      }catch(e){ reject(e); }
+    });
+  }
+
+  async function fetchJson(url, timeoutMs){
+    // de-dup inflight for runs endpoint
+    if (STATE.inflight) return STATE.inflight;
+
+    const p = (async()=>{
+      try{
+        let obj = null;
+
+        // prefer native fetch if usable
+        if (typeof window.fetch === "function"){
+          const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+          const to = setTimeout(()=>{ try{ ctrl && ctrl.abort(); }catch(_){ } }, Math.max(1000, timeoutMs||5000));
+          try{
+            const r = await window.fetch(url, {method:"GET", cache:"no-store", credentials:"same-origin", signal: ctrl?ctrl.signal:undefined});
+            if (!r || !r.ok) throw new Error("fetch not ok");
+            obj = await r.json();
+          } finally {
+            clearTimeout(to);
+          }
+        }
+
+        if (!obj) obj = await _xhrJson(url, timeoutMs||5000);
+
+        // normalize
+        if (!obj || typeof obj !== "object") obj = {ok:false};
+        if (obj.ok !== true) {
+          // treat as error, but still allow fallback to lastOk
+          throw new Error("runs payload ok!=true");
+        }
+        obj.items = _asArray(obj.items);
+        STATE.lastOkAt = _now();
+        STATE.lastOk = obj;
+        return obj;
+      } catch(e){
+        STATE.lastErrAt = _now();
+        STATE.lastErr = String(e && e.message ? e.message : e);
+
+        // FALLBACK: if we have lastOk within 5 minutes, return it to stop flicker/crash
+        if (STATE.lastOk && (_now() - STATE.lastOkAt) < 5*60*1000){
+          const clone = Object.assign({}, STATE.lastOk);
+          clone._degraded = true;
+          clone._degraded_reason = STATE.lastErr;
+          return clone;
+        }
+        // last resort: stable empty ok response so UI never crashes
+        return {ok:true, items:[], _degraded:true, _degraded_reason: STATE.lastErr};
+      } finally {
+        STATE.inflight = null;
+      }
+    })();
+
+    STATE.inflight = p;
+    return p;
+  }
+
+  window.VSP_RUNS_GUARD = window.VSP_RUNS_GUARD || {};
+  window.VSP_RUNS_GUARD.fetchJson = fetchJson;
+
+  console.log("[VSP][P0] runs guard final enabled (no fetch lock).");
+})();

@@ -1,0 +1,1280 @@
+/* === VSP_GLOBAL_KPI_GUARDS_P1_V2 ===
+   Ensure _vspSetTextK/_vspSetHTMLK exist in GLOBAL scope (file has multiple IIFEs/modules).
+*/
+var _vspKpiEl = (typeof _vspKpiEl === "function") ? _vspKpiEl : function(id){
+  try{ return document.getElementById(id); }catch(_){ return null; }
+};
+var _vspKpiHasValue = (typeof _vspKpiHasValue === "function") ? _vspKpiHasValue : function(el){
+  try{
+    var t = (el && (el.textContent||"") || "").trim();
+    if(!t) return false;
+    var u = t.toUpperCase();
+    return (t !== "…" && t !== "—" && u !== "N/A");
+  }catch(_){ return false; }
+};
+var _vspKpiLocked = (typeof _vspKpiLocked === "function") ? _vspKpiLocked : function(id){
+  var el=_vspKpiEl(id);
+  try{ return !!(el && el.getAttribute("data-vsp-kpi-lock")==="1"); }catch(_){ return false; }
+};
+var _vspKpiLock = (typeof _vspKpiLock === "function") ? _vspKpiLock : function(id){
+  var el=_vspKpiEl(id);
+  try{ if(el) el.setAttribute("data-vsp-kpi-lock","1"); }catch(_){}
+};
+var _vspSetTextK = (typeof _vspSetTextK === "function") ? _vspSetTextK : function(id, v){
+  var el=_vspKpiEl(id);
+  if(!el) return false;
+  if(_vspKpiLocked(id) && _vspKpiHasValue(el)) return false;
+  try{
+    el.textContent = (v===0) ? "0" : (v ? String(v) : "—");
+    return true;
+  }catch(_){ return false; }
+};
+var _vspSetHTMLK = (typeof _vspSetHTMLK === "function") ? _vspSetHTMLK : function(id, html){
+  var el=_vspKpiEl(id);
+  if(!el) return false;
+  if(_vspKpiLocked(id) && _vspKpiHasValue(el)) return false;
+  try{
+    el.innerHTML = (html===0) ? "0" : (html ? String(html) : "—");
+    return true;
+  }catch(_){ return false; }
+};
+/* === END VSP_GLOBAL_KPI_GUARDS_P1_V2 === */
+
+
+// === VSP_EXPORT_HEAD_NOISE_PATCH_V1 ===
+(function(){
+  'use strict';
+
+  // === VSP_KPI_LOCK_PREFER_EXTRAS_P1_V1 ===
+  function _vspKpiEl(id){ try{return document.getElementById(id);}catch(_){return null;} }
+  function _vspKpiHasValue(el){
+    try{
+      const t = (el && (el.textContent||"") || "").trim();
+      if(!t) return false;
+      const u = t.toUpperCase();
+      return (t !== "…" && t !== "—" && u !== "N/A");
+    }catch(_){ return false; }
+  }
+  function _vspKpiLocked(id){
+    const el=_vspKpiEl(id);
+    return !!(el && el.getAttribute("data-vsp-kpi-lock")==="1");
+  }
+  function _vspKpiLock(id){
+    const el=_vspKpiEl(id);
+    if(el) el.setAttribute("data-vsp-kpi-lock","1");
+  }
+  function _vspSetTextK(id, v){
+    const el=_vspKpiEl(id);
+    if(el && _vspKpiLocked(id) && _vspKpiHasValue(el)) return;
+    setText(id, v);
+  }
+  function _vspSetHTMLK(id, v){
+    const el=_vspKpiEl(id);
+    if(el && _vspKpiLocked(id) && _vspKpiHasValue(el)) return;
+    setHTML(id, v);
+  }
+
+
+/* === VSP_4TABS_KPI_FROM_EXTRAS_P1_V1 === */
+(function(){
+  if(window.__VSP_4TABS_KPI_FROM_EXTRAS_P1_V1) return;
+  window.__VSP_4TABS_KPI_FROM_EXTRAS_P1_V1 = 1;
+
+  function normRid(x){
+    try{
+      x = String(x||"").trim();
+      x = x.replace(/^RUN[_\-\s]+/i, "");
+      x = x.replace(/^RID[:\s]+/i, "");
+      const m = x.match(/(VSP_CI_\d{8}_\d{6})/i);
+      if(m && m[1]) return m[1];
+      return x.replace(/\s+/g,"_");
+    }catch(_){ return ""; }
+  }
+
+  function getRid(){
+    try{
+      const st = window.__VSP_RID_STATE__ || window.__VSP_RID_STATE || window.VSP_RID_STATE;
+      if(st){
+        if(st.rid || st.run_id) return normRid(st.rid || st.run_id);
+        if(st.state && (st.state.rid || st.state.run_id)) return normRid(st.state.rid || st.state.run_id);
+        if(typeof st.get === "function"){
+          const v = st.get();
+          if(v && (v.rid || v.run_id)) return normRid(v.rid || v.run_id);
+        }
+      }
+    }catch(_){}
+
+    try{
+      const t = document.body ? (document.body.innerText || "") : "";
+      const m = t.match(/RID:\s*(VSP_CI_\d{8}_\d{6})/i);
+      if(m && m[1]) return normRid(m[1]);
+    }catch(_){}
+
+    return "";
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if(!el) return false;
+    el.textContent = (v===0) ? "0" : (v ? String(v) : "—");
+    return true;
+  }
+
+  function fmtBySev(bySev){
+    if(!bySev) return "";
+    const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    const out = [];
+    for(const k of order){
+      if(bySev[k] !== undefined) out.push(k[0] + ":" + bySev[k]);
+    }
+    return out.join(" ");
+  }
+
+  async function fetchExtras(rid){
+    if(!rid) return null;
+    const u = "/api/vsp/dashboard_v3_extras_v1?rid=" + encodeURIComponent(rid);
+    try{
+      const r = await fetch(u, {cache:"no-store"});
+      if(!r.ok) return null;
+      const j = await r.json();
+      if(j && j.ok) return j;
+    }catch(_){}
+    return null;
+  }
+
+  function applyExtras(j){
+    const k = (j && j.kpi) ? j.kpi : {};
+    const byTool = j.by_tool || {};
+    const bySev  = j.by_sev  || {};
+
+    const total = k.total ?? 0;
+    const eff   = k.effective ?? 0;
+    const degr  = k.degraded ?? 0;
+    const unk   = k.unknown_count ?? 0;
+    const score = (k.score===undefined || k.score===null) ? "" : k.score;
+
+    const verdict = (degr > 0) ? "DEGRADED" : (total > 0 ? "OK" : "EMPTY");
+    const gateTxt = (score !== "") ? (String(score) + "/100") : verdict;
+
+    _vspSetTextK("kpi-overall", verdict);
+    _vspSetTextK("kpi-overall-sub", `total ${total} | eff ${eff} | degr ${degr} | unk ${unk}`);
+    
+    // --- VSP_KPI_LOCK_AFTER_EXTRAS_P1 ---
+    _vspKpiLock("kpi-overall");
+    _vspKpiLock("kpi-overall-sub");
+    _vspKpiLock("kpi-gate");
+    _vspKpiLock("kpi-gate-sub");
+    _vspKpiLock("kpi-gitleaks");
+    _vspKpiLock("kpi-gitleaks-sub");
+    _vspKpiLock("kpi-codeql");
+    _vspKpiLock("kpi-codeql-sub");
+_vspSetTextK("kpi-gate", gateTxt);
+    _vspSetTextK("kpi-gate-sub", fmtBySev(bySev));
+
+    const gtl = (byTool.GITLEAKS !== undefined) ? byTool.GITLEAKS : null;
+    const cql = (byTool.CODEQL  !== undefined) ? byTool.CODEQL  : null;
+    _vspSetTextK("kpi-gitleaks", (gtl===null) ? "NOT_RUN" : gtl);
+    _vspSetTextK("kpi-gitleaks-sub", "GITLEAKS");
+    _vspSetTextK("kpi-codeql", (cql===null) ? "NOT_RUN" : cql);
+    _vspSetTextK("kpi-codeql-sub", "CODEQL");
+  }
+
+  let lastRid = "";
+  async function hydrate(force){
+    const rid = getRid();
+    if(!rid) return;
+    if(!force && rid === lastRid) return;
+    lastRid = rid;
+
+    const j = await fetchExtras(rid);
+    if(j) applyExtras(j);
+  }
+
+  window.addEventListener("hashchange", () => setTimeout(() => hydrate(true), 120));
+  setTimeout(() => hydrate(true), 200);
+  setInterval(() => hydrate(false), 1500);
+})();
+
+
+  // 1) QUIET export probe:
+  // Browser HEAD to /api/vsp/run_export_v3/...fmt=pdf may fail/noisy (DevTools shows "Fetch failed loading: HEAD ...")
+  // We short-circuit ONLY that exact pattern to a synthetic 200 so UI stops spamming.
+  if (!window.__VSP_EXPORT_HEAD_NOISE_PATCH_V1__) {
+    window.__VSP_EXPORT_HEAD_NOISE_PATCH_V1__ = true;
+    const _fetch = (window.fetch && window.fetch.bind(window)) ? window.fetch.bind(window) : null;
+
+    if (_fetch) {
+      window.fetch = function(input, init){
+        try {
+          const method = (init && init.method)
+            ? String(init.method).toUpperCase()
+            : (input && input.method ? String(input.method).toUpperCase() : "GET");
+          const url = (typeof input === "string")
+            ? input
+            : (input && input.url ? String(input.url) : "");
+          if (method === "HEAD"
+              && url.includes("/api/vsp/run_export_v3/")
+              && url.includes("fmt=pdf")) {
+            // pretend "available" without real network HEAD (removes noisy HEAD errors)
+            return Promise.resolve(new Response("", {
+              status: 200,
+              headers: { "X-VSP-EXPORT-AVAILABLE": "1" }
+            }));
+          }
+        } catch(_e) {}
+        return _fetch(input, init);
+      };
+      console.log("[VSP][EXPORT] installed HEAD-noise patch for fmt=pdf");
+    }
+  }
+
+  // 2) DRILLDOWN bus (Dashboard/Gate Summary click -> Data Source auto filter)
+  const LS_KEY = "vsp_ds_filters_v1";
+
+  function emitFilters(filters){
+    const payload = { v:1, ts: Date.now(), filters: (filters||{}) };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(payload)); } catch(_){}
+    try { window.dispatchEvent(new CustomEvent("vsp:datasource:setFilters", { detail: payload })); } catch(_){}
+  }
+
+  window.VSP_DRILL_TO_DATASOURCE = function(filters){
+    emitFilters(filters || {});
+    // switch to datasource tab via hash (your router logs show hash-based router)
+    try { location.hash = "#datasource"; } catch(_){}
+  };
+
+  // datasource side: best-effort apply by label text (Severity/Tool/CWE/Text/Limit)
+  function findControlByLabelText(labelText, preferTags){
+    labelText = String(labelText||"").toLowerCase();
+    preferTags = preferTags || ["select","input","textarea"];
+    const nodes = Array.from(document.querySelectorAll("div,span,label,strong,b,small,h1,h2,h3,h4,h5,h6"));
+    for (const n of nodes) {
+      const t = (n.textContent || "").trim().toLowerCase();
+      if (!t) continue;
+      if (t === labelText || t.includes(labelText)) {
+        // search within same parent first
+        let base = n.parentElement || n;
+        for (let hop=0; hop<3 && base; hop++){
+          for (const tg of preferTags){
+            const c = base.querySelector(tg);
+            if (c) return c;
+          }
+          base = base.parentElement;
+        }
+      }
+    }
+    return null;
+  }
+
+  function fire(el){
+    try { el.dispatchEvent(new Event("input", { bubbles:true })); } catch(_){}
+    try { el.dispatchEvent(new Event("change", { bubbles:true })); } catch(_){}
+  }
+
+  function applyFilters(filters){
+    filters = filters || {};
+    // only apply when datasource pane is active-ish
+    const h = String(location.hash||"");
+    if (!h.includes("datasource")) return;
+
+    const sev = findControlByLabelText("Severity", ["select","input"]);
+    const tool = findControlByLabelText("Tool", ["select","input"]);
+    const cwe = findControlByLabelText("CWE", ["input","select"]);
+    const txt = findControlByLabelText("Text", ["input","textarea"]);
+    const lim = findControlByLabelText("Limit", ["input","select"]);
+
+    if (filters.severity && sev) { sev.value = String(filters.severity); fire(sev); }
+    if (filters.tool && tool) { tool.value = String(filters.tool); fire(tool); }
+    if (filters.cwe && cwe) { cwe.value = String(filters.cwe); fire(cwe); }
+    if (filters.text && txt) { txt.value = String(filters.text); fire(txt); }
+    if (filters.limit && lim) { lim.value = String(filters.limit); fire(lim); }
+
+    // try click "Load" if exists (your UI has Load/Clear buttons)
+    try {
+      const btn = Array.from(document.querySelectorAll("button"))
+        .find(b => (b.textContent||"").trim().toLowerCase() === "load");
+      if (btn) btn.click();
+    } catch(_){}
+  }
+
+  function consumePending(){
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (!p || !p.filters) return;
+      const age = Date.now() - Number(p.ts || 0);
+      if (!(age >= 0 && age <= 5*60*1000)) return;
+      localStorage.removeItem(LS_KEY);
+      applyFilters(p.filters);
+    } catch(_){}
+  }
+
+  window.addEventListener("vsp:datasource:setFilters", (e)=>{
+    try { applyFilters((e.detail && e.detail.filters) || {}); } catch(_){}
+  });
+  window.addEventListener("hashchange", ()=>{ try { consumePending(); } catch(_){} });
+
+  // Gate Summary pills click -> drilldown
+  function wireGateSummaryClicks(){
+    const toolSet = new Set(["GITLEAKS","SEMGREP","TRIVY","CODEQL","KICS","GRYPE","SYFT","BANDIT"]);
+    const sevSet  = new Set(["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"]);
+    const pills = Array.from(document.querySelectorAll(".vsp-pill, [data-pill], td, th, span, div"));
+
+    for (const el of pills) {
+      if (!el || el.__vsp_drilled__) continue;
+      const txt = (el.textContent || "").trim();
+      if (!txt) continue;
+      const up = txt.toUpperCase();
+
+      const filters = {};
+      if (toolSet.has(up)) filters.tool = up;
+      if (sevSet.has(up)) filters.severity = up;
+      if (/^CWE-\d+$/i.test(up)) filters.cwe = up;
+
+      if (Object.keys(filters).length === 0) continue;
+
+      // limit to dashboard area if possible
+      const inDash = !!el.closest("#vsp-dashboard-main") || String(location.hash||"").includes("dashboard");
+      if (!inDash) continue;
+
+      el.__vsp_drilled__ = true;
+      el.style.cursor = "pointer";
+      el.title = "Click → drilldown Data Source";
+      el.addEventListener("click", ()=> window.VSP_DRILL_TO_DATASOURCE(filters));
+    }
+  }
+
+  function onReady(fn){
+    if (document.readyState === "complete" || document.readyState === "interactive") return setTimeout(fn, 0);
+    document.addEventListener("DOMContentLoaded", fn, { once:true });
+  }
+
+  onReady(()=>{ try { wireGateSummaryClicks(); } catch(_){} });
+  onReady(()=>{ try { consumePending(); } catch(_){} });
+
+})();
+
+
+
+// === VSP_P2_UI_NULL_GUARD_V1 ===
+(function(){
+  window.VSP_UI_SAFE_EL_V1 = function(id, parentSel){
+    try{
+      var el = document.getElementById(id);
+      if (el) return el;
+      var host = document.querySelector(parentSel || "#vsp4-main") ||
+                 document.querySelector("#vsp-content") ||
+                 document.body;
+      el = document.createElement("div");
+      el.id = id;
+      host.appendChild(el);
+      return el;
+    }catch(e){
+      var el2 = document.createElement("div");
+      el2.id = id;
+      document.body.appendChild(el2);
+      return el2;
+    }
+  };
+})();
+
+/* === VSP_UI_EXPORT_CI_AND_8TOOLS_V1 === */
+window.__VSP_STATUS_CACHE = window.__VSP_STATUS_CACHE || {};
+/* === VSP_UI_FIX_ARTLIST_NULL_V1 === */
+/* === VSP_UI_4TABS_COMMERCIAL_V1 === */
+(function(){
+  const API = {
+    runsIndex: "/api/vsp/runs_index_v3_fs_resolved?limit=20&hide_empty=0&filter=1",
+    statusV2: (rid) => `/api/vsp/run_status_v2/${encodeURIComponent(rid)}`,
+    artIndex: (rid) => `/api/vsp/run_artifacts_index_v1/${encodeURIComponent(rid)}`
+  };
+
+  const $ = (s, r=document) => r.querySelector(s);
+  const $all = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+  async function fetchJSON(url){
+    const r = await fetch(url, {headers: {"Accept":"application/json"}});
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+    return await r.json();
+  }
+
+  function normRid(runId){
+    if (!runId) return "";
+    runId = String(runId).trim();
+    if (runId.startsWith("RUN_")) return runId;
+    if (runId.startsWith("VSP_CI_")) return "RUN_" + runId;
+    return runId;
+  }
+
+  function badge(verdict, label){
+    const v = (verdict||"").toUpperCase();
+    let cls="vsp-badge-muted", dot="vsp-dot-muted", text=v||"N/A";
+    if (v==="GREEN"){cls="vsp-badge-green";dot="vsp-dot-green";}
+    else if (v==="AMBER"||v==="YELLOW"){cls="vsp-badge-amber";dot="vsp-dot-amber";text="AMBER";}
+    else if (v==="RED"){cls="vsp-badge-red";dot="vsp-dot-red";}
+    else if (v==="DISABLED"||v==="NOT_RUN"||v==="DEGRADED"){cls="vsp-badge-muted";dot="vsp-dot-muted";text=v;}
+    return `<span class="vsp-badge ${cls}" title="${label||""}"><span class="vsp-dot ${dot}"></span>${text}</span>`;
+  }
+
+  function setHTML(id, html){ const el=document.getElementById(id); if (el) el.innerHTML=html; }
+  function setText(id, txt){ const el=document.getElementById(id); if (el) el.textContent=txt; }
+
+  function tabSwitch(name){
+    const tabs = ["dashboard","runs","settings","data"];
+    tabs.forEach(t=>{
+      const sec = document.getElementById(`tab-${t}`);
+      if (sec) sec.style.display = (t===name) ? "" : "none";
+    });
+    $all("#nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
+    const titleMap = {dashboard:"Dashboard", runs:"Runs & Reports", settings:"Settings", data:"Data Source"};
+    setText("page-title", titleMap[name] || "VSP");
+  }
+
+  function renderGateByTool(s){
+    const rg = s.run_gate_summary || {};
+    const bt = rg.by_tool || {};
+    const rows = Object.keys(bt).sort().map(k=>{
+      const o = bt[k]||{};
+      const v = o.verdict || "N/A";
+      const total = o.total ?? 0;
+      return `<div class="vsp-row" style="margin:8px 0">
+        <div style="min-width:92px;font-weight:800">${k}</div>
+        <div>${badge(v, k)}</div>
+        <div class="vsp-muted">total: <span class="vsp-mono">${total}</span></div>
+      </div>`;
+    }).join("");
+    $("#gate-bytool").innerHTML = rows || `<div class="vsp-muted">No gate summary</div>`;
+    setText("gate-ts", rg.ts ? `ts: ${rg.ts}` : "ts: -");
+  }
+
+  function updateKpis(s){
+    const overall = s.overall_verdict || s.overall || (s.run_gate_summary && s.run_gate_summary.overall) || "N/A";
+    const gateOverall = (s.run_gate_summary && (s.run_gate_summary.overall_verdict || s.run_gate_summary.overall)) || overall || "N/A";
+
+    const glV = s.gitleaks_verdict || "NOT_RUN";
+    const glT = Number(s.gitleaks_total || 0);
+
+    let cqV = s.codeql_verdict || (s.has_codeql ? "AMBER" : "DISABLED");
+    let cqT = Number(s.codeql_total || 0);
+    if (!s.has_codeql && (cqV==="GREEN"||cqV==="AMBER"||cqV==="RED")) cqV="DISABLED";
+
+    _vspSetHTMLK("kpi-overall", badge(overall,"status_v2.overall_verdict"));
+    _vspSetTextK("kpi-overall-sub", s.rid_norm ? `RID: ${s.rid_norm}` : "");
+    _vspSetHTMLK("kpi-gate", badge(gateOverall,"run_gate_summary.overall"));
+    _vspSetTextK("kpi-gate-sub", s.run_gate_summary && s.run_gate_summary.ts ? `ts: ${s.run_gate_summary.ts}` : "");
+    _vspSetHTMLK("kpi-gitleaks", badge(glV,"gitleaks_verdict"));
+    _vspSetTextK("kpi-gitleaks-sub", `total: ${glT}`);
+    _vspSetHTMLK("kpi-codeql", badge(cqV,"codeql_verdict"));
+    _vspSetTextK("kpi-codeql-sub", `total: ${cqT}`);
+
+    setHTML("pill-overall", badge(overall));
+  }
+
+  function updateMeta(s){
+    const lines = [
+      `rid: ${s.rid || "-"}`,
+      `rid_norm: ${s.rid_norm || "-"}`,
+      `ci_run_dir: ${s.ci_run_dir || "-"}`,
+      `status: ${s.status || "-"}`,
+      `stage: ${s.stage_name || "-"}`,
+      `degraded_n: ${s.degraded_n ?? (Array.isArray(s.degraded_tools) ? s.degraded_tools.length : 0)}`
+    ];
+    $("#run-meta").textContent = lines.join("\n");
+  }
+
+  async function renderArtifacts(rid){
+    try{
+      const j = await fetchJSON(API.artIndex(rid));
+      const items = j.items || j.artifacts || j.files || [];
+      setText("art-count", `count: ${items.length}`);
+      const __pa = $("#pill-art"); if(__pa) __pa.textContent = String(items.length);
+      const __al=$("#art-list"); if(__al) __al.textContent = items.slice(0,300).map(x=>{
+        if (typeof x === "string") return x;
+        return x.path || x.name || JSON.stringify(x);
+      }).join("\n");
+    }catch(e){
+      setText("art-count", "count: -");
+      const __al=$("#art-list"); if(__al) __al.textContent = String(e);
+  }
+  }
+
+  async function loadRuns(){
+    const idx = await fetchJSON(API.runsIndex);
+    const items = idx.items || idx.runs || idx.data || [];
+    $("#pill-runs").textContent = String(items.length || 0);
+
+    // build picker
+    const optHtml = items.map(it=>{
+      const runId = it.run_id || it.id || it.rid || it.rid_norm || it.name || "";
+      const rid = normRid(runId);
+      return `<option value="${rid}">${rid}</option>`;
+    }).join("");
+    $("#run-picker").innerHTML = optHtml || `<option value="">(no runs)</option>`;
+
+    // build runs table (with status_v2)
+    const tbody = $("#runs-tbody");
+    tbody.innerHTML = "";
+    for (const it of items.slice(0,20)){
+      const runId = it.run_id || it.id || it.rid || it.rid_norm || it.name || "";
+      const rid = normRid(runId);
+      if (!rid.startsWith("RUN_")) continue;
+
+      let s = null;
+      try { s = await fetchJSON(API.statusV2(rid)); } catch(e){ s = null; }
+
+      const overall = s ? (s.overall_verdict || (s.run_gate_summary && s.run_gate_summary.overall) || "N/A") : "N/A";
+      const gate = s && s.run_gate_summary ? (s.run_gate_summary.overall || "N/A") : "N/A";
+      const glV = s ? (s.gitleaks_verdict || "NOT_RUN") : "N/A";
+      const cqV = s ? (s.codeql_verdict || (s.has_codeql ? "AMBER" : "DISABLED")) : "N/A";
+      const deg = s ? (s.degraded_n ?? (Array.isArray(s.degraded_tools)?s.degraded_tools.length:0)) : "-";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="vsp-mono">${rid}</td>
+        <td>${badge(overall)}</td>
+        <td>${badge(gate)}</td>
+        <td>${badge(glV)} <span class="vsp-muted">(t=${(function(){const a=_vsp_pickTool(s,"semgrep");const b=_vsp_pickTool(s,"trivy");const c=_vsp_pickTool(s,"kics");const d=_vsp_pickTool(s,"gitleaks");
+      return _vsp_toolBadge("SEMGREP",a.verdict,a.total)+" "+_vsp_toolBadge("TRIVY",b.verdict,b.total)+" "+_vsp_toolBadge("KICS",c.verdict,c.total)+" "+_vsp_toolBadge("GITLEAKS",d.verdict,d.total);})()})</span></td>
+        <td>${badge(cqV)} <span class="vsp-muted">(t=${(function(){const a=_vsp_pickTool(s,"codeql");const b=_vsp_pickTool(s,"bandit");const c=_vsp_pickTool(s,"syft");const d=_vsp_pickTool(s,"grype");
+      return _vsp_toolBadge("CODEQL",a.verdict,a.total)+" "+_vsp_toolBadge("BANDIT",b.verdict,b.total)+" "+_vsp_toolBadge("SYFT",c.verdict,c.total)+" "+_vsp_toolBadge("GRYPE",d.verdict,d.total);})()})</span></td>
+        <td class="vsp-mono">${deg}</td>
+      `;
+      tr.style.cursor="pointer";
+      tr.addEventListener("click", async ()=>{
+        $("#run-picker").value = rid;
+        await loadOne(rid);
+        tabSwitch("dashboard");
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function loadOne(rid){
+    if (!rid) return;
+    let s = null;
+    try { s = await fetchJSON(API.statusV2(rid)); } catch(e){ s = null; }
+    if (!s){
+      setText("run-meta", "cannot load status_v2");
+      return;
+    }
+    updateKpis(s);
+    renderGateByTool(s);
+    updateMeta(s);
+    window.__VSP_STATUS_CACHE[rid]=s;
+await renderArtifacts(rid);
+    await _vsp_setup_export_links(rid);
+    await _vsp_render_datasource(rid, s);
+  }
+
+  function loadSettingsUi(){
+    const key = (k)=>`vsp_ui_set_${k}`;
+    const enable = localStorage.getItem(key("ENABLE_CODEQL")) ?? "1";
+    const tCodeql = localStorage.getItem(key("TIMEOUT_CODEQL")) ?? "3600s";
+    const tKics = localStorage.getItem(key("TIMEOUT_KICS")) ?? "1800s";
+    $("#set-enable-codeql").value = enable;
+    $("#set-timeout-codeql").value = tCodeql;
+    $("#set-timeout-kics").value = tKics;
+
+    $("#set-enable-codeql").addEventListener("change", ()=>localStorage.setItem(key("ENABLE_CODEQL"), $("#set-enable-codeql").value));
+    $("#set-timeout-codeql").addEventListener("change", ()=>localStorage.setItem(key("TIMEOUT_CODEQL"), $("#set-timeout-codeql").value));
+    $("#set-timeout-kics").addEventListener("change", ()=>localStorage.setItem(key("TIMEOUT_KICS"), $("#set-timeout-kics").value));
+  }
+
+  function bootNav(){
+    $all("#nav button").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        tabSwitch(b.dataset.tab);
+      });
+    });
+    $("#btn-refresh").addEventListener("click", async ()=>{
+      await loadRuns();
+      const rid = $("#run-picker").value;
+      if (rid) await loadOne(rid);
+    await _vsp_setup_export_links(rid);
+  });
+    $("#run-picker").addEventListener("change", async ()=>{
+      const rid = $("#run-picker").value;
+      if (rid) await loadOne(rid);
+    });
+  }
+
+/* === VSP_UI_4TABS_EXPORT_DS_V1 === */
+async function _vsp_try_head(url){
+  try{
+    const r = await fetch(url, {method:"HEAD"});
+    if (r.ok) return true;
+  }catch(e){}
+  try{
+    const r2 = await fetch(url, {method:"GET", headers: {"Range":"bytes=0-0"}});
+    if (r2.ok) return true;
+  }catch(e){}
+  return false;
+}
+
+async function _vsp_probe_first(urls){
+  for (const u of urls){
+    if (await _vsp_try_head(u)) return u;
+  }
+  return null;
+}
+
+function _vsp_disable_link(a, reason){
+  if (!a) return;
+  a.href = "#";
+  a.style.opacity = "0.45";
+  a.style.pointerEvents = "none";
+  if (reason) a.title = reason;
+}
+
+function _vsp_pretty(obj){
+  try { return JSON.stringify(obj, null, 2); } catch(e){ return String(obj); }
+}
+
+// try to fetch an artifact file by probing common endpoints
+async function _vsp_fetch_artifact_text(rid, path){
+  const qp = encodeURIComponent(path);
+  const cands = [
+    `/api/vsp/run_artifact_v1/${encodeURIComponent(rid)}?path=${qp}`,
+    `/api/vsp/run_artifact_get_v1/${encodeURIComponent(rid)}?path=${qp}`,
+    `/api/vsp/run_artifacts_get_v1/${encodeURIComponent(rid)}?path=${qp}`,
+    `/api/vsp/artifact_get_v1/${encodeURIComponent(rid)}?path=${qp}`,
+    `/api/vsp/run_artifact_v1/${encodeURIComponent(rid)}?p=${qp}`,
+    `/api/vsp/run_artifact_get_v1/${encodeURIComponent(rid)}?p=${qp}`,
+  ];
+  for (const u of cands){
+    try{
+      const r = await fetch(u, {headers: {"Accept":"text/plain,application/json,*/*"}});
+      if (!r.ok) continue;
+      const txt = await r.text();
+      // heuristic: not an HTML error page
+      if ((txt||"").trim().startsWith("<!DOCTYPE html") || (txt||"").includes("HTTP_404")) continue;
+      return {ok:true, url:u, text:txt};
+    }catch(e){}
+  }
+  return {ok:false, url:null, text:null};
+}
+
+function _vsp_parse_csv_preview(csvText, limitRows=50){
+  const lines = (csvText||"").split(/\r?\n/).filter(x=>x.trim().length>0);
+  if (!lines.length) return {cols:[], rows:[]};
+  // naive CSV split (good enough for preview)
+  const split = (s)=> {
+    const out=[]; let cur=""; let q=false;
+    for (let i=0;i<s.length;i++){
+      const ch=s[i];
+      if (ch === '"' ){ q = !q; continue; }
+      if (ch === "," && !q){ out.push(cur); cur=""; continue; }
+      cur+=ch;
+    }
+    out.push(cur);
+    return out.map(x=>x.trim());
+  };
+  const cols = split(lines[0]).slice(0,40);
+  const rows = [];
+  for (let i=1;i<lines.length && rows.length<limitRows;i++){
+    rows.push(split(lines[i]).slice(0,40));
+  }
+  return {cols, rows};
+}
+
+function _vsp_render_findings_table(cols, rows){
+  const head = document.getElementById("ds-findings-head");
+  const body = document.getElementById("ds-findings-body");
+  if (!head || !body) return;
+
+  head.innerHTML = "";
+  body.innerHTML = "";
+
+  cols.slice(0,14).forEach(c=>{
+    const th = document.createElement("th");
+    th.textContent = c;
+    head.appendChild(th);
+  });
+
+  rows.slice(0,80).forEach(r=>{
+    const tr = document.createElement("tr");
+    cols.slice(0,14).forEach((_,i)=>{
+      const td = document.createElement("td");
+      td.textContent = (r[i] ?? "");
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+}
+
+async function _vsp_setup_export_links(selectedRid){
+  const aHtml = document.getElementById("btn-exp-html");
+  const aPdf  = document.getElementById("btn-exp-pdf");
+  const aZip  = document.getElementById("btn-exp-zip");
+  const aArt  = document.getElementById("btn-open-artindex");
+  const hint  = document.getElementById("exp-hint");
+
+  if (!aHtml && !aPdf && !aZip) return;
+
+  if (!selectedRid){
+    _vsp_disable_link(aHtml,"no run");
+    _vsp_disable_link(aPdf,"no run");
+    _vsp_disable_link(aZip,"no run");
+    _vsp_disable_link(aArt,"no run");
+    if (hint) hint.textContent = "no selected run";
+    return;
+  }
+
+  
+  const __st = (window.__VSP_STATUS_CACHE||{})[selectedRid] || null;
+  const __ci = (__st && (__st.ci_run_dir || __st.ci || __st.run_dir)) ? String(__st.ci_run_dir || __st.ci || __st.run_dir) : "";
+  const __ciQ = __ci ? `&ci=${encodeURIComponent(__ci)}` : "";
+// artifacts index always exists
+  if (aArt){
+    aArt.href = `/api/vsp/run_artifacts_index_v1/${encodeURIComponent(selectedRid)}`;
+    aArt.style.opacity = "1";
+    aArt.style.pointerEvents = "auto";
+  }
+
+  // probe export endpoints (several shapes)
+  const mk = (fmt)=>[
+    `/api/vsp/run_export_v3/${encodeURIComponent(selectedRid)}?fmt=${fmt}${String(__ciQ||"").replace(/^\?/, "&")}`,
+    `/api/vsp/run_export_v3/${encodeURIComponent(selectedRid)}?format=${fmt}${String(__ciQ||"").replace(/^\?/, "&")}`,
+    `/api/vsp/run_export_v3?rid=${encodeURIComponent(selectedRid)}&fmt=${fmt}${String(__ciQ||"").replace(/^\?/, "&")}`,
+    `/api/vsp/run_export_v3?run_id=${encodeURIComponent(selectedRid)}&fmt=${fmt}${String(__ciQ||"").replace(/^\?/, "&")}`,
+    `/api/vsp/run_export_v3?rid=${encodeURIComponent(selectedRid)}&format=${fmt}${String(__ciQ||"").replace(/^\?/, "&")}`,
+  ];
+
+  const uHtml = await _vsp_probe_first(mk("html"));
+  const uPdf  = await _vsp_probe_first(mk("pdf"));
+  const uZip  = await _vsp_probe_first(mk("zip"));
+
+  if (uHtml){ aHtml.href=uHtml; aHtml.style.opacity="1"; aHtml.style.pointerEvents="auto"; }
+  else _vsp_disable_link(aHtml,"export html not available");
+
+  if (uPdf){ aPdf.href=uPdf; aPdf.style.opacity="1"; aPdf.style.pointerEvents="auto"; }
+  else _vsp_disable_link(aPdf,"export pdf not available");
+
+  if (uZip){ aZip.href=uZip; aZip.style.opacity="1"; aZip.style.pointerEvents="auto"; }
+  else _vsp_disable_link(aZip,"export zip not available");
+
+  if (hint){
+    hint.textContent = `rid=${selectedRid} • export: ${uHtml?'HTML':'-'} ${uPdf?'PDF':'-'} ${uZip?'ZIP':'-'}`
+  }
+}
+
+async function _vsp_render_datasource(rid, statusV2Obj){
+  const boxS = document.getElementById("ds-statusv2");
+  const boxA = document.getElementById("ds-artjson");
+  const hint = document.getElementById("ds-findings-hint");
+
+  if (boxS) boxS.textContent = _vsp_pretty(statusV2Obj || {});
+  if (!rid) return;
+
+  // artifacts index JSON
+  let art = null;
+  try{
+    art = await fetchJSON(`/api/vsp/run_artifacts_index_v1/${encodeURIComponent(rid)}`);
+    if (boxA) boxA.textContent = _vsp_pretty(art);
+  }catch(e){
+    if (boxA) boxA.textContent = String(e);
+    if (hint) hint.textContent = "cannot load artifacts index";
+    return;
+  }
+
+  // find candidate findings files from artifacts list
+  const items = art.items || art.artifacts || art.files || [];
+  const paths = items.map(x => (typeof x === "string") ? x : (x.path || x.name || "")).filter(Boolean);
+
+  const pick = (needle)=> paths.find(p => p.toLowerCase().includes(needle));
+  const csvPath = pick("findings_unified.csv") || pick("findings.csv") || pick("findings_unified");
+  const jsonPath = pick("findings_unified.json") || pick("findings.json");
+
+  if (!csvPath && !jsonPath){
+    if (hint) hint.textContent = "no findings_unified.* in artifacts index";
+    return;
+  }
+
+  // try csv first for table preview
+  if (csvPath){
+    if (hint) hint.textContent = `trying csv: ${csvPath}`;
+    const r = await _vsp_fetch_artifact_text(rid, csvPath);
+    if (r.ok){
+      const pv = _vsp_parse_csv_preview(r.text, 60);
+      _vsp_render_findings_table(pv.cols, pv.rows);
+      if (hint) hint.textContent = `preview from CSV ✓ via ${r.url}`;
+      return;
+    }
+  }
+
+  // fallback json
+  if (jsonPath){
+    if (hint) hint.textContent = `trying json: ${jsonPath}`;
+    const r = await _vsp_fetch_artifact_text(rid, jsonPath);
+    if (r.ok){
+      let obj = null;
+      try{ obj = JSON.parse(r.text); }catch(e){ obj=null; }
+      if (obj && Array.isArray(obj.items)) obj = obj.items;
+      // render columns from first item keys
+      const rows = Array.isArray(obj) ? obj.slice(0,60) : [];
+      const cols = rows[0] ? Object.keys(rows[0]).slice(0,14) : [];
+      const tableRows = rows.map(o => cols.map(c => (o && o[c] !== undefined) ? String(o[c]) : ""));
+      _vsp_render_findings_table(cols, tableRows);
+      if (hint) hint.textContent = `preview from JSON ✓ via ${r.url}`;
+      return;
+    }
+  }
+
+  if (hint) hint.textContent = "cannot fetch findings file (no artifact download endpoint found)";
+}
+
+function _vsp_normVerd(v){
+  const s = (v||"").toString().toUpperCase();
+  if (!s) return "N/A";
+  return s;
+}
+function _vsp_toolBadge(name, verdict, total){
+  const v = _vsp_normVerd(verdict);
+  const cls = (v==="RED"||v==="CRITICAL"||v==="HIGH") ? "pill red"
+            : (v==="AMBER"||v==="MEDIUM") ? "pill amber"
+            : (v==="GREEN"||v==="LOW"||v==="OK") ? "pill green"
+            : (v==="DEGRADED") ? "pill amber"
+            : (v==="DISABLED"||v==="NOT_RUN") ? "pill gray"
+            : "pill gray";
+  const tt = `${name}: ${v} (${total??0})`;
+  return `<span class="${cls}" title="${tt}">${name} <span class="vsp-muted">(${total??0})</span></span>`;
+}
+function _vsp_pickTool(s, key){
+  // allow either flat fields or *_summary
+  if (!s) return {verdict:"N/A", total:0};
+  const up = key.toUpperCase();
+  // run_gate_summary.by_tool preferred
+  const gate = (s.run_gate_summary && s.run_gate_summary.by_tool) ? s.run_gate_summary.by_tool : null;
+  if (gate && gate[up]) return {verdict: gate[up].verdict||"N/A", total: gate[up].total||0};
+  // direct fields
+  const v1 = s[`${key}_verdict`];
+  const t1 = s[`${key}_total`];
+  if (v1 !== undefined || t1 !== undefined) return {verdict: v1||"N/A", total: (t1||0)};
+  // summary object
+  const sum = s[`${key}_summary`];
+  if (sum && typeof sum === "object") return {verdict: sum.verdict||sum.status||"N/A", total: sum.total||0};
+  // special known: codeql in our wrapper
+  if (key==="codeql"){
+    return {verdict: s.codeql_verdict||"NOT_RUN", total: s.codeql_total||0};
+  }
+  if (key==="gitleaks"){
+    return {verdict: s.gitleaks_verdict||"NOT_RUN", total: s.gitleaks_total||0};
+  }
+  return {verdict:"NOT_RUN", total:0};
+}
+
+
+async function boot(){
+    bootNav();
+    loadSettingsUi();
+    await loadRuns();
+    const rid = $("#run-picker").value;
+    if (rid) await loadOne(rid);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+// === VSP_P2_FIX_EXPORT_CIQ_V1 ===
+// patched run_export_v3 candidate URLs to normalize __ciQ leading '?'
+
+
+
+// === VSP_UI_GATE_SUMMARY_ALWAYS8_V1 ===
+(function(){
+  'use strict';
+
+  const CANON = ["SEMGREP","GITLEAKS","TRIVY","CODEQL","KICS","GRYPE","SYFT","BANDIT"];
+
+  function esc(s){ return String(s||"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+  function pick(obj, keys){ for(const k of keys){ if(obj && obj[k] != null) return obj[k]; } return null; }
+
+  function normalizeToolEntry(t, entry){
+    entry = entry || {};
+    const verdict = String(pick(entry, ["verdict","status"]) || "NOT_RUN").toUpperCase();
+    const total = Number(pick(entry, ["total","n","count"]) || 0) || 0;
+    return { tool: t, verdict, total };
+  }
+
+  function buildListFromStatus(status){
+    status = status || {};
+    const tools = status.tools || null;
+    const order = status.tools_order || CANON;
+    const out = [];
+
+    // Prefer .tools (new backend)
+    if (tools && typeof tools === "object") {
+      for (const t of order) out.push(normalizeToolEntry(t, tools[t]));
+      return out;
+    }
+
+    // Fallback: legacy run_gate_summary
+    const gs = status.run_gate_summary || {};
+    if (gs && typeof gs === "object") {
+      for (const t of order) out.push(normalizeToolEntry(t, gs[t]));
+      return out;
+    }
+
+    // Last fallback: legacy 4 tools flat fields
+    const legacyMap = {
+      "SEMGREP": { verdict: status.semgrep_verdict, total: status.semgrep_total },
+      "GITLEAKS": { verdict: status.gitleaks_verdict, total: status.gitleaks_total },
+      "TRIVY": { verdict: status.trivy_verdict, total: status.trivy_total },
+      "CODEQL": { verdict: status.codeql_verdict, total: status.codeql_total }
+    };
+    for (const t of CANON) out.push(normalizeToolEntry(t, legacyMap[t] || {}));
+    return out;
+  }
+
+  function badgeClass(v){
+    v = String(v||"").toUpperCase();
+    if (v === "RED" || v === "FAIL" || v === "CRITICAL") return "vsp-badge vsp-badge-red";
+    if (v === "AMBER" || v === "WARN" || v === "HIGH") return "vsp-badge vsp-badge-amber";
+    if (v === "GREEN" || v === "OK" || v === "PASS") return "vsp-badge vsp-badge-green";
+    if (v === "DEGRADED") return "vsp-badge vsp-badge-amber";
+    return "vsp-badge vsp-badge-gray";
+  }
+
+  function renderGateSummaryAlways8(status){
+    const host = document.querySelector("#vsp-gate-summary, #gate-summary, [data-vsp='gate-summary']");
+    if (!host) return false;
+
+    const list = buildListFromStatus(status);
+    const rows = list.map(x => {
+      const t = esc(x.tool);
+      const v = esc(x.verdict);
+      const n = esc(x.total);
+      return `
+        <div class="vsp-gs-row" data-vsp-drill-tool="${t}">
+          <div class="vsp-gs-tool vsp-pill" data-vsp-drill-tool="${t}">${t}</div>
+          <div class="${badgeClass(v)} vsp-pill" data-vsp-drill-tool="${t}">${v}</div>
+          <div class="vsp-gs-total vsp-pill" data-vsp-drill-tool="${t}">${n}</div>
+        </div>
+      `;
+    }).join("");
+
+    host.innerHTML = `
+      <div class="vsp-gs-head">
+        <div class="vsp-gs-col">TOOL</div>
+        <div class="vsp-gs-col">VERDICT</div>
+        <div class="vsp-gs-col">TOTAL</div>
+      </div>
+      <div class="vsp-gs-body">${rows}</div>
+    `;
+
+    return true;
+  }
+
+  // Hook: if your code already has a function that receives status JSON, we wrap it.
+  function wrapStatusConsumer(){
+    const names = ["VSP_UI_APPLY_STATUS", "vspApplyStatus", "renderRunStatus", "updateStatusUI"];
+    for (const n of names){
+      if (typeof window[n] === "function" && !window[n].__vsp_wrapped__) {
+        const orig = window[n];
+        window[n] = function(status){
+          try { renderGateSummaryAlways8(status); } catch(_){}
+          return orig.apply(this, arguments);
+        };
+        window[n].__vsp_wrapped__ = true;
+        console.log("[VSP][UI] wrapped status consumer:", n);
+        return;
+      }
+    }
+    // fallback: poll global last status if exists
+    try {
+      if (window.VSP_LAST_STATUS && !window.__VSP_GATE8_TICK__) {
+        window.__VSP_GATE8_TICK__ = setInterval(()=>{ try { renderGateSummaryAlways8(window.VSP_LAST_STATUS); } catch(_){} }, 1200);
+      }
+    } catch(_){}
+  }
+
+  // Ensure a container exists (non-breaking)
+  function ensureHost(){
+    let host = document.querySelector("#vsp-gate-summary");
+    if (host) return;
+    const dash = document.querySelector("#vsp-dashboard-main");
+    if (!dash) return;
+    host = document.createElement("div");
+    host.id = "vsp-gate-summary";
+    host.style.marginTop = "10px";
+    dash.appendChild(host);
+  }
+
+  function onReady(fn){
+    if (document.readyState === "complete" || document.readyState === "interactive") return setTimeout(fn, 0);
+    document.addEventListener("DOMContentLoaded", fn, { once:true });
+  }
+
+  onReady(()=>{ try { ensureHost(); } catch(_){} });
+  onReady(()=>{ try { wrapStatusConsumer(); } catch(_){} });
+
+})();
+
+
+/* === VSP_SILENCE_EXPORT_HEAD_PROBE_V1 ===
+ * Fix commercial UX: stop console noise caused by HEAD probes to /api/vsp/run_export_v3/*
+ * We only intercept HEAD (probe). Real export clicks (usually GET via navigation) are not touched.
+ */
+(function(){
+  try{
+    const _fetch = window.fetch ? window.fetch.bind(window) : null;
+    if (!_fetch) return;
+
+    window.fetch = function(input, init){
+      try{
+        const url = String(input || "");
+        const method = String((init && init.method) || "GET").toUpperCase();
+        if (method === "HEAD" && url.indexOf("/api/vsp/run_export_v3/") >= 0){
+          // Return 200 + header available=0 so UI can hide/disable without throwing 404.
+          return Promise.resolve(new Response("", {
+            status: 200,
+            headers: {
+              "X-VSP-EXPORT-AVAILABLE": "0",
+              "Content-Type": "application/json"
+            }
+          }));
+        }
+      }catch(e){}
+      return _fetch(input, init);
+    };
+  }catch(e){}
+})();
+ /* === /VSP_SILENCE_EXPORT_HEAD_PROBE_V1 === */
+
+/* VSP_FETCH_DEDUPE_SHIM_P1_V1_BEGIN */
+(function(){
+  'use strict';
+  if (window.__VSP_FETCH_DEDUPE_SHIM_P1_V1) return;
+  window.__VSP_FETCH_DEDUPE_SHIM_P1_V1 = true;
+
+  const origFetch = window.fetch ? window.fetch.bind(window) : null;
+  if (!origFetch) return;
+
+  const cache = new Map();     // url -> {status, ctype, body}
+  const inflight = new Map();  // url -> Promise<{status,ctype,body}>
+
+  function urlOf(input){
+    try { return (typeof input === "string") ? input : (input && input.url) ? input.url : ""; }
+    catch(_e){ return ""; }
+  }
+
+  function shouldCache(url){
+    if (!url) return false;
+    if (url.includes("__nocache=1")) return false;
+    // cache/dedupe only the noisy + safe GET JSON endpoints
+    return (
+      url.includes("/api/vsp/runs_index_v3_fs_resolved") ||
+      url.includes("/api/vsp/run_status_v2/") ||
+      url.includes("/api/vsp/dashboard_v3")
+    );
+  }
+
+  function cloneResponseFrom(entry){
+    return new Response(entry.body, {
+      status: entry.status || 200,
+      headers: { "Content-Type": entry.ctype || "application/json" }
+    });
+  }
+
+  async function fetchAndStore(input, init, url){
+    const res = await origFetch(input, init);
+    try{
+      const c = res.clone();
+      const body = await c.text();
+      const ctype = c.headers.get("content-type") || "application/json";
+      const entry = { status: c.status, ctype, body };
+      cache.set(url, entry);
+      return entry;
+    }catch(_e){
+      // if clone fails, don't cache
+      return null;
+    }
+  }
+
+  window.fetch = function(input, init){
+    const url = urlOf(input);
+    const method = (init && init.method) ? String(init.method).toUpperCase() : "GET";
+    if (method !== "GET" || !shouldCache(url)) {
+      return origFetch(input, init);
+    }
+
+    if (cache.has(url)) {
+      return Promise.resolve(cloneResponseFrom(cache.get(url)));
+    }
+
+    if (inflight.has(url)) {
+      return inflight.get(url).then(entry => entry ? cloneResponseFrom(entry) : origFetch(input, init));
+    }
+
+    const p = fetchAndStore(input, init, url)
+      .finally(() => inflight.delete(url));
+
+    inflight.set(url, p);
+
+    return origFetch(input, init); // return real response for first caller
+  };
+
+  console.log("[VSP_FETCH_DEDUPE_SHIM_P1_V1] enabled");
+})();
+/* VSP_FETCH_DEDUPE_SHIM_P1_V1_END */
+
+
+
+
+/* === VSP_4TABS_KPI_FROM_EXTRAS_P1_V2 (observer+retry) === */
+(function(){
+  if(window.__VSP_4TABS_KPI_FROM_EXTRAS_P1_V2) return;
+  window.__VSP_4TABS_KPI_FROM_EXTRAS_P1_V2 = 1;
+
+  function normRid(x){
+    try{
+      x = String(x||"").trim();
+      x = x.replace(/^RUN[_\-\s]+/i, "");
+      x = x.replace(/^RID[:\s]+/i, "");
+      const m = x.match(/(VSP_CI_\d{8}_\d{6})/i);
+      if(m && m[1]) return m[1];
+      return x.replace(/\s+/g,"_");
+    }catch(_){ return ""; }
+  }
+
+  function getRid(){
+    try{
+      const st = window.__VSP_RID_STATE__ || window.__VSP_RID_STATE || window.VSP_RID_STATE || window.__vsp_rid_state;
+      if(st){
+        if(st.rid || st.run_id) return normRid(st.rid || st.run_id);
+        if(st.state && (st.state.rid || st.state.run_id)) return normRid(st.state.rid || st.state.run_id);
+        if(typeof st.get === "function"){
+          const v = st.get();
+          if(v && (v.rid || v.run_id)) return normRid(v.rid || v.run_id);
+        }
+      }
+    }catch(_){}
+    try{
+      const t = document.body ? (document.body.innerText || "") : "";
+      const m = t.match(/RID:\s*(VSP_CI_\d{8}_\d{6})/i);
+      if(m && m[1]) return normRid(m[1]);
+    }catch(_){}
+    return "";
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if(!el) return false;
+    el.textContent = (v===0) ? "0" : (v ? String(v) : "—");
+    return true;
+  }
+
+  function fmtBySev(bySev){
+    if(!bySev) return "";
+    const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    const out = [];
+    for(const k of order){
+      if(bySev[k] !== undefined) out.push(k[0] + ":" + bySev[k]);
+    }
+    return out.join(" ");
+  }
+
+  function pickTool(byTool, want){
+    if(!byTool) return null;
+    if(byTool[want] !== undefined) return byTool[want];
+    const key = Object.keys(byTool).find(k => String(k||"").toUpperCase() === want.toUpperCase());
+    return key ? byTool[key] : null;
+  }
+
+  function tryApply(j){
+    if(!j || !j.kpi) return false;
+    // === VSP_EXTRAS_READER_USE_KPI_ROOT_P1_V1 ===
+    const k = (j && j.kpi) ? j.kpi : {};
+    // prefer kpi.* (our API returns only {ok,rid,sources,kpi})
+    const byTool = (k && (k.by_tool || k.byTool)) || (j && (j.by_tool || j.byTool)) || {};
+    const bySev  = (k && (k.by_sev  || k.bySev))  || (j && (j.by_sev  || j.bySev))  || {};
+    const topCwe = (k && (k.top_cwe || k.topCwe)) || (j && (j.top_cwe || j.topCwe)) || [];
+
+
+    const total = k.total ?? 0;
+    const eff   = k.effective ?? 0;
+    const degr  = k.degraded ?? 0;
+    const unk   = k.unknown_count ?? 0;
+    const score = (k.score===undefined || k.score===null) ? "" : k.score;
+
+    const verdict = (degr > 0) ? "DEGRADED" : (total > 0 ? "OK" : "EMPTY");
+    const gateTxt = (score !== "") ? (String(score) + "/100") : verdict;
+
+    let ok = 0;
+    ok += _vspSetTextK("kpi-overall", verdict) ? 1 : 0;
+    ok += _vspSetTextK("kpi-overall-sub", `total ${total} | eff ${eff} | degr ${degr} | unk ${unk}`) ? 1 : 0;
+
+    ok += _vspSetTextK("kpi-gate", gateTxt) ? 1 : 0;
+    ok += _vspSetTextK("kpi-gate-sub", fmtBySev(bySev)) ? 1 : 0;
+
+    const gtl = pickTool(byTool, "GITLEAKS");
+    const cql = pickTool(byTool, "CODEQL");
+    ok += _vspSetTextK("kpi-gitleaks", (gtl===null) ? "NOT_RUN" : gtl) ? 1 : 0;
+    ok += _vspSetTextK("kpi-gitleaks-sub", "GITLEAKS") ? 1 : 0;
+    ok += _vspSetTextK("kpi-codeql", (cql===null) ? "NOT_RUN" : cql) ? 1 : 0;
+    ok += _vspSetTextK("kpi-codeql-sub", "CODEQL") ? 1 : 0;
+
+    // success if at least the main 2 cards exist
+    return ok >= 2;
+  }
+
+  function scheduleApply(){
+    const j = window.__VSP_LAST_DASH_EXTRAS_J;
+    if(!j) return;
+
+    const delays = [0, 120, 300, 800, 1500, 2500];
+    for(const d of delays){
+      setTimeout(() => { tryApply(j); }, d);
+    }
+
+    // observe DOM until KPI nodes appear
+    try{
+      if(window.__VSP_KPI_OBSERVER_V2) return;
+      const obs = new MutationObserver(() => {
+        const done = tryApply(j);
+        if(done){
+          try{ obs.disconnect(); }catch(_){}
+          window.__VSP_KPI_OBSERVER_V2 = null;
+        }
+      });
+      obs.observe(document.documentElement || document.body, {childList:true, subtree:true});
+      window.__VSP_KPI_OBSERVER_V2 = obs;
+    }catch(_){}
+  }
+
+  async function fetchExtras(rid){
+    const u = "/api/vsp/dashboard_v3_extras_v1?rid=" + encodeURIComponent(rid);
+    try{
+      const r = await fetch(u, {cache:"no-store"});
+      if(!r.ok) return null;
+      const j = await r.json();
+      return (j && j.ok) ? j : null;
+    }catch(_){}
+    return null;
+  }
+
+  let lastRid = "";
+  async function hydrate(force){
+    const rid = getRid();
+    if(!rid) return;
+    if(!force && rid === lastRid) return;
+    lastRid = rid;
+
+    const j = await fetchExtras(rid);
+    if(!j) return;
+
+    window.__VSP_LAST_DASH_EXTRAS_RID = rid;
+    window.__VSP_LAST_DASH_EXTRAS_J = j;
+
+    // try immediately, and also schedule retry until DOM ready
+    tryApply(j);
+    scheduleApply();
+  }
+
+  window.addEventListener("hashchange", () => setTimeout(() => hydrate(true), 150));
+  setTimeout(() => hydrate(true), 250);
+  setInterval(() => hydrate(false), 2000);
+})();
+

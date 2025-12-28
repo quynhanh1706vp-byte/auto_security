@@ -1,0 +1,275 @@
+/* VSP_P120_C_COMMON_SHIM_V1
+ * Purpose:
+ * - Provide a stable global window.VSPC for /c/* suite
+ * - Fix: "Cannot read properties of undefined (reading 'onRefresh')"
+ * - Provide refresh event bus + RID resolution (latest) + fetchJSON with timeout
+ */
+(function(){
+  'use strict';
+
+  const log = (...a)=>{ try{ console.log('[VSPC]', ...a); }catch(e){} };
+  const warn = (...a)=>{ try{ console.warn('[VSPC]', ...a); }catch(e){} };
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+
+  function sanitizeRid(x){
+    x = (x||'').toString().trim();
+    // allow VSP_CI_YYYYmmdd_HHMMSS and RUN_* style, block accidental "VSP_FILL_..." junk
+    if(!x) return '';
+    if(x.length > 128) return '';
+    if(!/^[A-Za-z0-9_.:-]+$/.test(x)) return '';
+    if(/^VSP_FILL_/i.test(x)) return '';
+    return x;
+  }
+
+  function getUrlParam(name){
+    try{
+      const u = new URL(window.location.href);
+      return u.searchParams.get(name) || '';
+    }catch(e){ return ''; }
+  }
+
+  function setUrlParam(name, value){
+    try{
+      const u = new URL(window.location.href);
+      if(value) u.searchParams.set(name, value);
+      else u.searchParams.delete(name);
+      history.replaceState({}, '', u.toString());
+    }catch(e){}
+  }
+
+  async function fetchJSON(url, opt){
+    opt = opt || {};
+    const timeoutMs = opt.timeoutMs || 2500;
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+    try{
+      const r = await fetch(url, {signal: ctrl.signal, cache:'no-store', credentials:'same-origin'});
+      const ct = (r.headers.get('content-type')||'').toLowerCase();
+      const txt = await r.text();
+      let j = null;
+      if(ct.includes('application/json')){
+        try{ j = JSON.parse(txt); }catch(e){ j = null; }
+      }else{
+        // best effort JSON parse
+        try{ j = JSON.parse(txt); }catch(e){ j = null; }
+      }
+      return {ok: r.ok, status: r.status, json: j, text: txt, headers: r.headers};
+    }catch(e){
+      return {ok:false, status:0, json:null, text:String(e)};
+    }finally{
+      clearTimeout(t);
+    }
+  }
+
+  async function resolveLatestRid(base){
+    const url = `${base}/api/ui/runs_v3?limit=1&include_ci=1`;
+    const r = await fetchJSON(url, {timeoutMs: 2500});
+    try{
+      const rid = sanitizeRid(r.json && r.json.items && r.json.items[0] && r.json.items[0].rid);
+      return rid || '';
+    }catch(e){ return ''; }
+  }
+
+  function dispatchRefresh(){
+    try{
+      window.dispatchEvent(new CustomEvent('vsp:refresh', {detail:{ts: Date.now()}}));
+    }catch(e){}
+  }
+
+  function onRefresh(fn){
+    window.addEventListener('vsp:refresh', (ev)=>{ try{ fn(ev); }catch(e){} });
+  }
+
+  function ensureHeaderHook(){
+    // try attach refresh button (id-based first, fallback by text)
+    const btn = qs('#b-refresh') || qsa('button').find(b => (b.textContent||'').trim().toUpperCase() === 'REFRESH');
+    if(btn && !btn.__vspc_bound){
+      btn.__vspc_bound = 1;
+      btn.addEventListener('click', ()=>dispatchRefresh());
+    }
+  }
+
+  function setText(id, txt){
+    const el = qs('#'+id);
+    if(el) el.textContent = (txt==null?'':String(txt));
+  }
+
+  const base = (function(){
+    try{ return window.location.origin; }catch(e){ return ''; }
+  })();
+
+  // Export global
+  window.VSPC = window.VSPC || {};
+  Object.assign(window.VSPC, {
+    ver: 'P120',
+    base,
+    sanitizeRid,
+    getUrlParam,
+    setUrlParam,
+    fetchJSON,
+    resolveLatestRid,
+    onRefresh,
+    dispatchRefresh,
+    setText,
+    ensureHeaderHook
+  });
+
+  // bind header on load
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      ensureHeaderHook();
+      log('installed', window.VSPC.ver);
+    }catch(e){}
+  });
+})();
+
+
+/* VSP_P122_POLISH_C_SUITE_COLORS_AND_RUNS_V1
+ * - Make /c/* look consistent (dark pill buttons instead of blue links)
+ * - Auto-style action links in Runs tab (Dashboard/CSV/Reports.tgz/Use RID...)
+ */
+(function(){
+  try{
+    var path = (location && location.pathname) ? String(location.pathname) : "";
+    var page = "";
+    if (path.startsWith("/c/")) {
+      var seg = path.split("/").filter(Boolean);
+      page = "c-" + (seg[1] || "dashboard");
+    }
+    // dataset markers for CSS targeting
+    try{
+      document.documentElement.dataset.vspSuite = "c";
+      document.documentElement.dataset.vspPage = page;
+      if (document.body){
+        document.body.dataset.vspSuite = "c";
+        document.body.dataset.vspPage = page;
+      }
+    }catch(_){}
+
+    // inject CSS once
+    var STYLE_ID="VSP_P122_STYLE";
+    if (!document.getElementById(STYLE_ID)){
+      var st=document.createElement("style");
+      st.id=STYLE_ID;
+      st.textContent = `
+/* --- P122 C-suite theme polish --- */
+[data-vsp-suite="c"] a{ color:rgba(210,225,255,.92); text-decoration:none; }
+[data-vsp-suite="c"] a:hover{ text-decoration:underline; }
+
+/* generic pill for action links (we add class in JS too) */
+[data-vsp-suite="c"] a.vsp-btnlink{
+  display:inline-block;
+  padding:4px 10px;
+  margin-right:6px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(235,242,255,.95);
+  text-decoration:none !important;
+  font-size:12px;
+  line-height:1.2;
+}
+[data-vsp-suite="c"] a.vsp-btnlink:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+
+/* button polish (Use RID etc) */
+[data-vsp-suite="c"] button.vsp-btn{
+  padding:5px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(235,242,255,.95);
+  cursor:pointer;
+}
+[data-vsp-suite="c"] button.vsp-btn:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+[data-vsp-suite="c"] button.vsp-btn.vsp-btn-mini{
+  padding:4px 10px;
+  font-size:12px;
+}
+
+/* Runs tab: treat table links like buttons even if no class */
+[data-vsp-page="c-runs"] table a{
+  display:inline-block;
+  padding:4px 10px;
+  margin-right:6px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(235,242,255,.95);
+  text-decoration:none !important;
+  font-size:12px;
+  line-height:1.2;
+}
+[data-vsp-page="c-runs"] table a:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+
+/* soften “link blue” in headers/toolstrips */
+[data-vsp-suite="c"] .vsp-toolbar a,
+[data-vsp-suite="c"] .toolbar a{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(235,242,255,.95);
+  text-decoration:none !important;
+  font-size:12px;
+}
+[data-vsp-suite="c"] .vsp-toolbar a:hover,
+[data-vsp-suite="c"] .toolbar a:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+      `;
+      document.head.appendChild(st);
+    }
+
+    // JS class helper: “button-hoá” một số link action phổ biến
+    var WANT = {
+      "dashboard":1, "csv":1, "reports.tgz":1, "reports":1, "html":1, "sarif":1, "summary":1, "open":1, "sha":1, "use rid":1
+    };
+
+    var _scheduled = false;
+    function polish(){
+      _scheduled = false;
+      try{
+        var as = document.querySelectorAll("a");
+        for (var i=0;i<as.length;i++){
+          var a=as[i];
+          var t=(a.textContent||"").trim().toLowerCase();
+          if (WANT[t]) a.classList.add("vsp-btnlink");
+        }
+        var bs = document.querySelectorAll("button");
+        for (var j=0;j<bs.length;j++){
+          var b=bs[j];
+          var tb=(b.textContent||"").trim().toLowerCase();
+          if (tb==="use rid" || tb==="refresh" || tb==="load" || tb==="save" || tb==="export"){
+            b.classList.add("vsp-btn","vsp-btn-mini");
+          }
+        }
+      }catch(_){}
+    }
+    function schedule(){
+      if (_scheduled) return;
+      _scheduled = true;
+      (window.requestAnimationFrame||setTimeout)(polish, 16);
+    }
+
+    schedule();
+    window.addEventListener("load", schedule, {once:true});
+    try{
+      new MutationObserver(schedule).observe(document.documentElement, {subtree:true, childList:true});
+    }catch(_){}
+  }catch(e){
+    try{ console.warn("[P122] polish failed", e); }catch(_){}
+  }
+})();

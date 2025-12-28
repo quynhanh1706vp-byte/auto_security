@@ -1,0 +1,235 @@
+(function () {
+  var API_URL = "/api/vsp/datasource_v2?limit=500";
+  var ALL_ITEMS = [];
+  var hydrated = false;
+
+  function severityClass(sev) {
+    if (!sev) return "vsp-badge vsp-badge-sev-info";
+    var s = String(sev).toUpperCase();
+    if (s === "CRITICAL") return "vsp-badge vsp-badge-sev-critical";
+    if (s === "HIGH") return "vsp-badge vsp-badge-sev-high";
+    if (s === "MEDIUM") return "vsp-badge vsp-badge-sev-medium";
+    if (s === "LOW") return "vsp-badge vsp-badge-sev-low";
+    if (s === "INFO") return "vsp-badge vsp-badge-sev-info";
+    if (s === "TRACE") return "vsp-badge vsp-badge-sev-trace";
+    return "vsp-badge vsp-badge-sev-info";
+  }
+
+  function severityLabel(sev) {
+    return sev || "INFO";
+  }
+
+  function applyFilters() {
+    var tbody = document.getElementById("vsp-ds-tbody");
+    if (!tbody) return;
+
+    if (!ALL_ITEMS || !ALL_ITEMS.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="vsp-table-empty">' +
+        'Không có findings nào trong datasource_v2.' +
+        '</td></tr>';
+      return;
+    }
+
+    var sevSel = document.getElementById("vsp-ds-filter-severity");
+    var toolSel = document.getElementById("vsp-ds-filter-tool");
+    var searchInp = document.getElementById("vsp-ds-filter-search");
+
+    var sevVal = sevSel ? sevSel.value : "ALL";
+    var toolVal = toolSel ? toolSel.value : "ALL";
+    var q = searchInp ? (searchInp.value || "").toLowerCase() : "";
+
+    var filtered = [];
+    for (var i = 0; i < ALL_ITEMS.length; i++) {
+      var it = ALL_ITEMS[i] || {};
+      var sev = (it.severity || "").toString().toUpperCase();
+      var tool = (it.tool || "").toString();
+      var rule = (it.rule || "").toString();
+      var file = (it.file || it.path || "").toString();
+
+      if (sevVal !== "ALL" && sev !== sevVal) continue;
+      if (toolVal !== "ALL" && tool !== toolVal) continue;
+
+      if (q) {
+        var hay = (rule + " " + file).toLowerCase();
+        if (hay.indexOf(q) === -1) continue;
+      }
+
+      filtered.push(it);
+    }
+
+    if (!filtered.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="vsp-table-empty">' +
+        'Không có findings nào khớp bộ lọc.' +
+        '</td></tr>';
+      return;
+    }
+
+    var html = "";
+    for (var j = 0; j < filtered.length; j++) {
+      var f = filtered[j] || {};
+      var idx = j + 1;
+      var sev2 = f.severity || "";
+      var tool2 = f.tool || "";
+      var rule2 = f.rule || "";
+      var file2 = f.file || f.path || "";
+      var line2 = f.line != null ? f.line : "";
+
+      html += '<tr>' +
+        '<td>' + idx + '</td>' +
+        '<td><span class="' + severityClass(sev2) + '">' +
+          severityLabel(sev2) + '</span></td>' +
+        '<td>' + tool2 + '</td>' +
+        '<td title="' + rule2 + '">' + rule2 + '</td>' +
+        '<td class="vsp-col-filename" title="' + file2 + '">' + file2 + '</td>' +
+        '<td>' + line2 + '</td>' +
+      '</tr>';
+    }
+
+    tbody.innerHTML = html;
+  }
+
+  function initFilters(items) {
+    var toolSel = document.getElementById("vsp-ds-filter-tool");
+    if (!toolSel) return;
+
+    var toolsMap = {};
+    for (var i = 0; i < items.length; i++) {
+      var t = (items[i] && items[i].tool) || "";
+      if (!t) continue;
+      toolsMap[t] = true;
+    }
+
+    var tools = Object.keys(toolsMap).sort();
+    var html = '<option value="ALL">Tất cả tool</option>';
+    for (var j = 0; j < tools.length; j++) {
+      html += '<option value="' + tools[j] + '">' + tools[j] + '</option>';
+    }
+    toolSel.innerHTML = html;
+  }
+
+  function loadDatasource() {
+    var tbody = document.getElementById("vsp-ds-tbody");
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="vsp-table-empty">' +
+        'Đang tải unified findings...' +
+        '</td></tr>';
+    }
+
+    fetch(API_URL, { cache: "no-store" })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        console.log("[VSP_DS_TAB_V2] datasource_v2 loaded.", data);
+        var items = (data && data.items) || (data && data.data) || [];
+        ALL_ITEMS = items || [];
+        initFilters(ALL_ITEMS);
+        applyFilters();
+      })
+      .catch(function (err) {
+        console.error("[VSP_DS_TAB_V2] Failed to load datasource_v2:", err);
+        if (tbody) {
+          tbody.innerHTML =
+            '<tr><td colspan="6" class="vsp-table-empty">' +
+            'Lỗi tải datasource_v2.' +
+            '</td></tr>';
+        }
+      });
+  }
+
+  function hydratePane() {
+    if (hydrated) return;
+    var pane = document.getElementById("vsp-tab-datasource");
+    if (!pane) return;
+
+    hydrated = true;
+
+    pane.innerHTML =
+      '<div class="vsp-section-header">' +
+        '<div>' +
+          '<h2 class="vsp-section-title">Data Source</h2>' +
+          '<p class="vsp-section-subtitle">' +
+            'Bảng unified findings (tối đa 500 dòng, từ datasource_v2)' +
+          '</p>' +
+        '</div>' +
+        '<div class="vsp-section-actions">' +
+          '<button class="vsp-btn" id="vsp-ds-refresh-btn">Refresh</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="vsp-card">' +
+        '<div class="vsp-ds-filters">' +
+          '<div>' +
+            '<label for="vsp-ds-filter-severity">Severity</label>' +
+            '<select id="vsp-ds-filter-severity" class="vsp-select">' +
+              '<option value="ALL">Tất cả mức</option>' +
+              '<option value="CRITICAL">CRITICAL</option>' +
+              '<option value="HIGH">HIGH</option>' +
+              '<option value="MEDIUM">MEDIUM</option>' +
+              '<option value="LOW">LOW</option>' +
+              '<option value="INFO">INFO</option>' +
+              '<option value="TRACE">TRACE</option>' +
+            '</select>' +
+          '</div>' +
+          '<div>' +
+            '<label for="vsp-ds-filter-tool">Tool</label>' +
+            '<select id="vsp-ds-filter-tool" class="vsp-select">' +
+              '<option value="ALL">Đang tải...</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="flex:1; min-width:200px;">' +
+            '<label for="vsp-ds-filter-search">Search</label>' +
+            '<input id="vsp-ds-filter-search" class="vsp-input" type="text" ' +
+                   'placeholder="Tìm theo rule hoặc file...">' +
+          '</div>' +
+        '</div>' +
+        '<div class="vsp-card-table" style="margin-bottom:0;">' +
+          '<div class="vsp-table-wrapper">' +
+            '<table class="vsp-table vsp-table-datasource">' +
+              '<thead>' +
+                '<tr>' +
+                  '<th style="width:5%;">#</th>' +
+                  '<th style="width:10%;">SEV</th>' +
+                  '<th style="width:10%;">TOOL</th>' +
+                  '<th style="width:25%;">RULE</th>' +
+                  '<th style="width:40%;">FILE</th>' +
+                  '<th style="width:10%;">LINE</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody id="vsp-ds-tbody">' +
+                '<tr><td colspan="6" class="vsp-table-empty">' +
+                  'Đang tải unified findings...' +
+                '</td></tr>' +
+              '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    var btn = document.getElementById("vsp-ds-refresh-btn");
+    if (btn) btn.addEventListener("click", loadDatasource);
+
+    var sevSel = document.getElementById("vsp-ds-filter-severity");
+    var toolSel = document.getElementById("vsp-ds-filter-tool");
+    var searchInp = document.getElementById("vsp-ds-filter-search");
+
+    if (sevSel) sevSel.addEventListener("change", applyFilters);
+    if (toolSel) toolSel.addEventListener("change", applyFilters);
+    if (searchInp) {
+      searchInp.addEventListener("input", function () {
+        clearTimeout(searchInp._vspTimer);
+        searchInp._vspTimer = setTimeout(applyFilters, 150);
+      });
+    }
+
+    loadDatasource();
+  }
+
+  window.vspInitDatasourceTab = hydratePane;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", hydratePane);
+  } else {
+    hydratePane();
+  }
+})();

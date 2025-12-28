@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "req_id": "VSP_UIREQ_20251213_172355_c23484",
+  "created_at": "2025-12-13T10:23:55Z",
+  "started_at": "2025-12-13T10:23:55Z",
+  "finished_at": null,
+  "status": "RUNNING",
+  "final": false,
+  "exit_code": null,
+  "gate": "UNKNOWN",
+  "stage": {
+    "i": 0,
+    "n": 8,
+    "name": "",
+    "progress": 0
+  },
+  "ci_run_dir": "",
+  "vsp_run_id": "",
+  "flag": {
+    "has_findings": null
+  },
+  "degraded": 0,
+  "degraded_reasons": "",
+  "sync": {
+    "done": false,
+    "ok": null,
+    "msg": ""
+  },
+  "meta": {
+    "mode": "local",
+    "profile": "FULL_EXT",
+    "target": "/home/test/Data/SECURITY-10-10-v4",
+    "outer": "/home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_outer_full_v1.sh"
+  },
+  "watch": {
+    "last_stage_sig": "",
+    "last_stage_at": 1765621435.866526,
+    "start_ts": 1765621435.8665261
+  },
+  "log_file": "/home/test/Data/SECURITY_BUNDLE/ui/out_ci/uireq_v1/UIREQ_20251213_172355_c23484.log",
+  "tail": ""
+}

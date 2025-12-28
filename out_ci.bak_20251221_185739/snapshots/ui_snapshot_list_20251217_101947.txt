@@ -1,0 +1,5 @@
+templates/vsp_dashboard_2025.html
+static/js
+static/css
+static/vendor
+static/favicon.ico

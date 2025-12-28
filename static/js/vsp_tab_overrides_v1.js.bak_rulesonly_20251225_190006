@@ -1,0 +1,732 @@
+/* =========================================================
+ * VSP_TAB_OVERRIDES_V1
+ *  A. Rule override table (Rule ID, Tool, Current, Override, Scope, Description)
+ *  B. JSON/YAML editor (panel phải)
+ *  C. Allowlist dynamic (checkbox)
+ *  D. Metrics (active overrides, highest downgrade, ignored count)
+ *  E. Preview panel (hover row -> thông tin rule)
+ *  Data: GET /api/vsp/overrides/list  (items [])
+ *        (optional) POST /api/vsp/overrides/set
+ * =======================================================*/
+
+(function () {
+  const API_OVERRIDES_GET = "/api/vsp/overrides/list";
+  const API_OVERRIDES_SET = "/api/vsp/overrides/set"; // optional, BE có thì dùng
+
+  const PAGE_SIZE = 20;
+
+  let overridesItems = [];
+  let currentPage = 1;
+
+  const SEV_ORDER = ["TRACE", "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"];
+
+  function normalizeSeverity(raw) {
+    if (!raw) return "";
+    return String(raw).trim().toUpperCase();
+  }
+
+  function severityRank(sev) {
+    const s = normalizeSeverity(sev);
+    const idx = SEV_ORDER.indexOf(s);
+    return idx === -1 ? SEV_ORDER.length : idx;
+  }
+
+  function severityToClass(sev) {
+    switch (normalizeSeverity(sev)) {
+      case "CRITICAL": return "vsp-pill--critical";
+      case "HIGH":     return "vsp-pill--high";
+      case "MEDIUM":   return "vsp-pill--medium";
+      case "LOW":      return "vsp-pill--low";
+      case "INFO":     return "vsp-pill--info";
+      case "TRACE":    return "vsp-pill--trace";
+      default:         return "";
+    }
+  }
+
+  // -------------------- Layout builder --------------------
+
+  function buildLayout(panel) {
+    if (!panel || panel.dataset.vspOverridesInit === "1") return;
+
+    panel.innerHTML = `
+      <div class="vsp-over-grid">
+        <!-- LEFT MAIN COLUMN -->
+        <div class="vsp-over-main">
+          <!-- A. Rule override table -->
+          <div class="vsp-card vsp-card--full">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Rule overrides</div>
+              <div class="vsp-card-subtitle">
+                Tinh chỉnh nhiễu, giảm false positive, override severity cho từng rule / tool.
+              </div>
+            </div>
+            <div class="vsp-card-body">
+              <div id="vsp-overrides-empty" class="vsp-empty-text">
+                No rule overrides configured for this profile.
+              </div>
+
+              <div id="vsp-overrides-table-wrapper" class="vsp-table-wrapper" style="display:none;">
+                <table class="vsp-table vsp-table-overrides">
+                  <thead>
+                    <tr>
+                      <th>Rule ID</th>
+                      <th>Tool</th>
+                      <th>Current</th>
+                      <th>Override</th>
+                      <th>Scope</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vsp-overrides-tbody"></tbody>
+                </table>
+
+                <div class="vsp-table-footer">
+                  <div class="vsp-table-footer-left">
+                    <span id="vsp-overrides-total">Total overrides: 0</span>
+                  </div>
+                  <div class="vsp-table-footer-right">
+                    <button class="vsp-btn vsp-btn-secondary" id="vsp-overrides-prev">Prev</button>
+                    <span class="vsp-table-page-label" id="vsp-overrides-page-label">Page 1 / 1</span>
+                    <button class="vsp-btn vsp-btn-secondary" id="vsp-overrides-next">Next</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- D. Metrics -->
+          <div class="vsp-card vsp-card--metrics">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Override metrics</div>
+              <div class="vsp-card-subtitle">
+                Snapshot tác động của các rule override đang active.
+              </div>
+            </div>
+            <div class="vsp-card-body vsp-over-metrics-grid">
+              <div class="vsp-over-metric">
+                <div class="vsp-over-metric-label">Active overrides</div>
+                <div class="vsp-over-metric-value" id="vsp-over-metric-active">0</div>
+              </div>
+              <div class="vsp-over-metric">
+                <div class="vsp-over-metric-label">Highest downgrade</div>
+                <div class="vsp-over-metric-value" id="vsp-over-metric-downgrade">-</div>
+              </div>
+              <div class="vsp-over-metric">
+                <div class="vsp-over-metric-label">Rules ignored</div>
+                <div class="vsp-over-metric-value" id="vsp-over-metric-ignored">0</div>
+              </div>
+              <div class="vsp-over-metric">
+                <div class="vsp-over-metric-label">Affected findings</div>
+                <div class="vsp-over-metric-value" id="vsp-over-metric-affected">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- E. Preview panel -->
+          <div class="vsp-card vsp-card--preview">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Preview impact</div>
+              <div class="vsp-card-subtitle">
+                Hover vào một rule ở bảng bên trên để xem mô tả nhanh các findings bị ảnh hưởng.
+              </div>
+            </div>
+            <div class="vsp-card-body">
+              <div id="vsp-over-preview-text" class="vsp-over-preview-text">
+                Hover một dòng rule override để xem preview.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT SIDE COLUMN -->
+        <div class="vsp-over-side">
+          <!-- B. JSON/YAML editor -->
+          <div class="vsp-card vsp-card--editor">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Overrides config (JSON / YAML)</div>
+              <div class="vsp-card-subtitle">
+                Đồng bộ với core engine. Bạn có thể chỉnh sửa JSON/YAML rồi đẩy về backend.
+              </div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-over-editor-toolbar">
+                <button class="vsp-btn vsp-btn-secondary" id="vsp-over-editor-load">Load từ API</button>
+                <button class="vsp-btn vsp-btn-secondary" id="vsp-over-editor-validate">Validate</button>
+                <button class="vsp-btn vsp-btn-primary" id="vsp-over-editor-save">Save (POST)</button>
+              </div>
+              <textarea id="vsp-overrides-editor" class="vsp-over-editor" spellcheck="false"></textarea>
+              <div class="vsp-over-editor-hint">
+                Ví dụ YAML:
+<pre>overrides:
+  - id: GITLEAKS_GENERIC_SECRET
+    tool: gitleaks
+    severity: LOW
+    scope: "path:^tests/"
+  - id: SEMGREP_PYTHON_SQL
+    tool: semgrep
+    severity: CRITICAL
+    scope: null
+</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- C. Allowlist dynamic -->
+          <div class="vsp-card vsp-card--allowlist">
+            <div class="vsp-card-header">
+              <div class="vsp-card-title">Dynamic allowlist</div>
+              <div class="vsp-card-subtitle">
+                Mẫu cấu hình nhanh để ignore theo file, folder, CVE, CWE, tool, path regex.
+              </div>
+            </div>
+            <div class="vsp-card-body">
+              <div class="vsp-allowlist-grid">
+                <label class="vsp-allow-item">
+                  <input type="checkbox" id="vsp-allow-ignore-file" />
+                  <span>Ignore file</span>
+                </label>
+                <label class="vsp-allow-item">
+                  <input type="checkbox" id="vsp-allow-ignore-folder" />
+                  <span>Ignore folder</span>
+                </label>
+                <label class="vsp-allow-item">
+                  <input type="checkbox" id="vsp-allow-ignore-cve" />
+                  <span>Ignore CVE</span>
+                </label>
+                <label class="vsp-allow-item">
+                  <input type="checkbox" id="vsp-allow-ignore-cwe" />
+                  <span>Ignore CWE</span>
+                </label>
+                <label class="vsp-allow-item">
+                  <input type="checkbox" id="vsp-allow-ignore-tool" />
+                  <span>Ignore tool</span>
+                </label>
+                <label class="vsp-allow-item">
+                  <input type="checkbox" id="vsp-allow-ignore-path" />
+                  <span>Ignore path regex</span>
+                </label>
+              </div>
+              <div class="vsp-allowlist-note">
+                Hiện tại checkbox mới log ra console để thiết kế rule mẫu. 
+                Phase sau có thể generate snippet JSON/YAML tương ứng rồi POST về core engine.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    panel.dataset.vspOverridesInit = "1";
+  }
+
+  // -------------------- Metrics --------------------
+
+  function computeMetrics(items) {
+    if (!Array.isArray(items)) items = [];
+
+    let activeCount = 0;
+    let ignoredCount = 0;
+    let affectedTotal = 0;
+    let highestDowngrade = null; // {from, to, diff}
+
+    items.forEach((it) => {
+      const active = it.active !== false; // default: active
+      if (active) activeCount += 1;
+
+      const from = normalizeSeverity(it.current_severity || it.original_severity);
+      const to   = normalizeSeverity(it.override_severity || it.effective_severity);
+
+      const sevIgnore = ["IGNORE", "OFF", "NONE", "DISABLE"];
+      if (sevIgnore.includes(to)) {
+        ignoredCount += 1;
+      }
+
+      if (typeof it.affected_count === "number") {
+        affectedTotal += it.affected_count;
+      }
+
+      if (from && to) {
+        const diff = severityRank(to) - severityRank(from); // >0: upgrade, <0: downgrade
+        if (diff < 0) {
+          if (!highestDowngrade || diff < highestDowngrade.diff) {
+            highestDowngrade = { from, to, diff };
+          }
+        }
+      }
+    });
+
+    return {
+      activeCount,
+      ignoredCount,
+      affectedTotal,
+      highestDowngrade,
+    };
+  }
+
+  function renderMetrics(items) {
+    const m = computeMetrics(items || []);
+    const elActive   = document.getElementById("vsp-over-metric-active");
+    const elDown     = document.getElementById("vsp-over-metric-downgrade");
+    const elIgnored  = document.getElementById("vsp-over-metric-ignored");
+    const elAffected = document.getElementById("vsp-over-metric-affected");
+
+    if (elActive)   elActive.textContent = String(m.activeCount);
+    if (elIgnored)  elIgnored.textContent = String(m.ignoredCount);
+    if (elAffected) elAffected.textContent = String(m.affectedTotal);
+
+    if (elDown) {
+      if (m.highestDowngrade) {
+        elDown.textContent = m.highestDowngrade.from + " → " + m.highestDowngrade.to;
+      } else {
+        elDown.textContent = "-";
+      }
+    }
+  }
+
+  // -------------------- Editor --------------------
+
+  function mapItemsToSimpleConfig(items) {
+    return {
+      overrides: (items || []).map((it) => ({
+        id: it.id || it.rule_id || "",
+        tool: it.tool || "",
+        current_severity: it.current_severity || it.original_severity || null,
+        severity: it.override_severity || it.effective_severity || null,
+        scope: it.scope || null,
+        description: it.description || ""
+      }))
+    };
+  }
+
+  function refreshEditorFromItems() {
+    const textarea = document.getElementById("vsp-overrides-editor");
+    if (!textarea) return;
+    const cfg = mapItemsToSimpleConfig(overridesItems);
+    textarea.value = JSON.stringify(cfg, null, 2);
+  }
+
+  function editorHandleLoad() {
+    refreshEditorFromItems();
+  }
+
+  function editorHandleValidate() {
+    const textarea = document.getElementById("vsp-overrides-editor");
+    if (!textarea) return;
+    const text = textarea.value;
+    try {
+      JSON.parse(text);
+      alert("JSON hợp lệ. (YAML hiện chưa parse, sẽ hỗ trợ ở phase sau)");
+    } catch (err) {
+      console.error("[VSP][OVR_EDITOR] JSON parse error:", err);
+      alert("Không parse được JSON. Nếu bạn dùng YAML thì bỏ qua nút Validate.");
+    }
+  }
+
+  async function editorHandleSave() {
+    const textarea = document.getElementById("vsp-overrides-editor");
+    if (!textarea) return;
+    const bodyText = textarea.value;
+
+    try {
+      const res = await fetch(API_OVERRIDES_SET, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: bodyText
+      });
+
+      if (!res.ok) {
+        console.error("[VSP][OVR_EDITOR] Save error, status =", res.status);
+        alert("Save thất bại (HTTP " + res.status + "). Kiểm tra log backend.");
+        return;
+      }
+
+      alert("Save overrides thành công (POST /api/vsp/overrides/set).");
+    } catch (err) {
+      console.error("[VSP][OVR_EDITOR] Save error:", err);
+      alert("Không gọi được API /api/vsp/overrides/set. Kiểm tra backend.");
+    }
+  }
+
+  function attachEditorHandlers() {
+    const btnLoad = document.getElementById("vsp-over-editor-load");
+    const btnVal  = document.getElementById("vsp-over-editor-validate");
+    const btnSave = document.getElementById("vsp-over-editor-save");
+
+    if (btnLoad) btnLoad.addEventListener("click", editorHandleLoad);
+    if (btnVal)  btnVal.addEventListener("click", editorHandleValidate);
+    if (btnSave) btnSave.addEventListener("click", editorHandleSave);
+  }
+
+  // -------------------- Allowlist toggles --------------------
+
+  function attachAllowlistHandlers() {
+    const ids = [
+      "vsp-allow-ignore-file",
+      "vsp-allow-ignore-folder",
+      "vsp-allow-ignore-cve",
+      "vsp-allow-ignore-cwe",
+      "vsp-allow-ignore-tool",
+      "vsp-allow-ignore-path",
+    ];
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", function () {
+        console.log("[VSP][ALLOWLIST] toggle", id, "=", el.checked);
+        // Phase sau: generate snippet JSON/YAML tương ứng gắn vào editor.
+      });
+    });
+  }
+
+  // -------------------- Table & preview --------------------
+
+  function renderTable() {
+    const emptyEl    = document.getElementById("vsp-overrides-empty");
+    const wrapperEl  = document.getElementById("vsp-overrides-table-wrapper");
+    const tbodyEl    = document.getElementById("vsp-overrides-tbody");
+    const totalEl    = document.getElementById("vsp-overrides-total");
+    const pageLabel  = document.getElementById("vsp-overrides-page-label");
+
+    if (!emptyEl || !wrapperEl || !tbodyEl) return;
+
+    const total = overridesItems.length;
+
+    if (!total) {
+      emptyEl.style.display = "block";
+      wrapperEl.style.display = "none";
+      if (totalEl)   totalEl.textContent = "Total overrides: 0";
+      if (pageLabel) pageLabel.textContent = "Page 1 / 1";
+      return;
+    }
+
+    emptyEl.style.display = "none";
+    wrapperEl.style.display = "block";
+
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end   = start + PAGE_SIZE;
+    const pageItems = overridesItems.slice(start, end);
+
+    tbodyEl.innerHTML = "";
+
+    pageItems.forEach((item) => {
+      const tr = document.createElement("tr");
+
+      // Rule ID
+      const ruleTd = document.createElement("td");
+      ruleTd.textContent = item.id || item.rule_id || "";
+      tr.appendChild(ruleTd);
+
+      // Tool
+      const toolTd = document.createElement("td");
+      toolTd.textContent = item.tool || "";
+      tr.appendChild(toolTd);
+
+      // Current
+      const curTd = document.createElement("td");
+      const cur = normalizeSeverity(item.current_severity || item.original_severity || "");
+      curTd.textContent = cur || "-";
+      tr.appendChild(curTd);
+
+      // Override (pill)
+      const ovrTd = document.createElement("td");
+      const ovr = normalizeSeverity(item.override_severity || item.effective_severity || "");
+      const span = document.createElement("span");
+      span.className = "vsp-pill vsp-pill--severity " + severityToClass(ovr);
+      span.textContent = ovr || "-";
+      ovrTd.appendChild(span);
+      tr.appendChild(ovrTd);
+
+      // Scope
+      const scopeTd = document.createElement("td");
+      scopeTd.textContent = item.scope || "";
+      tr.appendChild(scopeTd);
+
+      // Description
+      const descTd = document.createElement("td");
+      descTd.textContent = item.description || "";
+      tr.appendChild(descTd);
+
+      // Preview hover
+      tr.addEventListener("mouseenter", function () {
+        const previewEl = document.getElementById("vsp-over-preview-text");
+        if (!previewEl) return;
+        const parts = [];
+        parts.push((item.id || item.rule_id || "Unknown rule") + " (" + (item.tool || "tool?") + ")");
+        const from = normalizeSeverity(item.current_severity || item.original_severity || "");
+        const to   = normalizeSeverity(item.override_severity || item.effective_severity || "");
+        if (from || to) {
+          parts.push("Severity: " + (from || "?") + " → " + (to || "?"));
+        }
+        if (item.scope) {
+          parts.push("Scope: " + item.scope);
+        }
+        if (typeof item.affected_count === "number") {
+          parts.push("Affected findings: " + item.affected_count);
+        }
+        if (item.description) {
+          parts.push("Desc: " + item.description);
+        }
+        previewEl.textContent = parts.join(" | ");
+      });
+
+      tbodyEl.appendChild(tr);
+    });
+
+    if (totalEl)   totalEl.textContent = "Total overrides: " + total;
+    if (pageLabel) pageLabel.textContent = "Page " + currentPage + " / " + Math.max(1, Math.ceil(total / PAGE_SIZE));
+  }
+
+  function attachPagingHandlers() {
+    const prevBtn = document.getElementById("vsp-overrides-prev");
+    const nextBtn = document.getElementById("vsp-overrides-next");
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", function () {
+        if (currentPage > 1) {
+          currentPage -= 1;
+          renderTable();
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        const total = overridesItems.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (currentPage < totalPages) {
+          currentPage += 1;
+          renderTable();
+        }
+      });
+    }
+  }
+
+  // -------------------- Load data --------------------
+
+  async function loadOverrides() {
+    try {
+      const res = await fetch(API_OVERRIDES_GET, {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+      });
+
+      if (!res.ok) {
+        console.error("[VSP][OVERRIDES] HTTP error:", res.status);
+        overridesItems = [];
+        renderTable();
+        renderMetrics(overridesItems);
+        return;
+      }
+
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        overridesItems = data;
+      } else if (data && Array.isArray(data.items)) {
+        overridesItems = data.items;
+      } else {
+        console.warn("[VSP][OVERRIDES] Unexpected payload:", data);
+        overridesItems = [];
+      }
+
+      currentPage = 1;
+      renderTable();
+      renderMetrics(overridesItems);
+      refreshEditorFromItems();
+    } catch (err) {
+      console.error("[VSP][OVERRIDES] Failed to load:", err);
+    }
+  }
+
+  // -------------------- Init --------------------
+
+  function init() {
+    const panel = document.getElementById("tab-overrides");
+    if (!panel) return;
+
+    buildLayout(panel);
+    attachPagingHandlers();
+    attachEditorHandlers();
+    attachAllowlistHandlers();
+    loadOverrides();
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(init, 400);
+  });
+})();
+
+// VSP_OVERRIDES_CARD_POLISH_V1
+// Bọc các block Overrides thành vsp-card:
+// - RULE OVERRIDES table
+// - OVERRIDE METRICS
+// - PREVIEW IMPACT
+// - OVERRIDES CONFIG (JSON / YAML)
+(function () {
+  function enhanceOverrideCards() {
+    const tab = document.getElementById("tab-overrides");
+    if (!tab) return;
+
+    function markCard(keyword, extraClass) {
+      const els = Array.from(tab.querySelectorAll("h2, h3, h4, strong"));
+      const found = els.find((el) => {
+        const txt = (el.textContent || "").toLowerCase();
+        return txt.indexOf(keyword) !== -1;
+      });
+      if (!found) return;
+      const card = found.closest("div");
+      if (!card) return;
+      card.classList.add("vsp-card");
+      if (extraClass) card.classList.add(extraClass);
+    }
+
+    markCard("rule overrides", "vsp-card--ovr-table");
+    markCard("override metrics", "vsp-card--ovr-metrics");
+    markCard("preview impact", "vsp-card--ovr-preview");
+    markCard("overrides config", "vsp-card--ovr-editor");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(enhanceOverrideCards, 400);
+  });
+})();
+
+// VSP_OVERRIDES_POLISH_INLINE_V1
+// Đánh bóng toàn bộ tab Rule Overrides: table + metrics + preview + editor.
+(function () {
+  function styleCardByKeyword(tab, keyword) {
+    const title = Array.from(tab.querySelectorAll("*")).find((el) => {
+      const txt = (el.textContent || "").toLowerCase();
+      return txt.indexOf(keyword) !== -1;
+    });
+    const card = title ? title.closest("div") : null;
+    if (!card) return null;
+    card.style.borderRadius = "22px";
+    card.style.background =
+      "radial-gradient(circle at top left, rgba(0, 180, 150, 0.14), rgba(2, 12, 30, 0.98))";
+    card.style.border = "1px solid rgba(0, 200, 170, 0.40)";
+    card.style.boxShadow = "0 18px 50px rgba(0, 0, 0, 0.75)";
+    card.style.padding = "14px 18px 16px";
+    card.style.marginTop = card.style.marginTop || "0px";
+    return card;
+  }
+
+  function polishOverrides() {
+    const tab = document.getElementById("tab-overrides");
+    if (!tab) return;
+
+    const cardTable = styleCardByKeyword(tab, "rule overrides");
+    const cardMetrics = styleCardByKeyword(tab, "override metrics");
+    const cardPreview = styleCardByKeyword(tab, "preview impact");
+    const cardEditor = styleCardByKeyword(tab, "overrides config");
+
+    if (cardMetrics) cardMetrics.style.marginTop = "14px";
+    if (cardPreview) cardPreview.style.marginTop = "14px";
+    if (cardEditor) cardEditor.style.marginTop = "14px";
+
+    // Editor: textarea + buttons
+    if (cardEditor) {
+      const textarea =
+        cardEditor.querySelector("textarea") ||
+        cardEditor.querySelector("pre") ||
+        cardEditor.querySelector("code");
+      if (textarea) {
+        textarea.style.width = "100%";
+        textarea.style.minHeight = "140px";
+        textarea.style.background = "rgba(1, 20, 40, 0.98)";
+        textarea.style.borderRadius = "12px";
+        textarea.style.border = "1px solid rgba(0, 180, 140, 0.6)";
+        textarea.style.color = "#e6f7ff";
+        textarea.style.fontFamily = '"JetBrains Mono", "Fira Code", monospace';
+        textarea.style.fontSize = "11px";
+        textarea.style.padding = "8px 10px";
+      }
+
+      const buttons = cardEditor.querySelectorAll("button");
+      buttons.forEach((btn) => {
+        btn.style.borderRadius = "9999px";
+        btn.style.border = "1px solid rgba(0, 255, 210, 0.95)";
+        btn.style.padding = "4px 14px";
+        btn.style.fontSize = "11px";
+        btn.style.textTransform = "uppercase";
+        btn.style.letterSpacing = "0.06em";
+        btn.style.background =
+          "radial-gradient(circle at top left, rgba(0, 255, 210, 0.28), rgba(0, 40, 60, 1))";
+        btn.style.color = "#001320";
+        btn.style.cursor = "pointer";
+        btn.style.marginRight = "6px";
+        btn.style.marginTop = "6px";
+      });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(polishOverrides, 900);
+  });
+})();
+
+// VSP_OVERRIDES_SOFTCARD_V1
+// Gắn .vsp-card-soft cho 4 block: table, metrics, preview, editor.
+(function () {
+  function tagOverrideCards() {
+    const tab = document.getElementById("tab-overrides");
+    if (!tab) return;
+
+    function addSoft(keyword) {
+      const el = Array.from(tab.querySelectorAll("*")).find((node) => {
+        const txt = (node.textContent || "").toLowerCase();
+        return txt.indexOf(keyword) !== -1;
+      });
+      if (!el) return;
+      const card = el.closest("div");
+      if (!card) return;
+      card.classList.add("vsp-card-soft");
+    }
+
+    addSoft("rule overrides");
+    addSoft("override metrics");
+    addSoft("preview impact");
+    addSoft("overrides config");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(tagOverrideCards, 500);
+  });
+})();
+
+// VSP_OVERRIDES_FINALIZE_CARD_V1
+// Reset 4 block Overrides về card chuẩn (.vsp-card).
+(function () {
+  function finalizeOverrideCards() {
+    const tab = document.getElementById("tab-overrides");
+    if (!tab) return;
+
+    function fixCard(keyword) {
+      const el = Array.from(tab.querySelectorAll("*")).find((node) => {
+        const txt = (node.textContent || "").toLowerCase();
+        return txt.indexOf(keyword) !== -1;
+      });
+      if (!el) return;
+      const card = el.closest("div");
+      if (!card) return;
+      card.removeAttribute("style");
+      card.classList.remove("vsp-card-soft");
+      card.classList.add("vsp-card");
+    }
+
+    fixCard("rule overrides");
+    fixCard("override metrics");
+    fixCard("preview impact");
+    fixCard("overrides config");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(finalizeOverrideCards, 1200);
+  });
+})();
+

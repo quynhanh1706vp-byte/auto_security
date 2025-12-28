@@ -1,0 +1,471 @@
+
+/* VSP_P1_CONTRACT_SINGLE_RID_V2
+ * Lock commercial flags early (must run before any legacy code).
+ * - force rid source: /api/vsp/rid_latest_gate_root
+ * - disable legacy dash + interceptors + fetch shim
+ * - disable SARIF probing (dashboard step2 doesn't need it)
+ * - clear pinned RID keys (RUN_* noise)
+ */
+(()=>{try{
+  const lock=(k,v)=>{try{Object.defineProperty(window,k,{value:v,writable:false,configurable:false});}catch(_){window[k]=v;}}
+  lock("__vsp_disable_legacy_dash_v1", true);
+  lock("__vsp_disable_interceptors_v1", true);
+  lock("__vsp_disable_fetch_shim_v1", true);
+  lock("__vsp_disable_probe_sarif_v1", true);
+  lock("__vsp_latest_rid_url_v1", "/api/vsp/rid_latest_gate_root");
+
+  // Clear typical RID pin keys (best-effort)
+  const keys=["vsp.rid","VSP_RID","VSP_RID_PIN","vsp_rid","rid_pin","vsp_last_rid","vsp.latest.rid","vsp.latestRid"];
+  for (const k of keys){ try{ localStorage.removeItem(k); }catch(_){ } }
+}catch(_){}})();
+
+/* VSP_P1_COMMERCIAL_PANELS_EXT_V1 (safe external panels; never break UI) */
+(() => {
+
+
+/* VSP_P0_PANELS_PICKRID_CALLSITE_V4 */
+/* VSP_P0_PANELS_PICKRID_PRIORITY_LATEST_FIRST_V4B */
+/* VSP_P0_PANELS_PICKRID_LATEST_FIRST_IGNORE_RUN_V4C */
+async function pickRidSmartPanels(..._args){
+  const isBad = (r)=> {
+    try{
+      const x = String(r||"").trim();
+      if (!x) return True; // empty = bad
+      // commercial: RUN_* is legacy local RID, ignore if possible
+      if (x.startsWith("RUN_")) return True;
+      return False;
+    }catch(e){ return True; }
+  };
+
+  // 1) server truth FIRST
+  try{
+    const resp = await fetch("/api/vsp/rid_latest_gate_root", {credentials:"same-origin"});
+    if (resp && resp.ok){
+      const j = await resp.json();
+      const rid = (j && j.ok && j.rid) ? String(j.rid).trim() : "";
+      if (rid && !rid.startsWith("RUN_")){
+        try{ localStorage.setItem("vsp_selected_rid", rid); }catch(e){}
+        try{ window.__VSP_SELECTED_RID = rid; }catch(e){}
+        return rid;
+      }
+    }
+  }catch(e){}
+
+  // 2) fallback: prefer non-RUN global/localStorage
+  try{
+    const g = String((window.__VSP_SELECTED_RID||"")).trim();
+    if (g && !g.startsWith("RUN_")) return g;
+  }catch(e){}
+  try{
+    const ls = (localStorage.getItem("vsp_selected_rid")||"").trim();
+    if (ls && !ls.startsWith("RUN_")) return ls;
+  }catch(e){}
+
+  // 3) last fallback: legacy runs picker if present
+  try{
+    if (typeof pickRidFromRunsApi === "function"){
+      const rr = await pickRidFromRunsApi(..._args);
+      const rid = String(rr||"").trim();
+      if (rid){
+        try{ localStorage.setItem("vsp_selected_rid", rid); }catch(e){}
+        try{ window.__VSP_SELECTED_RID = rid; }catch(e){}
+        return rid;
+      }
+    }
+  }catch(e){}
+  return "";
+}
+
+/* VSP_P0_PANELS_CLEAR_RUN_SELECTED_V1 */
+try{
+  const g=String((window.__VSP_SELECTED_RID||""));
+  if (g.startsWith("RUN_")) window.__VSP_SELECTED_RID="";
+}catch(e){}
+try{
+  const ls=(localStorage.getItem("vsp_selected_rid")||"");
+  if (ls.startsWith("RUN_")) localStorage.removeItem("vsp_selected_rid");
+}catch(e){}
+
+// react to rid_autofix events
+try{
+  window.addEventListener("vsp:rid", (e)=> {
+    try{
+      const rid = String(e && e.detail && e.detail.rid ? e.detail.rid : "").trim();
+      if (!rid) return;
+      window.__VSP_SELECTED_RID = rid;
+      try{ localStorage.setItem("vsp_selected_rid", rid); }catch(_){}
+      try{ if (typeof main === "function") main(); }catch(_){}
+    }catch(_){}
+  });
+}catch(_){}
+/* VSP_P0_PANELS_LATEST_RID_V1 */
+let __vsp_p0_panels_force_rid = "";
+const __vsp_p0_panels_ls_keys = ["vsp_selected_rid","vsp_rid","VSP_RID","vsp5_rid","vsp_gate_story_rid"];
+
+async function __vsp_p0_panels_try_latest_rid(){
+  try{
+    const r = await fetch("/api/vsp/rid_latest_gate_root", {credentials:"same-origin"});
+    if (!r.ok) return "";
+    const j = await r.json();
+    if (j && j.ok && j.rid) return String(j.rid);
+  }catch(e){}
+  return "";
+}
+function __vsp_p0_panels_try_ls(){
+  try{
+    for (const k of __vsp_p0_panels_ls_keys){
+      const v = (localStorage.getItem(k)||"").trim();
+      if (v) return v;
+    }
+  }catch(e){}
+  return "";
+}
+async function pickRidSmart(){
+  if (__vsp_p0_panels_force_rid) return __vsp_p0_panels_force_rid;
+  const ls = __vsp_p0_panels_try_ls();
+  if (ls) return ls;
+  const lr = await __vsp_p0_panels_try_latest_rid();
+  if (lr) return lr;
+  try{
+    if (typeof pickRidFromRunsApi === "function"){
+      const rr = await pickRidSmart();
+      if (rr) return rr;
+    }
+  }catch(e){}
+  return "";
+}
+  if (window.__vsp_p1_panels_ext_v1) return;
+  window.__vsp_p1_panels_ext_v1 = true;
+
+  const log = (...a)=>console.log("[P1PanelsExtV1]", ...a);
+  const warn = (...a)=>console.warn("[P1PanelsExtV1]", ...a);
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  function el(tag, attrs={}, children=[]){
+    const e=document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs||{})){
+      if (k==="style") Object.assign(e.style, v||{});
+      else if (k==="class") e.className = v;
+      else e.setAttribute(k, String(v));
+    }
+    for (const c of (children||[])){
+      if (c==null) continue;
+      e.appendChild(typeof c==="string" ? document.createTextNode(c) : c);
+    }
+    return e;
+  }
+
+  function ensureHost(){
+    let host = document.getElementById("vsp_p1_ext_panels_host");
+    if (host) return host;
+
+    // attach under main root if exists
+    const root = document.getElementById("vsp5_root") || document.body;
+
+    host = el("div", { id:"vsp_p1_ext_panels_host", class:"vsp_p1_ext_panels_host" });
+    host.style.margin = "14px";
+    host.style.paddingBottom = "18px";
+
+    const title = el("div", { class:"vsp_p1_ext_title" }, ["Commercial Panels"]);
+    title.style.opacity = "0.75";
+    title.style.fontSize = "12px";
+    title.style.margin = "8px 2px";
+
+    const grid = el("div", { class:"vsp_p1_ext_grid" });
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = "repeat(12, 1fr)";
+    grid.style.gap = "12px";
+
+    host.appendChild(title);
+    host.appendChild(grid);
+    root.appendChild(host);
+    return host;
+  }
+
+  function card(title){
+    const c = el("div", { class:"vsp_p1_ext_card" });
+    c.style.gridColumn = "span 6";
+    c.style.border = "1px solid rgba(255,255,255,.10)";
+    c.style.borderRadius = "16px";
+    c.style.background = "rgba(255,255,255,.03)";
+    c.style.boxShadow = "0 12px 30px rgba(0,0,0,.35)";
+    c.style.padding = "12px 12px 10px";
+
+    const h = el("div", { class:"vsp_p1_ext_card_title" }, [title]);
+    h.style.fontSize = "12px";
+    h.style.fontWeight = "700";
+    h.style.opacity = "0.9";
+    h.style.marginBottom = "8px";
+
+    const body = el("div", { class:"vsp_p1_ext_card_body" });
+    body.style.fontSize = "12px";
+    body.style.opacity = "0.92";
+
+    c.appendChild(h);
+    c.appendChild(body);
+    return { c, body };
+  }
+
+  async function fetchJSON(url){
+/* VSP_P0_PANELS_RUNS_TO_LATEST_INTERCEPT_V5 */
+try{
+  const u = String(url||"");
+  // Panels legacy picker hits /api/vsp/rid_latest_v3 -> force server truth
+  if (u.includes("/api/vsp/runs") && u.includes("limit=1")){
+    try{
+      const r = await fetch("/api/vsp/rid_latest_gate_root", {credentials:"same-origin"});
+      if (r && r.ok){
+        const j = await r.json();
+        const rid = (j && j.ok && j.rid) ? String(j.rid).trim() : "";
+        if (rid){
+          // shape compatible with runs API callers
+          return { ok:true, limit:1, runs:[{ rid, run_id:rid, id:rid, path:j.path, mtime:j.mtime, mtime_iso:j.mtime_iso }] };
+        }
+      }
+    }catch(e){}
+  }
+}catch(e){}
+
+    // IMPORTANT: read body only once; handle both {ok:true,data:...} and direct payload
+    const r = await fetch(url, { credentials:"same-origin", cache:"no-store" });
+    const txt = await r.text();
+    let j;
+    try { j = JSON.parse(txt); } catch(e){ throw new Error("bad_json"); }
+    if (j && typeof j==="object" && j.ok===true && j.data!=null) return j.data;
+    return j;
+  }
+
+  function pickLatestRID(runsPayload){
+    // support: {runs:[{rid/run_id/id}]} OR {items:[...]} OR [...]
+    const arr =
+      (runsPayload && Array.isArray(runsPayload.runs) && runsPayload.runs) ||
+      (runsPayload && Array.isArray(runsPayload.items) && runsPayload.items) ||
+      (Array.isArray(runsPayload) && runsPayload) ||
+      [];
+    const o = arr[0] || {};
+    return o.rid || o.run_id || o.id || o.RID || null;
+  }
+
+  function normalizeFindingsPayload(p){
+    // expected: {meta:{counts_by_severity}, findings:[...]} but accept variations
+    if (!p || typeof p!=="object") return { meta:{}, findings:[] };
+
+    // sometimes wrapped {meta:{ok,counts_by_severity}, findings:[...]} already ok
+    const meta = (p.meta && typeof p.meta==="object") ? p.meta : {};
+    const findings = Array.isArray(p.findings) ? p.findings : (Array.isArray(p.items) ? p.items : []);
+    return { meta, findings };
+  }
+
+  function countsFrom(meta, findings){
+    const c = (meta && meta.counts_by_severity && typeof meta.counts_by_severity==="object") ? meta.counts_by_severity : null;
+    if (c) return c;
+
+    // fallback derive from findings
+    const out = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+    for (const f of (findings||[])){
+      const s = (f && (f.severity||f.sev||f.level||"")).toString().toUpperCase();
+      if (out[s] != null) out[s] += 1;
+      else out.INFO += 1;
+    }
+    return out;
+  }
+
+  function renderCounts(body, c){
+    const row = el("div");
+    row.style.display = "flex";
+    row.style.flexWrap = "wrap";
+    row.style.gap = "8px";
+
+    const order = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    for (const k of order){
+      const v = (c && c[k]!=null) ? c[k] : 0;
+      const pill = el("div", {}, [`${k}: ${v}`]);
+      pill.style.padding = "6px 10px";
+      pill.style.borderRadius = "999px";
+      pill.style.border = "1px solid rgba(255,255,255,.14)";
+      pill.style.background = "rgba(0,0,0,.20)";
+      pill.style.fontSize = "12px";
+      row.appendChild(pill);
+    }
+    body.innerHTML = "";
+    body.appendChild(row);
+  }
+
+  function renderTopFindings(body, findings){
+    const top = (findings||[]).slice(0, 10);
+    const box = el("div");
+    box.style.display="grid";
+    box.style.gap="6px";
+
+    if (!top.length){
+      box.appendChild(el("div", {}, ["No findings (or not available)."]));
+      body.innerHTML=""; body.appendChild(box);
+      return;
+    }
+
+    for (const f of top){
+      const sev = (f.severity||f.sev||"INFO").toString().toUpperCase();
+      const title = (f.title||f.rule||f.check_id||f.id||"Finding").toString();
+      const where = (f.location||f.path||f.file||"").toString();
+      const line = (f.line!=null ? `:${f.line}` : "");
+      const item = el("div", {}, [
+        `${sev} • ${title}${where?` • ${where}${line}`:""}`
+      ]);
+      item.style.padding="6px 10px";
+      item.style.border="1px solid rgba(255,255,255,.10)";
+      item.style.borderRadius="12px";
+      item.style.background="rgba(255,255,255,.02)";
+      item.style.whiteSpace="nowrap";
+      item.style.overflow="hidden";
+      item.style.textOverflow="ellipsis";
+      box.appendChild(item);
+    }
+    body.innerHTML=""; body.appendChild(box);
+  }
+
+  
+  function sevRank(f){
+    const s = String((f && (f.severity_norm || f.severity_normalized || f.severity || (f.meta && f.meta.severity) || "")) || "").toUpperCase();
+    const order = {CRITICAL:6, HIGH:5, MEDIUM:4, LOW:3, INFO:2, TRACE:1};
+    return order[s] || 0;
+  }
+  function sevLabel(f){
+    const s = String((f && (f.severity_norm || f.severity_normalized || f.severity || (f.meta && f.meta.severity) || "")) || "").toUpperCase();
+    return s || "UNKNOWN";
+  }
+  function titleOf(f){
+    return (f && (f.title || f.rule_name || f.rule_id || f.check_name || f.message || f.id || "")) ? String(f.title || f.rule_name || f.rule_id || f.check_name || f.message || f.id) : "finding";
+  }
+async function main(){
+    const host = ensureHost();
+    const grid = host.querySelector(".vsp_p1_ext_grid");
+    if (!grid) return;
+
+    const c1 = card("Findings Summary");
+    const c2 = card("Top Findings (sample)");
+
+    grid.innerHTML = "";
+    grid.appendChild(c1.c);
+    grid.appendChild(c2.c);
+
+    // loading state
+    c1.body.textContent = "Loading…";
+    c2.body.textContent = "Loading…";
+
+    try{
+      const runs = await fetchJSON("/api/vsp/rid_latest_v3");
+      const rid = pickLatestRID(runs);
+      if (!rid) throw new Error("no_rid");
+      log("rid=", rid);
+
+      const fp = await fetchJSON(`/api/vsp/run_file?rid=${encodeURIComponent(rid)}&name=findings_unified`);
+      const { meta, findings } = normalizeFindingsPayload(fp);
+      const c = countsFrom(meta, findings);
+
+      renderCounts(c1.body, c);
+      renderTopFindings(c2.body, findings);
+
+      log("rendered ok");
+    } catch(e){
+      warn("degraded:", e && (e.message||e));
+      c1.body.textContent = "DEGRADED: cannot load findings (see console).";
+      c2.body.textContent = "DEGRADED: cannot load findings (see console).";
+    }
+  }
+
+  // start when DOM ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ()=>main());
+  } else {
+    main();
+  }
+
+try{
+  window.__vsp_panels_set_rid = (rid)=> {
+    try{
+      const r = String(rid||"").trim();
+      if (!r) return;
+      __vsp_p0_panels_force_rid = r;
+      try{ localStorage.setItem("vsp_selected_rid", r); }catch(e){}
+      try{ window.__VSP_SELECTED_RID = r; }catch(e){}
+      try{ if (typeof main === "function") main(); }catch(e){}
+    }catch(e){}
+  };
+  window.addEventListener("vsp:rid", (e)=> {
+    try{
+      const r = String(e && e.detail && e.detail.rid ? e.detail.rid : "").trim();
+      if (!r) return;
+      if (r === __vsp_p0_panels_force_rid) return;
+      __vsp_p0_panels_force_rid = r;
+      try{ if (typeof main === "function") main(); }catch(e){}
+    }catch(e){}
+  });
+}catch(e){}
+
+
+/* VSP_P0_PANELS_PICKRID_OVERRIDE_V2 */
+try{
+  if (!window.__vsp_p0_panels_pickrid_override_v2){
+    window.__vsp_p0_panels_pickrid_override_v2 = true;
+
+    const __lsKeys = ["vsp_selected_rid","vsp_rid","VSP_RID","vsp5_rid","vsp_gate_story_rid"];
+    const __tryLS = ()=> {
+      try{
+        for (const k of __lsKeys){
+          const v = (localStorage.getItem(k)||"").trim();
+          if (v) return v;
+        }
+      }catch(e){}
+      return "";
+    };
+
+    const __tryLatest = async ()=> {
+      try{
+        const r = await fetch("/api/vsp/rid_latest_gate_root", {credentials:"same-origin"});
+        if (!r.ok) return "";
+        const j = await r.json();
+        if (j && j.ok && j.rid) return String(j.rid);
+      }catch(e){}
+      return "";
+    };
+
+    // hard override: any call site using pickRidSmartPanels(...) will now prefer selected/latest rid
+    if (typeof pickRidFromRunsApi === "function" && !pickRidFromRunsApi.__vsp_overridden){
+      const __orig = pickRidFromRunsApi;
+      const __wrapped = async (...args)=> {
+        try{
+          const forced = (String(window.__VSP_SELECTED_RID||"").trim()) || __tryLS() || (await __tryLatest());
+          if (forced) return forced;
+        }catch(e){}
+        return await __orig(...args);
+      };
+      __wrapped.__vsp_overridden = true;
+      pickRidFromRunsApi = __wrapped;
+    }
+
+    // event-driven refresh
+    window.addEventListener("vsp:rid", (e)=> {
+      try{
+        const r = String(e && e.detail && e.detail.rid ? e.detail.rid : "").trim();
+        if (!r) return;
+        window.__VSP_SELECTED_RID = r;
+        try{ localStorage.setItem("vsp_selected_rid", r); }catch(_){}
+        try{ if (typeof main === "function") main(); }catch(_){}
+      }catch(_){}
+    });
+
+    // optional direct setter
+    window.__vsp_panels_set_rid = (rid)=> {
+      try{
+        const r = String(rid||"").trim();
+        if (!r) return;
+        window.__VSP_SELECTED_RID = r;
+        try{ localStorage.setItem("vsp_selected_rid", r); }catch(_){}
+        try{ if (typeof main === "function") main(); }catch(_){}
+      }catch(_){}
+    };
+  }
+}catch(e){}
+
+})();

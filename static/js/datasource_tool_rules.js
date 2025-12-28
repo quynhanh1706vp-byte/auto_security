@@ -1,0 +1,202 @@
+(function () {
+  const bodyEl = document.getElementById("tool-rules-body");
+  if (!bodyEl) {
+    return;
+  }
+
+  const btnAdd = document.getElementById("btn-add-rule");
+  const btnSave = document.getElementById("btn-save-rules");
+  const btnReload = document.getElementById("btn-reload-rules");
+  const pathEl = document.getElementById("tool-rules-path");
+
+  const API_URL = "/api/tool_rules";
+
+  const TOOL_OPTIONS = [
+    "",
+    "semgrep",
+    "bandit",
+    "trivy-fs",
+    "trivy-misconfig",
+    "trivy-secret",
+    "syft",
+    "grype",
+    "gitleaks",
+    "codeql",
+    "kics"
+  ];
+
+  const ACTION_OPTIONS = ["", "ignore", "downgrade", "upgrade", "tag"];
+  const SEVERITY_OPTIONS = ["", "critical", "high", "medium", "low", "info"];
+
+  function createSelect(options, value) {
+    const sel = document.createElement("select");
+    sel.className = "sb-input sb-input-sm";
+    options.forEach(function (opt) {
+      const o = document.createElement("option");
+      o.value = opt;
+      o.textContent = opt || "--";
+      if (opt === value) o.selected = true;
+      sel.appendChild(o);
+    });
+    return sel;
+  }
+
+  function addRuleRow(rule) {
+    const tr = document.createElement("tr");
+
+    const tdTool = document.createElement("td");
+    tdTool.appendChild(createSelect(TOOL_OPTIONS, rule.tool || ""));
+    tr.appendChild(tdTool);
+
+    const tdRuleId = document.createElement("td");
+    const inpRuleId = document.createElement("input");
+    inpRuleId.type = "text";
+    inpRuleId.className = "sb-input sb-input-sm";
+    inpRuleId.value = rule.rule_id || rule.pattern || "";
+    inpRuleId.placeholder = "rule id / pattern";
+    tdRuleId.appendChild(inpRuleId);
+    tr.appendChild(tdRuleId);
+
+    const tdAction = document.createElement("td");
+    tdAction.appendChild(createSelect(ACTION_OPTIONS, rule.action || ""));
+    tr.appendChild(tdAction);
+
+    const tdSeverity = document.createElement("td");
+    tdSeverity.appendChild(createSelect(SEVERITY_OPTIONS, rule.new_severity || ""));
+    tr.appendChild(tdSeverity);
+
+    const tdEnabled = document.createElement("td");
+    const chk = document.createElement("input");
+    chk.type = "checkbox";
+    chk.checked = rule.enabled !== false;
+    tdEnabled.appendChild(chk);
+    tr.appendChild(tdEnabled);
+
+    const tdNote = document.createElement("td");
+    const inpNote = document.createElement("input");
+    inpNote.type = "text";
+    inpNote.className = "sb-input sb-input-sm";
+    inpNote.value = rule.note || "";
+    inpNote.placeholder = "Note / lý do override (optional)";
+    tdNote.appendChild(inpNote);
+    tr.appendChild(tdNote);
+
+    const tdDel = document.createElement("td");
+    const btnDel = document.createElement("button");
+    btnDel.type = "button";
+    btnDel.className = "sb-btn sb-btn-icon sb-btn-ghost";
+    btnDel.textContent = "×";
+    btnDel.title = "Delete rule";
+    btnDel.addEventListener("click", function () {
+      tr.remove();
+    });
+    tdDel.appendChild(btnDel);
+    tr.appendChild(tdDel);
+
+    bodyEl.appendChild(tr);
+  }
+
+  function collectRules() {
+    const rows = Array.from(bodyEl.querySelectorAll("tr"));
+    return rows
+      .map(function (tr) {
+        const tds = tr.querySelectorAll("td");
+
+        const toolSel = tds[0].querySelector("select");
+        const ruleInput = tds[1].querySelector("input");
+        const actionSel = tds[2].querySelector("select");
+        const sevSel = tds[3].querySelector("select");
+        const enabledChk = tds[4].querySelector("input[type='checkbox']");
+        const noteInput = tds[5].querySelector("input");
+
+        return {
+          tool: toolSel.value || "",
+          rule_id: (ruleInput.value || "").trim(),
+          action: actionSel.value || "",
+          new_severity: sevSel.value || "",
+          enabled: !!enabledChk.checked,
+          note: (noteInput.value || "").trim()
+        };
+      })
+      .filter(function (r) {
+        return r.tool || r.rule_id || r.action || r.new_severity || r.note;
+      });
+  }
+
+  async function loadRules() {
+    try {
+      const resp = await fetch(API_URL);
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+
+      bodyEl.innerHTML = "";
+
+      if (data.path && pathEl) {
+        pathEl.innerHTML = 'Rules file: <code>' + data.path + "</code>";
+      }
+
+      const rules = data.rules || [];
+      if (!rules.length) {
+        addRuleRow({});
+      } else {
+        rules.forEach(addRuleRow);
+      }
+    } catch (err) {
+      console.error("Load tool_rules failed:", err);
+      alert("Không load được tool_rules: " + err);
+    }
+  }
+
+  async function saveRules() {
+    const rules = collectRules();
+    try {
+      const resp = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules: rules })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.error || "HTTP " + resp.status);
+      }
+      alert(
+        "Đã lưu " +
+          (data.saved || rules.length) +
+          " rule(s) vào " +
+          (data.path || "tool_rules.json")
+      );
+    } catch (err) {
+      console.error("Save tool_rules failed:", err);
+      alert("Không lưu được tool_rules: " + err);
+    }
+  }
+
+  if (btnAdd) btnAdd.addEventListener("click", function () { addRuleRow({}); });
+  if (btnSave) btnSave.addEventListener("click", function () { saveRules(); });
+  if (btnReload) btnReload.addEventListener("click", function () { loadRules(); });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    loadRules();
+  });
+})();
+
+// Hide Tool rules block on /datasource – keep only on /tool_rules
+document.addEventListener("DOMContentLoaded", function () {
+  try {
+    if (window.location && window.location.pathname === "/datasource") {
+      var sec = document.querySelector(".tool-rules-section");
+      if (!sec) {
+        var tbl = document.getElementById("tool-rules-table");
+        if (tbl && tbl.closest) {
+          sec = tbl.closest(".sb-section");
+        }
+      }
+      if (sec && sec.parentNode) {
+        sec.parentNode.removeChild(sec);
+      }
+    }
+  } catch (e) {
+    console && console.warn && console.warn("hide_tool_rules_on_datasource failed:", e);
+  }
+});
+

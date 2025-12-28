@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import importlib
+from typing import Set
+
+from flask import Flask
+
+
+def _register_blueprints(app: Flask, module_name: str, registered_names: Set[str] | None = None) -> None:
+    """
+    Tự động import module (vd: 'api_vsp_dashboard_v2') và đăng ký
+    tất cả Blueprint có thể tìm được trong đó.
+
+    Tránh double-register bằng cách kiểm tra tên blueprint.
+    """
+    if registered_names is None:
+        registered_names = set()
+
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as exc:
+        print(f"[VSP][APP][WARN] Cannot import module {module_name}: {exc!r}")
+        return
+
+    for attr_name in dir(module):
+        attr_val = getattr(module, attr_name, None)
+        # Blueprint thường có thuộc tính 'register', 'name'
+        if not hasattr(attr_val, "register"):
+            continue
+
+        bp_name = getattr(attr_val, "name", None) or attr_name
+
+        if bp_name in registered_names:
+            # Tránh crash kiểu "name already registered"
+            print(f"[VSP][APP] Skip duplicate blueprint name={bp_name} from {module_name}.{attr_name}")
+            continue
+
+        app.register_blueprint(attr_val)
+        registered_names.add(bp_name)
+        print(f"[VSP][APP] Registered blueprint from {module_name}: {attr_name} (name={bp_name})")
+
+
+def create_app() -> Flask:
+    """
+    Factory tạo Flask app cho VSP my_flask_app.
+    Chỉ tập trung register API blueprint cho VSP.
+    """
+    app = Flask(
+        __name__,
+        static_folder="../static",
+        template_folder="../templates",
+    )
+
+    registered: Set[str] = set()
+
+    # Các module API VSP đang dùng
+    _register_blueprints(app, "api_vsp_dashboard_v2", registered)
+    _register_blueprints(app, "api_vsp_datasource_v2", registered)
+    _register_blueprints(app, "api_vsp_runs_v2", registered)
+    _register_blueprints(app, "api_vsp_insights_v1", registered)
+    _register_blueprints(app, "api_vsp_settings_v1", registered)
+    # Nếu sau này có API khác (overrides, exports v3, …) thì thêm ở đây:
+    # _register_blueprints(app, "api_vsp_exports_v3", registered)
+
+    @app.get("/healthz")
+    def healthz():
+        return {"ok": True, "app": "vsp_my_flask_app"}
+
+    return app
+
+
+# Cho WSGI / gunicorn import "app"
+app = create_app()
+
+if __name__ == "__main__":
+    # Chạy dev server (port khác 8910 nếu cần)
+    app.run(host="0.0.0.0", port=8961, debug=True)

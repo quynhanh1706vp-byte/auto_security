@@ -1,0 +1,91 @@
+== TS=20251219_120315 BASE=http://127.0.0.1:8910 ==
+== markers ==
+[WARN] runs-cache MW not installed yet
+81:  # VSP_P0_GUNICORN_MAXREQ_V1
+
+== (1) try bring up 8910 ==
+== compile check ==
+[OK] py_compile OK
+== stop systemd unit if exists (best-effort) ==
+[INFO] stopping vsp-ui-8910.service
+== stop existing by pidfile (best effort) ==
+== kill listeners on :8910 (hard) ==
+== wait port free ==
+[OK] port free
+[INFO] logs truncated: out_ci/ui_8910.boot.log out_ci/ui_8910.error.log out_ci/ui_8910.access.log
+== start gunicorn single-owner :8910 (pidfile) ==
+[2025-12-19 12:03:16 +0700] [663237] [INFO] Starting gunicorn 23.0.0
+[2025-12-19 12:03:16 +0700] [663237] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:03:16 +0700] [663237] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:03:17 +0700] [663237] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:03:17 +0700] [663237] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:03:18 +0700] [663237] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:03:18 +0700] [663237] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:03:19 +0700] [663237] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:03:19 +0700] [663237] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:03:20 +0700] [663237] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:03:20 +0700] [663237] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:03:21 +0700] [663237] [ERROR] Can't connect to ('127.0.0.1', 8000)
+[FAIL] 8910 is NOT listening after start. Dumping logs...
+
+== ss -ltnp | grep 8910 ==
+
+== ps grep UI gunicorn ==
+test      663244  0.0  0.0  12200  2348 pts/2    S+   12:03   0:00 grep -E wsgi_vsp_ui_gateway|gunicorn.*8910
+
+== tail boot/error/access ==
+---
+---
+
+== tail nohup.out (if any) ==
+[2025-12-17 12:49:01 +0700] [724396] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 12:49:01 +0700] [724396] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-17 12:49:01 +0700] [724396] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-17 12:49:02 +0700] [724396] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-17 12:49:02 +0700] [724396] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-17 12:49:03 +0700] [724396] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-17 12:49:03 +0700] [724396] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-17 12:49:04 +0700] [724396] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-17 12:49:04 +0700] [724396] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-17 12:49:05 +0700] [724396] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-17 12:49:05 +0700] [724396] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-17 12:49:06 +0700] [724396] [ERROR] Can't connect to ('127.0.0.1', 8000)
+[2025-12-19 11:57:25 +0700] [661808] [INFO] Starting gunicorn 23.0.0
+[2025-12-19 11:57:25 +0700] [661808] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 11:57:25 +0700] [661808] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 11:57:26 +0700] [661808] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 11:57:26 +0700] [661808] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 11:57:27 +0700] [661808] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 11:57:27 +0700] [661808] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 11:57:28 +0700] [661808] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 11:57:28 +0700] [661808] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 11:57:29 +0700] [661808] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 11:57:29 +0700] [661808] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 11:57:30 +0700] [661808] [ERROR] Can't connect to ('127.0.0.1', 8000)
+[2025-12-19 12:01:14 +0700] [662290] [INFO] Starting gunicorn 23.0.0
+[2025-12-19 12:01:14 +0700] [662290] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:14 +0700] [662290] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:15 +0700] [662290] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:15 +0700] [662290] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:16 +0700] [662290] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:16 +0700] [662290] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:17 +0700] [662290] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:17 +0700] [662290] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:18 +0700] [662290] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:18 +0700] [662290] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:19 +0700] [662290] [ERROR] Can't connect to ('127.0.0.1', 8000)
+[2025-12-19 12:01:34 +0700] [662521] [INFO] Starting gunicorn 23.0.0
+[2025-12-19 12:01:34 +0700] [662521] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:34 +0700] [662521] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:35 +0700] [662521] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:35 +0700] [662521] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:36 +0700] [662521] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:36 +0700] [662521] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:37 +0700] [662521] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:37 +0700] [662521] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:38 +0700] [662521] [ERROR] Connection in use: ('127.0.0.1', 8000)
+[2025-12-19 12:01:38 +0700] [662521] [ERROR] connection to ('127.0.0.1', 8000) failed: [Errno 98] Address already in use
+[2025-12-19 12:01:39 +0700] [662521] [ERROR] Can't connect to ('127.0.0.1', 8000)
+
+== kernel OOM hints (sudo if possible) ==
+[WARN] sudo needs password; run manually: sudo dmesg -T | tail -n 200

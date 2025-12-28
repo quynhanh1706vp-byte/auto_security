@@ -1,0 +1,67 @@
+document.addEventListener("DOMContentLoaded", function () {
+    loadVspDashboardV3();
+});
+
+function loadVspDashboardV3() {
+    fetch("/api/vsp/dashboard_v3_real")
+        .then(function (res) {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.json();
+        })
+        .then(function (data) {
+            if (!data || !data.ok) {
+                console.error("[VSP][DASH_V3] Payload not ok:", data);
+                return;
+            }
+            renderSeverityBucketsV3(data);
+            renderAdvancedKpisV3(data);
+        })
+        .catch(function (err) {
+            console.error("[VSP][DASH_V3] Error:", err);
+        });
+}
+
+// Đổ 6 bucket CRIT/HIGH/MED/LOW/INFO/TRACE
+function renderSeverityBucketsV3(payload) {
+    var sev = payload.by_severity || payload.severity || {};
+    var crit  = Number(sev.CRITICAL || 0);
+    var high  = Number(sev.HIGH     || 0);
+    var med   = Number(sev.MEDIUM   || 0);
+    var low   = Number(sev.LOW      || 0);
+    var info  = Number(sev.INFO     || 0);
+    var trace = Number(sev.TRACE    || 0);
+
+    var total = crit + high + med + low + info + trace;
+
+    // Ví dụ: các span có id tương ứng – chỉnh id cho khớp HTML của bạn
+    setTextSafe("vsp-kpi-total-findings", total);
+    setTextSafe("vsp-kpi-critical", crit);
+    setTextSafe("vsp-kpi-high", high);
+    setTextSafe("vsp-kpi-medium", med);
+    setTextSafe("vsp-kpi-low", low);
+    setTextSafe("vsp-kpi-info", info);
+    setTextSafe("vsp-kpi-trace", trace);
+}
+
+// Đổ 4 KPI nâng cao: Security Score / Top Tool / Top CWE / Top Module
+function renderAdvancedKpisV3(payload) {
+    var score = (payload.security_score != null ? payload.security_score : 0);
+
+    // Nếu bạn muốn format kiểu "72 / 100" thì sửa dòng dưới:
+    setTextSafe("vsp-kpi-security-score", score);
+
+    var topTool   = payload.top_risky_tool || "-";
+    var topCwe    = payload.top_cwe        || "-";
+    var topModule = payload.top_module     || "-";
+
+    setTextSafe("vsp-kpi-top-tool", topTool);
+    setTextSafe("vsp-kpi-top-cwe", topCwe);
+    setTextSafe("vsp-kpi-top-module", topModule);
+}
+
+function setTextSafe(id, value) {
+    var el = document.getElementById(id);
+    if (el) {
+        el.textContent = value;
+    }
+}

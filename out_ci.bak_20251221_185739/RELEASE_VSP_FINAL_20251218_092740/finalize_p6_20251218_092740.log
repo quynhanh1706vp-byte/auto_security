@@ -1,0 +1,101 @@
+== VSP UI FINALIZE COMMERCIAL P6 ==
+[BASE]=http://127.0.0.1:8910 [N]=300 [OUT]=out_ci/FINALIZE_20251218_092740
+== HARD RESET 8910 ==
+[PIDFILE] out_ci/ui_8910.pid => 214328
+== kill PID from pidfile ==
+== pkill gunicorn 8910 ==
+== remove stale pidfile ==
+== start 8910 ==
+== check listen ==
+LISTEN 0      2048       127.0.0.1:8910      0.0.0.0:*    users:(("gunicorn",pid=216068,fd=7),("gunicorn",pid=216067,fd=7),("gunicorn",pid=216065,fd=7))
+== boot log tail ==
+== VSP UI 5-TABS SMOKE P2 ==
+[BASE]=http://127.0.0.1:8910
+[HTTP] 200 http://127.0.0.1:8910/vsp4
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/findings_latest_v1?limit=3
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/rule_overrides_v1
+[HTTP] 200 http://127.0.0.1:8910/api/vsp/dashboard_commercial_v2
+[HTTP] 200 http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+[TAB]  200 /vsp4#dashboard
+[TAB]  200 /vsp4#runs
+[TAB]  200 /vsp4#datasource
+[TAB]  200 /vsp4#settings
+[TAB]  200 /vsp4#rules
+== RESULT ==
+[OK] all green
+== VSP UI STABILITY SMOKE P0 ==
+[BASE]=http://127.0.0.1:8910 [N]=300
+[FAIL] i=181 code=000000 url=http://127.0.0.1:8910/vsp4
+[FAIL] i=181 code=000000 url=http://127.0.0.1:8910/api/vsp/latest_rid_v1
+[FAIL] i=181 code=000000 url=http://127.0.0.1:8910/api/vsp/dashboard_v3
+[FAIL] i=181 code=000000 url=http://127.0.0.1:8910/api/vsp/runs_index_v3_fs_resolved?limit=1
+[FAIL] i=181 code=000000 url=http://127.0.0.1:8910/static/js/vsp_bundle_commercial_v2.js
+== RESULT ==
+[WARN] fails=5 (check out_ci/ui_8910.error.log)
+== VSP ISO EVIDENCE PACK P4 ==
+[BASE]=http://127.0.0.1:8910 [TS]=20251218_093358
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[OK] wrote /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso/ISO_EVIDENCE_INDEX.json
+[OK] wrote /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso/ISO_27001_MAP.csv
+[BACKUP] /home/test/Data/SECURITY_BUNDLE/bin/pack_report.sh.bak_iso_20251218_093358
+[WARN] cannot find insertion needle; skip patch safely
+== rebuild report tgz ==
+[OK] packed: /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/VSP_CI_20251215_034956__REPORT.tgz
+[OK] SHA256SUMS -> /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/SHA256SUMS.txt
+[OPEN] /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/VSP_CI_20251215_034956__REPORT.tgz
+[HINT] Verify:
+  cd "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956" && sha256sum -c SHA256SUMS.txt
+== verify sha ==
+VSP_CI_20251215_034956__REPORT.tgz: OK
+== repack audit bundle ==
+== VSP AUDIT BUNDLE P2 ==
+[BASE]=http://127.0.0.1:8910
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[BDIR]=out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359
+[OK] COMMERCIAL_LATEST=out_ci/COMMERCIAL_20251218_092728
+[OK] packed: out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.tgz
+[OK] sha256: out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.SHA256SUMS.txt
+== DONE ==
+[OPEN] out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.tgz
+[HINT] Verify:
+  cd "out_ci" && sha256sum -c "AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.SHA256SUMS.txt"
+  # if minisign:
+  minisign -Vm "AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093359.SHA256SUMS.txt" -p "${KEY_PUB:-/home/test/.minisign/mykey.pub}"
+== DONE P4 ISO ==
+[ISO_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso
+[HINT] open ISO files:
+  ls -la "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956/report/__meta/iso"
+== VSP AUDIT PACK P2 V2 (auto COMMERCIAL snapshot) ==
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[OK] created snapshot: out_ci/COMMERCIAL_20251218_093401
+== VSP AUDIT BUNDLE P2 ==
+[BASE]=http://127.0.0.1:8910
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[BDIR]=out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402
+[OK] COMMERCIAL_LATEST=out_ci/COMMERCIAL_20251218_093401
+[OK] packed: out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.tgz
+[OK] sha256: out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.SHA256SUMS.txt
+== DONE ==
+[OPEN] out_ci/AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.tgz
+[HINT] Verify:
+  cd "out_ci" && sha256sum -c "AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.SHA256SUMS.txt"
+  # if minisign:
+  minisign -Vm "AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.SHA256SUMS.txt" -p "${KEY_PUB:-/home/test/.minisign/mykey.pub}"
+[RID]=VSP_CI_20251215_034956
+[RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[OK] RELEASE=out_ci/RELEASE_20251218_092740
+tổng 3930
+drwxr-xr-x 1 test test    4096 Thg 12 18 09:34 .
+drwxr-xr-x 1 test test   65536 Thg 12 18 09:34 ..
+-rwxr-xr-x 1 test test     122 Thg 12 18 09:34 AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.SHA256SUMS.txt
+-rwxr-xr-x 1 test test 2007382 Thg 12 18 09:34 AUDIT_BUNDLE_VSP_CI_20251215_034956_20251218_093402.tgz
+-rwxr-xr-x 1 test test     444 Thg 12 18 09:34 RELEASE_SHA256SUMS.txt
+-rwxr-xr-x 1 test test     101 Thg 12 18 09:34 REPORT_SHA256SUMS.txt
+-rwxr-xr-x 1 test test 1939654 Thg 12 18 09:34 VSP_CI_20251215_034956__REPORT.tgz
+== DONE P6 ==

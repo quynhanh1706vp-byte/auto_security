@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>VersaSecure Platform – VSP 2025 – EXT+ Security Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="/static/css/vsp_main.css">
+</head>
+<body class="vsp-body">
+  <div class="vsp-app">
+    <!-- SIDEBAR -->
+    <aside class="vsp-sidebar">
+      <div class="vsp-logo">
+        <div class="vsp-logo-mark">VSP</div>
+        <div class="vsp-logo-text">
+          <div class="vsp-logo-title">VersaSecure Platform</div>
+          <div class="vsp-logo-subtitle">EXT+ Security Profile 2025</div>
+        </div>
+      </div>
+
+      <nav class="vsp-nav">
+        <button class="vsp-nav-item is-active" data-tab-target="tab-dashboard">
+          <span class="vsp-nav-label">Dashboard</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-runs">
+          <span class="vsp-nav-label">Runs &amp; Reports</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-datasource">
+          <span class="vsp-nav-label">Data Source</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-settings">
+          <span class="vsp-nav-label">Settings</span>
+        </button>
+        <button class="vsp-nav-item" data-tab-target="tab-overrides">
+          <span class="vsp-nav-label">Rule Overrides</span>
+        </button>
+      </nav>
+
+      <div class="vsp-sidebar-footer">
+        <div class="vsp-sidebar-env">
+          <div class="vsp-env-label">Profile</div>
+          <div class="vsp-env-value">VSP FULL EXT</div>
+        </div>
+        <div class="vsp-sidebar-env">
+          <div class="vsp-env-label">Last run</div>
+          <div class="vsp-env-value" id="vsp-run-id">—</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="vsp-main">
+      <header class="vsp-header">
+        <div>
+          <h1 class="vsp-title">VSP 2025 – Enterprise Security Dashboard</h1>
+          <p class="vsp-subtitle">
+            Tổng hợp kết quả scan từ VSP FULL EXT – 6 mức severity, score bảo mật &amp; top rủi ro.
+          </p>
+        </div>
+        <div class="vsp-header-actions">
+          <button class="vsp-btn" id="btn-refresh-dashboard">Refresh</button>
+          <span class="vsp-header-meta">
+            Cập nhật: <span id="vsp-last-updated">—</span>
+          </span>
+        </div>
+      </header>
+
+      <!-- TABS -->
+      <section class="vsp-tabs-root">
+        <!-- DASHBOARD TAB -->
+        <section id="tab-dashboard" class="vsp-tab is-active">
+          <!-- KPI Hàng 1 -->
+          <div class="vsp-grid vsp-grid-kpi">
+            <div class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Tổng số findings</div>
+              <div class="vsp-card-value" id="kpi-total-findings">—</div>
+              <div class="vsp-card-meta">Tất cả tool sau override</div>
+            </div>
+
+            <div class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Security Score</div>
+              <div class="vsp-card-value" id="kpi-security-score">—</div>
+              <div class="vsp-card-meta">0 – rủi ro cao · 100 – tốt</div>
+            </div>
+
+            <div class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Top risky tool</div>
+              <div class="vsp-card-value" id="kpi-top-tool">—</div>
+              <div class="vsp-card-meta">Tool tạo nhiều findings rủi ro nhất</div>
+            </div>
+
+            <div class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Top CWE</div>
+              <div class="vsp-card-value" id="kpi-top-cwe">—</div>
+              <div class="vsp-card-meta">Nhóm lỗ hổng xuất hiện dày đặc</div>
+            </div>
+
+            <div class="vsp-card vsp-card-kpi">
+              <div class="vsp-card-label">Top module</div>
+              <div class="vsp-card-value" id="kpi-top-module">—</div>
+              <div class="vsp-card-meta">Module / thư mục rủi ro nhất</div>
+            </div>
+          </div>
+
+          <!-- KPI Severity -->
+          <div class="vsp-card vsp-card-block">
+            <div class="vsp-card-header">
+              <div>
+                <h2 class="vsp-card-title">Severity distribution (6 mức DevSecOps)</h2>
+                <p class="vsp-card-subtitle">
+                  CRITICAL · HIGH · MEDIUM · LOW · INFO · TRACE – từ findings hiện tại.
+                </p>
+              </div>
+            </div>
+
+            <div class="vsp-severity-grid">
+              <div class="vsp-sev-item sev-critical">
+                <div class="vsp-sev-label">CRITICAL</div>
+                <div class="vsp-sev-value" id="sev-critical-count">—</div>
+              </div>
+              <div class="vsp-sev-item sev-high">
+                <div class="vsp-sev-label">HIGH</div>
+                <div class="vsp-sev-value" id="sev-high-count">—</div>
+              </div>
+              <div class="vsp-sev-item sev-medium">
+                <div class="vsp-sev-label">MEDIUM</div>
+                <div class="vsp-sev-value" id="sev-medium-count">—</div>
+              </div>
+              <div class="vsp-sev-item sev-low">
+                <div class="vsp-sev-label">LOW</div>
+                <div class="vsp-sev-value" id="sev-low-count">—</div>
+              </div>
+              <div class="vsp-sev-item sev-info">
+                <div class="vsp-sev-label">INFO</div>
+                <div class="vsp-sev-value" id="sev-info-count">—</div>
+              </div>
+              <div class="vsp-sev-item sev-trace">
+                <div class="vsp-sev-label">TRACE</div>
+                <div class="vsp-sev-value" id="sev-trace-count">—</div>
+              </div>
+            </div>
+
+            <div class="vsp-sev-bar-wrapper">
+              <div class="vsp-sev-bar" id="vsp-severity-bar">
+                <!-- JS sẽ bơm 6 span theo tỷ lệ -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Trend -->
+          <div class="vsp-card vsp-card-block">
+            <div class="vsp-card-header">
+              <div>
+                <h2 class="vsp-card-title">Trend – VSP FULL EXT</h2>
+                <p class="vsp-card-subtitle">
+                  Một vài lần chạy gần nhất từ /api/vsp/trend_v1.
+                </p>
+              </div>
+            </div>
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Run ID</th>
+                    <th>Total findings</th>
+                    <th>Security Score</th>
+                  </tr>
+                </thead>
+                <tbody id="trend-table-body">
+                  <tr><td colspan="4" class="vsp-table-empty">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- RUNS TAB -->
+        <section id="tab-runs" class="vsp-tab">
+          <div class="vsp-card vsp-card-block">
+            <div class="vsp-card-header">
+              <div>
+                <h2 class="vsp-card-title">Lịch sử runs &amp; báo cáo</h2>
+                <p class="vsp-card-subtitle">
+                  Lấy từ /api/vsp/runs_v2 – để mapping sang report &amp; artifact.
+                </p>
+              </div>
+              <button class="vsp-btn" id="btn-refresh-runs">Refresh</button>
+            </div>
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Run ID</th>
+                    <th>Tổng findings</th>
+                    <th>Security Score</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody id="runs-table-body">
+                  <tr><td colspan="5" class="vsp-table-empty">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- DATASOURCE TAB -->
+        <section id="tab-datasource" class="vsp-tab">
+          <div class="vsp-card vsp-card-block">
+            <div class="vsp-card-header">
+              <div>
+                <h2 class="vsp-card-title">Data Source – Findings chi tiết</h2>
+                <p class="vsp-card-subtitle">
+                  Lọc từ /api/vsp/datasource_v2?severity=...&amp;tool=...&amp;limit=...
+                </p>
+              </div>
+              <div class="vsp-ds-filters">
+                <label class="vsp-field">
+                  <span>Severity</span>
+                  <select id="filter-severity">
+                    <option value="">(All)</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="LOW">LOW</option>
+                    <option value="INFO">INFO</option>
+                    <option value="TRACE">TRACE</option>
+                  </select>
+                </label>
+                <label class="vsp-field">
+                  <span>Tool</span>
+                  <input id="filter-tool" type="text" placeholder="vd: semgrep, gitleaks...">
+                </label>
+                <label class="vsp-field vsp-field-small">
+                  <span>Limit</span>
+                  <input id="filter-limit" type="number" min="1" max="500" value="50">
+                </label>
+                <button class="vsp-btn" id="btn-load-datasource">Load</button>
+              </div>
+            </div>
+
+            <div class="vsp-table-wrapper">
+              <table class="vsp-table vsp-table-ds">
+                <thead>
+                  <tr>
+                    <th>Severity</th>
+                    <th>Tool</th>
+                    <th>Rule / CWE</th>
+                    <th>File</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody id="datasource-table-body">
+                  <tr><td colspan="5" class="vsp-table-empty">Chọn filter và ấn "Load".</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="vsp-ds-footer">
+              Tổng findings phù hợp: <span id="datasource-total">0</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS TAB -->
+        <section id="tab-settings" class="vsp-tab">
+          <div class="vsp-card vsp-card-block">
+            <div class="vsp-card-header">
+              <div>
+                <h2 class="vsp-card-title">Settings – Cấu hình VSP</h2>
+                <p class="vsp-card-subtitle">
+                  Render JSON từ /api/vsp/settings_v1 – thông tin tool, profile, thư mục out/...
+                </p>
+              </div>
+              <button class="vsp-btn" id="btn-refresh-settings">Refresh</button>
+            </div>
+            <pre class="vsp-settings-pre" id="settings-json">// Chưa tải...</pre>
+          </div>
+        </section>
+
+        <!-- RULE OVERRIDES TAB -->
+        <section id="tab-overrides" class="vsp-tab">
+          <div class="vsp-card vsp-card-block">
+            <div class="vsp-card-header">
+              <div>
+                <h2 class="vsp-card-title">Rule Overrides – Hồ sơ EXT+</h2>
+                <p class="vsp-card-subtitle">
+                  Thông tin tổng quan về việc áp dụng overrides (gitleaks generic key, noise rules...) dựa trên
+                  script <code>vsp_apply_rule_overrides_v1.py</code>. Tab này hiện hiển thị note tĩnh, dữ liệu chi tiết xem trong report.
+                </p>
+              </div>
+            </div>
+            <div class="vsp-overrides-body">
+              <ul class="vsp-overrides-list">
+                <li>6 mức severity chuẩn hoá: <strong>CRITICAL / HIGH / MEDIUM / LOW / INFO / TRACE</strong>.</li>
+                <li>Các rule nhiều false-positive (vd: <code>gitleaks:generic-api-key</code>) có thể được hạ severity bằng overrides.</li>
+                <li>Script áp dụng: <code>tools/vsp_apply_rule_overrides_v1.py &lt;RUN_DIR&gt;</code>.</li>
+                <li>UI Dashboard đang hiển thị số liệu <strong>sau khi override</strong> từ
+                  <code>findings_unified.json</code> và <code>summary_unified.json</code>.
+                </li>
+              </ul>
+              <p class="vsp-overrides-note">
+                Khi cần thêm API riêng cho overrides (vd: <code>/api/vsp/overrides_v1</code>) mình sẽ bơm thêm bảng chi tiết ở đây.
+              </p>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <!-- Main JS -->
+  <script src="/static/js/vsp_dashboard_live_v2.js"></script>
+</body>
+</html>

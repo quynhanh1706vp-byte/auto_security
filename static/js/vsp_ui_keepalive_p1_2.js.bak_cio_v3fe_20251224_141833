@@ -1,0 +1,45 @@
+/* VSP_UI_KEEPALIVE_JS_P1_2 */
+(function(){
+  const BANNER_ID = "vsp_keepalive_banner_p1_2";
+  function banner(){
+    let el=document.getElementById(BANNER_ID);
+    if(!el){
+      el=document.createElement("div");
+      el.id=BANNER_ID;
+      el.style.position="fixed";
+      el.style.right="14px";
+      el.style.bottom="14px";
+      el.style.zIndex="99999";
+      el.style.padding="8px 10px";
+      el.style.borderRadius="12px";
+      el.style.fontSize="12px";
+      el.style.border="1px solid rgba(36,48,65,.9)";
+      el.style.background="rgba(18,24,36,.92)";
+      el.style.color="#e6edf3";
+      el.style.boxShadow="0 10px 22px rgba(0,0,0,.35)";
+      el.style.display="none";
+      el.textContent="VSP: backend degraded";
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  async function ping(){
+    try{
+      const r = await fetch("/api/vsp/runs?limit=1", {cache:"no-store"});
+      const el=banner();
+      if(!r.ok){
+        el.style.display="block";
+        el.textContent=`VSP: degraded (runs API ${r.status})`;
+        return;
+      }
+      el.style.display="none";
+    }catch(e){
+      const el=banner();
+      el.style.display="block";
+      el.textContent="VSP: degraded (network)";
+    }
+  }
+  // nhẹ thôi, tránh spam
+  setInterval(ping, 20000);
+  window.addEventListener("load", ping);
+})();

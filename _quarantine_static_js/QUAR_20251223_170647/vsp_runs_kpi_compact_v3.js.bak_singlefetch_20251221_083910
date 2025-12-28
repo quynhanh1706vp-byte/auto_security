@@ -1,0 +1,316 @@
+/* VSP_P2_RUNS_KPI_COMPACT_V3 (no heavy canvas, hide blank panels) */
+(()=> {
+  if (window.__vsp_runs_kpi_compact_v3) return;
+  window.__vsp_runs_kpi_compact_v3 = true;
+
+  const $ = (q)=> document.querySelector(q);
+
+  async function fetchKpi(days){
+    const q = encodeURIComponent(String(days||30));
+    const urls = [`/api/ui/runs_kpi_v2?days=${q}`, `/api/ui/runs_kpi_v1?days=${q}`];
+    let lastErr = null;
+    for (const u of urls){
+      try{
+        const r = await fetch(u, {cache:"no-store"});
+        const j = await r.json();
+        if (j && j.ok) return j;
+        lastErr = new Error(j?.err || "not ok");
+      }catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("kpi fetch failed");
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return false;
+    el.textContent = (v===null || v===undefined) ? "—" : String(v);
+    return true;
+  }
+
+  function hideIfBlankCanvas(){
+    // if your old patch left canvases that become huge white blocks: hide them unless trend labels exist
+    const c1 = document.getElementById("vsp_runs_kpi_canvas_overall");
+    const c2 = document.getElementById("vsp_runs_kpi_canvas_sev");
+    // also allow wrappers
+    const w1 = document.getElementById("vsp_runs_kpi_canvas_wrap_overall") || (c1? c1.parentElement : null);
+    const w2 = document.getElementById("vsp_runs_kpi_canvas_wrap_sev") || (c2? c2.parentElement : null);
+    // default: hide (we render compact)
+    if (w1) w1.style.display = "none";
+    if (w2) w2.style.display = "none";
+  }
+
+  function renderCompactTrend(rootId, labels, seriesMap){
+    const root = document.getElementById(rootId);
+    if (!root) return;
+    if (!labels || !labels.length){
+      root.innerHTML = '<div style="color:#94a3b8;font-size:12px">No trend data</div>';
+      return;
+    }
+    // compact bars per day (stacked)
+    const keys = Object.keys(seriesMap);
+    const n = labels.length;
+    let max = 1;
+    for (let i=0;i<n;i++){
+      let sum = 0;
+      for (const k of keys) sum += (Number(seriesMap[k][i]||0) || 0);
+      if (sum > max) max = sum;
+    }
+    const rows = labels.slice(-14).map((d, idx)=>{
+      // map to last 14 points
+      const i = labels.length - 14 + idx;
+      let seg = '';
+      let sum = 0;
+      for (const k of keys){
+        const v = Number(seriesMap[k][i]||0) || 0;
+        sum += v;
+      }
+      const width = Math.max(2, Math.round((sum/max)*260));
+      seg = `<div style="height:8px;width:${width}px;border-radius:6px;background:rgba(148,163,184,.25)"></div>`;
+      return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+        <div style="width:92px;color:#94a3b8;font-size:11px">${d}</div>
+        ${seg}
+        <div style="color:#cbd5e1;font-size:11px">${sum}</div>
+      </div>`;
+    }).join("");
+    root.innerHTML = `<div style="margin-top:6px">${rows}</div>`;
+  }
+
+  async function boot(){
+    // keep layout stable; do not create huge blocks
+    hideIfBlankCanvas();
+
+    const daysSel = document.getElementById("vsp_runs_kpi_days");
+    const days = daysSel ? Number(daysSel.value||30) : 30;
+
+    try{
+      const j = await fetchKpi(days);
+
+      // if your template has these ids from previous patch, they will update; if not, nothing breaks.
+      setText("vsp_runs_kpi_total_runs", j.total_runs);
+      setText("vsp_runs_kpi_green", j.by_overall?.GREEN ?? 0);
+      setText("vsp_runs_kpi_amber", j.by_overall?.AMBER ?? 0);
+      setText("vsp_runs_kpi_red", j.by_overall?.RED ?? 0);
+      setText("vsp_runs_kpi_unknown", j.by_overall?.UNKNOWN ?? 0);
+      setText("vsp_runs_kpi_has_findings", j.has_findings);
+
+      // Optional: compact trends if placeholders exist
+      const to = j.trend_overall || {};
+      const ts = j.trend_sev || {};
+      renderCompactTrend("vsp_runs_kpi_trend_overall_compact", to.labels||[], {
+        GREEN: to.GREEN||[], AMBER: to.AMBER||[], RED: to.RED||[], UNKNOWN: to.UNKNOWN||[]
+      });
+      renderCompactTrend("vsp_runs_kpi_trend_sev_compact", ts.labels||[], {
+        CRITICAL: ts.CRITICAL||[], HIGH: ts.HIGH||[]
+      });
+
+      // degraded/duration (safe)
+      setText("vsp_runs_kpi_degraded_count", j.degraded?.count ?? 0);
+      const avg = j.duration?.avg_s;
+      const p95 = j.duration?.p95_s;
+      setText("vsp_runs_kpi_dur_avg", (avg==null? "—" : Math.round(avg)));
+      setText("vsp_runs_kpi_dur_p95", (p95==null? "—" : Math.round(p95)));
+
+    }catch(e){
+      // don't spam; just quietly keep page usable
+      console.warn("[RUNS_KPI_COMPACT_V3] failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+
+// ===================== VSP_P2_RUNS_KPI_COMPACT_DOMREADY_V1 =====================
+function getDays(){
+  // prefer any existing window select, otherwise default 30
+  const sel = document.getElementById("vsp_runs_kpi_window") ||
+              document.getElementById("vsp_runs_kpi_window_days") ||
+              document.querySelector('select[data-kpi-window]') ||
+              null;
+  let v = 30;
+  try{
+    if (sel && sel.value) v = parseInt(String(sel.value), 10);
+  }catch(_){}
+  if (!v || isNaN(v)) v = 30;
+  v = Math.max(1, Math.min(v, 3650));
+  return v;
+}
+
+function setAny(ids, v){
+  let ok = false;
+  for (const id of ids){
+    if (setText(id, v)) ok = true;
+  }
+  return ok;
+}
+
+function fillKpi(j, days){
+  // Support multiple possible id names (keeps layout stable even if template changed)
+  setAny(["vsp_runs_kpi_total","vsp_runs_kpi_total_runs","vsp_runs_kpi_total_runs_window"], j.total_runs);
+  setAny(["vsp_runs_kpi_green","vsp_runs_kpi_GREEN"], j.by_overall?.GREEN ?? 0);
+  setAny(["vsp_runs_kpi_amber","vsp_runs_kpi_AMBER"], j.by_overall?.AMBER ?? 0);
+  setAny(["vsp_runs_kpi_red","vsp_runs_kpi_RED"], j.by_overall?.RED ?? 0);
+  setAny(["vsp_runs_kpi_unknown","vsp_runs_kpi_UNKNOWN"], j.by_overall?.UNKNOWN ?? 0);
+  setAny(["vsp_runs_kpi_has_findings","vsp_runs_kpi_findings"], j.has_findings ?? "—");
+  setAny(["vsp_runs_kpi_has_gate","vsp_runs_kpi_gate"], j.has_gate ?? "—");
+  setAny(["vsp_runs_kpi_latest_rid","vsp_runs_kpi_latest"], j.latest_rid ?? "—");
+
+  // optional meta line
+  const meta = document.getElementById("vsp_runs_kpi_meta");
+  if (meta){
+    meta.textContent = `window=${days}d • total=${j.total_runs ?? "—"} • has_gate=${j.has_gate ?? "—"} • ts=${j.ts ?? ""}`;
+  }
+}
+
+async function runOnce(){
+  try{
+    hideIfBlankCanvas(); // keep layout safe (no giant white blocks)
+    const days = getDays();
+    const j = await fetchKpi(days);
+    fillKpi(j, days);
+  }catch(e){
+    console.warn("[RUNS_KPI] failed:", e && (e.message || e));
+    const meta = document.getElementById("vsp_runs_kpi_meta");
+    if (meta) meta.textContent = "KPI load failed. Check API v2/v1 + console.";
+  }
+}
+
+function bootDomReady(){
+  // delay a bit to avoid blocking render
+  setTimeout(runOnce, 60);
+
+  // wire reload button if exists
+  const btn = document.getElementById("vsp_runs_kpi_reload") ||
+              document.getElementById("vsp_runs_kpi_reload_btn") ||
+              document.querySelector('[data-kpi-reload]') ||
+              null;
+  if (btn){
+    btn.addEventListener("click", (ev)=>{ ev.preventDefault(); runOnce(); });
+  }
+
+  // wire window select if exists
+  const sel = document.getElementById("vsp_runs_kpi_window") ||
+              document.getElementById("vsp_runs_kpi_window_days") ||
+              document.querySelector('select[data-kpi-window]') ||
+              null;
+  if (sel){
+    sel.addEventListener("change", ()=> runOnce());
+  }
+}
+
+if (document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", bootDomReady, {once:true});
+}else{
+  bootDomReady();
+}
+// ===================== /VSP_P2_RUNS_KPI_COMPACT_DOMREADY_V1 =====================
+
+})();
+
+
+/* ===================== VSP_P2_RUNS_KPI_AUTOFILL_FROM_TEMPLATE_V1 ===================== */
+(()=>{
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return false;
+    el.textContent = (v===null || v===undefined) ? "—" : String(v);
+    return true;
+  }
+
+  async function fetchKpi(days){
+    const q = encodeURIComponent(String(days||30));
+    const urls = [`/api/ui/runs_kpi_v2?days=${q}`, `/api/ui/runs_kpi_v1?days=${q}`];
+    let last = null;
+    for (const u of urls){
+      try{
+        const r = await fetch(u, {cache:"no-store"});
+        const j = await r.json();
+        if (j && j.ok) return j;
+        last = new Error(j?.err || "not ok");
+      }catch(e){ last = e; }
+    }
+    throw last || new Error("kpi fetch failed");
+  }
+
+  function fillFromData(d){
+    // template-driven fill (no layout changes)
+    const pairs = [('vsp_runs_kpi_AMBER', 'amber'), ('vsp_runs_kpi_GREEN', 'green'), ('vsp_runs_kpi_RED', 'red'), ('vsp_runs_kpi_UNKNOWN', 'unknown'), ('vsp_runs_kpi_compact_panel', 'compact_panel'), ('vsp_runs_kpi_findings', 'findings'), ('vsp_runs_kpi_latest', 'latest'), ('vsp_runs_kpi_meta', 'meta'), ('vsp_runs_kpi_reload_btn', 'reload_btn'), ('vsp_runs_kpi_total_runs_window', 'total_runs'), ('vsp_runs_kpi_trend_overall_compact', 'trend_overall_compact'), ('vsp_runs_kpi_trend_sev_compact', 'trend_sev_compact'), ('vsp_runs_kpi_window_days', 'window_days')];
+    for (const [id, key] of pairs){
+      let v = null;
+
+      if (key === "total_runs") v = d.total_runs;
+      else if (key === "latest_rid") v = d.latest_rid;
+      else if (key === "has_findings") v = d.has_findings;
+      else if (key === "has_gate") v = d.has_gate;
+      else if (key in (d.by_overall||{})) v = d.by_overall[key];
+      else if (key.upper() in (d.by_overall||{})) v = d.by_overall[key.upper()];
+      else if (key === "green") v = d.by_overall?.GREEN;
+      else if (key === "amber") v = d.by_overall?.AMBER;
+      else if (key === "red") v = d.by_overall?.RED;
+      else if (key === "unknown") v = d.by_overall?.UNKNOWN;
+      else if (key === "ts") v = d.ts;
+
+      setText(id, v);
+    }
+  }
+
+  async function boot(){
+    try{
+      const sel = document.getElementById("vsp_runs_kpi_window_sel");
+      const days = sel ? Number(sel.value||30) : 30;
+      const d = await fetchKpi(days);
+      fillFromData(d);
+    }catch(e){
+      // silent safe (no crash)
+      // If you want debug: console.warn("[KPI_AUTOFILL] failed", e);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", ()=> setTimeout(boot, 0));
+  } else {
+    setTimeout(boot, 0);
+  }
+
+  // hook Reload KPI button if exists
+  const btn = document.getElementById("vsp_runs_kpi_reload_btn");
+  if (btn) btn.addEventListener("click", (ev)=>{ ev.preventDefault(); boot(); });
+
+/* ===================== VSP_P2_KPI_HARDFILL_IDS_V1 ===================== */
+(()=> {
+  function $id(x){ return document.getElementById(x); }
+  function set(id, v){ const el=$id(id); if(!el) return; el.textContent = (v===null||v===undefined)?"—":String(v); }
+
+  async function go(){
+    try{
+      const sel = $id("vsp_runs_kpi_window_days");
+      const days = sel ? (sel.value||"30") : "30";
+      const r = await fetch(`/api/ui/runs_kpi_v2?days=${encodeURIComponent(days)}`, {cache:"no-store"});
+      const j = await r.json();
+      if(!j || !j.ok) return;
+
+      set("vsp_runs_kpi_total_runs_window", j.total_runs);
+      set("vsp_runs_kpi_GREEN",   j.by_overall?.GREEN ?? 0);
+      set("vsp_runs_kpi_AMBER",   j.by_overall?.AMBER ?? 0);
+      set("vsp_runs_kpi_RED",     j.by_overall?.RED ?? 0);
+      set("vsp_runs_kpi_UNKNOWN", j.by_overall?.UNKNOWN ?? 0);
+      set("vsp_runs_kpi_findings", j.has_findings ?? "—");
+      set("vsp_runs_kpi_latest", j.latest_rid ?? "—");
+      const meta = $id("vsp_runs_kpi_meta");
+      if(meta) meta.textContent = `window=${days}d • total=${j.total_runs} • ts=${j.ts}`;
+    }catch(_){}
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ()=> setTimeout(go, 30), {once:true});
+  }else{
+    setTimeout(go, 30);
+  }
+  const btn = $id("vsp_runs_kpi_reload_btn");
+  if(btn) btn.addEventListener("click", (e)=>{ e.preventDefault(); go(); });
+  const sel = $id("vsp_runs_kpi_window_days");
+  if(sel) sel.addEventListener("change", ()=> go());
+})();
+ /* ===================== /VSP_P2_KPI_HARDFILL_IDS_V1 ===================== */
+
+})();
+/* ===================== /VSP_P2_RUNS_KPI_AUTOFILL_FROM_TEMPLATE_V1 ===================== */

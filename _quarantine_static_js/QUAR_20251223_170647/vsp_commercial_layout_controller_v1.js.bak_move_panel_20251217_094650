@@ -1,0 +1,138 @@
+/* VSP_COMMERCIAL_LAYOUT_CONTROLLER_V3_SAFE: route-scoped + non-destructive */
+(function(){
+  'use strict';
+  if (window.__VSP_COMMERCIAL_LAYOUT_CONTROLLER_V3_SAFE) return;
+  window.__VSP_COMMERCIAL_LAYOUT_CONTROLLER_V3_SAFE = true;
+
+  function routeName(){
+    var h = (location.hash || '').replace(/^#/, '').trim();
+    if (!h) return 'dashboard';
+    if (h[0] === '/') h = h.slice(1);
+    return (h.split('?')[0].split('&')[0] || 'dashboard').toLowerCase();
+  }
+  function setDisplay(el, show){
+    if (!el) return;
+    el.style.display = show ? '' : 'none';
+  }
+  function forceNoScale(){
+    try { document.documentElement.style.zoom = '1'; } catch(_) {}
+    try { document.body.style.zoom = '1'; } catch(_) {}
+    try { document.body.style.transform = 'none'; } catch(_) {}
+    try { document.body.style.transformOrigin = '0 0'; } catch(_) {}
+  }
+
+  function policyPanel(){
+    return document.getElementById('vsp-policy-verdict-panel') ||
+           document.getElementById('vsp-policy-panel') ||
+           document.querySelector('[data-vsp-policy-verdict-panel]');
+  }
+
+  function ensurePolicyToggle(){
+    var btn = document.getElementById('vsp-policy-verdict-toggle');
+    if (btn) return;
+    btn = document.createElement('button');
+    btn.id = 'vsp-policy-verdict-toggle';
+    btn.type = 'button';
+    btn.textContent = 'Policy / Verdict';
+    btn.style.cssText = [
+      'position:fixed','left:14px','bottom:14px','z-index:9999',
+      'padding:8px 10px','border-radius:10px',
+      'border:1px solid rgba(255,255,255,.12)',
+      'background:rgba(17,20,28,.92)','color:#e7eaf0',
+      'font-size:12px','cursor:pointer',
+      'box-shadow:0 8px 22px rgba(0,0,0,.35)'
+    ].join(';') + ';';
+    btn.addEventListener('click', function(){
+      var p = policyPanel();
+      if (!p) return;
+      p.style.display = (p.style.display === 'none') ? '' : 'none';
+    });
+    document.body.appendChild(btn);
+  }
+
+  function apply(){
+    // VSP_RUNS_SINGLE_TABLE_V1 hook
+
+    var r = routeName();
+    var isRuns = (r === 'runs') || r.startsWith('runs');
+
+    // IMPORTANT: only touch known mount points
+    var runsRoot = document.getElementById('vsp-runs-main');
+    setDisplay(runsRoot, isRuns);
+
+    // default collapse policy/verdict (if exists)
+    var pv = policyPanel();
+    if (pv && !pv.dataset.vspCollapsedInit){
+      pv.dataset.vspCollapsedInit = '1';
+      pv.style.display = 'none';
+    }
+    ensurePolicyToggle();
+    forceNoScale();
+
+    try { console.log('[VSP_COMMERCIAL_LAYOUT_CONTROLLER_V3_SAFE] apply route=', r, 'isRuns=', isRuns); } catch(_){}
+  }
+
+  var t=null;
+  function schedule(){
+    if (t) clearTimeout(t);
+    t = setTimeout(apply, 50);
+  }
+  window.addEventListener('hashchange', schedule, true);
+  document.addEventListener('DOMContentLoaded', schedule, {once:true});
+  setTimeout(schedule, 120);
+  setTimeout(schedule, 800);
+
+  // VSP_RUNS_SINGLE_TABLE_V1: de-duplicate runs views + collapse policy/verdict
+  function __vsp_hide_if_match(sel_list){
+    for (const sel of sel_list){
+      try{
+        document.querySelectorAll(sel).forEach(el=>{
+          // only hide big legacy blocks, don't hide the main runs mount
+          if(!el) return;
+          if(el.id === 'vsp-runs-main') return;
+          el.style.display = 'none';
+          el.setAttribute('data-vsp-hidden', 'runs-dedup');
+        });
+      }catch(_){}
+    }
+  }
+
+  function __vsp_policy_panel_el(){
+    return document.getElementById('vsp-policy-verdict-panel')
+        || document.getElementById('vsp_policy_panel_v1')
+        || document.getElementById('vsp_policy_panel')
+        || document.querySelector('[data-vsp-policy-verdict-panel]');
+  }
+
+  function __vsp_collapse_policy_default(){
+    const p = __vsp_policy_panel_el();
+    if(!p) return;
+    if(p.dataset.vspCollapsedInit) return;
+    p.dataset.vspCollapsedInit = '1';
+    p.style.display = 'none';
+  }
+
+  function __vsp_ensure_policy_toggle(){
+    let btn = document.getElementById('vsp-policy-verdict-toggle');
+    if(btn) return;
+    btn = document.createElement('button');
+    btn.id='vsp-policy-verdict-toggle';
+    btn.type='button';
+    btn.textContent='Policy / Verdict';
+    btn.style.cssText = [
+      'position:fixed','left:14px','bottom:14px','z-index:9999',
+      'padding:8px 10px','border-radius:10px',
+      'border:1px solid rgba(255,255,255,.12)',
+      'background:rgba(17,20,28,.92)','color:#e7eaf0',
+      'font-size:12px','cursor:pointer',
+      'box-shadow:0 8px 22px rgba(0,0,0,.35)'
+    ].join(';') + ';';
+    btn.addEventListener('click', function(){
+      const p = __vsp_policy_panel_el();
+      if(!p) return;
+      p.style.display = (p.style.display === 'none') ? '' : 'none';
+    });
+    document.body.appendChild(btn);
+  }
+
+})();

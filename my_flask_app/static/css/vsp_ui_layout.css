@@ -1,0 +1,618 @@
+.vsp-body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #07182f 0, #020713 55%, #000000 100%);
+  color: #e5f3ff;
+}
+
+.vsp-app {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+
+.vsp-sidebar {
+  width: 260px;
+  padding: 20px 16px;
+  box-sizing: border-box;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, #050816 0%, #020713 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+.vsp-logo {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.vsp-logo-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #46e4ff, #007bff 55%, #001b3a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #0b1020;
+  margin-right: 10px;
+}
+
+.vsp-logo-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.vsp-logo-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vsp-logo-subtitle {
+  font-size: 11px;
+  color: rgba(188, 214, 255, 0.8);
+}
+
+.vsp-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vsp-nav-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(216, 233, 255, 0.75);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vsp-nav-item:hover {
+  background: rgba(51, 127, 255, 0.18);
+  color: #ffffff;
+}
+
+.vsp-nav-item.is-active {
+  background: linear-gradient(90deg, #2f80ff, #1cd6ff);
+  color: #020713;
+  font-weight: 600;
+}
+
+.vsp-nav-label {
+  flex: 1;
+}
+
+.vsp-sidebar-footer {
+  margin-top: 20px;
+  font-size: 11px;
+  color: rgba(192, 214, 255, 0.6);
+}
+
+/* MAIN AREA */
+
+.vsp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 24px 24px;
+  box-sizing: border-box;
+}
+
+/* TOP BAR */
+
+.vsp-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.vsp-topbar-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.vsp-topbar-subtitle {
+  font-size: 12px;
+  color: rgba(190, 215, 255, 0.7);
+}
+
+.vsp-user-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(12, 34, 87, 0.9);
+  border: 1px solid rgba(115, 181, 255, 0.5);
+  font-size: 12px;
+}
+
+/* TABS CONTAINER */
+
+.vsp-tabs-container {
+  flex: 1;
+  border-radius: 18px;
+  padding: 18px 18px 24px;
+  background: radial-gradient(circle at top left, #071733 0, #020714 65%, #000000 100%);
+  box-shadow: 0 0 0 1px rgba(70, 120, 255, 0.35),
+    0 24px 80px rgba(0, 0, 0, 0.9);
+  overflow: auto;
+}
+
+.vsp-tab-panel {
+  display: none;
+}
+
+.vsp-tab-panel.is-active {
+  display: block;
+}
+
+/* PANEL HEADER */
+
+.vsp-panel-header {
+  margin-bottom: 16px;
+}
+
+.vsp-panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.vsp-panel-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: rgba(195, 215, 252, 0.8);
+}
+
+/* GRID / CARD / TABLE / FORM */
+
+.vsp-grid {
+  display: grid;
+}
+
+.vsp-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vsp-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.vsp-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.vsp-gap-md {
+  gap: 12px;
+}
+
+.vsp-gap-lg {
+  gap: 16px;
+}
+
+.vsp-mt-lg {
+  margin-top: 16px;
+}
+
+.vsp-card {
+  background: linear-gradient(145deg, rgba(3, 12, 38, 0.96), rgba(3, 17, 56, 0.98));
+  border-radius: 16px;
+  border: 1px solid rgba(66, 121, 255, 0.3);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+}
+
+.vsp-card-header {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(90, 136, 255, 0.35);
+}
+
+.vsp-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vsp-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vsp-card-subtitle {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: rgba(190, 215, 255, 0.75);
+}
+
+.vsp-card-body {
+  padding: 10px 14px 12px;
+}
+
+.vsp-card-footer {
+  padding: 8px 14px 10px;
+  border-top: 1px solid rgba(90, 136, 255, 0.35);
+  text-align: right;
+}
+
+.vsp-table-wrapper {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.vsp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.vsp-table th,
+.vsp-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(72, 104, 173, 0.4);
+}
+
+.vsp-table thead th {
+  background: rgba(17, 50, 113, 0.8);
+  position: sticky;
+  top: 0;
+}
+
+.vsp-table tr:nth-child(even) {
+  background: rgba(7, 20, 55, 0.75);
+}
+
+/* INPUTS & BUTTONS */
+
+.vsp-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vsp-form-group label {
+  font-size: 11px;
+  color: rgba(200, 222, 255, 0.86);
+}
+
+.vsp-input {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(90, 136, 255, 0.65);
+  background: rgba(2, 12, 38, 0.9);
+  color: #e5f3ff;
+  outline: none;
+}
+
+.vsp-input:focus {
+  border-color: #49c2ff;
+  box-shadow: 0 0 0 1px rgba(73, 194, 255, 0.55);
+}
+
+.vsp-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  background: linear-gradient(90deg, #2f80ff, #1cd6ff);
+  color: #020713;
+}
+
+.vsp-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(82, 154, 255, 0.8);
+  color: #d6e6ff;
+}
+
+.vsp-btn:hover {
+  filter: brightness(1.08);
+}
+
+.vsp-form-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.vsp-muted {
+  font-size: 11px;
+  color: rgba(177, 203, 246, 0.8);
+}
+
+/* CHART PLACEHOLDER */
+
+.vsp-chart-placeholder {
+  height: 220px;
+  border-radius: 12px;
+  background: radial-gradient(circle at top left, rgba(43, 104, 255, 0.16), transparent 70%);
+  border: 1px dashed rgba(80, 132, 255, 0.5);
+}
+
+/* Small helpers */
+
+.vsp-divider {
+  border: none;
+  border-top: 1px solid rgba(80, 120, 190, 0.7);
+  margin: 12px 0;
+}
+
+.vsp-section-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1200px) {
+  .vsp-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .vsp-sidebar {
+    display: none;
+  }
+  .vsp-main {
+    padding: 10px;
+  }
+  .vsp-tabs-container {
+    padding: 12px;
+  }
+  .vsp-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ====== DASHBOARD – CIO LAYOUT FULLSCREEN ====== */
+
+html, body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* không cho scroll trang */
+}
+
+#vsp-app {
+  min-height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.vsp-header {
+  flex: 0 0 64px;
+}
+
+.vsp-tabs {
+  flex: 0 0 40px;
+}
+
+#vsp-main {
+  flex: 1 1 auto;
+  padding: 8px 12px 12px;
+  overflow: hidden;
+}
+
+/* Root dashboard dùng 2 panel: KPI + RISK */
+.vsp-dashboard-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vsp-panel-kpi {
+  flex: 0 0 110px;
+}
+
+.vsp-panel-risk {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* TOP GRID (3 card: donut, trend, top CWE) */
+.vsp-risk-top-grid {
+  flex: 0 0 48%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr 0.8fr;
+  gap: 8px;
+}
+
+/* MID GRID (4 bảng nhỏ) */
+.vsp-risk-mid-grid {
+  flex: 0 0 32%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr 1.4fr 1.6fr;
+  gap: 8px;
+}
+
+/* COMPLIANCE BLOCK */
+.vsp-risk-compliance {
+  flex: 0 0 20%;
+  min-height: 0;
+}
+
+/* Card con bên trong risk panel */
+.vsp-risk-card {
+  background: #0b1020;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.vsp-risk-card-header {
+  margin-bottom: 4px;
+}
+
+.vsp-risk-title {
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #e5e7eb;
+}
+
+.vsp-risk-sub {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.vsp-risk-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Donut zone: chia làm donut + bytool list */
+.vsp-risk-donut-body {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 4px;
+}
+
+.vsp-risk-donut-wrap {
+  min-height: 0;
+}
+
+.vsp-risk-donut-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Trend chart */
+.vsp-risk-chart-body canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Top CWE table + các bảng nhỏ phía dưới: font compact */
+.vsp-table-compact {
+  font-size: 11px;
+}
+
+.vsp-table-compact th,
+.vsp-table-compact td {
+  padding: 3px 4px;
+}
+
+/* bảng trong mid + compliance không cuộn tràn */
+.vsp-risk-table-wrap {
+  overflow: hidden;
+}
+
+/* By-tool list cạnh donut */
+.vsp-bytool-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 11px;
+  color: #e5e7eb;
+}
+.vsp-bytool-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+/* Badge severity */
+.vsp-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.sev-critical {
+  background: #dc2626;
+  color: #fff;
+}
+.sev-high {
+  background: #f97316;
+  color: #111827;
+}
+
+/* Đảm bảo panel/risk không kéo chiều cao vượt màn */
+.vsp-panel {
+  margin: 0;
+}
+.vsp-panel-header {
+  padding-bottom: 4px;
+}
+
+/* ====== FULL HEIGHT CHO 5 TAB & 2-COLUMN LAYOUT ====== */
+
+/* Mỗi tab chiếm full chiều cao phần #vsp-main */
+.vsp-tab-pane {
+  height: 100%;
+  display: none;
+}
+.vsp-tab-pane.active {
+  display: block;
+}
+
+/* Layout 2 cột (Runs, Settings, Overrides) */
+.vsp-two-column {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* Panel body & vùng có scroll bên trong tab */
+.vsp-panel-body {
+  min-height: 0;
+}
+
+.vsp-panel-scroll {
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Data Source tab full height + bảng cuộn bên trong */
+.vsp-panel-datasource {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vsp-panel-datasource .vsp-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Footer DataSource nằm cố định dưới cùng panel */
+.vsp-ds-footer {
+  flex: 0 0 auto;
+}

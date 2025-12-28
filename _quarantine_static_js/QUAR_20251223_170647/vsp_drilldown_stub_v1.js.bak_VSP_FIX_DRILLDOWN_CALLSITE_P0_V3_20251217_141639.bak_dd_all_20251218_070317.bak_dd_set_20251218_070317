@@ -1,0 +1,60 @@
+/* VSP_DRILLDOWN_STUB_V1: guarantee drilldown factory exists early */
+(function(){
+  'use strict';
+  
+
+/* VSP_FIX_DRILLDOWN_ARTIFACTS_NOT_FUNCTION_P0_V2
+ * Fix: TypeError VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2(...) is not a function
+ * Normalize BEFORE first use:
+ *   - if function: keep
+ *   - if object with .open(): wrap as function(arg)->obj.open(arg)
+ *   - else: no-op (never throw)
+ */
+(function(){
+  'use strict';
+  if (window.__VSP_FIX_DRILLDOWN_ARTIFACTS_NOT_FUNCTION_P0_V2) return;
+  window.__VSP_FIX_DRILLDOWN_ARTIFACTS_NOT_FUNCTION_P0_V2 = 1;
+
+  function normalize(v){
+    if (typeof v === 'function') return v;
+    if (v && typeof v.open === 'function') {
+      const obj = v;
+      const fn = function(arg){ try { return obj.open(arg); } catch(e){ console.warn('[VSP][DD_FIX] open() failed', e); return null; } };
+      fn.__wrapped_from_object = true;
+      return fn;
+    }
+    const noop = function(_arg){ return null; };
+    noop.__noop = true;
+    return noop;
+  }
+
+  try {
+    // trap future assignments
+    let _val = window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2;
+    Object.defineProperty(window, 'VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2', {
+      configurable: true, enumerable: true,
+      get: function(){ return _val; },
+      set: function(v){ _val = normalize(v); }
+    });
+    window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = _val;
+  } catch(e) {
+    window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = normalize(window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2);
+  }
+})();
+
+try{
+    function __vsp_dd_stub(){
+      try{ console.info("[VSP][DD] stub invoked"); }catch(_){}
+      return { open:function(){}, show:function(){}, close:function(){}, destroy:function(){} };
+    }
+    if (typeof window !== "undefined") {
+      if (typeof window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 !== "function") {
+        window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = __vsp_dd_stub;
+      }
+      // some older code might reference this name too
+      if (typeof window.VSP_DASH_DRILLDOWN_ARTIFACTS !== "function") {
+        window.VSP_DASH_DRILLDOWN_ARTIFACTS = __vsp_dd_stub;
+      }
+    }
+  }catch(_){}
+})();

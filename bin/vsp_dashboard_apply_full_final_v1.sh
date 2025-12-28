@@ -1,0 +1,631 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_PREFIX="[VSP_DASH_FULL_FINAL]"
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UI_ROOT="$(cd "$BIN_DIR/.." && pwd)"
+TPL="$UI_ROOT/templates/vsp_dashboard_2025.html"
+
+echo "$LOG_PREFIX UI_ROOT = $UI_ROOT"
+echo "$LOG_PREFIX TPL    = $TPL"
+
+if [ ! -f "$TPL" ]; then
+  echo "$LOG_PREFIX [ERR] Không tìm thấy $TPL"
+  exit 1
+fi
+
+TS="$(date +%Y%m%d_%H%M%S)"
+BACKUP="$TPL.bak_full_final_$TS"
+cp "$TPL" "$BACKUP"
+echo "$LOG_PREFIX [BACKUP] $TPL -> $BACKUP"
+
+cat > "$TPL" << 'HTML'
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <title>VersaSecure Platform – VSP 2025</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Console patch sẽ tự load các JS cũ (runs, datasource, ...) nếu cần -->
+    <script src="/static/js/vsp_console_patch_v1.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_2025_dark.css') }}">
+  </head>
+  <body class="vsp-theme">
+    <div class="vsp-shell">
+
+      <!-- SIDEBAR -->
+      <aside class="vsp-shell-sidebar">
+        <div class="vsp-shell-brand">
+          <div class="vsp-shell-brand-badge">V</div>
+          <div>
+            VersaSecure Platform<br>
+            <span style="font-size:11px; color:#9ca3af;">Security Bundle 2025</span>
+          </div>
+        </div>
+
+        <div class="vsp-shell-tabs">
+          <button class="vsp-shell-tab-btn is-active" data-tab="#vsp-tab-dashboard">
+            <span class="dot"></span> Dashboard
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-runs">
+            <span class="dot"></span> Runs & Reports
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-datasource">
+            <span class="dot"></span> Data Source
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-settings">
+            <span class="dot"></span> Settings
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-rules">
+            <span class="dot"></span> Rule Overrides
+          </button>
+        </div>
+
+        <div class="vsp-shell-footer">
+          VSP 2025 • FULL_EXT<br>
+          <span id="vsp-last-run-footer">Last run: —</span>
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="vsp-shell-main">
+        <div class="vsp-shell-header-row">
+          <div class="vsp-shell-title">
+            <h1>Security Posture Overview</h1>
+            <p>CIO-level view của toàn bộ findings từ 8 tool (FULL_EXT).</p>
+          </div>
+          <div class="vsp-shell-header-kpi">
+            <div>
+              <span class="label">Last run</span><br>
+              <span class="value" id="vsp-last-run-header">—</span>
+            </div>
+            <div>
+              <span class="label">Score</span><br>
+              <span class="value" id="vsp-last-score-header">—/100</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="vsp-tabs-content">
+
+          <!-- TAB 1 – DASHBOARD -->
+          <section id="vsp-tab-dashboard" class="vsp-tab-pane is-active">
+            <div id="vsp-dashboard-kpi-zone">
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Total findings</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-total-findings">-</div>
+                  <div class="vsp-kpi-sub">All tools, all targets</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Critical</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-critical">-</div>
+                  <div class="vsp-kpi-sub">Blocking issues</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">High</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-high">-</div>
+                  <div class="vsp-kpi-sub">High-risk vulnerabilities</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Medium</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-medium">-</div>
+                  <div class="vsp-kpi-sub">Medium severity findings</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Low</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-low">-</div>
+                  <div class="vsp-kpi-sub">Low-priority issues</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Info + Trace</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-info-trace">-</div>
+                  <div class="vsp-kpi-sub">Informational & trace findings</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Security posture score</div>
+                  <div class="vsp-kpi-value">
+                    <span id="vsp-kpi-score">-/100</span>
+                  </div>
+                  <div class="vsp-kpi-score-pill">
+                    <span>Overall score</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Top risky tool</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-top-tool">-</div>
+                  <div class="vsp-kpi-sub">Tool with most CRIT/HIGH</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Top impacted CWE</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-top-cwe">-</div>
+                  <div class="vsp-kpi-sub">Most frequent CWE across findings</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Top vulnerable module</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-top-module">-</div>
+                  <div class="vsp-kpi-sub">Dependency with most severe findings</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="vsp-charts-grid" style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Severity distribution & trend</div>
+                  <div class="vsp-card-meta">Donut + CRIT/HIGH trend (from /api/vsp/dashboard_v3)</div>
+                </div>
+                <div id="vsp-dashboard-charts-main"></div>
+              </div>
+
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Top exposure overview</div>
+                  <div class="vsp-card-meta">By tool / CWE / module</div>
+                </div>
+                <div id="vsp-dashboard-charts-side"></div>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Priority & Compliance (placeholder)</div>
+                  <div class="vsp-card-meta">
+                    Zone này giữ layout bản thương mại; V2 sẽ mapping ISO 27001 / OWASP ASVS.
+                  </div>
+                </div>
+                <p style="font-size:12px; color:#9ca3af; margin-top:6px;">
+                  Nội dung mô tả mức độ tuân thủ, khuyến nghị remediation theo chuẩn ISO 27001 / OWASP ASVS
+                  sẽ được hoàn thiện trong phiên bản V2. Hiện tại giữ layout để trình diễn bản thương mại V1.5.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 2 – RUNS -->
+          <section id="vsp-tab-runs" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Runs & Trend</div>
+                <div class="vsp-card-meta">
+                  Lịch sử runs từ summary_by_run.json • CRIT/HIGH trend theo thời gian.
+                </div>
+              </div>
+
+              <div class="vsp-filters-row">
+                <input class="vsp-input" id="vsp-runs-search" placeholder="Search by run id / tag...">
+                <button class="vsp-button" id="vsp-runs-refresh">Refresh</button>
+              </div>
+
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table" id="vsp-runs-table"></table>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Run trend (CRIT/HIGH)</div>
+                  <div class="vsp-card-meta">
+                    Vùng cho chart run trend (V2).
+                  </div>
+                </div>
+                <div id="vsp-runs-trend"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 3 – DATA SOURCE -->
+          <section id="vsp-tab-datasource" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Findings Data Source</div>
+                <div class="vsp-card-meta">
+                  Unified findings_unified.json • filter & mini analytics.
+                </div>
+              </div>
+
+              <div class="vsp-filters-row">
+                <select class="vsp-select" id="vsp-ds-severity">
+                  <option value="">All severities</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                  <option value="INFO">Info</option>
+                  <option value="TRACE">Trace</option>
+                </select>
+                <input class="vsp-input" id="vsp-ds-search" placeholder="Search in rule / path / CWE...">
+              </div>
+
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table" id="vsp-ds-table"></table>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 4 – SETTINGS -->
+          <section id="vsp-tab-settings" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Settings</div>
+                <div class="vsp-card-meta">
+                  Cấu hình tool / profile / rule mapping • /api/vsp/settings_ui_v1.
+                </div>
+              </div>
+              <div id="vsp-settings-root">
+                <p style="font-size:12px; color:#9ca3af;">
+                  Settings sẽ hiển thị JSON cấu hình hiện tại, lấy từ /api/vsp/settings_ui_v1.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 5 – RULE OVERRIDES -->
+          <section id="vsp-tab-rules" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Rule Overrides</div>
+                <div class="vsp-card-meta">
+                  Quản lý ignore / downgrade / custom rule • /api/vsp/rule_overrides_ui_v1.
+                </div>
+              </div>
+              <div id="vsp-rules-root">
+                <p style="font-size:12px; color:#9ca3af;">
+                  Nếu chưa có override, vùng này sẽ hiển thị thông báo "No rule overrides defined yet".
+                </p>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+
+    <!-- BIND DASHBOARD KPI -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const log = (...args) => console.log('[VSP_KPI_FORCE_FINAL]', ...args);
+
+        function setText(id, value, suffix) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (value === null || value === undefined || value === '-') {
+            el.textContent = '-';
+          } else {
+            el.textContent = String(value) + (suffix || '');
+          }
+        }
+
+        fetch('/api/vsp/dashboard_v3')
+          .then(r => r.json())
+          .then(data => {
+            log('Dashboard data', data);
+            const sev = data.severity_cards || {};
+
+            setText('vsp-kpi-total-findings', data.total_findings);
+            setText('vsp-kpi-critical', sev.CRITICAL || 0);
+            setText('vsp-kpi-high', sev.HIGH || 0);
+            setText('vsp-kpi-medium', sev.MEDIUM || 0);
+            setText('vsp-kpi-low', sev.LOW || 0);
+
+            const infoCount  = sev.INFO  || 0;
+            const traceCount = sev.TRACE || 0;
+            setText('vsp-kpi-info-trace', infoCount + traceCount);
+
+            const scoreVal = (data.security_posture_score !== undefined && data.security_posture_score !== null)
+              ? data.security_posture_score
+              : '-';
+            setText('vsp-kpi-score', scoreVal, '/100');
+
+            if (data.top_risky_tool) {
+              setText('vsp-kpi-top-tool', data.top_risky_tool.label || data.top_risky_tool.id || '-', '');
+            }
+            if (data.top_impacted_cwe) {
+              setText('vsp-kpi-top-cwe', data.top_impacted_cwe.label || data.top_impacted_cwe.id || '-', '');
+            }
+            if (data.top_vulnerable_module) {
+              setText('vsp-kpi-top-module', data.top_vulnerable_module.label || data.top_vulnerable_module.id || '-', '');
+            }
+
+            if (data.latest_run_id) {
+              setText('vsp-last-run-header', data.latest_run_id, '');
+              const footer = document.getElementById('vsp-last-run-footer');
+              if (footer) footer.textContent = 'Last run: ' + data.latest_run_id;
+            }
+
+            const scoreHeader = (data.security_posture_score !== undefined && data.security_posture_score !== null)
+              ? data.security_posture_score
+              : '-';
+            setText('vsp-last-score-header', scoreHeader, '/100');
+          })
+          .catch(err => {
+            console.error('[VSP_KPI_FORCE_FINAL] error loading dashboard_v3', err);
+          });
+      });
+    </script>
+
+    <!-- BIND 4 TAB CÒN LẠI -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const log = (...args) => console.log('[VSP_TABS_FORCE_FINAL]', ...args);
+
+        function ensureTableHeader(tableEl, headers) {
+          if (!tableEl) return;
+          tableEl.innerHTML = '';
+          const thead = document.createElement('thead');
+          const tr = document.createElement('tr');
+          headers.forEach(h => {
+            const th = document.createElement('th');
+            th.textContent = h;
+            tr.appendChild(th);
+          });
+          thead.appendChild(tr);
+          tableEl.appendChild(thead);
+          const tbody = document.createElement('tbody');
+          tableEl.appendChild(tbody);
+          return tbody;
+        }
+
+        // Runs
+        function loadRunsBasic() {
+          const table = document.getElementById('vsp-runs-table');
+          if (!table) { log('No #vsp-runs-table'); return; }
+
+          fetch('/api/vsp/runs_index_v3?limit=50')
+            .then(r => r.json())
+            .then(data => {
+              log('Runs data', data);
+              let runs = [];
+              if (Array.isArray(data)) runs = data;
+              else if (Array.isArray(data.items)) runs = data.items;
+              else if (Array.isArray(data.runs)) runs = data.runs;
+
+              const tbody = ensureTableHeader(table, ['Run ID', 'Started at', 'Total findings', 'CRIT+HIGH']);
+              if (!tbody) return;
+
+              if (!runs || runs.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 4;
+                td.textContent = 'No runs found.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+              }
+
+              runs.slice(0, 50).forEach(run => {
+                const tr = document.createElement('tr');
+
+                const runId = run.run_id || run.id || '-';
+                const started = run.started_at || run.started || run.created_at || '-';
+                const total = run.total_findings ?? run.findings_total ?? '-';
+
+                const bySev = run.by_severity || run.summary_by_severity || {};
+                const crit = bySev.CRITICAL || 0;
+                const high = bySev.HIGH || 0;
+                const critHigh = (crit || 0) + (high || 0);
+
+                [runId, started, total, critHigh].forEach((val, idx) => {
+                  const td = document.createElement('td');
+                  if (idx === 3) {
+                    const span = document.createElement('span');
+                    span.className = 'vsp-pill vsp-pill-crit';
+                    span.textContent = String(val);
+                    td.appendChild(span);
+                  } else {
+                    td.textContent = (val === null || val === undefined) ? '-' : String(val);
+                  }
+                  tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+              });
+            })
+            .catch(err => {
+              console.error('[VSP_TABS_FORCE_FINAL] error runs_index_v3', err);
+            });
+        }
+
+        // Data Source
+        function loadDataSourceBasic() {
+          const table = document.getElementById('vsp-ds-table');
+          if (!table) { log('No #vsp-ds-table'); return; }
+
+          fetch('/api/vsp/datasource_v2?limit=50')
+            .then(r => r.json())
+            .then(data => {
+              log('Datasource data', data);
+              let items = [];
+              if (Array.isArray(data)) items = data;
+              else if (Array.isArray(data.items)) items = data.items;
+
+              const tbody = ensureTableHeader(
+                table,
+                ['Severity', 'Tool', 'Rule / CWE / ID', 'Location / Path']
+              );
+              if (!tbody) return;
+
+              if (!items || items.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 4;
+                td.textContent = 'No findings.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+              }
+
+              items.slice(0, 50).forEach(f => {
+                const tr = document.createElement('tr');
+
+                const sev = f.severity || '-';
+                const tool = f.tool || f.source || f.scanner || '-';
+                const rule = f.rule_id || f.rule || f.cwe || f.vuln_id || f.id || '-';
+                const loc = f.location || f.file || f.filepath || f.path || '-';
+
+                const sevTd = document.createElement('td');
+                const pill = document.createElement('span');
+                let cls = 'vsp-pill ';
+                switch (String(sev).toUpperCase()) {
+                  case 'CRITICAL': cls += 'vsp-pill-crit'; break;
+                  case 'HIGH': cls += 'vsp-pill-high'; break;
+                  case 'MEDIUM': cls += 'vsp-pill-med'; break;
+                  case 'LOW': cls += 'vsp-pill-low'; break;
+                  case 'INFO': cls += 'vsp-pill-info'; break;
+                  case 'TRACE': cls += 'vsp-pill-trace'; break;
+                  default: cls += 'vsp-pill-trace'; break;
+                }
+                pill.className = cls;
+                pill.textContent = sev;
+                sevTd.appendChild(pill);
+                tr.appendChild(sevTd);
+
+                [tool, rule, loc].forEach(val => {
+                  const td = document.createElement('td');
+                  td.textContent = (val === null || val === undefined) ? '-' : String(val);
+                  tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+              });
+            })
+            .catch(err => {
+              console.error('[VSP_TABS_FORCE_FINAL] error datasource_v2', err);
+            });
+        }
+
+        // Settings
+        function loadSettingsBasic() {
+          const root = document.getElementById('vsp-settings-root');
+          if (!root) { log('No #vsp-settings-root'); return; }
+
+          fetch('/api/vsp/settings_ui_v1')
+            .then(r => r.json())
+            .then(data => {
+              log('Settings data', data);
+              const settings = data.settings || data || {};
+              const pre = document.createElement('pre');
+              pre.style.fontSize = '11px';
+              pre.style.color = '#e5e7eb';
+              pre.style.background = 'rgba(15,23,42,0.9)';
+              pre.style.borderRadius = '12px';
+              pre.style.padding = '10px 12px';
+              pre.textContent = JSON.stringify(settings, null, 2);
+              root.innerHTML = '';
+              root.appendChild(pre);
+            })
+            .catch(err => {
+              console.error('[VSP_TABS_FORCE_FINAL] error settings_ui_v1', err);
+            });
+        }
+
+        // Rules
+        function loadRulesBasic() {
+          const root = document.getElementById('vsp-rules-root');
+          if (!root) { log('No #vsp-rules-root'); return; }
+
+          fetch('/api/vsp/rule_overrides_ui_v1')
+            .then(r => r.json())
+            .then(data => {
+              log('Rules data', data);
+              const overrides = data.overrides || data.items || [];
+
+              if (!overrides || overrides.length === 0) {
+                root.innerHTML = '<p style="font-size:12px; color:#9ca3af;">No rule overrides defined yet.</p>';
+                return;
+              }
+
+              const table = document.createElement('table');
+              table.className = 'vsp-table';
+
+              const thead = document.createElement('thead');
+              const htr = document.createElement('tr');
+              ['Rule / ID', 'Action', 'New severity', 'Note'].forEach(h => {
+                const th = document.createElement('th');
+                th.textContent = h;
+                htr.appendChild(th);
+              });
+              thead.appendChild(htr);
+              table.appendChild(thead);
+
+              const tbody = document.createElement('tbody');
+              overrides.forEach(o => {
+                const tr = document.createElement('tr');
+                const rule = o.rule_id || o.id || o.pattern || '-';
+                const action = o.action || o.mode || '-';
+                const newSev = o.new_severity || o.severity || '-';
+                const note = o.note || o.reason || '';
+
+                [rule, action, newSev, note].forEach((val, idx) => {
+                  const td = document.createElement('td');
+                  if (idx === 2) {
+                    const span = document.createElement('span');
+                    span.className = 'vsp-pill vsp-pill-' + String(val).toLowerCase();
+                    span.textContent = val;
+                    td.appendChild(span);
+                  } else {
+                    td.textContent = (val === null || val === undefined) ? '-' : String(val);
+                  }
+                  tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+              });
+              table.appendChild(tbody);
+
+              const wrapper = document.createElement('div');
+              wrapper.className = 'vsp-table-wrapper';
+              wrapper.appendChild(table);
+
+              root.innerHTML = '';
+              root.appendChild(wrapper);
+            })
+            .catch(err => {
+              console.error('[VSP_TABS_FORCE_FINAL] error rule_overrides_ui_v1', err);
+            });
+        }
+
+        loadRunsBasic();
+        loadDataSourceBasic();
+        loadSettingsBasic();
+        loadRulesBasic();
+      });
+    </script>
+  </body>
+</html>
+HTML
+
+echo "$LOG_PREFIX [DONE] Đã ghi lại full layout + bind data cho $TPL"

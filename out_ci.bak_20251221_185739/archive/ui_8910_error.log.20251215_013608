@@ -1,0 +1,514 @@
+[2025-12-15 01:33:41 +0700] [85690] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 01:33:41 +0700] [85690] [INFO] Listening at: http://127.0.0.1:8910 (85690)
+[2025-12-15 01:33:41 +0700] [85690] [INFO] Using worker: gthread
+[2025-12-15 01:33:41 +0700] [85692] [INFO] Booting worker with pid: 85692
+[2025-12-15 01:33:42,734] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251215_005247 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,831] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,835] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,839] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_DEV_TEST_20251211_154454 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,843] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_DEV_TEST_20251211_153822 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,846] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_130059 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,850] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_122856 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,854] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_115532 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,857] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_110807 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,861] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_100355 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,865] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_095208 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:33:48,868] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,862] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,865] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,868] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_DEV_TEST_20251211_154454 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,872] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_DEV_TEST_20251211_153822 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,875] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_130059 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,878] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_122856 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,882] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_115532 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,885] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_110807 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,888] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_100355 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,891] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_095208 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:34:48,895] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,844] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,848] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251211_154648 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,852] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_DEV_TEST_20251211_154454 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,856] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_DEV_TEST_20251211_153822 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,860] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_130059 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,863] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_122856 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,868] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_115532 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,871] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_110807 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,875] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_100355 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,878] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_FULL_EXT_20251211_095208 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'
+[2025-12-15 01:35:48,882] ERROR in app: Exception on /api/vsp/run_status_v2/RUN_VSP_CI_20251213_085816 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: _vsp_force_override_run_status_v2.<locals>.fixed() got an unexpected keyword argument 'rid'

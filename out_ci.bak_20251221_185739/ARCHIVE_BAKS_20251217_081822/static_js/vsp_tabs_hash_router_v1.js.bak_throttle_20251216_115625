@@ -1,0 +1,501 @@
+(function () {
+  console.log('[VSP_TABS_ROUTER_V1] clean router + header bind loaded');
+
+  const DEFAULT_TAB = 'dashboard';
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function fmtInt(n) {
+    if (n == null || isNaN(n)) return '--';
+    return Number(n).toLocaleString('en-US');
+  }
+
+  function fmtDate(s) {
+    if (!s) return '--';
+    try {
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return String(s);
+      return d.toLocaleString();
+    } catch (e) {
+      return String(s);
+    }
+  }
+
+  // ====== PANE SETUP ======
+  const PANES = {
+    dashboard: 'vsp-dashboard-main',
+    runs:      'vsp-runs-main',
+    datasource:'vsp-datasource-main',
+    settings:  'vsp-settings-main',
+    rules:     'panel-rules',
+  };
+
+  function ensureExtraPanes() {
+    const dash = $(PANES.dashboard);
+    if (!dash) {
+      console.warn('[VSP_TABS_ROUTER_V1] Không thấy #' + PANES.dashboard + ' – chỉ dùng được dashboard.');
+      return;
+    }
+    const parent = dash.parentNode;
+    const baseStyle = dash.getAttribute('style') || '';
+
+    function ensurePane(key) {
+      const id = PANES[key];
+      if (!$(id)) {
+        const div = document.createElement('div');
+        div.id = id;
+        div.setAttribute('style', baseStyle);
+        div.style.display = 'none';
+        parent.appendChild(div);
+        console.log('[VSP_TABS_ROUTER_V1] Created pane #' + id);
+      }
+    }
+
+    ensurePane('runs');
+    ensurePane('datasource');
+    ensurePane('settings');
+    ensurePane('rules');
+  }
+
+  // ====== HEADER TABS BIND ======
+
+  function getTabNameFromButton(btn) {
+    if (!btn) return '';
+
+    let tab =
+      btn.getAttribute('data-vsp-tab') ||
+      btn.getAttribute('data-tab') ||
+      (btn.dataset && (btn.dataset.vspTab || btn.dataset.tab)) ||
+      '';
+
+    if (!tab) {
+      const href = btn.getAttribute('href');
+      if (href && href.indexOf('#') === 0) {
+        tab = href.slice(1);
+      }
+    }
+
+    tab = (tab || '').trim();
+
+    // Map một số tên thường gặp về chuẩn
+    if (tab === 'home') tab = 'dashboard';
+    if (tab === 'runs-report' || tab === 'runs_reports') tab = 'runs';
+    if (tab === 'data') tab = 'datasource';
+
+    return tab;
+  }
+
+  function updateActiveHeader(tab) {
+    const buttons = document.querySelectorAll(
+      '[data-vsp-tab], [data-tab], .vsp-tab-button, .vsp-tab-btn'
+    );
+    buttons.forEach(function (btn) {
+      const t = getTabNameFromButton(btn);
+      if (!t) return;
+      if (t === tab) {
+        btn.classList.add('vsp-tab-active');
+      } else {
+        btn.classList.remove('vsp-tab-active');
+      }
+    });
+  }
+
+  function bindHeaderTabs() {
+    const buttons = document.querySelectorAll(
+      '[data-vsp-tab], [data-tab], .vsp-tab-button, .vsp-tab-btn'
+    );
+    if (!buttons.length) {
+      console.warn('[VSP_TABS_ROUTER_V1] Không tìm thấy header tab buttons để bind.');
+      return;
+    }
+    let bound = 0;
+    buttons.forEach(function (btn) {
+      const tab = getTabNameFromButton(btn);
+      if (!tab) return;
+
+      btn.addEventListener('click', function (ev) {
+        // Nếu là <a href="#..."> thì chặn default để khỏi nhảy lên đầu trang
+        if (ev && typeof ev.preventDefault === 'function') {
+          ev.preventDefault();
+        }
+        console.log('[VSP_TABS_ROUTER_V1] tab click ->', tab);
+        window.location.hash = '#' + tab;
+      });
+      bound++;
+    });
+    console.log('[VSP_TABS_ROUTER_V1] Bound', bound, 'header tab buttons');
+  }
+
+  // ====== RENDER HELPERS ======
+
+  async function fetchRuns(limit) {
+    const url = `/api/vsp/runs_index_v3_fs?limit=${limit || 40}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.items)) return data.items;
+    return [];
+  }
+
+  function renderRunsPane() {
+    
+    // === VSP_COMMERCIAL_RUNS_MASTER_GUARD_V1 ===
+    if (window.VSP_COMMERCIAL_RUNS_MASTER) {
+      console.log('[VSP_TABS_ROUTER_V1] commercial runs master enabled -> skip legacy runs hydrate');
+      return;
+    }
+    // === END VSP_COMMERCIAL_RUNS_MASTER_GUARD_V1 ===
+const pane = $(PANES.runs);
+    if (!pane) return;
+    pane.innerHTML = `
+      <div style="padding:16px; font-size:12px; opacity:0.7;">
+        Đang tải danh sách runs từ <code>/api/vsp/runs_index_v3</code>...
+      </div>
+    `;
+    fetchRuns(40).then(items => {
+      if (!items || items.length === 0) {
+        pane.innerHTML = `
+          <div style="padding:16px; font-size:13px; opacity:0.7;">
+            Không có run nào trong lịch sử (runs_index_v3 trả về rỗng).
+          </div>
+        `;
+        return;
+      }
+
+      const rows = items.map(item => {
+        const runId   = item.run_id || item.id || '--';
+        const runType = item.run_type || item.type || 'FULL_EXT';
+        const created = item.started_at || item.created_at || item.created || '';
+        const total   = item.total_findings != null ? item.total_findings : (item.total || 0);
+        const status  = item.status || item.result || 'DONE';
+
+        return `
+          <tr style="border-bottom:1px solid rgba(148,163,184,0.2);">
+            <td style="padding:8px 10px; font-size:12px; white-space:nowrap;">
+              <code style="font-size:11px; opacity:0.9;">${runId}</code>
+            </td>
+            <td style="padding:8px 10px; font-size:12px; text-transform:uppercase; opacity:0.8;">
+              ${runType}
+            </td>
+            <td style="padding:8px 10px; font-size:12px;">
+              ${fmtDate(created)}
+            </td>
+            <td style="padding:8px 10px; font-size:12px; text-align:right;">
+              ${fmtInt(total)}
+            </td>
+            <td style="padding:8px 10px; font-size:12px;">
+              <span style="
+                display:inline-block;
+                padding:2px 8px;
+                border-radius:999px;
+                font-size:11px;
+                text-transform:uppercase;
+                letter-spacing:0.05em;
+                background:rgba(34,197,94,0.12);
+                border:1px solid rgba(34,197,94,0.5);
+                color:#bbf7d0;
+              ">
+                ${status}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      pane.innerHTML = `
+        <div style="padding:16px 16px 8px 16px;">
+          <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+            Runs &amp; Reports
+          </div>
+          <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+            Lịch sử scan mới nhất từ SECURITY_BUNDLE (runs_index_v3)
+          </div>
+        </div>
+        <div style="padding:0 16px 16px 16px;">
+          <div style="overflow:auto; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.95);">
+            <table style="width:100%; border-collapse:collapse; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color:#e5e7eb;">
+              <thead>
+                <tr style="background:rgba(15,23,42,0.98);">
+                  <th style="padding:8px 10px; font-size:11px; text-align:left; opacity:0.7; text-transform:uppercase;">Run ID</th>
+                  <th style="padding:8px 10px; font-size:11px; text-align:left; opacity:0.7; text-transform:uppercase;">Type</th>
+                  <th style="padding:8px 10px; font-size:11px; text-align:left; opacity:0.7; text-transform:uppercase;">Started</th>
+                  <th style="padding:8px 10px; font-size:11px; text-align:right; opacity:0.7; text-transform:uppercase;">Total Findings</th>
+                  <th style="padding:8px 10px; font-size:11px; text-align:left; opacity:0.7; text-transform:uppercase;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      console.log('[VSP_TABS_ROUTER_V1] Runs pane hydrated với', items.length, 'items');
+    }).catch(e => {
+      console.error('[VSP_TABS_ROUTER_V1] Lỗi khi load runs_index_v3', e);
+      pane.innerHTML = `
+        <div style="padding:16px; font-size:12px; color:#fecaca;">
+          Lỗi khi tải runs_index_v3: ${e}
+        </div>
+      `;
+    });
+  }
+
+  async function fetchDatasource(limit) {
+    const url = `/api/vsp/datasource_v2?limit=${limit || 500}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.items)) return data.items;
+    return [];
+  }
+
+  function renderDatasourcePane() {
+    const pane = $(PANES.datasource);
+    if (!pane) return;
+    pane.innerHTML = `
+      <div style="padding:16px; font-size:12px; opacity:0.7;">
+        Đang tải findings từ <code>/api/vsp/datasource_v2</code>...
+      </div>
+    `;
+    fetchDatasource(500).then(items => {
+      if (!items || items.length === 0) {
+        pane.innerHTML = `
+          <div style="padding:16px; font-size:13px; opacity:0.7;">
+            Không có finding nào (datasource_v2 rỗng).
+          </div>
+        `;
+        return;
+      }
+
+      const rows = items.slice(0, 300).map((f, idx) => {
+        const tool  = f.tool  || f.source || '--';
+        const sev   = f.severity || f.level || 'INFO';
+        const rule  = f.rule_id || f.check_id || f.rule || '--';
+        const file  = f.file || f.path || '--';
+        const line  = f.line || f.start_line || f.end_line || '';
+        return `
+          <tr style="border-bottom:1px solid rgba(148,163,184,0.15);">
+            <td style="padding:6px 8px; font-size:11px; opacity:0.7;">${idx + 1}</td>
+            <td style="padding:6px 8px; font-size:11px;">${sev}</td>
+            <td style="padding:6px 8px; font-size:11px;">${tool}</td>
+            <td style="padding:6px 8px; font-size:11px;">${rule}</td>
+            <td style="padding:6px 8px; font-size:11px;">${file}</td>
+            <td style="padding:6px 8px; font-size:11px; text-align:right;">${line}</td>
+          </tr>
+        `;
+      }).join('');
+
+      pane.innerHTML = `
+        <div style="padding:16px 16px 8px 16px;">
+          <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+            Data Source
+          </div>
+          <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+            Bảng unified findings (tối đa 300 dòng, từ datasource_v2)
+          </div>
+        </div>
+        <div style="padding:0 16px 16px 16px;">
+          <div style="overflow:auto; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.95);">
+            <table style="width:100%; border-collapse:collapse; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color:#e5e7eb;">
+              <thead>
+                <tr style="background:rgba(15,23,42,0.98);">
+                  <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">#</th>
+                  <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">Sev</th>
+                  <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">Tool</th>
+                  <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">Rule</th>
+                  <th style="padding:6px 8px; font-size:11px; text-align:left; opacity:0.7;">File</th>
+                  <th style="padding:6px 8px; font-size:11px; text-align:right; opacity:0.7;">Line</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      console.log('[VSP_TABS_ROUTER_V1] Datasource pane hydrated với', items.length, 'items');
+  if (window.vspInitDatasourceTab) {
+    try { window.vspInitDatasourceTab(); }
+    catch (e) {
+      console.error('[VSP_TABS_ROUTER_V1] vspInitDatasourceTab error:', e);
+    }
+  }
+    }).catch(e => {
+      console.error('[VSP_TABS_ROUTER_V1] Lỗi khi load datasource_v2', e);
+      pane.innerHTML = `
+        <div style="padding:16px; font-size:12px; color:#fecaca;">
+          Lỗi khi tải datasource_v2: ${e}
+        </div>
+      `;
+    });
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  }
+
+  function renderSettingsPane() {
+    const pane = $(PANES.settings);
+    if (!pane) return;
+    pane.innerHTML = `
+      <div style="padding:16px; font-size:12px; opacity:0.7;">
+        Đang tải settings từ <code>/api/vsp/settings_ui_v1</code>...
+      </div>
+    `;
+    fetchJson('/api/vsp/settings_ui_v1').then(data => {
+      const pretty = JSON.stringify(data, null, 2);
+      pane.innerHTML = `
+        <div style="padding:16px 16px 8px 16px;">
+          <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+            Settings
+          </div>
+          <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+            Cấu hình SECURITY_BUNDLE (settings_ui_v1)
+          </div>
+        </div>
+        <div style="padding:0 16px 16px 16px;">
+          <pre style="
+            margin:0;
+            padding:16px;
+            border-radius:10px;
+            border:1px solid rgba(148,163,184,0.25);
+            background:rgba(15,23,42,0.96);
+            font-size:11px;
+            line-height:1.4;
+            overflow:auto;
+            color:#e5e7eb;
+          ">${pretty}</pre>
+        </div>
+      `;
+      console.log('[VSP_TABS_ROUTER_V1] Settings pane hydrated');
+    }).catch(e => {
+      console.error('[VSP_TABS_ROUTER_V1] Lỗi khi load settings_ui_v1', e);
+      pane.innerHTML = `
+        <div style="padding:16px; font-size:12px; color:#fecaca;">
+          Lỗi khi tải settings_ui_v1: ${e}
+        </div>
+      `;
+    });
+  }
+
+  function renderRulesPane() {
+    const pane = $(PANES.rules);
+    if (!pane) return;
+    pane.innerHTML = `
+      <div style="padding:16px; font-size:12px; opacity:0.7;">
+        Đang tải rule overrides từ <code>/api/vsp/rule_overrides_ui_v1</code>...
+      </div>
+    `;
+    fetchJson('/api/vsp/rule_overrides_ui_v1').then(data => {
+      const pretty = JSON.stringify(data, null, 2);
+      pane.innerHTML = `
+        <div style="padding:16px 16px 8px 16px;">
+          <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+            Rule Overrides
+          </div>
+          <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+            Mapping / override rule (rule_overrides_ui_v1)
+          </div>
+        </div>
+        <div style="padding:0 16px 16px 16px;">
+          <pre style="
+            margin:0;
+            padding:16px;
+            border-radius:10px;
+            border:1px solid rgba(148,163,184,0.25);
+            background:rgba(15,23,42,0.96);
+            font-size:11px;
+            line-height:1.4;
+            overflow:auto;
+            color:#e5e7eb;
+          ">${pretty}</pre>
+        </div>
+      `;
+      console.log('[VSP_TABS_ROUTER_V1] Rules pane hydrated');
+    }).catch(e => {
+      console.error('[VSP_TABS_ROUTER_V1] Lỗi khi load rule_overrides_ui_v1', e);
+      pane.innerHTML = `
+        <div style="padding:16px; font-size:12px; color:#fecaca;">
+          Lỗi khi tải rule_overrides_ui_v1: ${e}
+        </div>
+      `;
+    });
+  }
+
+  // ====== ROUTER ======
+  const hydrated = {
+    runs: false,
+    datasource: false,
+    settings: false,
+    rules: false,
+  };
+
+  function showTab(tab) {
+    tab = tab || DEFAULT_TAB;
+    console.log('[VSP_TABS_ROUTER_V1] handleHashChange ->', tab);
+
+    Object.keys(PANES).forEach(key => {
+      const el = $(PANES[key]);
+      if (!el) return;
+      el.style.display = (key === tab) ? '' : 'none';
+    });
+
+    updateActiveHeader(tab);
+
+    if (tab === 'runs' && !hydrated.runs) {
+      hydrated.runs = true;
+      renderRunsPane();
+    } else if (tab === 'datasource' && !hydrated.datasource) {
+      hydrated.datasource = true;
+      renderDatasourcePane();
+    } else if (tab === 'settings' && !hydrated.settings) {
+      hydrated.settings = true;
+      renderSettingsPane();
+    } else if (tab === 'rules' && !hydrated.rules) {
+      hydrated.rules = true;
+      renderRulesPane();
+    }
+  }
+
+  function handleHashChange() {
+    const raw = window.location.hash || '';
+    const h = raw.replace('#', '') || DEFAULT_TAB;
+    showTab(h);
+  }
+
+  function init() {
+    ensureExtraPanes();
+    bindHeaderTabs();
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init);
+  }
+})();
+
+// === VSP_P2_NORMALIZE_TAB_HASH_V1 ===
+(function(){
+  try{
+    var h = String(window.location.hash || "");
+    var m = h.match(/^#tab=([a-z0-9_-]+)(.*)$/i);
+    if(m){
+      var tab = m[1];
+      var rest = m[2] || "";
+      window.location.hash = "#" + tab + rest;
+    }
+  }catch(e){}
+})();
+
+// ROUTE_RULES_V1: enabled 'rules' route

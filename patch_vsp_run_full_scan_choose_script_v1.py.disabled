@@ -1,0 +1,96 @@
+from pathlib import Path
+import re
+
+ROOT = Path("/home/test/Data/SECURITY_BUNDLE/ui")
+p = ROOT / "vsp_demo_app.py"
+
+txt = p.read_text(encoding="utf-8")
+orig = txt
+
+pattern = r"""
+def\s+api_run_full_scan_v3\s*\([^)]*\):\s*
+    \"\"\"[\s\S]*?\"\"\"\s*
+    payload\s*=\s*_request_for_run_full_scan_v3\.get_json\(silent=True\)\s*or\s*\{\}\s*
+    profile\s*=\s*payload\.get\("profile"\)\s*
+    source_root\s*=\s*payload\.get\("source_root"\)\s*
+    target_url\s*=\s*payload\.get\("target_url"\)\s*
+\s*
+    script\s*=\s*_ROOT_VSP_V3\s*/\s*"bin"\s*/\s*"vsp_selfcheck_full"\s*
+\s*
+    if\s+not\s+script\.is_file\(\):\s*
+        return\s+_jsonify_for_run_full_scan_v3\(
+            ok=False,
+            error=f"Script not found: \{script\}",
+        \),\s*500
+"""
+m = re.search(pattern, txt, flags=re.VERBOSE)
+
+if not m:
+    print("[ERR] Không tìm thấy block api_run_full_scan_v3 cũ để thay thế.")
+    raise SystemExit(1)
+
+replacement = r"""
+def api_run_full_scan_v3():
+    """
+    Trigger FULL scan từ UI gateway (port 8910).
+    Gọi script trong bin/ ở ROOT_VSP (tự động chọn tên tồn tại).
+    """
+    payload = _request_for_run_full_scan_v3.get_json(silent=True) or {}
+    profile = payload.get("profile")
+    source_root = payload.get("source_root")
+    target_url = payload.get("target_url")
+
+    # Tự chọn script thật trong bin/
+    candidates = [
+        "vsp_selfcheck_full",
+        "vsp_selfcheck_full.sh",
+        "vsp_run_full_ext_v1.sh",
+        "vsp_run_full_ext.sh",
+    ]
+
+    script = None
+    for name in candidates:
+        candidate_path = _ROOT_VSP_V3 / "bin" / name
+        if candidate_path.is_file():
+            script = candidate_path
+            break
+
+    if script is None:
+        return _jsonify_for_run_full_scan_v3(
+            ok=False,
+            error="No run script found in bin/. Tried: " + ", ".join(candidates),
+        ), 500
+
+    try:
+        proc = _subprocess_for_run_full_scan_v3.Popen(
+            [str(script)],
+            cwd=str(_ROOT_VSP_V3),
+            stdout=_subprocess_for_run_full_scan_v3.DEVNULL,
+            stderr=_subprocess_for_run_full_scan_v3.DEVNULL,
+        )
+    except Exception as e:
+        return _jsonify_for_run_full_scan_v3(
+            ok=False,
+            error=f"Failed to start scan: {e}",
+        ), 500
+
+    return _jsonify_for_run_full_scan_v3(
+        ok=True,
+        message="FULL scan started",
+        cmd=str(script),
+        pid=proc.pid,
+        profile=profile,
+        source_root=source_root,
+        target_url=target_url,
+    )
+"""
+
+new_txt, n = re.subn(pattern, replacement, txt, flags=re.VERBOSE)
+if n != 1:
+    print(f"[ERR] Thay thế không thành công hoặc khác 1 block (n={n}).")
+    raise SystemExit(1)
+
+backup = p.with_suffix(p.suffix + ".bak_choose_script_v1")
+backup.write_text(orig, encoding="utf-8")
+p.write_text(new_txt, encoding="utf-8")
+print(f"[OK] Đã cập nhật api_run_full_scan_v3, backup -> {backup.name}")

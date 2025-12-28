@@ -1,0 +1,172 @@
+/* VSP_P0_RID_AUTOFIX_V1
+ * Goal:
+ *  - If rid_latest_gate_root endpoint missing/404 => synthesize via probing runs list.
+ *  - If run_file_allow returns 404/not found for chosen RID => retry with a valid RID.
+ */
+(()=> {
+  if (window.__vsp_p0_rid_autofix_v1) return;
+  window.__vsp_p0_rid_autofix_v1 = true;
+
+  const log = (...a)=> console.log("[RIDAutoFixV1]", ...a);
+  const warn = (...a)=> console.warn("[RIDAutoFixV1]", ...a);
+
+  const LS_KEY = "vsp_best_rid_v1";
+  const _fetch = window.fetch ? window.fetch.bind(window) : null;
+  if (!_fetch) return warn("window.fetch not found");
+
+  let _bestRid = null;
+  let _bestRidPromise = null;
+
+  function toAbsUrl(u){
+    try { return new URL(u, window.location.origin).toString(); }
+    catch(e){ return String(u||""); }
+  }
+
+  function parseRunsPayload(j){
+    // accept: array OR {runs:[...]} OR {data:[...]} OR {items:[...]}
+    if (Array.isArray(j)) return j;
+    if (j && Array.isArray(j.runs)) return j.runs;
+    if (j && Array.isArray(j.data)) return j.data;
+    if (j && Array.isArray(j.items)) return j.items;
+    return [];
+  }
+
+  function extractRid(it){
+    if (!it || typeof it !== "object") return null;
+    return it.rid || it.run_id || it.runId || it.id || it.RID || null;
+  }
+
+  async function listCandidateRids(){
+    try{
+      const r = await _fetch("/api/vsp/runs?limit=50", {cache:"no-store"});
+      const j = await r.json().catch(()=>null);
+      const arr = parseRunsPayload(j);
+      const rids = [];
+      for (const it of arr){
+        const rid = extractRid(it);
+        if (rid && !rids.includes(rid)) rids.push(rid);
+      }
+      return rids;
+    }catch(e){
+      warn("listCandidateRids failed:", e);
+      return [];
+    }
+  }
+
+  async function probeRidHasFindings(rid){
+    const url = `/api/vsp/run_file_allow?rid=${encodeURIComponent(rid)}&path=findings_unified.json`;
+    try{
+      const r = await _fetch(url, {cache:"no-store"});
+      if (!r.ok) return {ok:false, status:r.status};
+      const j = await r.json().catch(()=>null);
+      // expected: {meta:{counts_by_severity}, findings:[...]}
+      const ok = !!(j && typeof j === "object" &&
+                    j.meta && typeof j.meta === "object" &&
+                    j.meta.counts_by_severity &&
+                    Array.isArray(j.findings));
+      return {ok, j};
+    }catch(e){
+      return {ok:false, err:String(e||"probe error")};
+    }
+  }
+
+  async function getBestRid(){
+    if (_bestRid) return _bestRid;
+
+    // 1) try LS cache
+    const cached = (localStorage && localStorage.getItem(LS_KEY)) || "";
+    if (cached){
+      const p = await probeRidHasFindings(cached);
+      if (p.ok){
+        _bestRid = cached;
+        return _bestRid;
+      }
+    }
+
+    // 2) scan runs list
+    const rids = await listCandidateRids();
+    for (const rid of rids){
+      const p = await probeRidHasFindings(rid);
+      if (p.ok){
+        _bestRid = rid;
+        try{ localStorage && localStorage.setItem(LS_KEY, rid); }catch(_){}
+        log("picked bestRid =", rid);
+        return _bestRid;
+      }
+    }
+    warn("no valid RID found from /api/vsp/runs probe");
+    return null;
+  }
+
+  async function getBestRidOnce(){
+    if (_bestRidPromise) return _bestRidPromise;
+    _bestRidPromise = getBestRid().finally(()=>{ /* keep promise */ });
+    return _bestRidPromise;
+  }
+
+  function jsonResponse(obj, status=200){
+    return new Response(JSON.stringify(obj), {
+      status,
+      headers: {"Content-Type":"application/json"}
+    });
+  }
+
+  function urlHas(u, needle){ return String(u||"").includes(needle); }
+
+  window.fetch = async (input, init) => {
+    const rawUrl = (typeof input === "string") ? input : (input && input.url) ? input.url : "";
+    const abs = toAbsUrl(rawUrl);
+
+    // A) synth rid_latest_gate_root if endpoint missing (your log shows 404)
+    if (urlHas(abs, "/api/vsp/rid_latest_gate_root")){
+      const rid = await getBestRidOnce();
+      if (rid) return jsonResponse({ok:true, rid, source:"RIDAutoFixV1"});
+      return jsonResponse({ok:false, err:"no valid rid"}, 200);
+    }
+
+    // B) pass through first
+    const resp = await _fetch(input, init);
+
+    // C) if this is run_file_allow and failed due to RID lacking file -> retry with bestRid
+    if (urlHas(abs, "/api/vsp/run_file_allow")){
+      try{
+        const u = new URL(abs);
+        const rid = u.searchParams.get("rid") || "";
+        const path = u.searchParams.get("path") || "";
+
+        // only auto-fix on findings_unified.json (most common breaker)
+        if (path === "findings_unified.json" && rid){
+          if (resp.status === 404){
+            const best = await getBestRidOnce();
+            if (best && best !== rid){
+              const retryUrl = `/api/vsp/run_file_allow?rid=${encodeURIComponent(best)}&path=${encodeURIComponent(path)}`;
+              log("retry 404 with bestRid:", rid, "=>", best);
+              return _fetch(retryUrl, {cache:"no-store"});
+            }
+          } else {
+            // maybe ok:false payload
+            const clone = resp.clone();
+            const j = await clone.json().catch(()=>null);
+            const err = (j && (j.err || j.error)) ? String(j.err || j.error) : "";
+            const okFlag = (j && typeof j.ok === "boolean") ? j.ok : null;
+            const looksNotFound = err.toLowerCase().includes("not found") || err.toLowerCase().includes("missing");
+            if ((okFlag === false && looksNotFound) || (j && j.ok===false && j.path && j.rid)){
+              const best = await getBestRidOnce();
+              if (best && best !== rid){
+                const retryUrl = `/api/vsp/run_file_allow?rid=${encodeURIComponent(best)}&path=${encodeURIComponent(path)}`;
+                log("retry ok:false with bestRid:", rid, "=>", best);
+                return _fetch(retryUrl, {cache:"no-store"});
+              }
+            }
+          }
+        }
+      }catch(e){
+        // ignore parse errors
+      }
+    }
+
+    return resp;
+  };
+
+  log("installed. Will auto-pick RID that has findings_unified.json");
+})();

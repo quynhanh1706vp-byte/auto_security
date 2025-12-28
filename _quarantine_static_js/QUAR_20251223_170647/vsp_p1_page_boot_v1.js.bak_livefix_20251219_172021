@@ -1,0 +1,508 @@
+/* VSP_P1_PAGE_BOOT_V1
+ * P1 bootstrap for standalone pages: /, /data_source, /settings, /rule_overrides
+ * Contract:
+ *  - GET /api/vsp/runs?limit=1  -> latest RID
+ *  - GET /api/vsp/run_file?rid=RID&name=reports/<file>
+ *  - GET /api/vsp/rule_overrides (optional UI v1 endpoint if exists)
+ *  - GET settings endpoints (best-effort) -> render JSON
+ */
+(function(){
+  "use strict";
+
+  const MARK="VSP_P1_PAGE_BOOT_V1";
+  if (window.__VSP_P1_BOOTED__) return;
+  window.__VSP_P1_BOOTED__ = true;
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const el = (tag, attrs={}, html="") => {
+    const n=document.createElement(tag);
+    for(const k of Object.keys(attrs||{})) n.setAttribute(k, attrs[k]);
+    if(html) n.innerHTML=html;
+    return n;
+  };
+
+  function ensureStyle(){
+    if (document.getElementById("vsp-p1-style")) return;
+    const s = el("style",{id:"vsp-p1-style"},`
+      .vsp-p1-wrap{max-width:1200px;margin:18px auto;padding:0 14px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;}
+      .vsp-p1-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 14px;margin:12px 0;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+      .vsp-p1-row{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+      .vsp-p1-kpi{flex:1;min-width:200px}
+      .vsp-p1-kpi b{display:block;font-size:18px;margin-top:4px}
+      .vsp-p1-muted{opacity:.78;font-size:12px}
+      .vsp-p1-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
+      .vsp-p1-input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18);color:inherit}
+      .vsp-p1-table{width:100%;border-collapse:collapse;font-size:12px}
+      .vsp-p1-table th,.vsp-p1-table td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px 8px;vertical-align:top}
+      .vsp-p1-pill{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08)}
+      .vsp-p1-badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.16)}
+    `);
+    document.head.appendChild(s);
+  }
+
+  async function fetchJson(url, ms=12000){
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), ms);
+    try{
+      const r = await fetch(url, {signal: ctl.signal, credentials:"same-origin"});
+      if(!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+      return await r.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function esc(s){ return (""+s).replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+
+  async function getLatestRid(){
+    // VSP_P1_RID_CACHE_ANTI503_V1
+    // Prefer cached RID to avoid poll-guard 503 on /api/vsp/runs
+    try{
+      const cached = sessionStorage.getItem("vsp_latest_rid") || "";
+      const ts = parseInt(sessionStorage.getItem("vsp_latest_rid_ts") || "0", 10);
+      if(cached && ts && (Date.now()-ts) < 30000) return cached; // 30s cache
+    }catch(_e){}
+
+    // If /vsp5 page already stored something
+    try{
+      if(window.__VSP_LAST_RID__ && String(window.__VSP_LAST_RID__).length>5){
+        const r = String(window.__VSP_LAST_RID__);
+        try{ sessionStorage.setItem("vsp_latest_rid", r); sessionStorage.setItem("vsp_latest_rid_ts", String(Date.now())); }catch(_e){}
+        return r;
+      }
+    }catch(_e){}
+
+    // Try fetch latest RID
+    try{
+      const data = await fetchJson("/api/vsp/runs?limit=1");
+      const rid = data && data.items && data.items[0] && data.items[0].run_id ? data.items[0].run_id : "";
+      if(rid){
+        try{ sessionStorage.setItem("vsp_latest_rid", rid); sessionStorage.setItem("vsp_latest_rid_ts", String(Date.now())); }catch(_e){}
+        return rid;
+      }
+    }catch(_e){
+      // fallback: use any cached RID even if stale (avoid hard fail on 503)
+      try{
+        const cached = sessionStorage.getItem("vsp_latest_rid") || "";
+        if(cached) return cached;
+      }catch(__e){}
+      throw _e;
+    }
+    throw new Error("no rid");
+  }
+
+  async function getRunFileJson(rid, name){
+    const q = encodeURIComponent(name);
+    const url = `/api/vsp/run_file?rid=${encodeURIComponent(rid)}&name=${q}`;
+    return await fetchJson(url);
+  }
+
+  function pick(obj, keys){
+    for(const k of keys){
+      if(obj && Object.prototype.hasOwnProperty.call(obj,k) && obj[k] !== undefined && obj[k] !== null) return obj[k];
+    }
+    return null;
+  }
+
+  function normSev(x){
+    const s=(x||"").toString().toUpperCase();
+    if(["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].includes(s)) return s;
+    if(s==="WARN"||s==="WARNING") return "LOW";
+    if(s==="ERROR") return "HIGH";
+    return s || "INFO";
+  }
+
+  function mountRoot(){
+    ensureStyle();
+    let root = document.getElementById("vsp-p1-root");
+    if(!root){
+      root = el("div",{id:"vsp-p1-root", class:"vsp-p1-wrap"});
+      // put near top of body but after nav if exists
+      const nav = document.getElementById("vspNav5");
+      if(nav && nav.parentNode) nav.parentNode.insertBefore(root, nav.nextSibling);
+      else document.body.insertBefore(root, document.body.firstChild);
+    }
+    return root;
+  }
+
+  async function bootDashboard(){
+    const root = mountRoot();
+    root.innerHTML = "";
+    const h = el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">${MARK} • Dashboard</div><div style="font-weight:900;font-size:20px;margin-top:6px">Dashboard (P1)</div>`);
+    root.appendChild(h);
+
+    const card = el("div",{class:"vsp-p1-card"});
+    card.innerHTML = `<div class="vsp-p1-muted">Loading latest RID + gate summary…</div>`;
+    root.appendChild(card);
+
+    try{
+      const rid = await getLatestRid();
+      if(!rid) throw new Error("no rid");
+      const gate = await getRunFileJson(rid, "reports/run_gate_summary.json").catch(()=>null);
+      const findings = await getRunFileJson(rid, "reports/findings_unified.json").catch(()=>null);
+
+      const overall = gate ? (pick(gate, ["overall_status","overall","verdict","status"]) || pick(gate.gate||{}, ["overall","overall_status","verdict","status"])) : null;
+
+      // severity counts (best effort)
+      const sevCnt = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+      const toolCnt = {};
+      let total = 0;
+
+      const arr = (findings && (findings.items||findings.findings||findings.results||findings.data)) || (Array.isArray(findings)?findings:[]);
+      if(Array.isArray(arr)){
+        for(const it of arr){
+          total++;
+          const sev = normSev(pick(it, ["severity","sev","level","priority"]) || "INFO");
+          if(sevCnt[sev]===undefined) sevCnt[sev]=0;
+          sevCnt[sev]++;
+          const tool = (pick(it, ["tool","scanner","engine","source"]) || "unknown").toString();
+          toolCnt[tool]=(toolCnt[tool]||0)+1;
+        }
+      }
+
+      const topTools = Object.entries(toolCnt).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+      card.innerHTML = `
+        <div class="vsp-p1-muted">Latest RID</div>
+        <div class="vsp-p1-mono">${esc(rid)}</div>
+        <div class="vsp-p1-row" style="margin-top:10px">
+          <div class="vsp-p1-card vsp-p1-kpi">
+            <div class="vsp-p1-muted">Overall</div>
+            <b>${esc(overall || "N/A")}</b>
+          </div>
+          <div class="vsp-p1-card vsp-p1-kpi">
+            <div class="vsp-p1-muted">Findings total</div>
+            <b>${total}</b>
+          </div>
+          <div class="vsp-p1-card vsp-p1-kpi">
+            <div class="vsp-p1-muted">CRITICAL / HIGH</div>
+            <b>${sevCnt.CRITICAL} / ${sevCnt.HIGH}</b>
+          </div>
+          <div class="vsp-p1-card vsp-p1-kpi">
+            <div class="vsp-p1-muted">MED / LOW</div>
+            <b>${sevCnt.MEDIUM} / ${sevCnt.LOW}</b>
+          </div>
+        </div>
+
+        <div class="vsp-p1-card" style="margin-top:12px">
+          <div class="vsp-p1-muted">Top tools</div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            ${topTools.map(([k,v])=>`<span class="vsp-p1-badge">${esc(k)}: <b>${v}</b></span>`).join("") || `<span class="vsp-p1-muted">N/A</span>`}
+          </div>
+        </div>
+
+        <details class="vsp-p1-card" style="margin-top:12px">
+          <summary style="cursor:pointer;font-weight:700">Raw gate summary (json)</summary>
+          <pre class="vsp-p1-mono">${esc(JSON.stringify(gate||{}, null, 2))}</pre>
+        </details>
+      `;
+    }catch(e){
+      card.innerHTML = `<div class="vsp-p1-muted">Failed to load dashboard data</div><pre class="vsp-p1-mono">${esc(e && e.message ? e.message : String(e))}</pre>`;
+    }
+  }
+
+  async function bootDataSource(){
+    const root = mountRoot();
+    root.innerHTML = "";
+    root.appendChild(el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">${MARK} • Data Source</div><div style="font-weight:900;font-size:20px;margin-top:6px">Data Source (P1)</div>`));
+
+    const card = el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">Loading findings_unified.json…</div>`);
+    root.appendChild(card);
+
+    try{
+      const rid = await getLatestRid();
+      if(!rid) throw new Error("no rid");
+      const findings = await getRunFileJson(rid, "reports/findings_unified.json");
+      const arr = (findings && (findings.items||findings.findings||findings.results||findings.data)) || (Array.isArray(findings)?findings:[]);
+      if(!Array.isArray(arr)) throw new Error("findings not array-like");
+
+      const input = el("input",{class:"vsp-p1-input", placeholder:"Search (severity/tool/rule/file/message)…"});
+      const tableWrap = el("div",{style:"overflow:auto;border-radius:14px"});
+      const table = el("table",{class:"vsp-p1-table"});
+      table.innerHTML = `<thead><tr>
+        <th>Severity</th><th>Tool</th><th>Rule</th><th>File</th><th>Message</th>
+      </tr></thead><tbody></tbody>`;
+      const tb = table.querySelector("tbody");
+
+      function rowObj(it){
+        const sev = normSev(pick(it, ["severity","sev","level","priority"]) || "INFO");
+        const tool = pick(it, ["tool","scanner","engine","source"]) || "";
+        const rule = pick(it, ["rule_id","check_id","id","rule","name"]) || "";
+        const file = pick(it, ["path","file","filename","location","target"]) || "";
+        const msg  = pick(it, ["message","title","desc","description","summary"]) || "";
+        return {sev, tool, rule, file, msg, raw: it};
+      }
+
+      const rows = arr.slice(0, 5000).map(rowObj); // P1 guard
+      function render(filter){
+        const q=(filter||"").toLowerCase().trim();
+        tb.innerHTML="";
+        let shown=0;
+        for(const r of rows){
+          const hay = `${r.sev} ${r.tool} ${r.rule} ${r.file} ${r.msg}`.toLowerCase();
+          if(q && !hay.includes(q)) continue;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><span class="vsp-p1-pill">${esc(r.sev)}</span></td>
+            <td>${esc(r.tool)}</td>
+            <td class="vsp-p1-mono">${esc(r.rule)}</td>
+            <td class="vsp-p1-mono">${esc(r.file)}</td>
+            <td>${esc(r.msg)}</td>
+          `;
+          tr.style.cursor="pointer";
+          tr.addEventListener("click", ()=>{
+            const d = document.getElementById("vsp-p1-detail");
+            if(d) d.remove();
+            const det = el("div",{id:"vsp-p1-detail", class:"vsp-p1-card"},`
+              <div class="vsp-p1-muted">Detail</div>
+              <pre class="vsp-p1-mono">${esc(JSON.stringify(r.raw, null, 2))}</pre>
+            `);
+            root.appendChild(det);
+            det.scrollIntoView({behavior:"smooth", block:"start"});
+          });
+          tb.appendChild(tr);
+          shown++;
+          if(shown>=1500) break; // P1 guard
+        }
+        cnt.innerHTML = `<span class="vsp-p1-muted">RID:</span> <span class="vsp-p1-mono">${esc(rid)}</span>
+          <span class="vsp-p1-muted" style="margin-left:10px">rows:</span> <b>${shown}</b> / ${rows.length}`;
+      }
+
+      const cnt = el("div",{class:"vsp-p1-muted", style:"margin-top:10px"});
+      input.addEventListener("input", ()=>render(input.value));
+
+      card.innerHTML="";
+      card.appendChild(input);
+      card.appendChild(cnt);
+      tableWrap.appendChild(table);
+      card.appendChild(tableWrap);
+
+      render("");
+    }catch(e){
+      card.innerHTML = `<div class="vsp-p1-muted">Failed to load datasource</div><pre class="vsp-p1-mono">${esc(e && e.message ? e.message : String(e))}</pre>`;
+    }
+  }
+
+  async function bootSettings(){
+    const root = mountRoot();
+    root.innerHTML = "";
+    root.appendChild(el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">${MARK} • Settings</div><div style="font-weight:900;font-size:20px;margin-top:6px">Settings (P1)</div>`));
+
+    const card = el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">Loading settings (best effort)…</div>`);
+    root.appendChild(card);
+
+    const endpoints = ["/api/vsp/settings_ui_v1","/api/vsp/settings/get","/api/vsp/settings"];
+    let data = null, used = "";
+
+    for(const ep of endpoints){
+      try{ data = await fetchJson(ep, 8000); used = ep; break; }catch(_e){}
+    }
+    if(!data){
+      data = { ok:false, note:"No settings endpoint detected. This is P1 read-only skeleton.", endpoints_tried:endpoints };
+      used = "none";
+    }
+
+    card.innerHTML = `
+      <div class="vsp-p1-muted">Source: <span class="vsp-p1-mono">${esc(used)}</span></div>
+      <div class="vsp-p1-card" style="margin-top:10px">
+        <div class="vsp-p1-muted">P1 note</div>
+        <div>Save chưa cần backend. Khi có POST /api/vsp/settings, chỉ cần gửi payload JSON từ UI.</div>
+      </div>
+      <details class="vsp-p1-card" style="margin-top:10px" open>
+        <summary style="cursor:pointer;font-weight:700">Settings JSON</summary>
+        <pre class="vsp-p1-mono">${esc(JSON.stringify(data, null, 2))}</pre>
+      </details>
+    `;
+  }
+
+  async function bootRuleOverrides(){
+    const root = mountRoot();
+    root.innerHTML = "";
+    root.appendChild(el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">${MARK} • Rule Overrides</div><div style="font-weight:900;font-size:20px;margin-top:6px">Rule Overrides (P1)</div>`));
+
+    const card = el("div",{class:"vsp-p1-card"},`<div class="vsp-p1-muted">Loading /api/vsp/rule_overrides…</div>`);
+    root.appendChild(card);
+
+    const endpoints = ["/api/vsp/rule_overrides_ui_v1","/api/vsp/rule_overrides"];
+    let data=null, used="";
+    for(const ep of endpoints){
+      try{ data = await fetchJson(ep, 8000); used=ep; break; }catch(_e){}
+    }
+    if(!data){
+      data = { ok:false, note:"Cannot load rule_overrides. Check backend endpoint.", endpoints_tried:endpoints };
+      used="none";
+    }
+
+    card.innerHTML = `
+      <div class="vsp-p1-muted">Source: <span class="vsp-p1-mono">${esc(used)}</span></div>
+      <details class="vsp-p1-card" style="margin-top:10px" open>
+        <summary style="cursor:pointer;font-weight:700">Rule overrides JSON</summary>
+        <pre class="vsp-p1-mono">${esc(JSON.stringify(data, null, 2))}</pre>
+      </details>
+    `;
+  }
+
+  function route(){
+    const p = (location.pathname || "/").toLowerCase();
+    if(p === "/" || p.includes("dashboard")) return "dashboard";
+    if(p.includes("data_source") || p.includes("datasource")) return "datasource";
+    if(p.includes("settings")) return "settings";
+    if(p.includes("rule_overrides") || p.includes("rules")) return "rules";
+    return "dashboard";
+  }
+
+  // Boot after DOM
+  function main(){
+    const r = route();
+    if(r==="dashboard") return bootDashboard();
+    if(r==="datasource") return bootDataSource();
+    if(r==="settings") return bootSettings();
+    if(r==="rules") return bootRuleOverrides();
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();
+
+
+
+/* VSP_P1_DEDUP_NAVBARS_P1_V1 */
+(function(){
+  function _txt(el){
+    try{ return (el.innerText||"").toLowerCase(); }catch(_){ return ""; }
+  }
+  function _hasAllTabs(t){
+    // heuristic: must contain at least 3 of these to be considered a nav/tabs bar
+    const keys = ["dashboard","runs","reports","data source","settings","rule overrides"];
+    let hit=0;
+    for(const k of keys){ if (t.includes(k)) hit++; }
+    return hit >= 3;
+  }
+  function _dedup(){
+    try{
+      if (window.__vsp_p1_dedup_navbars_p1_v1) return;
+      window.__vsp_p1_dedup_navbars_p1_v1 = true;
+
+      // style for hiding
+      if (!document.getElementById("VSP_P1_DEDUP_NAV_STYLE")){
+        const st=document.createElement("style");
+        st.id="VSP_P1_DEDUP_NAV_STYLE";
+        st.textContent = ".vspP1NavHidden{display:none !important;} body{scroll-behavior:auto;}";
+        document.head.appendChild(st);
+      }
+
+      // candidate containers
+      const cand = [];
+      const nodes = document.querySelectorAll("nav, header, .top, .tabs, .navbar, .nav, .tabbar, .wrap");
+      nodes.forEach(el=>{
+        const t=_txt(el);
+        if (!_hasAllTabs(t)) return;
+        // avoid picking huge containers
+        const h = (el.getBoundingClientRect ? el.getBoundingClientRect().height : 0);
+        if (h > 260) return;
+        cand.push(el);
+      });
+
+      if (cand.length <= 1) return;
+
+      // pick the earliest visible one on page (top-most)
+      cand.sort((a,b)=>{
+        const ay=a.getBoundingClientRect().top + window.scrollY;
+        const by=b.getBoundingClientRect().top + window.scrollY;
+        return ay-by;
+      });
+
+      const keep = cand[0];
+      for (let i=1;i<cand.length;i++){
+        const el=cand[i];
+        if (el === keep) continue;
+        el.classList.add("vspP1NavHidden");
+      }
+
+      console.info("[VSP][boot] dedup navbars:", cand.length, "kept:", keep);
+    }catch(e){
+      try{ console.warn("[VSP][boot] dedup navbars error", e); }catch(_){}
+    }
+  }
+
+  // run after DOM is ready + after boot injects nav
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ()=> setTimeout(_dedup, 50));
+  } else {
+    setTimeout(_dedup, 50);
+  }
+  // also rerun once more (some pages inject later)
+  setTimeout(_dedup, 250);
+})();
+
+
+
+
+/* VSP_P1_HIDE_SECONDARY_TABBAR_P1_V1 */
+(function(){
+  const KEYS = ["dashboard","runs","reports","data source","settings","rule overrides"];
+
+  function scoreText(t){
+    t=(t||"").toLowerCase();
+    let hit=0;
+    for(const k of KEYS){ if (t.includes(k)) hit++; }
+    return hit;
+  }
+
+  function hasManyButtons(el){
+    try{
+      const n = el.querySelectorAll("a,button").length;
+      return n >= 4;
+    }catch(_){ return false; }
+  }
+
+  function hideSecondary(){
+    try{
+      const cand=[];
+      const all=document.querySelectorAll("div,section,nav,header");
+      all.forEach(el=>{
+        // don’t touch the top header/nav area too aggressively
+        const r = el.getBoundingClientRect();
+        if (!r || r.height <= 0) return;
+        if (r.height > 220) return;              // avoid big containers
+        const top = r.top + window.scrollY;
+        const t = (el.innerText||"");
+        const sc = scoreText(t);
+        if (sc < 3) return;                      // must look like a tabbar
+        if (!hasManyButtons(el)) return;         // must actually be a button/link bar
+        cand.push({el, top, sc, h:r.height});
+      });
+
+      if (cand.length <= 1) return;
+
+      // keep the top-most candidate (your main nav) and hide the rest
+      cand.sort((a,b)=>a.top-b.top);
+      const keep = cand[0].el;
+
+      // add hide css
+      if (!document.getElementById("VSP_P1_HIDE2NDNAV_STYLE")){
+        const st=document.createElement("style");
+        st.id="VSP_P1_HIDE2NDNAV_STYLE";
+        st.textContent=".vspP1SecondaryNavHidden{display:none!important;}";
+        document.head.appendChild(st);
+      }
+
+      for (let i=1;i<cand.length;i++){
+        const el=cand[i].el;
+        if (el===keep) continue;
+        el.classList.add("vspP1SecondaryNavHidden");
+      }
+
+      console.info("[VSP][boot] hide secondary tabbars:", cand.length-1);
+    }catch(e){
+      try{ console.warn("[VSP][boot] hide secondary tabbar err", e); }catch(_){}
+    }
+  }
+
+  if (document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", ()=>setTimeout(hideSecondary, 80));
+  } else setTimeout(hideSecondary, 80);
+
+  setTimeout(hideSecondary, 300); // rerun once
+})();
+

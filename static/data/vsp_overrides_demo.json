@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "OVR-001",
+      "pattern": "*/tests/*",
+      "rule": "ALL",
+      "reason": "Bỏ qua findings trong thư mục test (không deploy production).",
+      "action": "IGNORE"
+    },
+    {
+      "id": "OVR-002",
+      "pattern": "CWE-200",
+      "rule": "info-leak-low",
+      "reason": "Giảm severity xuống LOW cho một số rule info leak ít rủi ro.",
+      "action": "DOWNGRADE:LOW"
+    },
+    {
+      "id": "OVR-003",
+      "pattern": "third_party/*",
+      "rule": "dependency-cve",
+      "reason": "Thư viện bên thứ 3 đã được quản lý bởi team platform.",
+      "action": "DEFER"
+    }
+  ]
+}

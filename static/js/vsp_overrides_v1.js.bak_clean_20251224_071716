@@ -1,0 +1,72 @@
+/**
+ * VSP Rule Overrides – render tab Overrides từ /api/vsp/overrides/list
+ */
+(function () {
+  function fetchOverrides() {
+    return fetch("/api/vsp/overrides/list")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .catch(function (e) {
+        console.error("[VSP][OVERRIDES] API error:", e);
+        return { ok: false, items: [], metrics: {} };
+      });
+  }
+
+  function renderTable(items) {
+    var tbody = document.querySelector("#overrides-table tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    if (!items || !items.length) {
+      var tr = document.createElement("tr");
+      var td = document.createElement("td");
+      td.colSpan = 5;
+      td.textContent = "No overrides configured.";
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    items.forEach(function (it) {
+      var tr = document.createElement("tr");
+
+      function td(text) {
+        var cell = document.createElement("td");
+        cell.textContent = text == null ? "" : String(text);
+        return cell;
+      }
+
+      tr.appendChild(td(it.tool));
+      tr.appendChild(td(it.rule_id));
+      tr.appendChild(td(it.scope));
+      tr.appendChild(td(it.action));
+      tr.appendChild(td(it.note));
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderMetrics(metrics) {
+    var active = document.getElementById("ov-metric-active");
+    var crit = document.getElementById("ov-metric-critical");
+    var top = document.getElementById("ov-metric-top-rule");
+
+    if (active) active.textContent = metrics.active_overrides ?? 0;
+    if (crit) crit.textContent = metrics.critical_downgraded ?? 0;
+    if (top) top.textContent = metrics.most_ignored_rule || "N/A";
+  }
+
+  function init() {
+    var tab = document.getElementById("tab-overrides");
+    if (!tab) return;
+
+    fetchOverrides().then(function (data) {
+      renderTable(data.items || []);
+      renderMetrics(data.metrics || {});
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();

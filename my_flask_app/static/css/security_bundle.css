@@ -1,0 +1,49 @@
+
+/* ===== Fix height cho donut SEVERITY ===== */
+.vsp-chart-card--severity,
+.vsp-chart-card--severity .vsp-chart-main-wrapper {
+  height: 260px;
+  min-height: 260px;
+}
+
+.vsp-chart-card--severity canvas {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* VSP – Compact cho card SEVERITY (6 BUCKETS) */
+.vsp-chart-card--severity {
+  min-height: 260px;
+  max-height: 280px;
+}
+
+/* ===== VSP – SEVERITY DONUT LAYOUT (FINAL) ===== */
+.vsp-chart-card--severity .vsp-chart-main-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;        /* chiều cao cố định cho card */
+}
+
+.vsp-chart-card--severity canvas {
+  max-width: 260px;     /* donut không phình quá to khi full màn */
+  max-height: 260px;
+}
+
+/* ==== VSP FINAL OVERRIDE – SEVERITY DONUT ==== */
+/* Card SEVERITY: luôn căn giữa, cố định vùng hiển thị */
+.vsp-chart-card--severity .vsp-chart-main-wrapper {
+  display: grid !important;
+  place-items: center !important;
+  height: 260px !important;
+}
+
+/* Canvas donut: cố định 1 size, không kéo theo card */
+.vsp-chart-card--severity canvas {
+  width: 220px !important;
+  height: 220px !important;
+  max-width: 220px !important;
+  max-height: 220px !important;
+  margin: 0 auto !important;
+  display: block !important;
+}

@@ -1,0 +1,50 @@
+/* VSP_P0_CONTAINERS_FIX_V1
+   Ensures DashCommercial containers exist so dashboard doesn't warn "missing containers".
+*/
+(() => {
+  if (window.__vsp_p0_containers_fix_v1) return;
+  window.__vsp_p0_containers_fix_v1 = true;
+
+  const IDS = ["vsp-chart-severity","vsp-chart-trend","vsp-chart-bytool","vsp-chart-topcve"];
+
+  function ensure(){
+    try{
+      // Prefer legacy root first (because bundle renderer expects it),
+      // otherwise use luxe host, otherwise body.
+      const root =
+        document.querySelector("#vsp5_root") ||
+        document.querySelector("#vsp_luxe_host") ||
+        document.body;
+
+      if (!root) return;
+
+      let shell = document.querySelector("#vsp5_dash_shell");
+      if (!shell){
+        shell = document.createElement("div");
+        shell.id = "vsp5_dash_shell";
+        // non-intrusive layout: does not break existing UI; just provides containers.
+        shell.style.cssText = "padding:12px 14px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;";
+        // Insert near top of root so charts have stable place.
+        root.prepend(shell);
+      }
+
+      for (const id of IDS){
+        if (document.getElementById(id)) continue;
+        const d = document.createElement("div");
+        d.id = id;
+        // give min height so charts have space but not too big
+        d.style.cssText = "min-height:160px;";
+        shell.appendChild(d);
+      }
+    }catch(e){}
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ensure);
+  } else {
+    ensure();
+  }
+
+  // In case renderer wipes DOM, re-ensure shortly after load.
+  setTimeout(ensure, 800);
+})();

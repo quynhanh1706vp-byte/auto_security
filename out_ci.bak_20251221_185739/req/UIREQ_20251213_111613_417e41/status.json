@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "req_id": "UIREQ_20251213_111613_417e41",
+  "status": "FAILED",
+  "final": true,
+  "gate": "UNKNOWN",
+  "created_at": "2025-12-13T04:16:13Z",
+  "started_at": "2025-12-13T04:16:13Z",
+  "finished_at": "2025-12-13T04:37:21Z",
+  "exit_code": 1,
+  "ci_run_dir": "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_111613",
+  "vsp_run_id": "",
+  "severity": {},
+  "flag": {
+    "has_findings": false
+  },
+  "reasons": [],
+  "sync": {
+    "done": true,
+    "ok": false,
+    "rc": 1,
+    "vsp_run_id": "",
+    "stdout": "[VSP_CI_SYNC][ERR] Thiếu summary/findings trong /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251213_111613/report\n",
+    "stderr": ""
+  },
+  "meta": {
+    "target": "/home/test/Data/SECURITY-10-10-v4",
+    "profile": "FULL_EXT",
+    "outer_root": "/home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER",
+    "outer_script": "/home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_outer_full_v1.sh"
+  },
+  "pid": 22480
+}

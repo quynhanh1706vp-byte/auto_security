@@ -1,0 +1,15 @@
+{
+  "ts": "20251217_170154",
+  "scripts_count": 6,
+  "has_stub": true,
+  "has_impl": false,
+  "has_loader": true,
+  "scripts": [
+    "/static/js/vsp_drilldown_stub_safe_v1.js?v=1765945236",
+    "/static/js/vsp_hash_normalize_v1.js?v=1765944602",
+    "/static/js/vsp_bundle_commercial_v1.js?v=1765965205",
+    "/static/js/vsp_ui_features_v1.js?v=1765944602",
+    "/static/js/vsp_ui_loader_route_v1.js?v=1765944602",
+    "/static/js/vsp_tabs_hash_router_v1.js"
+  ]
+}

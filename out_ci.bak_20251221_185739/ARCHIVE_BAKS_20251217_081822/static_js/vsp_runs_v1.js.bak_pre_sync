@@ -1,0 +1,252 @@
+(function () {
+  const LOG_PREFIX = "[VSP_RUNS_UI_v1]";
+  const API_URL = "/api/vsp/runs_index_v3";
+  const TBODY_ID = "vsp-runs-tbody";
+
+  function log() {
+    console.log(LOG_PREFIX, ...arguments);
+  }
+  function warn() {
+    console.warn(LOG_PREFIX, ...arguments);
+  }
+  function debug() {
+    if (window.VSP_DEBUG) {
+      console.debug(LOG_PREFIX, ...arguments);
+    }
+  }
+
+  log("Init v1 – attaching DOMContentLoaded handler.");
+
+  function fmtDateTime(raw) {
+    if (!raw) return "";
+    try {
+      if (typeof raw === "string" && raw.indexOf("T") >= 0) {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleString("vi-VN");
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return String(raw);
+  }
+
+  function getSev(run, sevKey) {
+    if (!run) return 0;
+    const by = run.by_severity || run.severity_buckets || {};
+    if (typeof by[sevKey] === "number") return by[sevKey];
+    // thêm fallback theo key thường
+    const alt = {
+      CRITICAL: ["critical", "crit"],
+      HIGH: ["high"],
+      MEDIUM: ["medium", "med"],
+      LOW: ["low"],
+      INFO: ["info"],
+      TRACE: ["trace"],
+    };
+    const fields = alt[sevKey] || [];
+    for (const f of fields) {
+      if (typeof run[f] === "number") return run[f];
+    }
+    return 0;
+  }
+
+  function collectTotalFindings(run) {
+    if (!run) return "";
+    if (typeof run.total_findings === "number") return run.total_findings;
+    if (typeof run.findings_total === "number") return run.findings_total;
+    if (run.by_severity && typeof run.by_severity === "object") {
+      return Object.values(run.by_severity).reduce(
+        (a, v) => a + (typeof v === "number" ? v : 0),
+        0
+      );
+    }
+    return "";
+  }
+
+  function deriveTopSeverity(run) {
+    const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+    for (const s of order) {
+      if (getSev(run, s) > 0) return s;
+    }
+    if (run && run.top_severity) return String(run.top_severity).toUpperCase();
+    if (run && run.top_risky_severity)
+      return String(run.top_risky_severity).toUpperCase();
+    return "";
+  }
+
+  function collectToolsLabel(run) {
+    if (!run) return "–";
+    const arr =
+      run.tools_enabled ||
+      run.tools ||
+      run.enabled_tools ||
+      run.profiles_tools;
+    if (Array.isArray(arr) && arr.length) return arr.join(", ");
+    if (typeof arr === "string" && arr.trim()) return arr;
+    return "–";
+  }
+
+  function collectSrcPath(run) {
+    if (!run) return "–";
+    return (
+      run.src_path ||
+      run.source_root ||
+      run.source_folder ||
+      run.module ||
+      run.project ||
+      "–"
+    );
+  }
+
+  function collectUrl(run) {
+    if (!run) return "–";
+    return (
+      run.target_url ||
+      run.target ||
+      run.app_origin ||
+      run.url ||
+      run.repo ||
+      "–"
+    );
+  }
+
+  function buildRunRow(run, idx) {
+    const tr = document.createElement("tr");
+    tr.className = "vsp-run-row";
+
+    const runId =
+      (run && (run.run_id || run.id || run.name)) ||
+      `RUN_${(idx || 0) + 1}`;
+
+    const tsStart =
+      (run &&
+        (run.ts_start ||
+          run.started_at ||
+          run.start_time ||
+          run.created_at)) ||
+      "";
+
+    const profile =
+      (run &&
+        (run.profile ||
+          run.scan_profile ||
+          run.mode ||
+          run.run_profile ||
+          run.kind)) ||
+      "–";
+
+    const srcPath = collectSrcPath(run);
+    const url = collectUrl(run);
+
+    const crit = getSev(run, "CRITICAL");
+    const high = getSev(run, "HIGH");
+    const med = getSev(run, "MEDIUM");
+    const low = getSev(run, "LOW");
+    const info = getSev(run, "INFO");
+    const trace = getSev(run, "TRACE");
+    const total = collectTotalFindings(run);
+    const toolsLabel = collectToolsLabel(run);
+
+    const reportsLabel = "HTML · PDF · CSV";
+
+    const tds = [
+      `<td class="col-run-id"><span class="mono">${runId}</span></td>`,
+      `<td class="col-run-start">${fmtDateTime(tsStart) || "–"}</td>`,
+      `<td class="col-run-profile">${profile}</td>`,
+      `<td class="col-run-src">${srcPath}</td>`,
+      `<td class="col-run-url">${url}</td>`,
+      `<td class="col-run-crit">${crit || "–"}</td>`,
+      `<td class="col-run-high">${high || "–"}</td>`,
+      `<td class="col-run-med">${med || "–"}</td>`,
+      `<td class="col-run-low">${low || "–"}</td>`,
+      `<td class="col-run-info">${info || "–"}</td>`,
+      `<td class="col-run-trace">${trace || "–"}</td>`,
+      `<td class="col-run-total">${total === "" ? "–" : total}</td>`,
+      `<td class="col-run-tools">${toolsLabel}</td>`,
+      `<td class="col-run-reports">${reportsLabel}</td>`,
+    ];
+
+    tr.innerHTML = tds.join("");
+    return tr;
+  }
+
+  async function loadRunsTable() {
+    const tbody = document.getElementById(TBODY_ID);
+    if (!tbody) {
+      warn("Không tìm thấy tbody#%s – bỏ qua loadRunsTable()", TBODY_ID);
+      return;
+    }
+
+    debug("Bắt đầu loadRunsTable() từ", API_URL);
+    tbody.innerHTML =
+      '<tr class="vsp-run-row-loading"><td colspan="14">Đang tải danh sách RUN...</td></tr>';
+
+    let resp;
+    try {
+      resp = await fetch(API_URL, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+    } catch (err) {
+      warn("Lỗi fetch runs_index_v3:", err);
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-error"><td colspan="14">Không kết nối được tới API runs_index_v3.</td></tr>';
+      return;
+    }
+
+    if (!resp.ok) {
+      warn("API trả lỗi", resp.status, resp.statusText);
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-error"><td colspan="14">API runs_index_v3 trả lỗi ' +
+        resp.status +
+        ".</td></tr>";
+      return;
+    }
+
+    let data;
+    try {
+      data = await resp.json();
+    } catch (err) {
+      warn("Không parse được JSON từ runs_index_v3:", err);
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-error"><td colspan="14">Lỗi parse JSON từ API runs_index_v3.</td></tr>';
+      return;
+    }
+
+    let runs = data && (data.items || data.runs || data);
+    if (!Array.isArray(runs)) {
+      warn("Định dạng runs_index_v3 không như mong đợi:", data);
+      runs = [];
+    }
+
+    tbody.innerHTML = "";
+
+    if (!runs.length) {
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-empty"><td colspan="14">Chưa có RUN nào trong hệ thống.</td></tr>';
+      log("Không có RUN nào để hiển thị.");
+      return;
+    }
+
+    runs.forEach((run, idx) => {
+      const tr = buildRunRow(run, idx);
+      tbody.appendChild(tr);
+    });
+
+    log("Đã render", runs.length, "RUN(s) vào bảng.");
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    log("DOMContentLoaded – gọi loadRunsTable()");
+    try {
+      loadRunsTable();
+    } catch (e) {
+      warn("Exception ngoài loadRunsTable:", e);
+    }
+  });
+
+  window.VSP_RUNS = window.VSP_RUNS || {};
+  window.VSP_RUNS.loadRunsTable = loadRunsTable;
+})();

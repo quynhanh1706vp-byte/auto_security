@@ -1,0 +1,4 @@
+== VSP UI STABILITY SMOKE P0 ==
+[BASE]=http://127.0.0.1:8910 [N]=120
+== RESULT ==
+[OK] stable: no non-200 in 120 rounds

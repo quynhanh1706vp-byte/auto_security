@@ -1,0 +1,88 @@
+[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER
+[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data
+[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER_RUNNERLOG_V1] runner_log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/runner.log
+[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251214_191830
+[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830
+[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===
+[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh
+[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data
+[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830
+[VSP_CI_GATE] RUN_ID      = VSP_CI_20251214_191830
+[VSP_CI_GATE_AUTOPICK_RUNNER_V1] RUNNER=/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] RUNNER      = /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] === CHẠY RUNNER VSP (FULL SCAN) ===
+[VSP_CI_GATE] Cmd: /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh "/home/test/Data/SECURITY-10-10-v4" "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830"
+===== [BOOT] runner.log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/runner.log ts=2025-12-14T19:18:30+07:00 =====
+==============================================
+[VSP] RUN ALL TOOLS V2 – PROFILE=FULL_EXT LEVEL=FULL_EXT
+ROOT     = /home/test/Data/SECURITY_BUNDLE
+SRC      = /home/test/Data/SECURITY-10-10-v4
+OUT_DIR  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830
+NO_NET   = 0
+==============================================
+
+===== [3/8] KICS (EXT) =====
+===== [KICS_V4] 2025-12-14T19:18:30+07:00 =====
+[KICS_V4] ROOT=/home/test/Data/SECURITY_BUNDLE
+[KICS_V4] SRC=/home/test/Data/SECURITY-10-10-v4
+[KICS_V4] OUT_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830
+[KICS_V4] OUT_KICS=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/kics
+[KICS_V4] TIMEOUT=1800s KILL=30s HB=10s
+[KICS_V4] EXCL_MODE=list
+[KICS_V4] CMD: kics scan -p /home/test/Data/SECURITY-10-10-v4 -o /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/kics --report-formats json --no-color --exclude-paths /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830,/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/kics,/home/test/Data/SECURITY-10-10-v4/.git,/home/test/Data/SECURITY-10-10-v4/node_modules,/home/test/Data/SECURITY-10-10-v4/out_ci,/home/test/Data/SECURITY-10-10-v4/dist,/home/test/Data/SECURITY-10-10-v4/build,/home/test/Data/SECURITY-10-10-v4/target,/home/test/Data/SECURITY-10-10-v4/venv,/home/test/Data/SECURITY-10-10-v4/.venv,/home/test/Data/SECURITY-10-10-v4/__pycache__,/home/test/Data/SECURITY-10-10-v4/.cache,/home/test/Data/SECURITY-10-10-v4/.idea,/home/test/Data/SECURITY-10-10-v4/.vscode
+timeout: gặp lỗi khi chạy câu lệnh “kics”: Không có tập tin hoặc thư mục như vậy
+[KICS_V4] rc=127
+[KICS_V4][DEGRADED] rc=127
+[KICS] rc=0
+
+===== [1/8] Gitleaks (EXT) =====
+[OK] [1/8] Gitleaks (EXT) DONE (rc=0).
+[Gitleaks] ROOT    = /home/test/Data/SECURITY_BUNDLE
+[Gitleaks] OUT_DIR = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830
+[Gitleaks] SRC     = /home/test/Data/SECURITY-10-10-v4
+[Gitleaks] PROFILE = ext
+[Gitleaks] MODE    = BUILTIN_RULES
+[Gitleaks] JSON    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/gitleaks/gitleaks.json
+[Gitleaks] LOG     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/gitleaks/gitleaks.log
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+[90m7:18PM[0m [1m[31mERR[0m[0m [git] fatal: không thể chdir (chuyển thư mục) sang 'E:/': Không có tập tin hoặc thư mục như vậy
+[90m7:18PM[0m [1m[31mERR[0m[0m  [36merror=[0m[31m"stderr is not empty"[0m
+[90m7:18PM[0m [32mINF[0m scan completed in 7.9ms
+[90m7:18PM[0m [32mINF[0m no leaks found
+[Gitleaks][WARN] gitleaks detect kết thúc với rc=127, xem log: /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/gitleaks/gitleaks.log
+[Gitleaks] Findings (coi như hợp lệ để unify): 0 (tool_rc=127)
+[VSP][DEGRADED] 900:missing_tool
+
+===== [2/8] Semgrep SAST (EXT) =====
+[OK] [2/8] Semgrep SAST (EXT) DONE (rc=0).
+[Semgrep] LEVEL=ext
+[Semgrep] SRC  = /home/test/Data/SECURITY-10-10-v4
+[Semgrep] RUN  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830
+[Semgrep] CFG  = /home/test/Data/SECURITY_BUNDLE/rules/semgrep_local_ext.yml
+[Semgrep] OUT  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_191830/semgrep/semgrep.json
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 8901 files tracked by git with 15 Code rules:
+                                                                                                                        
+  Language     Rules   Files          Origin   Rules                                                                    
+ ────────────────────────────        ────────────────                                                                   
+  csharp          10    1730          Custom      15                                                                    
+  json             2     669                                                                                            
+  ts              12     354                                                                                            
+  yaml             3      91                                                                                            
+  js              12       6                                                                                            
+  dockerfile       1       2                                                                                            
+  python          14       1                                                                                            
+                                                                                                                        

@@ -1,0 +1,144 @@
+def _health_rid_latest_gate_root():
+    # Best effort:
+    # 1) env VSP_RID_LATEST
+    rid = os.environ.get("VSP_RID_LATEST", "").strip()
+    if rid:
+        return rid
+
+    # 2) pick newest run dir that contains run_gate_summary.json (cheap filesystem scan)
+    roots = [
+        Path("/home/test/Data/SECURITY_BUNDLE/out_ci"),
+        Path("/home/test/Data/SECURITY_BUNDLE/ui/out_ci"),
+    ]
+    best = None
+    best_m = 0.0
+    for root in roots:
+        try:
+            if not root.is_dir():
+                continue
+            for d in root.iterdir():
+                if not d.is_dir():
+                    continue
+                f = d / "run_gate_summary.json"
+                if f.is_file() and f.stat().st_size > 0:
+                    mt = f.stat().st_mtime
+                    if mt > best_m:
+                        best_m = mt
+                        best = d.name
+        except Exception:
+            continue
+
+    # --- VSP_P0_HEALTHZ_LATEST_ALIAS_RESOLVE_V3 ---
+    # If best is a generic alias like "latest", try to resolve to actual RID for nicer UX.
+    try:
+        if best == "latest":
+            for root in roots:
+                lp = root / "latest"
+                if lp.exists():
+                    # 1) if symlink, resolve target name
+                    try:
+                        if lp.is_symlink():
+                            tgt = lp.resolve()
+                            if tgt and tgt.name and tgt.name != "latest":
+                                best = tgt.name
+                                break
+                    except Exception:
+                        pass
+
+                    # 2) if latest is a dir, try read run id from known files
+                    try:
+                        if lp.is_dir():
+                            for fn in ("RUN_ID", "run_id.txt", "rid.txt"):
+                                f = lp / fn
+                                if f.is_file() and f.stat().st_size > 0:
+                                    rid = f.read_text(encoding="utf-8", errors="replace").strip()
+                                    if rid and rid != "latest":
+                                        best = rid
+                                        break
+                            if best != "latest":
+                                break
+                    except Exception:
+                        pass
+
+                    # 3) as last resort, try parse rid from run_gate_summary.json inside latest
+                    try:
+                        rg = lp / "run_gate_summary.json"
+                        if rg.is_file() and rg.stat().st_size > 0:
+                            import json
+                            j = json.loads(rg.read_text(encoding="utf-8", errors="replace"))
+                            rid = (j.get("rid") or j.get("run_id") or j.get("id") or "").strip()
+                            if rid and rid != "latest":
+                                best = rid
+                                break
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    # --- /VSP_P0_HEALTHZ_LATEST_ALIAS_RESOLVE_V3 ---
+
+    return best or ""
+def _health_degraded_tools_count():
+    # Best effort: read run_gate_summary.json for latest rid if possible, else 0
+    rid = _health_rid_latest_gate_root()
+    if not rid:
+        return 0
+    # common locations
+    roots = [
+        Path("/home/test/Data/SECURITY_BUNDLE/out_ci"),
+        Path("/home/test/Data/SECURITY_BUNDLE/ui/out_ci"),
+        Path("/home/test/Data/SECURITY_BUNDLE"),
+    ]
+    for r in roots:
+        try:
+            f = r / rid / "run_gate_summary.json"
+            if f.is_file() and f.stat().st_size > 0:
+                j = json.loads(f.read_text(encoding="utf-8", errors="replace"))
+                by = j.get("by_tool") or {}
+                d = 0
+                for _, v in by.items():
+                    if isinstance(v, dict) and v.get("degraded") is True:
+                        d += 1
+                return d
+        except Exception:
+            continue
+    return 0
+
+@app.get("/api/vsp/healthz")
+def vsp_healthz_v1():
+    relj = _health_read_release()
+    rel_status, rel_pkg, rel_pkg_exists = _health_release_status(relj)
+    out = {
+        "ok": True,
+        "service_up": True,
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "rid_latest_gate_root": _health_rid_latest_gate_root(),
+        "degraded_tools_count": _health_degraded_tools_count(),
+        "release_status": rel_status,
+        "release_ts": relj.get("release_ts", ""),
+        "release_sha": relj.get("release_sha", ""),
+        "release_pkg": rel_pkg,
+        "release_pkg_exists": rel_pkg_exists,
+    }
+    resp = jsonify(out)
+    # also mirror in headers for super quick CLI grep
+    if out.get("release_ts"):
+        resp.headers["X-VSP-RELEASE-TS"] = str(out["release_ts"])
+    if out.get("release_sha"):
+        resp.headers["X-VSP-RELEASE-SHA"] = str(out["release_sha"])
+    if out.get("release_pkg"):
+        resp.headers["X-VSP-RELEASE-PKG"] = str(out["release_pkg"])
+    resp.headers["X-VSP-HEALTHZ"] = "ok"
+    return resp
+# ===================== /VSP_P0_HEALTHZ_V1 =====================
+
+
+
+# ===================== VSP_P0_ALIAS_RID_LATEST_GATE_ROOT_GATE_ROOT_V1 =====================
+try:
+    @app.get("/api/vsp/rid_latest_gate_root_gate_root")
+    def vsp_alias_rid_latest_gate_root_gate_root():
+        # Fetch() will follow redirect and still get JSON.
+        return redirect("/api/vsp/rid_latest_gate_root", code=302)
+except Exception:
+    pass
+# ===================== /VSP_P0_ALIAS_RID_LATEST_GATE_ROOT_GATE_ROOT_V1 =====================

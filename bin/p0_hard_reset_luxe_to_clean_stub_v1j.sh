@@ -1,0 +1,230 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "[ERR] missing: $1"; exit 2; }; }
+need node; need date; need python3
+
+ok(){ echo "[OK] $*"; }
+warn(){ echo "[WARN] $*" >&2; }
+err(){ echo "[ERR] $*" >&2; exit 2; }
+
+F="static/js/vsp_dashboard_luxe_v1.js"
+[ -f "$F" ] || err "missing $F"
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$F" "${F}.bak_hardreset_${TS}"
+ok "backup: ${F}.bak_hardreset_${TS}"
+
+cat > "$F" <<'JS'
+/* VSP_P0_COMMERCIAL_DASH_STUB_V1J
+   Purpose: replace corrupted luxe JS with a clean, stateless, commercial-safe dashboard renderer.
+   Guarantees:
+   - NO run_file_allow calls
+   - No debug/internal file leaks
+   - Safe parsing (node --check should PASS)
+*/
+(function(){
+  "use strict";
+  if (window.__VSP_DASH_STUB_V1J__) return;
+  window.__VSP_DASH_STUB_V1J__ = true;
+
+  function esc(s){
+    try{
+      return (s==null ? "" : String(s))
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;");
+    }catch(e){ return ""; }
+  }
+
+  function qp(name){
+    try{ return new URL(location.href).searchParams.get(name) || ""; }
+    catch(e){ return ""; }
+  }
+  function lsGet(k){ try{ return localStorage.getItem(k) || ""; }catch(e){ return ""; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k, v); }catch(e){} }
+
+  async function fetchJson(url){
+    const r = await fetch(url, {credentials:"same-origin"});
+    if(!r.ok) throw new Error("HTTP "+r.status+" for "+url);
+    return await r.json();
+  }
+
+  function ensureAnchor(){
+    try{
+      if (document.getElementById("vsp-dashboard-main")) return document.getElementById("vsp-dashboard-main");
+      const root = document.getElementById("vsp5_root") || document.body;
+      const div = document.createElement("div");
+      div.id = "vsp-dashboard-main";
+      div.style.maxWidth = "1200px";
+      div.style.margin = "0 auto";
+      div.style.padding = "12px 12px 24px 12px";
+      if (root && root.parentNode) root.parentNode.insertBefore(div, root);
+      else document.body.insertBefore(div, document.body.firstChild);
+      return div;
+    }catch(e){ return null; }
+  }
+
+  function styleOnce(){
+    if (document.getElementById("vsp-stub-style")) return;
+    const st = document.createElement("style");
+    st.id = "vsp-stub-style";
+    st.textContent = `
+      .vsp-stub-row{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 14px 0}
+      .vsp-stub-card{flex:1;min-width:220px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(20,22,28,.65)}
+      .vsp-stub-k{opacity:.75;font-size:12px}
+      .vsp-stub-v{margin-top:6px;font-weight:900;font-size:26px;letter-spacing:.2px}
+      .vsp-stub-h{font-weight:900;font-size:18px;margin:6px 0 8px 0}
+      .vsp-stub-sub{opacity:.7;font-size:12px}
+      .vsp-stub-pill{display:inline-flex;gap:8px;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18)}
+      .vsp-stub-table{width:100%;border-collapse:collapse;margin-top:10px}
+      .vsp-stub-table th,.vsp-stub-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px}
+      .vsp-stub-muted{opacity:.72}
+      .vsp-stub-btn{cursor:pointer;user-select:none}
+      .vsp-stub-btn:hover{filter:brightness(1.07)}
+      code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    `;
+    document.head.appendChild(st);
+  }
+
+  async function resolveRid(){
+    const rid = qp("rid") || lsGet("vsp_rid_selected") || lsGet("vsp_rid") || "";
+    if (rid) return rid;
+    try{
+      const j = await fetchJson("/api/vsp/rid_latest");
+      const r = (j && j.rid) ? String(j.rid) : "";
+      if (r) lsSet("vsp_rid_selected", r);
+      return r;
+    }catch(e){
+      return "";
+    }
+  }
+
+  function renderShell(main, rid){
+    main.innerHTML = `
+      <div class="vsp-stub-row" style="align-items:center;justify-content:space-between;">
+        <div>
+          <div class="vsp-stub-h">Dashboard</div>
+          <div class="vsp-stub-sub">Unified Findings (8 tools) • RID: <code>${esc(rid||"—")}</code></div>
+        </div>
+        <div class="vsp-stub-pill vsp-stub-btn" id="vsp-stub-reload">↻ Refresh</div>
+      </div>
+
+      <div class="vsp-stub-row" id="vsp-stub-kpis">
+        <div class="vsp-stub-card"><div class="vsp-stub-k">Total Findings</div><div class="vsp-stub-v" id="k_total">—</div><div class="vsp-stub-sub vsp-stub-muted" id="k_total_sub"></div></div>
+        <div class="vsp-stub-card"><div class="vsp-stub-k">Critical</div><div class="vsp-stub-v" id="k_crit">—</div></div>
+        <div class="vsp-stub-card"><div class="vsp-stub-k">High</div><div class="vsp-stub-v" id="k_high">—</div></div>
+        <div class="vsp-stub-card"><div class="vsp-stub-k">Medium</div><div class="vsp-stub-v" id="k_med">—</div></div>
+      </div>
+
+      <div class="vsp-stub-card">
+        <div class="vsp-stub-h" style="font-size:14px;">Top Findings</div>
+        <div class="vsp-stub-sub vsp-stub-muted">Stateless via APIs (no internal file paths).</div>
+        <table class="vsp-stub-table">
+          <thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>File</th></tr></thead>
+          <tbody id="top_body"><tr><td colspan="4" class="vsp-stub-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    `;
+    const btn = document.getElementById("vsp-stub-reload");
+    if (btn) btn.onclick = ()=>{ try{ location.reload(); }catch(e){} };
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (el) el.textContent = (v==null ? "—" : String(v));
+  }
+
+  function normalizeCounts(j){
+    const counts = (j && (j.counts_total || j.counts_by_severity || (j.meta && j.meta.counts_by_severity))) || null;
+    if (!counts || typeof counts !== "object") return null;
+    const g = (k)=> parseInt((counts[k] ?? 0) || 0, 10) || 0;
+    return {
+      total: g("TOTAL") || (g("CRITICAL")+g("HIGH")+g("MEDIUM")+g("LOW")+g("INFO")+g("TRACE")),
+      CRITICAL: g("CRITICAL"),
+      HIGH: g("HIGH"),
+      MEDIUM: g("MEDIUM"),
+      LOW: g("LOW"),
+      INFO: g("INFO"),
+      TRACE: g("TRACE"),
+    };
+  }
+
+  async function loadAndRender(rid){
+    const main = ensureAnchor();
+    if (!main) return;
+    styleOnce();
+    renderShell(main, rid);
+
+    if (!rid){
+      setText("k_total","—"); setText("k_crit","—"); setText("k_high","—"); setText("k_med","—");
+      const sub = document.getElementById("k_total_sub");
+      if (sub) sub.textContent = "Select a valid RID.";
+      const tb = document.getElementById("top_body");
+      if (tb) tb.innerHTML = `<tr><td colspan="4" class="vsp-stub-muted">No RID selected.</td></tr>`;
+      return;
+    }
+
+    // KPI from run_gate_summary_v1 (commercial contract)
+    try{
+      const j = await fetchJson("/api/vsp/run_gate_summary_v1?rid=" + encodeURIComponent(rid));
+      const c = normalizeCounts(j) || {total:0,CRITICAL:0,HIGH:0,MEDIUM:0};
+      setText("k_total", c.total);
+      setText("k_crit", c.CRITICAL);
+      setText("k_high", c.HIGH);
+      setText("k_med", c.MEDIUM);
+      const sub = document.getElementById("k_total_sub");
+      if (sub) sub.textContent = (c.total===0 ? "No data for this run." : "");
+    }catch(e){
+      const sub = document.getElementById("k_total_sub");
+      if (sub) sub.textContent = "Cannot load KPI. Retry.";
+    }
+
+    // Top findings
+    try{
+      const tj = await fetchJson("/api/vsp/top_findings_v1?rid=" + encodeURIComponent(rid) + "&limit=8");
+      const items = (tj && (tj.items || tj.findings || tj.data)) || [];
+      const tb = document.getElementById("top_body");
+      if (!tb) return;
+      if (!items.length){
+        tb.innerHTML = `<tr><td colspan="4" class="vsp-stub-muted">No findings.</td></tr>`;
+        return;
+      }
+      tb.innerHTML = items.slice(0,8).map(it=>{
+        const sev = esc((it && it.severity) || "INFO");
+        const title = esc((it && it.title) || "");
+        const tool = esc((it && it.tool) || "");
+        const file = esc((it && it.file) || "");
+        return `<tr><td>${sev}</td><td>${title}</td><td>${tool}</td><td class="vsp-stub-muted">${file}</td></tr>`;
+      }).join("");
+    }catch(e){
+      const tb = document.getElementById("top_body");
+      if (tb) tb.innerHTML = `<tr><td colspan="4" class="vsp-stub-muted">Cannot load top findings.</td></tr>`;
+    }
+  }
+
+  async function boot(){
+    try{
+      if (location.pathname !== "/vsp5") return;
+      const rid = await resolveRid();
+      await loadAndRender(rid);
+    }catch(e){}
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+JS
+
+node --check "$F" && ok "node --check OK: $F" || err "node --check FAIL: $F"
+
+SVC="${VSP_UI_SVC:-vsp-ui-8910.service}"
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl restart "$SVC" || warn "systemctl restart failed: $SVC"
+fi
+
+echo "== [SMOKE] ensure no run_file_allow callers (rid-based) =="
+grep -RIn --line-number '/api/vsp/run_file_allow\?rid=' static/js | head -n 20 || true
+
+echo "== [DONE] Open: http://127.0.0.1:8910/vsp5?rid=... (Ctrl+F5) =="

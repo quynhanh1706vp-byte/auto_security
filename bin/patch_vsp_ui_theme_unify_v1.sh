@@ -1,0 +1,364 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOG_PREFIX="[VSP_UI_THEME_UNIFY]"
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UI_ROOT="$(cd "$BIN_DIR/.." && pwd)"
+TPL="$UI_ROOT/templates/vsp_dashboard_2025.html"
+
+echo "$LOG_PREFIX UI_ROOT = $UI_ROOT"
+echo "$LOG_PREFIX TPL     = $TPL"
+
+if [ ! -f "$TPL" ]; then
+  echo "$LOG_PREFIX [ERR] Không tìm thấy template: $TPL"
+  echo "$LOG_PREFIX Hãy sửa biến TPL trong script cho đúng tên file HTML."
+  exit 1
+fi
+
+TS="$(date +%Y%m%d_%H%M%S)"
+BACKUP="$TPL.bak_theme_unify_$TS"
+cp "$TPL" "$BACKUP"
+echo "$LOG_PREFIX [BACKUP] $TPL -> $BACKUP"
+
+cat > "$TPL" << 'HTML'
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <title>VersaSecure Platform – VSP 2025</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Console patch (load JS, tabs, KPI, charts, runs, datasource, settings, rules ...) -->
+    <script src="/static/js/vsp_console_patch_v1.js"></script>
+
+    <!-- Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- THEME 2025: áp dụng cho cả 5 tab -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_2025_dark.css') }}">
+  </head>
+  <body class="vsp-theme">
+    <div class="vsp-shell">
+
+      <!-- ============ SIDEBAR: brand + 5 tabs ============ -->
+      <aside class="vsp-shell-sidebar">
+        <div class="vsp-shell-brand">
+          <div class="vsp-shell-brand-badge">V</div>
+          <div>
+            VersaSecure Platform<br>
+            <span style="font-size:11px; color:#9ca3af;">Security Bundle 2025</span>
+          </div>
+        </div>
+
+        <div class="vsp-shell-tabs">
+          <button class="vsp-shell-tab-btn is-active" data-tab="#vsp-tab-dashboard">
+            <span class="dot"></span> Dashboard
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-runs">
+            <span class="dot"></span> Runs & Reports
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-datasource">
+            <span class="dot"></span> Data Source
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-settings">
+            <span class="dot"></span> Settings
+          </button>
+          <button class="vsp-shell-tab-btn" data-tab="#vsp-tab-rules">
+            <span class="dot"></span> Rule Overrides
+          </button>
+        </div>
+
+        <div class="vsp-shell-footer">
+          VSP 2025 • FULL_EXT<br>
+          <span id="vsp-last-run-footer">Last run: —</span>
+        </div>
+      </aside>
+
+      <!-- ============ MAIN PANEL ============ -->
+      <main class="vsp-shell-main">
+
+        <!-- Header chung 5 tab: title + last run/score -->
+        <div class="vsp-shell-header-row">
+          <div class="vsp-shell-title">
+            <h1>Security Posture Overview</h1>
+            <p>CIO-level view của toàn bộ findings từ 8 tool (FULL_EXT).</p>
+          </div>
+          <div class="vsp-shell-header-kpi">
+            <div>
+              <span class="label">Last run</span><br>
+              <span class="value" id="vsp-last-run-header">—</span>
+            </div>
+            <div>
+              <span class="label">Score</span><br>
+              <span class="value" id="vsp-last-score-header">—/100</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vùng content 5 tab -->
+        <div class="vsp-tabs-content">
+
+          <!-- ============ TAB 1: DASHBOARD ============ -->
+          <section id="vsp-tab-dashboard" class="vsp-tab-pane is-active">
+
+            <!-- KPI ZONE – 10 KEY METRICS (Bước 3) -->
+            <div id="vsp-dashboard-kpi-zone">
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Total findings</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-total-findings">-</div>
+                  <div class="vsp-kpi-sub">All tools, all targets</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Critical</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-critical">-</div>
+                  <div class="vsp-kpi-sub">Blocking issues</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">High</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-high">-</div>
+                  <div class="vsp-kpi-sub">High-risk vulnerabilities</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Medium</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-medium">-</div>
+                  <div class="vsp-kpi-sub">Medium severity findings</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Low</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-low">-</div>
+                  <div class="vsp-kpi-sub">Low-priority issues</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Info + Trace</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-info-trace">-</div>
+                  <div class="vsp-kpi-sub">Informational & trace findings</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Security posture score</div>
+                  <div class="vsp-kpi-value">
+                    <span id="vsp-kpi-score">-/100</span>
+                  </div>
+                  <div class="vsp-kpi-score-pill">
+                    <span>Overall score</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Top risky tool</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-top-tool">-</div>
+                  <div class="vsp-kpi-sub">Tool with most CRIT/HIGH</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Top impacted CWE</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-top-cwe">-</div>
+                  <div class="vsp-kpi-sub">Most frequent CWE across findings</div>
+                </div>
+              </div>
+
+              <div class="vsp-kpi-card">
+                <div class="vsp-kpi-card-inner">
+                  <div class="vsp-kpi-label">Top vulnerable module</div>
+                  <div class="vsp-kpi-value" id="vsp-kpi-top-module">-</div>
+                  <div class="vsp-kpi-sub">Dependency with most severe findings</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CHART ZONE & PRIORITY ZONE – dùng lại JS có sẵn (Bước 3 mở rộng) -->
+            <div class="vsp-charts-grid" style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Severity distribution & trend</div>
+                  <div class="vsp-card-meta">Donut + CRIT/HIGH trend (from /api/vsp/dashboard_v3)</div>
+                </div>
+                <!-- Container cho vsp_dashboard_charts_v1.js -->
+                <div id="vsp-dashboard-charts-main"></div>
+              </div>
+
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Top exposure overview</div>
+                  <div class="vsp-card-meta">By tool / CWE / module</div>
+                </div>
+                <div id="vsp-dashboard-charts-side"></div>
+              </div>
+            </div>
+
+            <!-- Priority / Compliance placeholder – để V2 bơm nội dung -->
+            <div style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Priority & Compliance (placeholder)</div>
+                  <div class="vsp-card-meta">Zone này giữ layout bản thương mại, V2 sẽ mapping thêm ISO / OWASP.</div>
+                </div>
+                <p style="font-size:12px; color:#9ca3af; margin-top:6px;">
+                  Nội dung mô tả mức độ tuân thủ, khuyến nghị remediation theo chuẩn ISO 27001 / OWASP ASVS,
+                  sẽ được hoàn thiện trong phiên bản V2. Hiện tại giữ layout để trình diễn bản thương mại V1.5.
+                </p>
+              </div>
+            </div>
+
+          </section>
+
+          <!-- ============ TAB 2: RUNS & REPORTS (Bước 4 – Runs) ============ -->
+          <section id="vsp-tab-runs" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Runs & Trend</div>
+                <div class="vsp-card-meta">
+                  Lịch sử runs từ summary_by_run.json • CRIT/HIGH trend theo thời gian.
+                </div>
+              </div>
+
+              <div class="vsp-filters-row">
+                <input class="vsp-input" id="vsp-runs-search" placeholder="Search by run id / tag...">
+                <button class="vsp-button" id="vsp-runs-refresh">Refresh</button>
+              </div>
+
+              <!-- Bảng chính: vsp_runs_tab_v1.js sẽ render -->
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table" id="vsp-runs-table">
+                  <!-- JS sẽ lấp dữ liệu từ /api/vsp/runs_index_v3?limit=50 -->
+                </table>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Run trend (CRIT/HIGH)</div>
+                  <div class="vsp-card-meta">
+                    vsp_runs_tab_kpi_inject_v1.js có thể dùng vùng này để vẽ chart.
+                  </div>
+                </div>
+                <div id="vsp-runs-trend"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ TAB 3: DATA SOURCE (Bước 4 – Data Source) ============ -->
+          <section id="vsp-tab-datasource" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Findings Data Source</div>
+                <div class="vsp-card-meta">
+                  Unified findings_unified.json • filter & export theo severity / tool / path.
+                </div>
+              </div>
+
+              <div class="vsp-filters-row">
+                <select class="vsp-select" id="vsp-ds-severity">
+                  <option value="">All severities</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                  <option value="INFO">Info</option>
+                  <option value="TRACE">Trace</option>
+                </select>
+
+                <input class="vsp-input" id="vsp-ds-search" placeholder="Search in rule / path / CWE...">
+
+                <button class="vsp-button-ghost" id="vsp-ds-export">
+                  Export current view
+                </button>
+              </div>
+
+              <!-- Bảng chính: vsp_datasource_ext_columns_v1.js sẽ render -->
+              <div class="vsp-table-wrapper">
+                <table class="vsp-table" id="vsp-ds-table">
+                  <!-- JS sẽ lấp dữ liệu từ /api/vsp/datasource_v2 -->
+                </table>
+              </div>
+            </div>
+
+            <div style="margin-top:20px;">
+              <div class="vsp-card">
+                <div class="vsp-card-header">
+                  <div class="vsp-card-title">Mini analytics (placeholder)</div>
+                  <div class="vsp-card-meta">
+                    vsp_datasource_charts_v1.js sẽ dùng vùng này để vẽ chart severity / top tool / top CWE.
+                  </div>
+                </div>
+                <div id="vsp-ds-charts"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ TAB 4: SETTINGS (Bước 5 – Settings) ============ -->
+          <section id="vsp-tab-settings" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Settings</div>
+                <div class="vsp-card-meta">
+                  Cấu hình tool / profile / rule mapping • /api/vsp/settings_ui_v1.
+                </div>
+              </div>
+
+              <div id="vsp-settings-root">
+                <!-- vsp_settings_tab_v1.js sẽ render form / bảng vào đây -->
+                <p style="font-size:12px; color:#9ca3af;">
+                  Vùng Settings UI – JS sẽ gọi /api/vsp/settings_ui_v1 và hiển thị cấu hình.
+                  Layout card & font đã theo theme 2025, chỉ cần JS lấp nội dung.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ TAB 5: RULE OVERRIDES (Bước 5 – Rules) ============ -->
+          <section id="vsp-tab-rules" class="vsp-tab-pane">
+            <div class="vsp-card">
+              <div class="vsp-card-header">
+                <div class="vsp-card-title">Rule Overrides</div>
+                <div class="vsp-card-meta">
+                  Quản lý ignore / downgrade / custom rule • /api/vsp/rule_overrides_ui_v1.
+                </div>
+              </div>
+
+              <div id="vsp-rules-root">
+                <!-- vsp_rules_tab_v1.js sẽ render bảng rule override -->
+                <p style="font-size:12px; color:#9ca3af;">
+                  Vùng Rule Overrides UI – JS sẽ hiển thị danh sách override từ JSON.
+                  Theme card / table dùng chung với Data Source & Runs để giữ cảm giác thương mại.
+                </p>
+              </div>
+            </div>
+          </section>
+
+        </div> <!-- /vsp-tabs-content -->
+
+      </main>
+    </div>
+  </body>
+</html>
+HTML
+
+echo "$LOG_PREFIX [DONE] Đã ghi layout mới vào $TPL"
+echo "$LOG_PREFIX Bây giờ reload lại UI (port 8910) để xem theme 2025 cho cả 5 tab."

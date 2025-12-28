@@ -1,0 +1,192 @@
+/* vsp_demo_overlay_v1.js — upgraded: wire to real findings API */
+(function(){
+  try {
+    if (window.__VSP_DEMO_OVERLAY_V1_WIRED) return;
+    window.__VSP_DEMO_OVERLAY_V1_WIRED = true;
+
+    // utility
+    const byId = id => document.getElementById(id);
+    const safeText = (n)=> (typeof n === 'number' ? n : (n? n : 0));
+
+    // find / create overlay if not present (keeps existing DOM if overlay installed)
+    const ensureOverlay = () => {
+      let overlay = document.getElementById('vsp-demo-overlay');
+      if (overlay) return overlay;
+      overlay = document.createElement('div');
+      overlay.id = 'vsp-demo-overlay';
+      overlay.style = 'position:fixed;z-index:2147483000;left:12px;right:12px;top:12px;bottom:12px;background:linear-gradient(180deg, #08090f, #0c0e12);color:#e6eef8;border-radius:10px;padding:22px;overflow:auto;font-family:Inter,Segoe UI,Roboto,Arial;';
+      overlay.innerHTML = `
+        <div style="display:flex;gap:20px;align-items:flex-start">
+          <div style="width:360px;flex:0 0 360px">
+            <div style="font-size:20px;font-weight:700;margin-bottom:8px">VersaSecure Platform — Live</div>
+            <div style="font-size:12px;color:#9fb0d3;margin-bottom:12px">RID: <span id="vsp-demo-rid">-</span> · <small style="opacity:.8">live preview</small></div>
+            <div style="display:grid;grid-template-columns:1fr;gap:10px">
+              <div class="vsp-kpi" style="background:rgba(255,255,255,0.02);padding:12px;border-radius:8px">
+                <div style="font-size:12px;color:#8fa7d1">TOTAL FINDINGS</div>
+                <div id="kpi-total" style="font-size:28px;font-weight:800">0</div>
+              </div>
+              <div class="vsp-kpi" style="display:flex;gap:8px">
+                <div style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px">
+                  <div style="font-size:12px;color:#8fa7d1">CRITICAL</div>
+                  <div id="kpi-critical" style="font-size:24px;font-weight:700;color:#ff6b6b">0</div>
+                </div>
+                <div style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px">
+                  <div style="font-size:12px;color:#8fa7d1">HIGH</div>
+                  <div id="kpi-high" style="font-size:24px;font-weight:700;color:#ffb86b">0</div>
+                </div>
+              </div>
+              <div class="vsp-kpi" style="display:flex;gap:8px">
+                <div style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px">
+                  <div style="font-size:12px;color:#8fa7d1">MEDIUM</div>
+                  <div id="kpi-medium" style="font-size:20px;font-weight:700;color:#ffd36b">0</div>
+                </div>
+                <div style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px">
+                  <div style="font-size:12px;color:#8fa7d1">LOW</div>
+                  <div id="kpi-low" style="font-size:20px;font-weight:700;color:#9fd36b">0</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button id="vsp-demo-refresh" style="background:#2b6cff;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer">Refresh</button>
+                <button id="vsp-demo-close" style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cfe3ff;padding:8px 12px;border-radius:8px;cursor:pointer">Hide</button>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+            <div style="background:rgba(255,255,255,0.02);padding:12px;border-radius:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-weight:700">Run status <span id="vsp-run-status" style="margin-left:8px;color:#9fb0d3;font-weight:600">-</span></div>
+                <div><a id="vsp-open-report" href="/release/" target="_blank" style="color:#cfe3ff">Open report</a></div>
+              </div>
+              <div id="vsp-top-reco" style="margin-top:10px;color:#cfe3ff"></div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.02);padding:12px;border-radius:8px">
+              <div style="font-weight:700">Top 5 issues</div>
+              <ol id="vsp-top-issues" style="margin-top:8px;color:#cfe3ff"></ol>
+            </div>
+
+            <div style="font-size:12px;color:#9fb0d3">Auto-refresh every 60s • Data from <code>/api/vsp/findings_latest_v1</code></div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      return overlay;
+    };
+
+    function computeCounts(findings){
+      const counts = {TOTAL:0, CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0, INFO:0, TRACE:0};
+      if (!Array.isArray(findings)) return counts;
+      findings.forEach(f=>{
+        const sev = String((f.severity||f.level||f.sev||'').toUpperCase()).trim();
+        if (!sev) { /* try mapping from numeric or risk */ }
+        counts.TOTAL++;
+        if (counts[sev] !== undefined) counts[sev]++; else {
+          // map common variants
+          if (sev.startsWith('CRIT')) counts.CRITICAL++;
+          else if (sev.startsWith('HIGH')) counts.HIGH++;
+          else if (sev.startsWith('MED')) counts.MEDIUM++;
+          else if (sev.startsWith('LOW')) counts.LOW++;
+          else counts.INFO++;
+        }
+      });
+      return counts;
+    }
+
+    async function fetchFindings(){
+      // try primary API, fallback to root findings_unified.json
+      const endpoints = ['/api/vsp/findings_latest_v1?limit=1','/api/vsp/findings_latest_v1','/findings_unified.json','/release/findings_unified.json'];
+      let data=null;
+      for (const ep of endpoints){
+        try{
+          const r = await fetch(ep, {cache:'no-store'});
+          if (!r.ok) continue;
+          const j = await r.json();
+          // normalize: if array containing runs, pick first .findings or .results
+          if (Array.isArray(j) && j.length>0){
+            // try shapes: {findings:[...]} or direct findings array
+            const candidate = j[0].findings || j[0].results || j[0].data || j[0];
+            if (Array.isArray(candidate)) { data={rid: j[0].rid||'', findings:candidate, raw:j}; break; }
+            // else maybe j is direct findings array
+            if (Array.isArray(j[0])) { data={rid:'', findings:j[0], raw:j}; break; }
+          }else if (j && typeof j === 'object'){
+            if (Array.isArray(j.findings)) { data={rid:j.rid||'', findings:j.findings, raw:j}; break; }
+            if (Array.isArray(j.results)) { data={rid:j.rid||'', findings:j.results, raw:j}; break; }
+            // if j is an array-like of findings
+            if (Array.isArray(j)) { data={rid:'', findings:j, raw:j}; break; }
+          }
+        }catch(e){
+          // ignore and try next
+        }
+      }
+      return data;
+    }
+
+    async function updateUI(){
+      const overlay = ensureOverlay();
+      const info = await fetchFindings();
+      if (!info || !Array.isArray(info.findings)){
+        // set zeroes and show message
+        ['kpi-total','kpi-critical','kpi-high','kpi-medium','kpi-low'].forEach(id=>{ const el=byId(id); if(el) el.textContent='-'; });
+        const st = byId('vsp-run-status'); if (st) st.textContent='NO DATA';
+        const top = byId('vsp-top-issues'); if (top) top.innerHTML='<li>no data available</li>';
+        return;
+      }
+      const counts = computeCounts(info.findings);
+      // write values
+      byId('kpi-total').textContent = counts.TOTAL;
+      byId('kpi-critical').textContent = counts.CRITICAL;
+      byId('kpi-high').textContent = counts.HIGH;
+      byId('kpi-medium').textContent = counts.MEDIUM;
+      byId('kpi-low').textContent = counts.LOW;
+      // run status
+      const overall = (counts.CRITICAL>0 || counts.HIGH>10) ? 'ISSUES' : 'GREEN';
+      const st = byId('vsp-run-status'); if (st) st.textContent = overall;
+      // top 5 issues
+      const top = byId('vsp-top-issues');
+      if (top){
+        top.innerHTML = '';
+        // pick top by severity mapping: Critical->High->Medium->Low
+        const order = {'CRITICAL':4,'HIGH':3,'MEDIUM':2,'LOW':1,'INFO':0};
+        const sorted = info.findings.slice().sort((a,b)=>{
+          const sa = (a.severity||a.level||'').toUpperCase();
+          const sb = (b.severity||b.level||'').toUpperCase();
+          return (order[sb]||0)-(order[sa]||0);
+        }).slice(0,5);
+        sorted.forEach(s=>{
+          const f = document.createElement('li');
+          const lab = (s.severity||s.level||'').toUpperCase() || (s.rule || s.check || 'N/A');
+          const file = s.file || s.filename || s.path || '';
+          const msg = (s.message||s.title||s.rule||s.rule_id||'').toString().substring(0,120);
+          f.innerHTML = `<strong style="color:#ffb86b">${lab}</strong> — ${msg} <span style="opacity:.7">(${file})</span>`;
+          top.appendChild(f);
+        });
+      }
+      // update RID
+      const ridEl = byId('vsp-demo-rid'); if (ridEl) ridEl.textContent = info.rid || '';
+      // recommendations (simple heuristics)
+      const reco = byId('vsp-top-reco');
+      if (reco){
+        const recs = [];
+        if (counts.HIGH > 0) recs.push('Review secret scan (Gitleaks) entries');
+        if (counts.TOTAL > 100) recs.push('Prioritize Code/IA C findings review');
+        if (counts.MEDIUM > 20) recs.push('Triage medium severity for quick wins');
+        reco.innerHTML = recs.map(r=>`<div>• ${r}</div>`).join('') || '<div>No immediate recommendations</div>';
+      }
+    }
+
+    // wire buttons
+    const overlay = ensureOverlay();
+    const btnRefresh = document.getElementById('vsp-demo-refresh');
+    if (btnRefresh) btnRefresh.addEventListener('click', ()=>{ updateUI(); });
+
+    const btnClose = document.getElementById('vsp-demo-close');
+    if (btnClose) btnClose.addEventListener('click', ()=>{ const el=document.getElementById('vsp-demo-overlay'); if (el) el.remove(); });
+
+    // initial + periodic refresh
+    updateUI();
+    setInterval(updateUI, 60*1000);
+
+  } catch(e){
+    console.warn('vsp_demo_overlay_v1_wired init failed', e);
+  }
+})();

@@ -1,0 +1,44 @@
+<section id="tab-rule-overrides" class="tab-pane">
+  <div class="vsp-tab-header">
+    <h2>Rule Overrides</h2>
+    <div class="vsp-tab-subtitle">
+      Tune noise, DOWNGRADE/UPGRADE/MUTE findings with full traceability.
+    </div>
+  </div>
+
+  <div class="vsp-ro-topbar">
+    <div class="vsp-ro-kpi">
+      <span class="kpi-label">Total rules</span>
+      <span class="kpi-value" id="vsp-ro-total">0</span>
+    </div>
+  </div>
+
+  <div id="vsp-ruleoverrides-wrapper" class="vsp-ro-wrapper">
+    <div class="vsp-ro-main">
+      <table class="vsp-ro-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Enabled</th>
+            <th>Action</th>
+            <th>Match</th>
+            <th>Target Sev</th>
+            <th>Priority</th>
+            <th>Note</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="vsp-ro-tbody">
+          <!-- rows by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <div id="vsp-ro-detail" class="vsp-ro-detail">
+      <div class="vsp-ro-detail-header">
+        <h3>Rule detail (JSON)</h3>
+      </div>
+      <pre>{}</pre>
+    </div>
+  </div>
+</section>

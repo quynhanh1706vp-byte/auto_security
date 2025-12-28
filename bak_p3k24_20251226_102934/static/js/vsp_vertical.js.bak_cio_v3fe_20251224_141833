@@ -1,0 +1,1048 @@
+/* VersaSecure VSP EXT+ UI – single JS for 5 tabs
+ * Gọi BE:
+ *  - POST /api/vsp/run
+ *  - GET  /api/vsp/dashboard_v3
+ *  - GET  /api/vsp/runs
+ *  - GET  /api/vsp/datasource
+ *  - GET  /api/vsp/settings
+ */
+
+'use strict';
+
+// PATCH: đảm bảo mọi chart có khoảng padding đáy đủ để không mất trục hoành
+if (window.Chart && Chart.defaults) {
+  Chart.defaults.layout = Chart.defaults.layout || {};
+  Chart.defaults.layout.padding = Chart.defaults.layout.padding || {};
+  if (!Chart.defaults.layout.padding.bottom ||
+      Chart.defaults.layout.padding.bottom < 24) {
+    Chart.defaults.layout.padding.bottom = 24;
+  }
+}
+
+(function () {
+  if (!window.VSP) window.VSP = {};
+  const VSP = window.VSP;
+
+  // ---------- Helper ----------
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  const fmt = (n) => {
+    if (n == null || isNaN(n)) return '0';
+    return Number(n).toLocaleString('en-US');
+  };
+
+  async function fetchJSON(url, opts = {}) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      if (!res.ok) {
+        console.error('[VSP] HTTP error', url, res.status);
+        return null;
+      }
+      return await res.json();
+    } catch (e) {
+      console.error('[VSP] fetchJSON error', url, e);
+      return null;
+    }
+  }
+
+  function safeDestroyChart(chartRefName) {
+    const chart = VSP[chartRefName];
+    if (chart && typeof chart.destroy === 'function') {
+      chart.destroy();
+    }
+    VSP[chartRefName] = null;
+  }
+
+  // ---------- TAB SWITCH ----------
+  function initTabs() {
+    const navItems = $$('.vsp-nav-item');
+    const panes = $$('.vsp-tab-pane');
+
+    navItems.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-tab');
+        navItems.forEach((b) => b.classList.toggle('active', b === btn));
+        panes.forEach((p) =>
+          p.classList.toggle('active', p.getAttribute('data-tab-pane') === target)
+        );
+
+        // Lazy load cho từng tab
+        if (target === 'dashboard') {
+          loadDashboard();
+        } else if (target === 'runs') {
+          loadRuns();
+        } else if (target === 'datasource') {
+          loadDataSource(); // dùng filter hiện tại
+        } else if (target === 'settings') {
+          loadSettings();
+        } else if (target === 'overrides') {
+          updateOverridesMetrics();
+        }
+      });
+    });
+  }
+
+  // ---------- DASHBOARD ----------
+  async function loadDashboard() {
+    const data = await fetchJSON('/api/vsp/dashboard_v3');
+    if (!data) return;
+
+    const sev = data.severity || {};
+    const total = data.total_findings || 0;
+    const byTool = data.by_tool || {};
+    const runId = data.run_id || '-';
+
+    // KPI 6 severity + TOTAL
+    $('#kpi-critical').textContent = fmt(sev.CRITICAL || 0);
+    $('#kpi-high').textContent = fmt(sev.HIGH || 0);
+    $('#kpi-medium').textContent = fmt(sev.MEDIUM || 0);
+    $('#kpi-low').textContent = fmt(sev.LOW || 0);
+    const infoTrace = (sev.INFO || 0) + (sev.TRACE || 0);
+    $('#kpi-info-trace').textContent = fmt(infoTrace);
+    $('#kpi-total').textContent = fmt(total);
+
+    // Security Posture Score – nếu BE có trả thì dùng, không thì tính thô
+    let score = data.security_score;
+    if (score == null) {
+      const critHigh = (sev.CRITICAL || 0) + (sev.HIGH || 0);
+      score = critHigh === 0 ? 100 : Math.max(10, 100 - Math.log10(critHigh + 1) * 25);
+      score = Math.round(score);
+    }
+    $('#kpi-score').textContent = score;
+
+    // Top risky tool (dựa trên by_tool)
+    let topTool = '–';
+    let maxToolVal = -1;
+    Object.entries(byTool).forEach(([tool, val]) => {
+      if (val > maxToolVal) {
+        maxToolVal = val;
+        topTool = tool;
+      }
+    });
+    $('#kpi-top-tool').textContent = topTool || '–';
+
+    // Top CWE / Module – nếu BE trả thì gán, không có thì TBD
+    $('#kpi-top-cwe').textContent = data.top_cwe || 'TBD';
+    $('#kpi-top-module').textContent = data.top_module || 'TBD';
+
+    // ENV footer
+    if ($('#vsp-last-run-id')) {
+      $('#vsp-last-run-id').textContent = runId;
+    }
+
+    // Donut severity
+    safeDestroyChart('chartSeverity');
+    const ctxSev = document.getElementById('chart-severity-donut');
+    if (ctxSev) {
+      const labels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'TRACE'];
+      const values = labels.map((k) => sev[k] || 0);
+      VSP.chartSeverity = new Chart(ctxSev, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [
+            {
+              data: values,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+              },
+            },
+          },
+        },
+      });
+    }
+
+    // Trend over time – dùng /api/vsp/runs để vẽ line
+    const runs = await fetchJSON('/api/vsp/runs');
+    safeDestroyChart('chartTrend');
+    const ctxTrend = document.getElementById('chart-trend');
+    if (ctxTrend && runs && Array.isArray(runs)) {
+      const labels = runs.map((r) => r.run_id || '').slice(-20);
+      const values = runs.map((r) => r.total_findings || 0).slice(-20);
+      VSP.chartTrend = new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              data: values,
+              tension: 0.3,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { display: false } },
+          },
+        },
+      });
+    }
+
+    // Critical / High by Tool – nếu BE chưa tách thì dùng tổng by_tool
+    safeDestroyChart('chartByTool');
+    const ctxTool = document.getElementById('chart-by-tool');
+    if (ctxTool && Object.keys(byTool).length > 0) {
+      const labels = Object.keys(byTool);
+      const values = Object.values(byTool);
+      VSP.chartByTool = new Chart(ctxTool, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ data: values }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { autoSkip: true, maxRotation: 0 } },
+          },
+        },
+      });
+    }
+
+    // Top CWE exposure – nếu BE trả sẵn top_cwe_list thì dùng, ko thì bỏ trống
+    safeDestroyChart('chartTopCwe');
+    const ctxCwe = document.getElementById('chart-top-cwe');
+    const topCweList = data.top_cwe_list || [];
+    if (ctxCwe && topCweList.length > 0) {
+      const labels = topCweList.map((x) => x.cwe || '');
+      const values = topCweList.map((x) => x.count || 0);
+      VSP.chartTopCwe = new Chart(ctxCwe, {
+        type: 'bar',
+        data: { labels, datasets: [{ data: values }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { autoSkip: true, maxRotation: 0 } },
+          },
+        },
+      });
+    }
+
+    // Bảng dưới (Top Risk Findings, Noisy Paths, CVEs, Tool&Severity)
+    fillDashboardTablesFromDashboard(data);
+  }
+
+  function fillDashboardTablesFromDashboard(data) {
+    // Các key này tuỳ BE, nếu chưa có thì bảng để trống (UI vẫn ổn)
+    const topRisk = data.top_risk_findings || [];
+    const noisy = data.top_noisy_paths || [];
+    const cves = data.top_cves || [];
+    const byToolSev = data.by_tool_severity || [];
+
+    const tblRisk = $('#tbl-top-risk tbody');
+    const tblNoisy = $('#tbl-noisy-paths tbody');
+    const tblCves = $('#tbl-top-cves tbody');
+    const tblToolSev = $('#tbl-tool-sev tbody');
+
+    if (tblRisk) {
+      tblRisk.innerHTML = topRisk
+        .slice(0, 10)
+        .map(
+          (r) => `<tr>
+            <td>${r.severity || ''}</td>
+            <td>${r.tool || ''}</td>
+            <td title="${r.file || ''}">${r.file || ''}</td>
+            <td>${r.rule_id || ''}</td>
+            <td title="${r.message || ''}">${r.message || ''}</td>
+          </tr>`
+        )
+        .join('');
+    }
+
+    if (tblNoisy) {
+      tblNoisy.innerHTML = noisy
+        .slice(0, 10)
+        .map(
+          (r) => `<tr>
+            <td title="${r.path || ''}">${r.path || ''}</td>
+            <td>${fmt(r.findings || 0)}</td>
+            <td>${fmt(r.crit_high || 0)}</td>
+          </tr>`
+        )
+        .join('');
+    }
+
+    if (tblCves) {
+      tblCves.innerHTML = cves
+        .slice(0, 10)
+        .map(
+          (r) => `<tr>
+            <td>${r.cve || ''}</td>
+            <td>${r.module || ''}</td>
+            <td>${r.severity || ''}</td>
+            <td>${fmt(r.count || 0)}</td>
+          </tr>`
+        )
+        .join('');
+    }
+
+    if (tblToolSev) {
+      tblToolSev.innerHTML = byToolSev
+        .map(
+          (r) => `<tr>
+            <td>${r.tool || ''}</td>
+            <td>${fmt(r.CRITICAL || 0)}</td>
+            <td>${fmt(r.HIGH || 0)}</td>
+            <td>${fmt(r.MEDIUM || 0)}</td>
+            <td>${fmt(r.LOW || 0)}</td>
+            <td>${fmt((r.INFO || 0) + (r.TRACE || 0))}</td>
+          </tr>`
+        )
+        .join('');
+    }
+  }
+
+  // ---------- RUNS & REPORTS ----------
+  async function loadRuns() {
+    const runs = await fetchJSON('/api/vsp/runs');
+    if (!runs || !Array.isArray(runs)) return;
+
+    // KPI trên góc phải
+    const totalRuns = runs.length;
+    const avg =
+      totalRuns === 0
+        ? 0
+        : runs.reduce((acc, r) => acc + (r.total_findings || 0), 0) / totalRuns;
+
+    $('#runs-total').textContent = fmt(totalRuns);
+    $('#runs-avg-findings').textContent = fmt(Math.round(avg));
+    $('#runs-tools-enabled').textContent = '8';
+
+    // Bảng history
+    const tbody = $('#tbl-runs-history tbody');
+    if (!tbody) return;
+
+    const profileFilter = $('#runs-filter-profile').value || '';
+    const severityFilter = $('#runs-filter-severity').value || '';
+    const toolFilter = $('#runs-filter-tool').value || '';
+    const timeFilter = $('#runs-filter-time').value || 'ALL';
+    const search = ($('#runs-search').value || '').toLowerCase();
+
+    const now = Date.now();
+    const ms7d = 7 * 24 * 3600 * 1000;
+    const ms30d = 30 * 24 * 3600 * 1000;
+
+    const filtered = runs.filter((r) => {
+      if (profileFilter && (r.profile || '') !== profileFilter) return false;
+      // severityFilter/toolFilter có thể map vào r.by_severity / r.by_tool nếu BE có
+      if (timeFilter === '7d' && r.ts) {
+        const t = Date.parse(r.ts);
+        if (!isNaN(t) && now - t > ms7d) return false;
+      }
+      if (timeFilter === '30d' && r.ts) {
+        const t = Date.parse(r.ts);
+        if (!isNaN(t) && now - t > ms30d) return false;
+      }
+      if (search) {
+        const hay =
+          (r.run_id || '') +
+          ' ' +
+          (r.src || '') +
+          ' ' +
+          (r.url || '') +
+          ' ' +
+          (r.commit || '');
+        if (!hay.toLowerCase().includes(search)) return false;
+      }
+      return true;
+    });
+
+    tbody.innerHTML = filtered
+      .map((r) => {
+        const sev = r.by_severity || {};
+        const total = r.total_findings || 0;
+        const tools = (r.tools || []).join(', ');
+        const runId = r.run_id || '';
+        const reportUrl = r.report_html || `/api/vsp/run/${encodeURIComponent(
+          runId
+        )}/report/html`;
+        return `<tr>
+          <td title="${runId}">${runId}</td>
+          <td>${r.ts || ''}</td>
+          <td>${r.profile || ''}</td>
+          <td title="${r.src || ''}">${r.src || ''}</td>
+          <td title="${r.url || ''}">${r.url || ''}</td>
+          <td>${fmt(sev.CRITICAL || 0)}</td>
+          <td>${fmt(sev.HIGH || 0)}</td>
+          <td>${fmt(sev.MEDIUM || 0)}</td>
+          <td>${fmt(sev.LOW || 0)}</td>
+          <td>${fmt((sev.INFO || 0) + (sev.TRACE || 0))}</td>
+          <td>${fmt(total)}</td>
+          <td title="${tools}">${tools || '8'}</td>
+          <td><a href="${reportUrl}" target="_blank" rel="noopener">HTML</a></td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  function initRunsFilters() {
+    const ids = [
+      '#runs-filter-profile',
+      '#runs-filter-severity',
+      '#runs-filter-tool',
+      '#runs-filter-time',
+      '#runs-search',
+    ];
+    ids.forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      const evt = id === '#runs-search' ? 'input' : 'change';
+      el.addEventListener(evt, () => loadRuns());
+    });
+  }
+
+  // ---------- DATA SOURCE ----------
+  async function loadDataSource() {
+    const sev = $('#ds-filter-severity')?.value || '';
+    const tool = $('#ds-filter-tool')?.value || '';
+    const folder = $('#ds-filter-folder')?.value || '';
+    const search = $('#ds-filter-search')?.value || '';
+
+    const params = new URLSearchParams();
+    if (sev) params.set('severity', sev);
+    if (tool) params.set('tool', tool);
+    if (folder) params.set('folder', folder);
+    if (search) params.set('search', search);
+    params.set('limit', '500');
+    params.set('offset', '0');
+
+    const url = '/api/vsp/datasource?' + params.toString();
+    const data = await fetchJSON(url);
+    if (!data || !Array.isArray(data.items)) return;
+
+    const tbody = $('#tbl-ds-findings tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = data.items
+      .map((it) => {
+        return `<tr>
+          <td>${it.severity || ''}</td>
+          <td>${it.tool || ''}</td>
+          <td title="${it.file || ''}">${it.file || ''}</td>
+          <td>${it.line || ''}</td>
+          <td>${it.rule_id || it.rule || ''}</td>
+          <td title="${it.message || ''}">${it.message || ''}</td>
+          <td>${it.cwe || ''}</td>
+          <td>${it.cve || ''}</td>
+          <td>${it.module || ''}</td>
+          <td title="${it.fix || ''}">${it.fix || ''}</td>
+          <td>${(it.tags || []).join(', ')}</td>
+        </tr>`;
+      })
+      .join('');
+
+    // Mini charts – build từ tập 500 record này
+    buildDataSourceCharts(data.items);
+  }
+
+  function buildDataSourceCharts__old(items) {
+    const sevCounts = {};
+    const toolCounts = {};
+    const cweCounts = {};
+    const dirCounts = {};
+
+    items.forEach((it) => {
+      const sev = it.severity || 'UNKNOWN';
+      sevCounts[sev] = (sevCounts[sev] || 0) + 1;
+
+      const tool = it.tool || 'unknown';
+      toolCounts[tool] = (toolCounts[tool] || 0) + 1;
+
+      const cwe = it.cwe || '—';
+      cweCounts[cwe] = (cweCounts[cwe] || 0) + 1;
+
+      const file = it.file || '';
+      let dir = file;
+      const idx = file.lastIndexOf('/');
+      if (idx > 0) dir = file.slice(0, idx);
+      dirCounts[dir] = (dirCounts[dir] || 0) + 1;
+    });
+
+    const top = (obj, n) =>
+      Object.entries(obj)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n);
+
+    // Severity donut
+    safeDestroyChart('dsChartSeverity');
+    const ctx1 = document.getElementById('ds-chart-severity');
+    if (ctx1) {
+      const labels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'TRACE'];
+      const data = labels.map((k) => sevCounts[k] || 0);
+      VSP.dsChartSeverity = new Chart(ctx1, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data }] },
+        options: { responsive: true, maintainAspectRatio: false },
+      });
+    }
+
+    // By tool
+    safeDestroyChart('dsChartTool');
+    const ctx2 = document.getElementById('ds-chart-tool');
+    if (ctx2) {
+      const arr = top(toolCounts, 8);
+      VSP.dsChartTool = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: arr.map((x) => x[0]),
+          datasets: [{ data: arr.map((x) => x[1]) }],
+        },
+        options: { responsive: true, maintainAspectRatio: false },
+      });
+    }
+
+    // Top 5 CWE
+    safeDestroyChart('dsChartCwe');
+    const ctx3 = document.getElementById('ds-chart-cwe');
+    if (ctx3) {
+      const arr = top(cweCounts, 5);
+      VSP.dsChartCwe = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: arr.map((x) => x[0]),
+          datasets: [{ data: arr.map((x) => x[1]) }],
+        },
+        options: { responsive: true, maintainAspectRatio: false },
+      });
+    }
+
+    // Top 5 directories
+    safeDestroyChart('dsChartDir');
+    const ctx4 = document.getElementById('ds-chart-dir');
+    if (ctx4) {
+      const arr = top(dirCounts, 5);
+      VSP.dsChartDir = new Chart(ctx4, {
+        type: 'bar',
+        data: {
+          labels: arr.map((x) => x[0]),
+          datasets: [{ data: arr.map((x) => x[1]) }],
+        },
+        options: { responsive: true, maintainAspectRatio: false },
+      });
+    }
+  }
+
+  function initDataSourceFilters() {
+    ['#ds-filter-severity', '#ds-filter-tool'].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('change', () => loadDataSource());
+    });
+    const folder = $('#ds-filter-folder');
+    const search = $('#ds-filter-search');
+    if (folder) folder.addEventListener('input', () => loadDataSource());
+    if (search) search.addEventListener('input', () => loadDataSource());
+    const btn = $('#ds-refresh-btn');
+    if (btn) btn.addEventListener('click', () => loadDataSource());
+  }
+
+  // ---------- SETTINGS ----------
+  async function loadSettings() {
+    const data = await fetchJSON('/api/vsp/settings');
+    if (!data) return;
+
+    $('#set-src-default').textContent = data.src_path || '–';
+    $('#set-profile').textContent = data.profile || 'EXT';
+    $('#set-last-run').textContent = data.last_run_id || '–';
+
+    if ($('#vsp-src-input') && data.src_path) {
+      $('#vsp-src-input').value = data.src_path;
+    }
+    if ($('#vsp-env-label')) {
+      $('#vsp-env-label').textContent = `ENV: EXT / staging`;
+    }
+
+    const tools = data.tools || {};
+    const tbody = $('#tbl-tool-stack tbody');
+    if (!tbody) return;
+
+    const TYPE_MAP = {
+      gitleaks: 'Secrets',
+      semgrep: 'SAST',
+      kics: 'IaC',
+      codeql: 'CodeQL',
+      bandit: 'Python SAST',
+      trivy_fs: 'FS scan',
+      grype: 'Vuln DB',
+      syft: 'SBOM',
+    };
+
+    tbody.innerHTML = Object.keys(tools)
+      .map((k) => {
+        const enabled = tools[k];
+        const type = TYPE_MAP[k] || '';
+        return `<tr>
+          <td>${k}</td>
+          <td>${type}</td>
+          <td>${enabled ? 'ON' : 'OFF'}</td>
+          <td>—</td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  // ---------- RULE OVERRIDES (client preview) ----------
+  function updateOverridesMetrics() {
+    const txt = $('#overrides-editor')?.value || '';
+    if (!txt) {
+      $('#ovr-count').textContent = '0';
+      $('#ovr-critical-downgraded').textContent = '0';
+      $('#ovr-top-rule').textContent = '–';
+      return;
+    }
+
+    const lines = txt.split('\n');
+    let count = 0;
+    let critDown = 0;
+    const ruleFreq = {};
+
+    let currentRule = null;
+    lines.forEach((raw) => {
+      const line = raw.trim();
+      if (line.startsWith('- id:')) {
+        currentRule = line.split(':')[1].trim();
+        count += 1;
+        ruleFreq[currentRule] = (ruleFreq[currentRule] || 0) + 1;
+      }
+      if (currentRule && line.startsWith('severity:')) {
+        const sev = line.split(':')[1].trim().toUpperCase();
+        if (sev !== 'CRITICAL') {
+          critDown += 1;
+        }
+      }
+    });
+
+    let topRule = '–';
+    let maxCount = 0;
+    Object.entries(ruleFreq).forEach(([rule, c]) => {
+      if (c > maxCount) {
+        maxCount = c;
+        topRule = rule;
+      }
+    });
+
+    $('#ovr-count').textContent = String(count);
+    $('#ovr-critical-downgraded').textContent = String(critDown);
+    $('#ovr-top-rule').textContent = topRule || '–';
+  }
+
+  function initOverrides() {
+    const editor = $('#overrides-editor');
+    if (editor) {
+      editor.addEventListener('input', () => updateOverridesMetrics());
+    }
+    const btn = $('#ovr-apply-btn');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        updateOverridesMetrics();
+        btn.textContent = 'PREVIEW UPDATED';
+        setTimeout(() => (btn.textContent = 'APPLY PREVIEW'), 1200);
+      });
+    }
+  }
+
+  // ---------- RUN BUTTON ----------
+
+  // Đợi backend hoàn thành scan & unify cho run_id mới
+  async function waitForRunCompletion(expectedRunId) {
+    const maxAttempts = 60;       // ~5 phút nếu 5s/lần
+    const intervalMs = 5000;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      const d = await fetchJSON('/api/vsp/dashboard_v3');
+      if (d && d.run_id === expectedRunId) {
+        // Khi dashboard đã trỏ sang run mới: reload toàn bộ data
+        await loadDashboard();
+        await loadRuns();
+        await loadDataSource();
+        await loadSettings();
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    return false;
+  }
+
+  function initRunButton() {
+
+    const btn = $('#vsp-run-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+      const src = $('#vsp-src-input')?.value || '';
+      const profile = $('#vsp-profile-select')?.value || 'EXT';
+      if (!src) {
+        alert('Please input SRC path first.');
+        return;
+      }
+
+      btn.disabled = true;
+      const oldText = btn.textContent;
+      btn.textContent = 'RUNNING...';
+
+      const payload = {
+        src_path: src,
+        profile: profile,
+        level: profile,
+        no_net: 0,
+      };
+
+      const res = await fetchJSON('/api/vsp/run', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      btn.disabled = false;
+      btn.textContent = oldText;
+
+      if (!res || res.status !== 'ok') {
+        alert('Run failed. Please check backend logs.');
+        return;
+      }
+
+      // Sau khi scan xong: reload Dashboard + Runs + DataSource + Settings
+      loadDashboard();
+      loadRuns();
+      loadDataSource();
+      loadSettings();
+    });
+  }
+
+  // ---------- INIT ----------
+  function init() {
+    initTabs();
+    initRunsFilters();
+    initDataSourceFilters();
+    initOverrides();
+    initRunButton();
+
+    // Load ban đầu: dashboard + settings + runs (dashboard dùng /runs cho trend)
+    loadDashboard();
+    loadSettings();
+    loadRuns();
+    // Data source sẽ tự load khi user click tab hoặc khi dashboard gọi riêng
+  }
+
+  // PATCH 2025-12-01 – buildDataSourceCharts: bỏ label 'undefined', '—', rỗng
+  function buildDataSourceCharts(items) {
+    items = Array.isArray(items) ? items : [];
+
+    const sevCounts  = {};
+    const toolCounts = {};
+    const cweCounts  = {};
+    const dirCounts  = {};
+
+    items.forEach(function (it) {
+      // Severity
+      if (it.severity) {
+        var sev = String(it.severity).toUpperCase();
+        sevCounts[sev] = (sevCounts[sev] || 0) + 1;
+      }
+
+      // Tool
+      if (it.tool) {
+        var tool = String(it.tool);
+        toolCounts[tool] = (toolCounts[tool] || 0) + 1;
+      }
+
+      // CWE
+      if (it.cwe) {
+        var cwe = String(it.cwe);
+        cweCounts[cwe] = (cweCounts[cwe] || 0) + 1;
+      }
+
+      // Directory
+      if (it.file) {
+        var file = String(it.file);
+        var idx  = file.lastIndexOf('/');
+        var dir  = idx > 0 ? file.slice(0, idx) : file;
+        dirCounts[dir] = (dirCounts[dir] || 0) + 1;
+      }
+    });
+
+    function topEntries(obj, n, opts) {
+      opts = opts || {};
+      var allowNA = !!opts.allowNA;
+
+      return Object.entries(obj)
+        .filter(function ([k, v]) {
+          if (!k || v <= 0) return false;
+          var key = String(k).trim().toUpperCase();
+          if (!allowNA && (key === 'UNDEFINED' || key === '—')) return false;
+          return true;
+        })
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .slice(0, n);
+    }
+
+    // ----- Severity donut -----
+    safeDestroyChart('dsChartSeverity');
+    var ctx1 = document.getElementById('ds-chart-severity');
+    if (ctx1) {
+      var sevLabels = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO', 'TRACE'];
+      var sevData   = sevLabels.map(function (k) { return sevCounts[k] || 0; });
+      VSP.dsChartSeverity = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+          labels: sevLabels,
+          datasets: [{ data: sevData }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    // ----- Findings by tool -----
+    safeDestroyChart('dsChartTool');
+    var ctx2 = document.getElementById('ds-chart-tool');
+    if (ctx2) {
+      var toolArr = topEntries(toolCounts, 8, { allowNA: false });
+      if (toolArr.length > 0) {
+        VSP.dsChartTool = new Chart(ctx2, {
+          type: 'bar',
+          data: {
+            labels: toolArr.map(function (x) { return x[0]; }),
+            datasets: [{ data: toolArr.map(function (x) { return x[1]; }) }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                ticks: {
+                  callback: function (val, idx, ticks) {
+                    var label = this.getLabelForValue(val) || '';
+                    return label.length > 10 ? label.slice(0, 10) + '…' : label;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // ----- Top 5 CWE -----
+    safeDestroyChart('dsChartCwe');
+    var ctx3 = document.getElementById('ds-chart-cwe');
+    if (ctx3) {
+      var cweArr = topEntries(cweCounts, 5, { allowNA: false });
+      if (cweArr.length > 0) {
+        VSP.dsChartCwe = new Chart(ctx3, {
+          type: 'bar',
+          data: {
+            labels: cweArr.map(function (x) { return x[0]; }),
+            datasets: [{ data: cweArr.map(function (x) { return x[1]; }) }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                ticks: {
+                  callback: function (val, idx, ticks) {
+                    var label = this.getLabelForValue(val) || '';
+                    return label.length > 14 ? label.slice(0, 14) + '…' : label;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // ----- Top 5 directories -----
+    safeDestroyChart('dsChartDir');
+    var ctx4 = document.getElementById('ds-chart-dir');
+    if (ctx4) {
+      var dirArr = topEntries(dirCounts, 5, { allowNA: false });
+      if (dirArr.length > 0) {
+        VSP.dsChartDir = new Chart(ctx4, {
+          type: 'bar',
+          data: {
+            labels: dirArr.map(function (x) { return x[0]; }),
+            datasets: [{ data: dirArr.map(function (x) { return x[1]; }) }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                ticks: {
+                  callback: function (val, idx, ticks) {
+                    var label = this.getLabelForValue(val) || '';
+                    // Chỉ show tên thư mục cuối cho gọn
+                    var parts = label.split('/');
+                    var last  = parts[parts.length - 1] || label;
+                    return last.length > 14 ? last.slice(0, 14) + '…' : last;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+
+
+
+// VSP_P1_DASH_FORCE_RENDER_FROM_API_V5
+(function(){
+  if (window.__VSP_DASH_RENDER_V5) return;
+  window.__VSP_DASH_RENDER_V5 = true;
+
+  function pickCanvas(ids){
+    for (const id of ids){
+      const el = document.getElementById(id);
+      if (el && typeof el.getContext === "function") return el;
+    }
+    return null;
+  }
+
+  async function getLatestRid(){
+    try{
+      const r = await fetch("/api/vsp/runs?limit=1", {cache:"no-store"});
+      const j = await r.json();
+      return (j && j.items && j.items[0] && j.items[0].run_id) ? j.items[0].run_id : "";
+    }catch(e){ return ""; }
+  }
+
+  function getRidFromUrl(){
+    try{
+      const u = new URL(window.location.href);
+      return u.searchParams.get("rid") || "";
+    }catch(e){ return ""; }
+  }
+
+  function parseDonut(j){
+    if (j && j.charts && j.charts.severity && j.charts.severity.donut) return j.charts.severity.donut;
+    if (j && j.donut && j.donut.labels && j.donut.values) return j.donut;
+    if (j && Array.isArray(j.severity_distribution)){
+      return { labels: j.severity_distribution.map(x=>x.sev), values: j.severity_distribution.map(x=>x.count) };
+    }
+    if (j && Array.isArray(j.sev_dist)){
+      return { labels: j.sev_dist.map(x=>x.sev), values: j.sev_dist.map(x=>x.count) };
+    }
+    return null;
+  }
+
+  function parseTrend(j){
+    if (j && j.charts && j.charts.trend && j.charts.trend.series) return j.charts.trend.series;
+    if (j && j.trend && j.trend.labels && j.trend.values) return j.trend;
+    if (j && Array.isArray(j.findings_trend)){
+      return { labels: j.findings_trend.map(x=>x.rid), values: j.findings_trend.map(x=>x.total) };
+    }
+    return null;
+  }
+
+  function parseBarCritHigh(j){
+    if (j && j.charts && j.charts.crit_high_by_tool && j.charts.crit_high_by_tool.bar) return j.charts.crit_high_by_tool.bar;
+    if (j && j.bar_crit_high && j.bar_crit_high.labels) return j.bar_crit_high;
+    if (j && Array.isArray(j.critical_high_by_tool)){
+      const labels = j.critical_high_by_tool.map(x=>x.tool);
+      const crit = j.critical_high_by_tool.map(x=>x.critical||0);
+      const high = j.critical_high_by_tool.map(x=>x.high||0);
+      return { labels, series: [{name:"CRITICAL",data:crit},{name:"HIGH",data:high}] };
+    }
+    return null;
+  }
+
+  function renderDonut(donut){
+    if (!window.Chart || !donut) return;
+    const canvas = pickCanvas([
+      "severity_donut_chart","chart-severity-donut","severity_donut",
+      "vsp_chart_ds_severity","vsp-ds-severity-donut","chart_severity_donut"
+    ]);
+    if (!canvas) return;
+    try{ window.__VSP_DONUT_CHART_V5 && window.__VSP_DONUT_CHART_V5.destroy(); }catch(e){}
+    window.__VSP_DONUT_CHART_V5 = new Chart(canvas, {
+      type: "doughnut",
+      data: { labels: donut.labels, datasets: [{ data: donut.values }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+    });
+  }
+
+  function renderTrend(tr){
+    if (!window.Chart || !tr) return;
+    const canvas = pickCanvas([
+      "findings_trend_chart","chart-findings-trend","findings_trend",
+      "vsp_chart_trend","chart_findings_trend"
+    ]);
+    if (!canvas) return;
+    try{ window.__VSP_TREND_CHART_V5 && window.__VSP_TREND_CHART_V5.destroy(); }catch(e){}
+    window.__VSP_TREND_CHART_V5 = new Chart(canvas, {
+      type: "line",
+      data: { labels: tr.labels, datasets: [{ data: tr.values }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+    });
+  }
+
+  function renderBar(bar){
+    if (!window.Chart || !bar) return;
+    const canvas = pickCanvas([
+      "critical_high_by_tool_chart","chart-critical-high-by-tool","crit_high_by_tool",
+      "vsp_chart_crit_high","chart_crit_high"
+    ]);
+    if (!canvas) return;
+    const s0 = (bar.series && bar.series[0]) ? bar.series[0].data : [];
+    const s1 = (bar.series && bar.series[1]) ? bar.series[1].data : [];
+    try{ window.__VSP_BAR_CHART_V5 && window.__VSP_BAR_CHART_V5.destroy(); }catch(e){}
+    window.__VSP_BAR_CHART_V5 = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels: bar.labels,
+        datasets: [
+          { label: "CRITICAL", data: s0 },
+          { label: "HIGH", data: s1 }
+        ]
+      },
+      options: { responsive:true, maintainAspectRatio:false }
+    });
+  }
+
+  async function main(){
+    try{
+      let rid = getRidFromUrl();
+      if (!rid) rid = await getLatestRid();
+      if (!rid) return;
+
+      const r = await fetch("/api/vsp/dash_charts?rid=" + encodeURIComponent(rid), {cache:"no-store"});
+      const j = await r.json();
+
+      renderDonut(parseDonut(j));
+      renderTrend(parseTrend(j));
+      renderBar(parseBarCritHigh(j));
+    }catch(e){
+      console.warn("[VSP][DASH][V5] render failed:", e);
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+  else main();
+})();
+

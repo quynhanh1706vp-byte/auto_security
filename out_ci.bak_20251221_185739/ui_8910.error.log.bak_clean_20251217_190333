@@ -1,0 +1,707 @@
+[2025-12-17 12:48:59 +0700] [722393] [INFO] Handling signal: term
+[2025-12-17 12:49:00 +0700] [722393] [ERROR] Worker (pid:722397) was sent SIGKILL! Perhaps out of memory?
+[2025-12-17 12:49:00 +0700] [722393] [ERROR] Worker (pid:722396) was sent SIGKILL! Perhaps out of memory?
+[2025-12-17 12:49:00 +0700] [722393] [INFO] Shutting down: Master
+[2025-12-17 12:58:42 +0700] [731484] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 12:58:42 +0700] [731484] [INFO] Listening at: http://127.0.0.1:8910 (731484)
+[2025-12-17 12:58:42 +0700] [731484] [INFO] Using worker: gthread
+[2025-12-17 12:58:42 +0700] [731488] [INFO] Booting worker with pid: 731488
+[2025-12-17 13:01:04 +0700] [731484] [INFO] Handling signal: term
+[2025-12-17 13:01:05 +0700] [733142] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 13:01:23 +0700] [733284] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 13:01:34 +0700] [731484] [INFO] Shutting down: Master
+[2025-12-17 13:06:09 +0700] [735296] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 13:06:09 +0700] [735296] [INFO] Listening at: http://127.0.0.1:8910 (735296)
+[2025-12-17 13:06:09 +0700] [735296] [INFO] Using worker: gthread
+[2025-12-17 13:06:09 +0700] [735309] [INFO] Booting worker with pid: 735309
+[2025-12-17 13:17:50 +0700] [735296] [INFO] Handling signal: term
+[2025-12-17 13:17:50 +0700] [735309] [INFO] Worker exiting (pid: 735309)
+[2025-12-17 13:17:50 +0700] [735296] [INFO] Shutting down: Master
+[2025-12-17 13:17:51 +0700] [740388] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 13:17:51 +0700] [740388] [INFO] Listening at: http://127.0.0.1:8910 (740388)
+[2025-12-17 13:17:51 +0700] [740388] [INFO] Using worker: gthread
+[2025-12-17 13:17:51 +0700] [740392] [INFO] Booting worker with pid: 740392
+[2025-12-17 13:19:23,612] ERROR in app: Exception on /api/vsp/findings_effective_v1/VSP_CI_20251215_034956 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5421, in api_vsp_findings_effective_v1
+    out = _vsp_apply_overrides_preview(rid)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5386, in _vsp_apply_overrides_preview
+    run_dir, st = _vsp_get_run_dir_from_statusv2(rid)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5362, in _vsp_get_run_dir_from_statusv2
+    st = _vsp_http_get_json_local(f"/api/vsp/run_status_v2/{rid}")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5357, in _vsp_http_get_json_local
+    with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1348, in do_open
+    r = h.getresponse()
+        ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 1428, in getresponse
+    response.begin()
+  File "/usr/lib/python3.12/http/client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+[2025-12-17 13:19:26,619] ERROR in app: Exception on /api/vsp/findings_effective_v1/VSP_CI_20251215_034956 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5421, in api_vsp_findings_effective_v1
+    out = _vsp_apply_overrides_preview(rid)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5386, in _vsp_apply_overrides_preview
+    run_dir, st = _vsp_get_run_dir_from_statusv2(rid)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5362, in _vsp_get_run_dir_from_statusv2
+    st = _vsp_http_get_json_local(f"/api/vsp/run_status_v2/{rid}")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5357, in _vsp_http_get_json_local
+    with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1348, in do_open
+    r = h.getresponse()
+        ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 1428, in getresponse
+    response.begin()
+  File "/usr/lib/python3.12/http/client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+[2025-12-17 13:27:10,828] ERROR in app: Exception on /api/vsp/findings_effective_v1/VSP_CI_20251215_034956 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5421, in api_vsp_findings_effective_v1
+    out = _vsp_apply_overrides_preview(rid)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5386, in _vsp_apply_overrides_preview
+    run_dir, st = _vsp_get_run_dir_from_statusv2(rid)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5362, in _vsp_get_run_dir_from_statusv2
+    st = _vsp_http_get_json_local(f"/api/vsp/run_status_v2/{rid}")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5357, in _vsp_http_get_json_local
+    with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1348, in do_open
+    r = h.getresponse()
+        ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 1428, in getresponse
+    response.begin()
+  File "/usr/lib/python3.12/http/client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+[2025-12-17 13:31:38 +0700] [740392] [INFO] Autorestarting worker after current request.
+[2025-12-17 13:32:09 +0700] [740392] [INFO] Worker exiting (pid: 740392)
+[2025-12-17 13:33:55 +0700] [750853] [INFO] Booting worker with pid: 750853
+[2025-12-17 13:53:49 +0700] [750853] [INFO] Autorestarting worker after current request.
+[2025-12-17 13:54:19 +0700] [750853] [INFO] Worker exiting (pid: 750853)
+[2025-12-17 13:55:23 +0700] [760248] [INFO] Booting worker with pid: 760248
+[2025-12-17 14:19:27 +0700] [760248] [INFO] Autorestarting worker after current request.
+[2025-12-17 14:19:57 +0700] [760248] [INFO] Worker exiting (pid: 760248)
+[2025-12-17 14:20:30 +0700] [772334] [INFO] Booting worker with pid: 772334
+[2025-12-17 14:34:31 +0700] [740388] [INFO] Handling signal: term
+[2025-12-17 14:34:31 +0700] [772334] [INFO] Worker exiting (pid: 772334)
+[2025-12-17 14:34:31 +0700] [740388] [INFO] Shutting down: Master
+[2025-12-17 14:34:32 +0700] [780048] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 14:34:32 +0700] [780048] [INFO] Listening at: http://127.0.0.1:8910 (780048)
+[2025-12-17 14:34:32 +0700] [780048] [INFO] Using worker: gthread
+[2025-12-17 14:34:32 +0700] [780050] [INFO] Booting worker with pid: 780050
+[2025-12-17 14:57:04 +0700] [780048] [INFO] Handling signal: term
+[2025-12-17 14:57:05 +0700] [780050] [INFO] Worker exiting (pid: 780050)
+[2025-12-17 14:57:05 +0700] [780048] [INFO] Shutting down: Master
+[2025-12-17 14:57:06 +0700] [797085] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 14:57:06 +0700] [797085] [INFO] Listening at: http://127.0.0.1:8910 (797085)
+[2025-12-17 14:57:06 +0700] [797085] [INFO] Using worker: gthread
+[2025-12-17 14:57:06 +0700] [797101] [INFO] Booting worker with pid: 797101
+[2025-12-17 15:00:33 +0700] [797085] [INFO] Handling signal: term
+[2025-12-17 15:00:34 +0700] [800112] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:00:48 +0700] [797085] [INFO] Shutting down: Master
+[2025-12-17 15:03:52 +0700] [803276] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:03:52 +0700] [803276] [INFO] Listening at: http://127.0.0.1:8910 (803276)
+[2025-12-17 15:03:52 +0700] [803276] [INFO] Using worker: gthread
+[2025-12-17 15:03:52 +0700] [803278] [INFO] Booting worker with pid: 803278
+[2025-12-17 15:03:52 +0700] [803279] [INFO] Booting worker with pid: 803279
+[2025-12-17 15:08:15 +0700] [803276] [INFO] Handling signal: term
+[2025-12-17 15:08:16 +0700] [803278] [INFO] Worker exiting (pid: 803278)
+[2025-12-17 15:08:16 +0700] [807224] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:08:30 +0700] [803276] [INFO] Shutting down: Master
+[2025-12-17 15:13:32 +0700] [811600] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:13:32 +0700] [811600] [INFO] Listening at: http://127.0.0.1:8910 (811600)
+[2025-12-17 15:13:32 +0700] [811600] [INFO] Using worker: gthread
+[2025-12-17 15:13:32 +0700] [811602] [INFO] Booting worker with pid: 811602
+[2025-12-17 15:13:32 +0700] [811621] [INFO] Booting worker with pid: 811621
+[2025-12-17 15:23:27 +0700] [811600] [INFO] Handling signal: term
+[2025-12-17 15:23:27 +0700] [811602] [INFO] Worker exiting (pid: 811602)
+[2025-12-17 15:23:27 +0700] [811621] [INFO] Worker exiting (pid: 811621)
+[2025-12-17 15:23:27 +0700] [811600] [INFO] Shutting down: Master
+[2025-12-17 15:23:28 +0700] [819508] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:23:28 +0700] [819508] [INFO] Listening at: http://127.0.0.1:8910 (819508)
+[2025-12-17 15:23:28 +0700] [819508] [INFO] Using worker: gthread
+[2025-12-17 15:23:28 +0700] [819529] [INFO] Booting worker with pid: 819529
+[2025-12-17 15:23:28 +0700] [819530] [INFO] Booting worker with pid: 819530
+[2025-12-17 15:24:46 +0700] [819508] [INFO] Handling signal: term
+[2025-12-17 15:24:47 +0700] [819529] [INFO] Worker exiting (pid: 819529)
+[2025-12-17 15:24:47 +0700] [819530] [INFO] Worker exiting (pid: 819530)
+[2025-12-17 15:24:47 +0700] [819508] [INFO] Shutting down: Master
+[2025-12-17 15:24:47 +0700] [820031] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:24:47 +0700] [820031] [INFO] Listening at: http://127.0.0.1:8910 (820031)
+[2025-12-17 15:24:47 +0700] [820031] [INFO] Using worker: gthread
+[2025-12-17 15:24:47 +0700] [820033] [INFO] Booting worker with pid: 820033
+[2025-12-17 15:24:47 +0700] [820034] [INFO] Booting worker with pid: 820034
+[2025-12-17 15:34:23 +0700] [820031] [INFO] Handling signal: term
+[2025-12-17 15:34:23 +0700] [820033] [INFO] Worker exiting (pid: 820033)
+[2025-12-17 15:34:23 +0700] [820034] [INFO] Worker exiting (pid: 820034)
+[2025-12-17 15:34:23 +0700] [820031] [INFO] Shutting down: Master
+[2025-12-17 15:34:24 +0700] [823884] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:34:24 +0700] [823884] [INFO] Listening at: http://127.0.0.1:8910 (823884)
+[2025-12-17 15:34:24 +0700] [823884] [INFO] Using worker: gthread
+[2025-12-17 15:34:24 +0700] [823886] [INFO] Booting worker with pid: 823886
+[2025-12-17 15:34:24 +0700] [823887] [INFO] Booting worker with pid: 823887
+[2025-12-17 15:38:45 +0700] [823884] [INFO] Handling signal: term
+[2025-12-17 15:38:45 +0700] [823887] [INFO] Worker exiting (pid: 823887)
+[2025-12-17 15:38:45 +0700] [823886] [INFO] Worker exiting (pid: 823886)
+[2025-12-17 15:38:45 +0700] [823884] [INFO] Shutting down: Master
+[2025-12-17 15:38:46 +0700] [825664] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:38:46 +0700] [825664] [INFO] Listening at: http://127.0.0.1:8910 (825664)
+[2025-12-17 15:38:46 +0700] [825664] [INFO] Using worker: gthread
+[2025-12-17 15:38:46 +0700] [825666] [INFO] Booting worker with pid: 825666
+[2025-12-17 15:38:46 +0700] [825667] [INFO] Booting worker with pid: 825667
+[2025-12-17 15:43:09 +0700] [825664] [INFO] Handling signal: term
+[2025-12-17 15:43:10 +0700] [825667] [INFO] Worker exiting (pid: 825667)
+[2025-12-17 15:43:10 +0700] [825666] [INFO] Worker exiting (pid: 825666)
+[2025-12-17 15:43:10 +0700] [825664] [INFO] Shutting down: Master
+[2025-12-17 15:43:10 +0700] [827635] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:43:10 +0700] [827635] [INFO] Listening at: http://127.0.0.1:8910 (827635)
+[2025-12-17 15:43:10 +0700] [827635] [INFO] Using worker: gthread
+[2025-12-17 15:43:10 +0700] [827637] [INFO] Booting worker with pid: 827637
+[2025-12-17 15:43:10 +0700] [827638] [INFO] Booting worker with pid: 827638
+[2025-12-17 15:46:22 +0700] [827635] [INFO] Handling signal: term
+[2025-12-17 15:46:23 +0700] [829295] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:46:32 +0700] [827638] [INFO] Worker exiting (pid: 827638)
+[2025-12-17 15:46:37 +0700] [827635] [INFO] Shutting down: Master
+[2025-12-17 15:48:13 +0700] [830099] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:48:13 +0700] [830099] [INFO] Listening at: http://127.0.0.1:8910 (830099)
+[2025-12-17 15:48:13 +0700] [830099] [INFO] Using worker: gthread
+[2025-12-17 15:48:13 +0700] [830101] [INFO] Booting worker with pid: 830101
+[2025-12-17 15:48:14 +0700] [830102] [INFO] Booting worker with pid: 830102
+[2025-12-17 15:53:03 +0700] [830099] [INFO] Handling signal: term
+[2025-12-17 15:53:04 +0700] [830101] [INFO] Worker exiting (pid: 830101)
+[2025-12-17 15:53:04 +0700] [833134] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:53:18 +0700] [830099] [INFO] Shutting down: Master
+[2025-12-17 15:57:33 +0700] [835824] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 15:57:33 +0700] [835824] [INFO] Listening at: http://127.0.0.1:8910 (835824)
+[2025-12-17 15:57:33 +0700] [835824] [INFO] Using worker: gthread
+[2025-12-17 15:57:33 +0700] [835826] [INFO] Booting worker with pid: 835826
+[2025-12-17 15:57:33 +0700] [835827] [INFO] Booting worker with pid: 835827
+[2025-12-17 16:29:35 +0700] [835824] [INFO] Handling signal: term
+[2025-12-17 16:29:36 +0700] [835827] [INFO] Worker exiting (pid: 835827)
+[2025-12-17 16:29:36 +0700] [835824] [ERROR] Worker (pid:835826) was sent SIGKILL! Perhaps out of memory?
+[2025-12-17 16:29:36 +0700] [835824] [INFO] Shutting down: Master
+[2025-12-17 16:29:37 +0700] [854909] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 16:29:37 +0700] [854909] [INFO] Listening at: http://127.0.0.1:8910 (854909)
+[2025-12-17 16:29:37 +0700] [854909] [INFO] Using worker: gthread
+[2025-12-17 16:29:37 +0700] [854911] [INFO] Booting worker with pid: 854911
+[2025-12-17 16:29:37 +0700] [854912] [INFO] Booting worker with pid: 854912
+[2025-12-17 16:46:42 +0700] [854909] [INFO] Handling signal: term
+[2025-12-17 16:46:43 +0700] [854912] [INFO] Worker exiting (pid: 854912)
+[2025-12-17 16:46:43 +0700] [854909] [ERROR] Worker (pid:854911) was sent SIGKILL! Perhaps out of memory?
+[2025-12-17 16:46:43 +0700] [854909] [INFO] Shutting down: Master
+[2025-12-17 16:46:44 +0700] [865194] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 16:46:44 +0700] [865194] [INFO] Listening at: http://127.0.0.1:8910 (865194)
+[2025-12-17 16:46:44 +0700] [865194] [INFO] Using worker: gthread
+[2025-12-17 16:46:44 +0700] [865196] [INFO] Booting worker with pid: 865196
+[2025-12-17 16:46:44 +0700] [865197] [INFO] Booting worker with pid: 865197
+[2025-12-17 16:53:37 +0700] [865194] [INFO] Handling signal: term
+[2025-12-17 16:53:38 +0700] [865197] [INFO] Worker exiting (pid: 865197)
+[2025-12-17 16:53:38 +0700] [865196] [INFO] Worker exiting (pid: 865196)
+[2025-12-17 16:53:38 +0700] [865194] [INFO] Shutting down: Master
+[2025-12-17 16:53:39 +0700] [871554] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 16:53:39 +0700] [871554] [INFO] Listening at: http://127.0.0.1:8910 (871554)
+[2025-12-17 16:53:39 +0700] [871554] [INFO] Using worker: gthread
+[2025-12-17 16:53:39 +0700] [871558] [INFO] Booting worker with pid: 871558
+[2025-12-17 16:53:39 +0700] [871560] [INFO] Booting worker with pid: 871560
+[2025-12-17 17:01:54 +0700] [871554] [INFO] Handling signal: term
+[2025-12-17 17:01:55 +0700] [871560] [INFO] Worker exiting (pid: 871560)
+[2025-12-17 17:01:55 +0700] [871558] [INFO] Worker exiting (pid: 871558)
+[2025-12-17 17:01:55 +0700] [871554] [INFO] Shutting down: Master
+[2025-12-17 17:01:56 +0700] [878954] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 17:01:56 +0700] [878954] [INFO] Listening at: http://127.0.0.1:8910 (878954)
+[2025-12-17 17:01:56 +0700] [878954] [INFO] Using worker: gthread
+[2025-12-17 17:01:56 +0700] [878956] [INFO] Booting worker with pid: 878956
+[2025-12-17 17:01:56 +0700] [878957] [INFO] Booting worker with pid: 878957
+[2025-12-17 17:56:24 +0700] [878954] [INFO] Handling signal: term
+[2025-12-17 17:56:24 +0700] [878957] [INFO] Worker exiting (pid: 878957)
+[2025-12-17 17:56:24 +0700] [878954] [ERROR] Worker (pid:878956) was sent SIGKILL! Perhaps out of memory?
+[2025-12-17 17:56:24 +0700] [878954] [INFO] Shutting down: Master
+[2025-12-17 17:56:25 +0700] [907482] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 17:56:25 +0700] [907482] [INFO] Listening at: http://127.0.0.1:8910 (907482)
+[2025-12-17 17:56:25 +0700] [907482] [INFO] Using worker: gthread
+[2025-12-17 17:56:25 +0700] [907484] [INFO] Booting worker with pid: 907484
+[2025-12-17 17:56:25 +0700] [907485] [INFO] Booting worker with pid: 907485
+[2025-12-17 18:43:33 +0700] [907482] [INFO] Handling signal: term
+[2025-12-17 18:43:35 +0700] [928154] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 18:43:48 +0700] [907482] [INFO] Shutting down: Master
+[2025-12-17 18:44:22 +0700] [928482] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 18:44:22 +0700] [928482] [INFO] Listening at: http://127.0.0.1:8910 (928482)
+[2025-12-17 18:44:22 +0700] [928482] [INFO] Using worker: gthread
+[2025-12-17 18:44:22 +0700] [928484] [INFO] Booting worker with pid: 928484
+[2025-12-17 18:44:22 +0700] [928485] [INFO] Booting worker with pid: 928485
+[2025-12-17 18:47:41,170] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:47:41,208] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:50:39,795] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:50:39,863] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:50:44,419] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:50:44,467] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:50:46,032] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:51:02,357] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:54:48,562] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:54:48,602] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:54:48,628] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:55:03,027] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:23,735] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:23,814] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:23,883] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:28,055] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:31,453] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:31,486] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:57:31,509] ERROR in app: Exception on /api/vsp/latest_rid_v1 [GET]
+Traceback (most recent call last):
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/test/Data/SECURITY_BUNDLE/ui/vsp_demo_app.py", line 5540, in api_vsp_latest_rid_v1
+    return jsonify({"ok": True, "rid": items[0]["run_id"], "ci_run_dir": items[0]["ci_run_dir"]}), 200
+                                       ~~~~~~~~^^^^^^^^^^
+KeyError: 'run_id'
+[2025-12-17 18:58:34 +0700] [928482] [INFO] Handling signal: term
+[2025-12-17 18:58:34 +0700] [928485] [INFO] Worker exiting (pid: 928485)
+[2025-12-17 18:58:35 +0700] [928484] [INFO] Parent changed, shutting down: <Worker 928484>
+[2025-12-17 18:58:35 +0700] [928484] [INFO] Worker exiting (pid: 928484)
+[2025-12-17 18:58:36 +0700] [934284] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 18:58:36 +0700] [934284] [INFO] Listening at: http://127.0.0.1:8910 (934284)
+[2025-12-17 18:58:36 +0700] [934284] [INFO] Using worker: gthread
+[2025-12-17 18:58:36 +0700] [934286] [INFO] Booting worker with pid: 934286
+[2025-12-17 18:58:36 +0700] [934287] [INFO] Booting worker with pid: 934287
+[2025-12-17 19:00:15 +0700] [934284] [INFO] Handling signal: term
+[2025-12-17 19:00:15 +0700] [934287] [INFO] Worker exiting (pid: 934287)
+[2025-12-17 19:00:15 +0700] [934286] [INFO] Worker exiting (pid: 934286)
+[2025-12-17 19:00:16 +0700] [934284] [INFO] Shutting down: Master
+[2025-12-17 19:00:17 +0700] [934995] [INFO] Starting gunicorn 23.0.0
+[2025-12-17 19:00:17 +0700] [934995] [INFO] Listening at: http://127.0.0.1:8910 (934995)
+[2025-12-17 19:00:17 +0700] [934995] [INFO] Using worker: gthread
+[2025-12-17 19:00:17 +0700] [934997] [INFO] Booting worker with pid: 934997
+[2025-12-17 19:00:17 +0700] [934998] [INFO] Booting worker with pid: 934998

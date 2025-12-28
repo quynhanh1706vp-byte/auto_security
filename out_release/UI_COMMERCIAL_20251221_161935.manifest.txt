@@ -1,0 +1,8 @@
+== pack ==
+[TS]=20251221_161935
+[ADD] wsgi_vsp_ui_gateway.py
+[ADD] vsp_demo_app.py
+[ADD] templates
+[ADD] static/css
+[ADD] static/js/vsp_bundle_commercial_v2.js
+[ADD] bin/p0_commercial_selfcheck_4tabs_v3c.sh

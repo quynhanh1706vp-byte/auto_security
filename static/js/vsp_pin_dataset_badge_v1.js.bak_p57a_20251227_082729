@@ -1,0 +1,115 @@
+/* vsp_pin_dataset_badge_v2 (freeze-safe)
+ * - NO clone/json on every fetch (prevents Chrome hang)
+ * - Only appends pin_dataset=global|rid to /api/vsp/*
+ * - On load: does ONE small call findings_page_v3?limit=1 to infer DATA SOURCE from from_path
+ */
+(function(){
+  if (window.__VSP_PIN_BADGE_V2) return;
+  window.__VSP_PIN_BADGE_V2 = true;
+
+  const KEY="VSP_PIN_DATASET";
+  const getPin=()=> (localStorage.getItem(KEY)||"auto").toLowerCase();
+  const setPin=(v)=> localStorage.setItem(KEY,v);
+
+  function inferDataSource(fromPath){
+    const p=String(fromPath||"");
+    if (p.includes("/SECURITY_BUNDLE/out/") && p.includes("/unified/") && !p.includes("out_ci")) return "GLOBAL_BEST";
+    return "RID";
+  }
+
+  function ensureBar(){
+    let wrap=document.getElementById("vsp-commerce-pin-wrap");
+    if (wrap) return wrap;
+
+    wrap=document.createElement("div");
+    wrap.id="vsp-commerce-pin-wrap";
+    wrap.style.cssText="position:sticky;top:0;z-index:9999;display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:8px 12px;background:rgba(0,0,0,.18);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08);font-family:ui-sans-serif,system-ui;";
+
+    const badge=document.createElement("span");
+    badge.id="vsp-data-source-badge";
+    badge.textContent="DATA SOURCE: …";
+    badge.title="Loading…";
+    badge.style.cssText="padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);color:#eaeaea;font-size:12px;";
+
+    const mode=document.createElement("span");
+    mode.id="vsp-pin-mode";
+    mode.textContent="PIN: "+getPin().toUpperCase();
+    mode.style.cssText="padding:4px 10px;border-radius:999px;border:1px dashed rgba(255,255,255,.18);color:#cfcfcf;font-size:12px;";
+
+    const mkBtn=(txt,val)=>{
+      const b=document.createElement("button");
+      b.type="button";
+      b.textContent=txt;
+      b.style.cssText="cursor:pointer;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#f2f2f2;font-size:12px;";
+      b.onclick=()=>{ setPin(val); mode.textContent="PIN: "+getPin().toUpperCase(); location.reload(); };
+      return b;
+    };
+
+    wrap.appendChild(badge);
+    wrap.appendChild(mode);
+    wrap.appendChild(mkBtn("Pin Global","global"));
+    wrap.appendChild(mkBtn("Use RID","rid"));
+    wrap.appendChild(mkBtn("Auto","auto"));
+
+    document.body.insertBefore(wrap, document.body.firstChild);
+    return wrap;
+  }
+
+  function addPinParam(url){
+    try{
+      const pin=getPin();
+      if (pin!=="global" && pin!=="rid") return url;
+      const u=new URL(url, location.origin);
+      if (!u.pathname.startsWith("/api/vsp/")) return url;
+      if (!u.searchParams.get("pin_dataset")) u.searchParams.set("pin_dataset", pin);
+      return u.toString();
+    }catch(e){ return url; }
+  }
+
+  // Intercept ONLY to rewrite URL (no response parsing)
+  const _fetch=window.fetch;
+  window.fetch=function(input, init){
+    try{
+      const url=(typeof input==="string")? addPinParam(input) : addPinParam(input.url);
+      if (typeof input==="string") input=url; else input=new Request(url, input);
+    }catch(e){}
+    return _fetch(input, init);
+  };
+
+  const _open=XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open=function(method, url){
+    try{ url=addPinParam(url); }catch(e){}
+    return _open.apply(this, [method, url, ...Array.prototype.slice.call(arguments, 2)]);
+  };
+
+  async function probeSmall(){
+    try{
+      const rid = new URL(location.href).searchParams.get("rid") || "";
+      const pin = getPin();
+      let url = `/api/vsp/findings_page_v3?rid=${encodeURIComponent(rid)}&limit=1&offset=0`;
+      if (pin==="global" || pin==="rid") url += `&pin_dataset=${encodeURIComponent(pin)}`;
+      const r = await _fetch(url, {cache:"no-store"});
+      const j = await r.json();
+      const badge=document.getElementById("vsp-data-source-badge");
+      const mode=document.getElementById("vsp-pin-mode");
+      if (mode) mode.textContent = "PIN: " + String(pin).toUpperCase();
+      if (badge){
+        const fp = j && j.from_path ? String(j.from_path) : "";
+        const ds = inferDataSource(fp);
+        badge.textContent = "DATA SOURCE: " + ds;
+        badge.title = fp || "-";
+      }
+    }catch(e){
+      const badge=document.getElementById("vsp-data-source-badge");
+      if (badge){ badge.textContent="DATA SOURCE: —"; badge.title=String(e||""); }
+    }
+  }
+
+  function boot(){
+    ensureBar();
+    // delay a bit to avoid competing with heavy dashboard init
+    setTimeout(probeSmall, 300);
+  }
+  if (document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();

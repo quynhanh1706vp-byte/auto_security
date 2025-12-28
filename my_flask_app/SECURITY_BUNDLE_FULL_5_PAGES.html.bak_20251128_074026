@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SECURITY_BUNDLE – Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #020617;
+      --bg-sidebar: #020617;
+      --bg-card: #020617;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --accent-green: #22c55e;
+      --accent-purple: #6366f1;
+      --radius-xl: 18px;
+      --shadow-soft: 0 18px 40px rgba(15,23,42,0.85);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+      color: var(--text-main);
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sb-shell {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      width: 100%;
+      height: 100vh;
+    }
+
+    .sb-sidebar {
+      background: linear-gradient(180deg,#020617 0%,#020617 60%,#020617 100%);
+      border-right: 1px solid rgba(15,23,42,0.9);
+      padding: 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .sb-logo-title {
+      font-size: 0.8rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent-purple);
+    }
+    .sb-logo-main {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+    }
+
+    .sb-profile-card {
+      margin-top: 8px;
+      padding: 12px 12px;
+      border-radius: var(--radius-xl);
+      background: radial-gradient(circle at top left,#0f172a,#020617);
+      border: 1px solid rgba(148,163,184,0.35);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .sb-profile-label {
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      font-size: 0.68rem;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+    .sb-profile-main { font-weight: 600; color:#e5e7eb; }
+    .sb-profile-sub { margin-top:4px;font-size:0.68rem;}
+
+    .sb-section-label {
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    .sb-nav { display:flex; flex-direction:column; gap:4px; }
+    .sb-nav-btn {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 8px 11px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.18s ease;
+    }
+    .sb-nav-btn span.dot {
+      width: 6px; height: 6px; border-radius:999px; background:#4b5563;
+    }
+    .sb-nav-btn.active {
+      background: radial-gradient(circle at top left,#0f172a,#020617);
+      color:#f9fafb;
+      border-color: rgba(129,140,248,0.7);
+    }
+    .sb-nav-btn.active span.dot { background:#22c55e; }
+
+    .sb-footer-chip {
+      margin-top:auto;
+      padding:9px 11px;
+      font-size:0.7rem;
+      border-radius:999px;
+      border:1px dashed rgba(148,163,184,0.5);
+      color:var(--text-muted);
+      display:flex;
+      justify-content:space-between;
+      gap:6px;
+    }
+
+    .sb-main {
+      padding:18px 22px 18px 18px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .sb-header-row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .sb-header-title {
+      font-size:0.78rem;
+      letter-spacing:0.22em;
+      text-transform:uppercase;
+      color:#6b7280;
+    }
+    .sb-header-main {
+      font-size:1.1rem;
+      font-weight:700;
+      letter-spacing:0.16em;
+    }
+    .sb-header-sub {
+      font-size:0.7rem;
+      color:var(--text-muted);
+    }
+
+    .sb-header-right {
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .sb-badge {
+      font-size:0.7rem;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.7);
+      color:var(--text-muted);
+      display:flex;
+      gap:4px;
+    }
+    .sb-badge strong { color:#e5e7eb; }
+
+    .sb-run-btn {
+      padding:8px 14px;
+      border-radius:999px;
+      border:none;
+      cursor:pointer;
+      font-size:0.78rem;
+      font-weight:600;
+      background:radial-gradient(circle at top left,#22c55e,#16a34a);
+      color:#020617;
+      box-shadow:0 10px 35px rgba(34,197,94,0.3);
+    }
+
+    .sb-filter-row {
+      display:grid;
+      grid-template-columns: 2.2fr 2.2fr 1.2fr 1.2fr 1.5fr;
+      gap:10px;
+      font-size:0.72rem;
+      margin-top:4px;
+      align-items:stretch;
+    }
+
+    .sb-input-block {
+      background: radial-gradient(circle at top left,#020617,#030712);
+      border-radius:999px;
+      padding:6px 10px;
+      border:1px solid rgba(30,64,175,0.9);
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+    .sb-input-label {
+      font-size:0.62rem;
+      text-transform:uppercase;
+      letter-spacing:0.16em;
+      color:#6b7280;
+      white-space:nowrap;
+    }
+    .sb-input-value {
+      font-size:0.7rem;
+      color:#e5e7eb;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:6px;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .sb-input-block.sb-mode { cursor:pointer; }
+    .sb-input-block.sb-mode:hover {
+      border-color:rgba(129,140,248,0.9);
+      background:radial-gradient(circle at top left,#020617,#020617);
+    }
+    .sb-dropdown-arrow {
+      font-size:0.9rem;
+      opacity:0.9;
+      flex:0 0 auto;
+    }
+
+    .sb-pill {
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.7);
+      padding:6px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      font-size:0.7rem;
+      color:var(--text-muted);
+      gap:6px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .sb-pill strong { color:#e5e7eb; }
+
+    .sb-tabs { margin-top:6px; flex:1; min-height:0; }
+    .sb-tab-panel { display:none; height:100%; }
+    .sb-tab-panel.active { display:block; height:100%; }
+
+    /* Quan trọng: 2 hàng chính đều dùng auto, không kéo cao */
+    .dash-grid {
+      display:grid;
+      grid-template-rows:auto auto;
+      gap:12px;
+      height:auto;
+    }
+
+    .dash-row-top {
+      display:grid;
+      grid-template-columns:minmax(0,1.7fr) minmax(0,1.3fr);
+      gap:12px;
+      align-items:flex-start;
+    }
+
+    .dash-kpi-grid {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .kpi-card {
+      border-radius:var(--radius-xl);
+      padding:14px 14px 12px;
+      box-shadow:var(--shadow-soft);
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      color:#020617;
+      position:relative;
+      overflow:hidden;
+      min-height:100px;
+    }
+    .kpi-total    { background:linear-gradient(120deg,#22c55e,#16a34a); }
+    .kpi-critical { background:linear-gradient(120deg,#ef4444,#f97316); }
+    .kpi-high     { background:linear-gradient(120deg,#f97316,#facc15); }
+    .kpi-medium   { background:linear-gradient(120deg,#facc15,#fde047); }
+    .kpi-low      { background:linear-gradient(120deg,#38bdf8,#22d3ee); }
+    .kpi-info     { background:linear-gradient(120deg,#475569,#64748b); }
+
+    .kpi-tag {
+      position:absolute;
+      right:12px; top:10px;
+      font-size:0.6rem;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid rgba(15,23,42,0.35);
+      background:rgba(15,23,42,0.18);
+      color:#e5e7eb;
+      text-transform:uppercase;
+      letter-spacing:0.14em;
+    }
+    .kpi-label {
+      font-size:0.7rem;
+      text-transform:uppercase;
+      letter-spacing:0.16em;
+    }
+    .kpi-value {
+      margin-top:6px;
+      font-size:1.7rem;
+      font-weight:700;
+    }
+
+    .dash-top-right {
+      display:grid;
+      grid-template-rows:auto auto;  /* không dùng 1fr */
+      gap:10px;
+      align-items:flex-start;
+    }
+
+    .card {
+      border-radius:var(--radius-xl);
+      background:radial-gradient(circle at top left,#020617,#020617 45%,#020617 100%);
+      border:1px solid rgba(15,23,42,0.95);
+      padding:10px;
+      font-size:0.7rem;
+      color:var(--text-muted);
+      box-shadow:0 10px 40px rgba(15,23,42,0.9);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-height:0;
+    }
+    .card-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      color:var(--text-main);
+    }
+    .card-title {
+      font-size:0.75rem;
+      text-transform:uppercase;
+      letter-spacing:0.16em;
+      color:#9ca3af;
+    }
+    .card-title strong { color:#e5e7eb; }
+    .card-tag { display:none; }
+
+    .card-body {
+      flex:1;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+      padding:0;
+    }
+
+    .mini-table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:0.7rem;
+    }
+    .mini-table th,
+    .mini-table td { padding:4px 5px; }
+    .mini-table thead {
+      font-size:0.65rem;
+      text-transform:uppercase;
+      letter-spacing:0.16em;
+      color:#6b7280;
+    }
+    .mini-table tbody tr:nth-child(even){ background:rgba(15,23,42,0.85); }
+    .mini-table tbody tr:nth-child(odd){ background:rgba(15,23,42,0.75); }
+    .mini-table td { border-top:1px solid rgba(31,41,55,0.9); }
+
+    .card-scroll { overflow:auto; }
+
+    .dash-row-bottom {
+      display:grid;
+      grid-template-columns:minmax(0,1.5fr) minmax(0,1.1fr) minmax(0,1.4fr);
+      gap:12px;
+      align-items:flex-start;   /* không kéo cao */
+    }
+
+    /* CHARTS – card thấp + chart cao, không bị lọt thỏm */
+    .chart-box {
+      flex:1;
+      border-radius:12px;
+      border:1px solid rgba(31,41,55,0.9);
+      background:radial-gradient(circle at top,#020617,#020617 60%,#020617 100%);
+      padding:4px 6px 6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .chart-box svg {
+      width:100%;
+      height:160px;  /* cố định, card bám theo chart */
+    }
+    .chart-axis-text { font-size:8px; fill:#6b7280; }
+    .chart-bar-critical { fill:#ef4444; }
+    .chart-bar-high     { fill:#f97316; }
+    .chart-bar-medium   { fill:#facc15; }
+    .chart-bar-low      { fill:#38bdf8; }
+    .chart-bar-info     { fill:#9ca3af; }
+    .chart-bar-trace    { fill:#64748b; }
+
+    .chart-line {
+      fill:none;
+      stroke:#22c55e;
+      stroke-width:1.6;
+    }
+    .chart-line-area {
+      fill:rgba(34,197,94,0.12);
+      stroke:none;
+    }
+
+    .tag-sev-critical { color:#f97316;font-weight:600; }
+    .tag-sev-high     { color:#fb923c;font-weight:600; }
+    .tag-sev-medium   { color:#facc15;font-weight:600; }
+
+    .path-badge {
+      font-size:0.65rem;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(75,85,99,0.9);
+      color:#9ca3af;
+    }
+
+    .placeholder-center {
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:10px;
+      color:var(--text-muted);
+      font-size:0.8rem;
+    }
+    .placeholder-center strong { color:var(--text-main); }
+    .pill-outline {
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.5);
+      padding:6px 12px;
+      font-size:0.7rem;
+    }
+
+    @media (max-width:1200px){
+      .sb-shell{grid-template-columns:230px minmax(0,1fr);}
+      .dash-row-top{grid-template-columns:minmax(0,1fr);}
+      .dash-row-bottom{grid-template-columns:minmax(0,1fr);}
+    }
+    @media (max-width:900px){
+      body{overflow:auto;}
+      .sb-shell{grid-template-columns:1fr;height:auto;}
+      .sb-sidebar{flex-direction:row;overflow-x:auto;height:auto;}
+    }
+  </style>
+
+  <style>
+    /* DASHBOARD GLOBAL COMPACT – NO ZOOM */
+    main {
+      padding-top: 8px !important;
+      padding-bottom: 6px !important;
+    }
+
+    /* Tất cả card: nhỏ padding + gap */
+    .card {
+      padding: 8px 10px !important;
+      margin-bottom: 8px !important;
+    }
+    .card-header {
+      padding: 4px 8px !important;
+      min-height: 26px !important;
+    }
+    .card-body {
+      padding: 4px 8px !important;
+    }
+
+    /* Hàng KPI trên cùng */
+    .kpi-row .card,
+    .kpi-row > div {
+      min-height: 90px !important;
+    }
+
+    /* Các khu chart: BY TOOL, SEVERITY BUCKETS, TREND */
+    .chart,
+    .chart-container,
+    .chart-wrapper {
+      height: 120px !important;
+      max-height: 120px !important;
+    }
+    .chart canvas,
+    .chart-container canvas,
+    .chart-wrapper canvas {
+      height: 100% !important;
+      max-height: 120px !important;
+    }
+
+    /* TOP RISK / TOP NOISY: bảng thấp + auto scroll nếu nhiều dòng */
+    #top-findings,
+    #top-noisy,
+    .top-table-wrapper {
+      max-height: 130px !important;
+      overflow-y: auto !important;
+    }
+
+    /* Bảng: font nhỏ hơn một chút để tiết kiệm chiều cao */
+    table {
+      font-size: 11px !important;
+      line-height: 1.25 !important;
+    }
+  </style>
+</head>
+
+
+
+
+<body>
+  <div class="sb-shell">
+    <aside class="sb-sidebar">
+      <div>
+        <div class="sb-logo-title">SECURITY SCAN</div>
+        <div class="sb-logo-main">SECURITY_BUNDLE</div>
+      </div>
+
+      <div class="sb-profile-card">
+        <div class="sb-profile-label">Profile</div>
+        <div class="sb-profile-main">EXT – Multi-tool offline</div>
+        <div class="sb-profile-sub">Last run: 2025-11-28 03:49 – SRC: /home/tests/Data/CODE_20110225_P</div>
+      </div>
+
+      <div class="sb-section-label">Main</div>
+      <nav class="sb-nav">
+        <button class="sb-nav-btn active" data-tab="dashboard"><span class="dot"></span>Dashboard</button>
+        <button class="sb-nav-btn" data-tab="runs"><span class="dot"></span>Runs &amp; Reports</button>
+        <button class="sb-nav-btn" data-tab="data"><span class="dot"></span>Data Source</button>
+        <button class="sb-nav-btn" data-tab="settings"><span class="dot"></span>Settings</button>
+        <button class="sb-nav-btn" data-tab="rules"><span class="dot"></span>Rule Overrides</button>
+      </nav>
+
+      <div class="sb-footer-chip">
+        <span>DEPSECOPS – ISO 27001</span>
+        <span>EXT+ profile</span>
+      </div>
+    </aside>
+
+    <main class="sb-main">
+      <header class="sb-header-row">
+        <div>
+          <div class="sb-header-title">SECURITY SCAN</div>
+          <div class="sb-header-main">SECURITY_BUNDLE</div>
+          <div class="sb-header-sub">Multi-tool offline scan · Mode: OFFLINE · Profile: AGGRESSIVE</div>
+        </div>
+        <div class="sb-header-right">
+          <div class="sb-badge">
+            <span>Tools enabled:</span><strong>6 / 7</strong>
+          </div>
+          <div class="sb-badge">
+            <span>CRITICAL / HIGH &gt; 0:</span><strong>170</strong>
+          </div>
+          <button class="sb-run-btn">Run scan</button>
+        </div>
+      </header>
+
+      <section class="sb-filter-row">
+        <div class="sb-input-block">
+          <div class="sb-input-label">Target (optional)</div>
+          <div class="sb-input-value">
+            <span>https://app.example.com</span>
+          </div>
+        </div>
+        <div class="sb-input-block">
+          <div class="sb-input-label">Src folder</div>
+          <div class="sb-input-value">
+            <span>/home/tests/Data/CODE_20110225_P</span>
+          </div>
+        </div>
+        <div class="sb-input-block">
+          <div class="sb-input-label">Profile</div>
+          <div class="sb-input-value">
+            <span>Aggressive</span>
+          </div>
+        </div>
+        <div class="sb-input-block sb-mode">
+          <div class="sb-input-label">Mode</div>
+          <div class="sb-input-value">
+            <span>Offline</span>
+            <span class="sb-dropdown-arrow">▾</span>
+          </div>
+        </div>
+        <div class="sb-pill">
+          <span>Last run:</span><strong>RUN_20251126_115421</strong>
+        </div>
+      </section>
+
+      <section class="sb-tabs">
+        <div class="sb-tab-panel active" id="tab-dashboard">
+          <div class="dash-grid">
+            <div class="dash-row-top">
+              <div class="dash-kpi-grid">
+                <div class="kpi-card kpi-total">
+                  <div class="kpi-tag">All tools</div>
+                  <div class="kpi-label">Total findings</div>
+                  <div class="kpi-value">9071</div>
+                </div>
+                <div class="kpi-card kpi-critical">
+                  <div class="kpi-tag">Severity</div>
+                  <div class="kpi-label">Critical</div>
+                  <div class="kpi-value">0</div>
+                </div>
+                <div class="kpi-card kpi-high">
+                  <div class="kpi-tag">Severity</div>
+                  <div class="kpi-label">High</div>
+                  <div class="kpi-value">170</div>
+                </div>
+                <div class="kpi-card kpi-medium">
+                  <div class="kpi-tag">Noise bucket</div>
+                  <div class="kpi-label">Medium</div>
+                  <div class="kpi-value">8891</div>
+                </div>
+                <div class="kpi-card kpi-low">
+                  <div class="kpi-tag">Low risk</div>
+                  <div class="kpi-label">Low</div>
+                  <div class="kpi-value">10</div>
+                </div>
+                <div class="kpi-card kpi-info">
+                  <div class="kpi-tag">Telemetry</div>
+                  <div class="kpi-label">Info / Trace</div>
+                  <div class="kpi-value">0</div>
+                </div>
+              </div>
+
+              <div class="dash-top-right">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-title"><strong>By tool</strong> – severity buckets</div>
+                  </div>
+                  <div class="card-body card-scroll">
+                    <table class="mini-table">
+                      <thead>
+                        <tr>
+                          <th>Tool</th>
+                          <th>C</th><th>H</th><th>M</th><th>L</th><th>Info</th><th>Trace</th><th>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>Semgrep</td><td>0</td><td>346</td><td>8851</td><td>0</td><td>0</td><td>0</td><td>8897</td></tr>
+                        <tr><td>Gitleaks</td><td>0</td><td>26</td><td>0</td><td>0</td><td>0</td><td>0</td><td>26</td></tr>
+                        <tr><td>Grype</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>0</td><td>3</td></tr>
+                        <tr><td>Trivy</td><td>0</td><td>0</td><td>8</td><td>12</td><td>0</td><td>0</td><td>20</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-title"><strong>Severity buckets</strong> – last run</div>
+                  </div>
+                  <div class="card-body">
+                    <div class="chart-box">
+                      <svg viewBox="0 0 200 140" preserveAspectRatio="none">
+                        <line x1="20" y1="20" x2="20" y2="120" stroke="#1f2937" stroke-width="1"/>
+                        <line x1="20" y1="120" x2="190" y2="120" stroke="#1f2937" stroke-width="1"/>
+
+                        <rect x="27"  y="98" width="18" height="22" class="chart-bar-critical"/>
+                        <rect x="57"  y="85" width="18" height="35" class="chart-bar-high"/>
+                        <rect x="87"  y="30" width="18" height="90" class="chart-bar-medium"/>
+                        <rect x="117" y="80" width="18" height="40" class="chart-bar-low"/>
+                        <rect x="147" y="96" width="18" height="24" class="chart-bar-info"/>
+                        <rect x="177" y="98" width="18" height="22" class="chart-bar-trace"/>
+
+                        <text x="36"  y="132" text-anchor="middle" class="chart-axis-text">C</text>
+                        <text x="66"  y="132" text-anchor="middle" class="chart-axis-text">H</text>
+                        <text x="96"  y="132" text-anchor="middle" class="chart-axis-text">M</text>
+                        <text x="126" y="132" text-anchor="middle" class="chart-axis-text">L</text>
+                        <text x="156" y="132" text-anchor="middle" class="chart-axis-text">I</text>
+                        <text x="186" y="132" text-anchor="middle" class="chart-axis-text">T</text>
+                        <text x="22"  y="28" class="chart-axis-text">count</text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dash-row-bottom">
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title"><strong>Trend</strong> – last runs</div>
+                </div>
+                <div class="card-body">
+                  <div class="chart-box">
+                    <svg viewBox="0 0 220 140" preserveAspectRatio="none">
+                      <line x1="24" y1="20" x2="24" y2="120" stroke="#1f2937" stroke-width="1"/>
+                      <line x1="24" y1="120" x2="210" y2="120" stroke="#1f2937" stroke-width="1"/>
+
+                      <path class="chart-line-area"
+                        d="M24,95
+                           L44,98
+                           L64,100
+                           L84,95
+                           L104,90
+                           L124,80
+                           L144,70
+                           L164,60
+                           L184,50
+                           L204,45
+                           L204,120
+                           L24,120 Z" />
+                      <polyline class="chart-line"
+                        points="24,95 44,98 64,100 84,95 104,90 124,80 144,70 164,60 184,50 204,45" />
+
+                      <text x="44"  y="132" text-anchor="middle" class="chart-axis-text">-9</text>
+                      <text x="84"  y="132" text-anchor="middle" class="chart-axis-text">-7</text>
+                      <text x="124" y="132" text-anchor="middle" class="chart-axis-text">-5</text>
+                      <text x="164" y="132" text-anchor="middle" class="chart-axis-text">-3</text>
+                      <text x="204" y="132" text-anchor="middle" class="chart-axis-text">Last</text>
+                      <text x="28"  y="28" class="chart-axis-text">findings</text>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title"><strong>Top risk findings</strong></div>
+                </div>
+                <div class="card-body card-scroll">
+                  <table class="mini-table">
+                    <thead>
+                      <tr><th>Severity</th><th>Rule / ID / Location</th><th>Tool</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="tag-sev-critical">CRITICAL</td>
+                        <td>generic_auth_token_leak – src/runner.py:76</td>
+                        <td>semgrep</td>
+                      </tr>
+                      <tr>
+                        <td class="tag-sev-high">HIGH</td>
+                        <td>Secret exposed – config.py (GITLAB_TOKEN)</td>
+                        <td>gitleaks</td>
+                      </tr>
+                      <tr>
+                        <td class="tag-sev-medium">MEDIUM</td>
+                        <td>HTTP only on Docker compose yml:34</td>
+                        <td>trivy_fs</td>
+                      </tr>
+                      <tr>
+                        <td class="tag-sev-medium">MEDIUM</td>
+                        <td>Unpinned version – requirements.txt:12</td>
+                        <td>semgrep</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title"><strong>Top noisy paths</strong> (MEDIUM / LOW / INFO / TRACE)</div>
+                </div>
+                <div class="card-body card-scroll">
+                  <table class="mini-table">
+                    <thead>
+                      <tr><th>Path</th><th>M</th><th>L</th><th>Info</th><th>Trace</th><th>Total</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><span class="path-badge">tests/</span></td><td>4200</td><td>10</td><td>0</td><td>0</td><td>4210</td></tr>
+                      <tr><td><span class="path-badge">example/</span></td><td>700</td><td>0</td><td>0</td><td>0</td><td>700</td></tr>
+                      <tr><td><span class="path-badge">doc/</span></td><td>650</td><td>45</td><td>0</td><td>0</td><td>695</td></tr>
+                      <tr><td><span class="path-badge">scripts/</span></td><td>90</td><td>25</td><td>0</td><td>0</td><td>115</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-tab-panel" id="tab-runs">
+          <div class="placeholder-center">
+            <strong>Runs &amp; Reports</strong>
+            <div class="pill-outline">
+              Lịch sử các lần scan + nút Export HTML / PDF / CSV cho từng RUN.
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-tab-panel" id="tab-data">
+          <div class="placeholder-center">
+            <strong>Data Source</strong>
+            <div class="pill-outline">
+              Bảng chi tiết từ summary_unified.json &amp; findings_unified.json, có filter theo severity / tool / path.
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-tab-panel" id="tab-settings">
+          <div class="placeholder-center">
+            <strong>Settings</strong>
+            <div class="pill-outline">
+              Cấu hình tool, profile, threshold, offline / online mode cho SECURITY_BUNDLE.
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-tab-panel" id="tab-rules">
+          <div class="placeholder-center">
+            <strong>Rule Overrides</strong>
+            <div class="pill-outline">
+              Khai báo ignore path, giảm / tăng mức severity, noise rules cho từng dự án.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const btns = document.querySelectorAll('.sb-nav-btn');
+    const panels = {
+      dashboard: document.getElementById('tab-dashboard'),
+      runs: document.getElementById('tab-runs'),
+      data: document.getElementById('tab-data'),
+      settings: document.getElementById('tab-settings'),
+      rules: document.getElementById('tab-rules'),
+    };
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        btns.forEach(b => b.classList.remove('active'));
+        Object.values(panels).forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        if (panels[tab]) panels[tab].classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

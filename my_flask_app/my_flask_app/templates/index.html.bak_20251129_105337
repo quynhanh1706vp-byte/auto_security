@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>VersaSecure Platform – VSP Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  {# CSS cũ nếu còn dùng #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tabs_polish.css') }}">
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --vsp-bg: #050816;
+      --vsp-surface: #0b1020;
+      --vsp-surface-alt: #0f172a;
+      --vsp-border-subtle: #1f2937;
+      --vsp-border-strong: #22c55e33;
+      --vsp-text: #e5e7eb;
+      --vsp-text-muted: #9ca3af;
+      --vsp-accent: #22c55e;
+      --vsp-accent-soft: rgba(34, 197, 94, 0.1);
+      --vsp-accent-2: #0ea5e9;
+      --vsp-danger: #ef4444;
+      --vsp-warning: #f97316;
+      --vsp-radius-lg: 18px;
+      --vsp-radius-xl: 24px;
+      --vsp-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.75);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 45%, #020617 100%);
+      color: var(--vsp-text);
+      overflow: hidden; /* không cho trang cuộn, chỉ cuộn trong card nếu cần */
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .vsp-root {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 16px 18px 18px;
+      gap: 14px;
+    }
+
+    /* HEADER + TABS */
+
+    .vsp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.98));
+      border-radius: 18px;
+      border: 1px solid rgba(148,163,184,0.25);
+      box-shadow: var(--vsp-shadow-soft);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .vsp-header::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at 10% 0, rgba(34,197,94,0.18), transparent 55%),
+                  radial-gradient(circle at 90% 100%, rgba(14,165,233,0.25), transparent 55%);
+      opacity: 0.75;
+      pointer-events: none;
+    }
+
+    .vsp-header-main {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .vsp-logo-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0, #22c55e, #0f172a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ecfdf5;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 12px 30px rgba(34,197,94,0.6);
+    }
+
+    .vsp-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .vsp-title-main {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .vsp-title-badge {
+      font-size: 11px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(74, 222, 128, 0.4);
+      background: rgba(22, 163, 74, 0.08);
+      color: #bbf7d0;
+    }
+
+    .vsp-title-sub {
+      font-size: 12px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-header-meta {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .vsp-chip {
+      font-size: 11px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.45);
+      color: #e5e7eb;
+      background: rgba(15,23,42,0.7);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .vsp-chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.45);
+    }
+
+    .vsp-tabs {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+    }
+
+    .vsp-tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--vsp-text-muted);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.18s ease-out;
+      white-space: nowrap;
+    }
+
+    .vsp-tab-btn span.icon {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .vsp-tab-btn.active {
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.7), rgba(56,189,248,0.9));
+      color: #0b1120;
+      box-shadow: 0 10px 24px rgba(34,197,94,0.6);
+    }
+
+    .vsp-tab-btn.active span.icon {
+      opacity: 1;
+    }
+
+    /* MAIN LAYOUT */
+
+    .vsp-main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      gap: 14px;
+    }
+
+    .vsp-main-inner {
+      flex: 1;
+      min-height: 0;
+      background: radial-gradient(circle at top, rgba(30,64,175,0.25), rgba(2,6,23,0.95));
+      border-radius: 22px;
+      border: 1px solid rgba(30,64,175,0.45);
+      padding: 14px 16px 16px;
+      box-shadow: var(--vsp-shadow-soft);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .vsp-main-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 10px;
+    }
+
+    .vsp-main-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .vsp-main-title span.sub {
+      font-size: 12px;
+      color: var(--vsp-text-muted);
+    }
+
+    .vsp-main-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .vsp-pill-soft {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: rgba(15,23,42,0.9);
+      color: var(--vsp-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .vsp-pill-soft strong {
+      color: #e5e7eb;
+    }
+
+    .vsp-main-body {
+      flex: 1;
+      min-height: 0;
+      border-radius: 15px;
+      background: radial-gradient(circle at 80% 0, rgba(34,197,94,0.18), transparent 60%), rgba(15,23,42,0.96);
+      border: 1px solid rgba(15,23,42,0.8);
+      padding: 10px 10px 12px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .tab-pane {
+      flex: 1;
+      min-height: 0;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* DASHBOARD GRID */
+
+    .dash-grid {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 10px;
+      height: 100%;
+    }
+
+    .dash-kpi-row {
+      display: grid;
+      grid-template-columns: 2.1fr 1.4fr;
+      gap: 10px;
+      min-height: 110px;
+    }
+
+    .dash-kpi-group {
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,1));
+      border-radius: 16px;
+      border: 1px solid rgba(55,65,81,0.85);
+      padding: 10px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 12px 32px rgba(15,23,42,0.8);
+    }
+
+    .dash-kpi-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--vsp-text-muted);
+    }
+
+    .dash-kpi-group-header span.title {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .dash-kpi-group-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .dash-kpi-card {
+      border-radius: 12px;
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.18), rgba(15,23,42,0.95));
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .dash-kpi-label {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--vsp-text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .dash-kpi-label span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+    }
+
+    .dot-critical { background: #ef4444; }
+    .dot-high     { background: #f97316; }
+    .dot-medium   { background: #eab308; }
+    .dot-low      { background: #22c55e; }
+    .dot-info     { background: #0ea5e9; }
+    .dot-trace    { background: #a855f7; }
+
+    .dash-kpi-value {
+      font-size: 17px;
+      font-weight: 600;
+      color: #f9fafb;
+    }
+
+    .dash-kpi-sub {
+      font-size: 10px;
+      color: var(--vsp-text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dash-kpi-trend {
+      font-size: 10px;
+      font-weight: 500;
+      color: #22c55e;
+    }
+
+    .dash-kpi-trend.bad {
+      color: #f97316;
+    }
+
+    .dash-kpi-adv-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 8px;
+    }
+
+    .dash-kpi-adv-card {
+      border-radius: 13px;
+      background: radial-gradient(circle at 0 0, rgba(14,165,233,0.14), rgba(15,23,42,1));
+      border: 1px solid rgba(30,64,175,0.9);
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .dash-kpi-adv-title {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .dash-kpi-adv-main {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .dash-kpi-adv-value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .dash-kpi-chip {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.55);
+      color: #e5e7eb;
+      white-space: nowrap;
+    }
+
+    /* CHART ZONE */
+
+    .dash-charts-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      min-height: 210px;
+    }
+
+    .dash-card {
+      border-radius: 15px;
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.14), rgba(15,23,42,0.98));
+      border: 1px solid rgba(55,65,81,0.85);
+      padding: 8px 9px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .dash-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .dash-card-header span.title {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .dash-card-body {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    .dash-card-body canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* FINDINGS ZONE */
+
+    .dash-findings-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .dash-findings-col {
+      display: grid;
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .table-card {
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      border: 1px solid rgba(55,65,81,0.9);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 8px 9px 6px;
+      overflow: hidden;
+    }
+
+    .table-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+      margin-bottom: 4px;
+    }
+
+    .table-card-header span.title {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .table-card-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      border-radius: 10px;
+      background: radial-gradient(circle at 0 0, rgba(15,23,42,0.9), rgba(15,23,42,1));
+      border: 1px solid rgba(31,41,55,0.85);
+    }
+
+    .vsp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      min-width: 100%;
+    }
+
+    .vsp-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(15,23,42,0.98);
+    }
+
+    .vsp-table th,
+    .vsp-table td {
+      padding: 5px 7px;
+      border-bottom: 1px solid rgba(31,41,55,0.85);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .vsp-table th {
+      font-weight: 500;
+      color: var(--vsp-text-muted);
+      text-align: left;
+    }
+
+    .vsp-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-sev {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      border: 1px solid rgba(148,163,184,0.5);
+      background: rgba(15,23,42,1);
+    }
+
+    .badge-sev span.dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+    }
+
+    /* TAB 2 – RUNS & REPORTS */
+
+    .runs-layout {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+      height: 100%;
+    }
+
+    .runs-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .runs-kpi-card {
+      border-radius: 13px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 8px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .runs-kpi-label {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .runs-kpi-value {
+      font-size: 17px;
+      font-weight: 600;
+      color: #f9fafb;
+    }
+
+    .runs-body {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .runs-filters {
+      border-radius: 13px;
+      background: radial-gradient(circle at 0 0, rgba(14,165,233,0.18), rgba(15,23,42,1));
+      border: 1px solid rgba(30,64,175,0.85);
+      padding: 8px 9px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .runs-filter-chip {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.55);
+      background: rgba(15,23,42,0.96);
+      padding: 4px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .runs-filter-chip select,
+    .runs-filter-chip input {
+      background: transparent;
+      border: none;
+      color: #e5e7eb;
+      font-size: 11px;
+      outline: none;
+      min-width: 70px;
+    }
+
+    .runs-table-wrap {
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      border: 1px solid rgba(55,65,81,0.9);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 6px 7px 5px;
+    }
+
+    .runs-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+      margin-bottom: 4px;
+    }
+
+    .runs-table-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.5);
+      padding: 3px 8px;
+      background: rgba(15,23,42,0.96);
+      color: #e5e7eb;
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-ghost:hover {
+      border-color: rgba(148,163,184,0.9);
+    }
+
+    .runs-table-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      border-radius: 10px;
+      background: rgba(6,8,20,0.98);
+      border: 1px solid rgba(31,41,55,0.9);
+    }
+
+    /* TAB 3 – DATA SOURCE */
+
+    .data-layout {
+      display: grid;
+      grid-template-columns: 0.8fr 2.2fr;
+      gap: 10px;
+      height: 100%;
+    }
+
+    .data-side {
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 8px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .data-side-title {
+      font-size: 12px;
+      color: var(--vsp-text-muted);
+      font-weight: 500;
+    }
+
+    .data-file-list {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .data-file-item {
+      border-radius: 10px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: rgba(15,23,42,0.96);
+      padding: 6px 7px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .data-file-name {
+      color: #e5e7eb;
+    }
+
+    .data-file-meta {
+      font-size: 10px;
+      color: var(--vsp-text-muted);
+    }
+
+    .data-main {
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 7px 8px 6px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .data-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .data-filter-chip {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.5);
+      padding: 4px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(15,23,42,0.96);
+    }
+
+    .data-filter-chip select,
+    .data-filter-chip input {
+      background: transparent;
+      border: none;
+      color: #e5e7eb;
+      font-size: 11px;
+      outline: none;
+      min-width: 70px;
+    }
+
+    .data-mini-charts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      min-height: 80px;
+    }
+
+    .data-mini-card {
+      border-radius: 11px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.16), rgba(15,23,42,1));
+      padding: 6px 7px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .data-mini-label {
+      color: var(--vsp-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .data-mini-value {
+      font-weight: 600;
+      color: #f9fafb;
+    }
+
+    .data-table-wrap {
+      border-radius: 11px;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: rgba(6,8,20,0.98);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .data-table thead {
+      background: rgba(15,23,42,0.98);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid rgba(31,41,55,0.85);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .data-table-body {
+      max-height: 100%;
+      overflow: auto;
+    }
+
+    /* TAB 4 – SETTINGS */
+
+    .settings-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 1.2fr 1.6fr;
+      gap: 10px;
+      height: 100%;
+    }
+
+    .settings-card {
+      border-radius: 15px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      padding: 8px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+      font-size: 11px;
+    }
+
+    .settings-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .settings-sub {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .settings-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 4px;
+    }
+
+    .settings-field label {
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+    }
+
+    .settings-field input,
+    .settings-field select {
+      font-size: 11px;
+      padding: 4px 7px;
+      border-radius: 8px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: rgba(15,23,42,0.96);
+      color: #e5e7eb;
+      outline: none;
+    }
+
+    .settings-checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .settings-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .settings-checkbox-item input[type="checkbox"] {
+      accent-color: #22c55e;
+    }
+
+    .settings-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.55);
+      background: rgba(15,23,42,0.96);
+      color: #e5e7eb;
+    }
+
+    /* TAB 5 – RULE OVERRIDES */
+
+    .rules-layout {
+      display: grid;
+      grid-template-columns: 1.9fr 1.1fr;
+      gap: 10px;
+      height: 100%;
+    }
+
+    .rules-left {
+      border-radius: 15px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      padding: 7px 8px 6px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .rules-right {
+      border-radius: 15px;
+      border: 1px solid rgba(55,65,81,0.9);
+      background: linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,1));
+      padding: 7px 8px 6px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 6px;
+      min-height: 0;
+      font-size: 11px;
+    }
+
+    .rules-table-wrap {
+      border-radius: 11px;
+      background: rgba(6,8,20,0.98);
+      border: 1px solid rgba(31,41,55,0.9);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .rules-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .rules-table thead {
+      background: rgba(15,23,42,0.98);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .rules-table th,
+    .rules-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid rgba(31,41,55,0.85);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .rules-table-body {
+      max-height: 100%;
+      overflow: auto;
+    }
+
+    .rules-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .rules-metrics-chip {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.55);
+      background: rgba(15,23,42,0.96);
+      padding: 4px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .rules-editor {
+      border-radius: 10px;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: rgba(6,8,20,0.98);
+      padding: 6px 7px;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      color: #e5e7eb;
+      overflow: auto;
+      white-space: pre;
+    }
+
+    .rules-preview {
+      border-radius: 10px;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: rgba(2,6,23,0.98);
+      padding: 6px 7px;
+      font-size: 11px;
+      color: var(--vsp-text-muted);
+      overflow: auto;
+    }
+
+    /* SCROLLBAR */
+
+    .table-card-body::-webkit-scrollbar,
+    .runs-table-body::-webkit-scrollbar,
+    .data-file-list::-webkit-scrollbar,
+    .data-table-body::-webkit-scrollbar,
+    .rules-table-body::-webkit-scrollbar,
+    .rules-editor::-webkit-scrollbar,
+    .rules-preview::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .table-card-body::-webkit-scrollbar-thumb,
+    .runs-table-body::-webkit-scrollbar-thumb,
+    .data-file-list::-webkit-scrollbar-thumb,
+    .data-table-body::-webkit-scrollbar-thumb,
+    .rules-table-body::-webkit-scrollbar-thumb,
+    .rules-editor::-webkit-scrollbar-thumb,
+    .rules-preview::-webkit-scrollbar-thumb {
+      background: rgba(75,85,99,0.9);
+      border-radius: 999px;
+    }
+
+    .table-card-body::-webkit-scrollbar-track,
+    .runs-table-body::-webkit-scrollbar-track,
+    .data-file-list::-webkit-scrollbar-track,
+    .data-table-body::-webkit-scrollbar-track,
+    .rules-table-body::-webkit-scrollbar-track,
+    .rules-editor::-webkit-scrollbar-track,
+    .rules-preview::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* RESPONSIVE (tối thiểu cho màn nhỏ) */
+
+    @media (max-width: 1200px) {
+      .dash-kpi-group-grid {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+      }
+      .dash-kpi-adv-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+      .dash-charts-row,
+      .dash-findings-row,
+      .data-layout,
+      .settings-layout,
+      .rules-layout {
+        grid-template-columns: 1fr;
+      }
+      .vsp-root {
+        padding: 10px 8px;
+      }
+      .vsp-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .vsp-header-meta {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .vsp-tabs {
+        overflow-x: auto;
+      }
+    }
+
+  </style>
+</head>
+<body>
+<div class="vsp-root">
+  <!-- HEADER -->
+  <header class="vsp-header">
+    <div class="vsp-header-main">
+      <div class="vsp-logo-badge">V</div>
+      <div class="vsp-title-block">
+        <div class="vsp-title-main">
+          VersaSecure Platform
+          <span class="vsp-title-badge">Enterprise Security Profile (EXT+)</span>
+        </div>
+        <div class="vsp-title-sub">
+          DevSecOps – CIO-Level Security Overview – ISO 27001 / OWASP Aligned
+        </div>
+      </div>
+    </div>
+    <div class="vsp-header-meta">
+      <div class="vsp-chip">
+        <span class="vsp-chip-dot"></span>
+        Engine: Active – Last run <strong>≈ 5 min</strong> ago
+      </div>
+      <div class="vsp-chip">
+        Profile: <strong>EXT+</strong> · 7 tools · Unified findings
+      </div>
+      <nav class="vsp-tabs">
+        <button class="vsp-tab-btn active" data-tab="dashboard">
+          <span class="icon">📊</span> Dashboard
+        </button>
+        <button class="vsp-tab-btn" data-tab="runs">
+          <span class="icon">📁</span> Runs & Reports
+        </button>
+        <button class="vsp-tab-btn" data-tab="data">
+          <span class="icon">📚</span> Data Source
+        </button>
+        <button class="vsp-tab-btn" data-tab="settings">
+          <span class="icon">⚙️</span> Settings
+        </button>
+        <button class="vsp-tab-btn" data-tab="rules">
+          <span class="icon">🧩</span> Rule Overrides
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="vsp-main">
+    <div class="vsp-main-inner">
+      <div class="vsp-main-header-row">
+        <div class="vsp-main-title">
+          <span id="vsp-main-title-text">TAB 1 – Dashboard</span>
+          <span class="sub">CIO-Level Security Overview</span>
+        </div>
+        <div class="vsp-main-actions">
+          <div class="vsp-pill-soft">
+            Tổng findings: <strong id="vsp-total-findings">1,234</strong>
+          </div>
+          <div class="vsp-pill-soft">
+            Security Posture: <strong id="vsp-security-score">78 / 100</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="vsp-main-body">
+        <!-- TAB 1: DASHBOARD -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <div class="dash-grid">
+            <!-- KPI ZONE -->
+            <div class="dash-kpi-row">
+              <!-- 6 severity KPI -->
+              <div class="dash-kpi-group">
+                <div class="dash-kpi-group-header">
+                  <span class="title">Severity Overview (6 buckets)</span>
+                  <span>From findings_unified.json</span>
+                </div>
+                <div class="dash-kpi-group-grid">
+                  <div class="dash-kpi-card">
+                    <div class="dash-kpi-label">
+                      <span>Critical</span>
+                      <span class="dot dot-critical"></span>
+                    </div>
+                    <div class="dash-kpi-value" id="kpi-critical">12</div>
+                    <div class="dash-kpi-sub">
+                      <span>Blocking issues</span>
+                      <span class="dash-kpi-trend bad">+2 vs last run</span>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-card">
+                    <div class="dash-kpi-label">
+                      <span>High</span>
+                      <span class="dot dot-high"></span>
+                    </div>
+                    <div class="dash-kpi-value" id="kpi-high">37</div>
+                    <div class="dash-kpi-sub">
+                      <span>High risk</span>
+                      <span class="dash-kpi-trend bad">+5</span>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-card">
+                    <div class="dash-kpi-label">
+                      <span>Medium</span>
+                      <span class="dot dot-medium"></span>
+                    </div>
+                    <div class="dash-kpi-value" id="kpi-medium">184</div>
+                    <div class="dash-kpi-sub">
+                      <span>Need scheduling</span>
+                      <span class="dash-kpi-trend">-10</span>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-card">
+                    <div class="dash-kpi-label">
+                      <span>Low</span>
+                      <span class="dot dot-low"></span>
+                    </div>
+                    <div class="dash-kpi-value" id="kpi-low">322</div>
+                    <div class="dash-kpi-sub">
+                      <span>Nice to fix</span>
+                      <span class="dash-kpi-trend">=</span>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-card">
+                    <div class="dash-kpi-label">
+                      <span>Info</span>
+                      <span class="dot dot-info"></span>
+                    </div>
+                    <div class="dash-kpi-value" id="kpi-info">411</div>
+                    <div class="dash-kpi-sub">
+                      <span>Recommendations</span>
+                      <span class="dash-kpi-trend">+8</span>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-card">
+                    <div class="dash-kpi-label">
+                      <span>Trace</span>
+                      <span class="dot dot-trace"></span>
+                    </div>
+                    <div class="dash-kpi-value" id="kpi-trace">268</div>
+                    <div class="dash-kpi-sub">
+                      <span>Noise / Traces</span>
+                      <span class="dash-kpi-trend">-3</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4 advanced KPI -->
+              <div class="dash-kpi-group">
+                <div class="dash-kpi-group-header">
+                  <span class="title">Advanced KPIs</span>
+                  <span>Posture, top tool, CWE, module</span>
+                </div>
+                <div class="dash-kpi-adv-grid">
+                  <div class="dash-kpi-adv-card">
+                    <div class="dash-kpi-adv-title">Security Posture Score</div>
+                    <div class="dash-kpi-adv-main">
+                      <div class="dash-kpi-adv-value" id="kpi-score">78</div>
+                      <div class="dash-kpi-chip">Target ≥ 85</div>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-adv-card">
+                    <div class="dash-kpi-adv-title">Top Risky Tool</div>
+                    <div class="dash-kpi-adv-main">
+                      <div class="dash-kpi-adv-value" id="kpi-top-tool">Semgrep</div>
+                      <div class="dash-kpi-chip">Most CRI/HIGH</div>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-adv-card">
+                    <div class="dash-kpi-adv-title">Highest Impacted CWE</div>
+                    <div class="dash-kpi-adv-main">
+                      <div class="dash-kpi-adv-value" id="kpi-top-cwe">CWE-79</div>
+                      <div class="dash-kpi-chip">XSS / Injection</div>
+                    </div>
+                  </div>
+                  <div class="dash-kpi-adv-card">
+                    <div class="dash-kpi-adv-title">Top Vulnerable Module</div>
+                    <div class="dash-kpi-adv-main">
+                      <div class="dash-kpi-adv-value" id="kpi-top-module">lodash</div>
+                      <div class="dash-kpi-chip">3 CVE (2 High)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CHART ZONE -->
+            <div class="dash-charts-row">
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <span class="title">Severity Distribution (6 buckets)</span>
+                  <span>Normalized from unified findings</span>
+                </div>
+                <div class="dash-card-body">
+                  <canvas id="chartSeverity"></canvas>
+                </div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <span class="title">Trend – Findings over time</span>
+                  <span>Last 10 runs</span>
+                </div>
+                <div class="dash-card-body">
+                  <canvas id="chartTrend"></canvas>
+                </div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <span class="title">Critical / High by tool</span>
+                  <span>Semgrep, CodeQL, Trivy, Gitleaks…</span>
+                </div>
+                <div class="dash-card-body">
+                  <canvas id="chartByTool"></canvas>
+                </div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <span class="title">Top CWE exposure</span>
+                  <span>Mapped from rules / CVEs</span>
+                </div>
+                <div class="dash-card-body">
+                  <canvas id="chartCWE"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- FINDINGS ZONE -->
+            <div class="dash-findings-row">
+              <div class="dash-findings-col">
+                <!-- Top risk findings -->
+                <div class="table-card">
+                  <div class="table-card-header">
+                    <span class="title">Top Risk Findings (Priority list)</span>
+                    <span>Sorted by severity & exploitability</span>
+                  </div>
+                  <div class="table-card-body">
+                    <table class="vsp-table">
+                      <thead>
+                        <tr>
+                          <th>Severity</th>
+                          <th>Location</th>
+                          <th>Rule / CWE</th>
+                          <th>Tool</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span class="badge-sev">
+                              <span class="dot dot-critical"></span> CRITICAL
+                            </span>
+                          </td>
+                          <td>src/api/auth.py:142</td>
+                          <td>CWE-89 (SQL Injection)</td>
+                          <td>Semgrep</td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="badge-sev">
+                              <span class="dot dot-high"></span> HIGH
+                            </span>
+                          </td>
+                          <td>src/web/views/user.js:88</td>
+                          <td>CWE-79 (XSS)</td>
+                          <td>CodeQL</td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <span class="badge-sev">
+                              <span class="dot dot-high"></span> HIGH
+                            </span>
+                          </td>
+                          <td>package.json (axios)</td>
+                          <td>CVE-2023-XXXX</td>
+                          <td>Grype</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Top noisy paths -->
+                <div class="table-card">
+                  <div class="table-card-header">
+                    <span class="title">Top Noisy Paths (Medium / Low / Info / Trace)</span>
+                    <span>For triaging noise & refactor</span>
+                  </div>
+                  <div class="table-card-body">
+                    <table class="vsp-table">
+                      <thead>
+                        <tr>
+                          <th>Path</th>
+                          <th>MED</th>
+                          <th>LOW</th>
+                          <th>INFO</th>
+                          <th>TRACE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>src/utils/legacy/</td>
+                          <td>43</td><td>88</td><td>110</td><td>19</td>
+                        </tr>
+                        <tr>
+                          <td>src/web/components/</td>
+                          <td>27</td><td>52</td><td>90</td><td>7</td>
+                        </tr>
+                        <tr>
+                          <td>tests/</td>
+                          <td>5</td><td>21</td><td>34</td><td>12</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dash-findings-col">
+                <!-- Top exploited CVEs -->
+                <div class="table-card">
+                  <div class="table-card-header">
+                    <span class="title">Top Exploited CVEs (from SBOM / Trivy / Grype)</span>
+                    <span>Libraries & containers</span>
+                  </div>
+                  <div class="table-card-body">
+                    <table class="vsp-table">
+                      <thead>
+                        <tr>
+                          <th>CVE</th>
+                          <th>Component</th>
+                          <th>Severity</th>
+                          <th>Version</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>CVE-2023-XXXX</td>
+                          <td>openssl</td>
+                          <td>CRITICAL</td>
+                          <td>1.1.1k</td>
+                        </tr>
+                        <tr>
+                          <td>CVE-2022-YYYY</td>
+                          <td>spring-core</td>
+                          <td>HIGH</td>
+                          <td>5.3.1</td>
+                        </tr>
+                        <tr>
+                          <td>CVE-2021-ZZZZ</td>
+                          <td>lodash</td>
+                          <td>HIGH</td>
+                          <td>4.17.19</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- By tool severity buckets -->
+                <div class="table-card">
+                  <div class="table-card-header">
+                    <span class="title">By Tool – Severity Buckets</span>
+                    <span>7 tools → normalized</span>
+                  </div>
+                  <div class="table-card-body">
+                    <table class="vsp-table">
+                      <thead>
+                        <tr>
+                          <th>Tool</th>
+                          <th>CRI</th>
+                          <th>HIGH</th>
+                          <th>MED</th>
+                          <th>LOW</th>
+                          <th>INFO</th>
+                          <th>TRACE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Semgrep</td>
+                          <td>7</td><td>19</td><td>82</td><td>43</td><td>34</td><td>12</td>
+                        </tr>
+                        <tr>
+                          <td>CodeQL</td>
+                          <td>3</td><td>11</td><td>51</td><td>27</td><td>25</td><td>8</td>
+                        </tr>
+                        <tr>
+                          <td>Trivy FS</td>
+                          <td>1</td><td>4</td><td>18</td><td>32</td><td>40</td><td>15</td>
+                        </tr>
+                        <tr>
+                          <td>Grype</td>
+                          <td>1</td><td>3</td><td>27</td><td>18</td><td>16</td><td>10</td>
+                        </tr>
+                        <tr>
+                          <td>Gitleaks</td>
+                          <td>0</td><td>0</td><td>4</td><td>8</td><td>12</td><td>5</td>
+                        </tr>
+                        <tr>
+                          <td>KICS</td>
+                          <td>0</td><td>0</td><td>2</td><td>5</td><td>7</td><td>2</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- TAB 2: RUNS & REPORTS -->
+        <section id="tab-runs" class="tab-pane">
+          <div class="runs-layout">
+            <!-- KPI -->
+            <div class="runs-kpi-row">
+              <div class="runs-kpi-card">
+                <div class="runs-kpi-label">Total runs</div>
+                <div class="runs-kpi-value">128</div>
+                <div class="dash-kpi-sub">
+                  <span>Since project onboard</span>
+                  <span class="dash-kpi-trend">+4 last 7 days</span>
+                </div>
+              </div>
+              <div class="runs-kpi-card">
+                <div class="runs-kpi-label">Last 10 – success / fail</div>
+                <div class="runs-kpi-value">8 / 2</div>
+                <div class="dash-kpi-sub">
+                  <span>Failures: timeout / tool error</span>
+                  <span class="dash-kpi-trend bad">Check logs</span>
+                </div>
+              </div>
+              <div class="runs-kpi-card">
+                <div class="runs-kpi-label">Average findings / run</div>
+                <div class="runs-kpi-value">254</div>
+                <div class="dash-kpi-sub">
+                  <span>Normalized 6 severity</span>
+                  <span class="dash-kpi-trend">Stable</span>
+                </div>
+              </div>
+              <div class="runs-kpi-card">
+                <div class="runs-kpi-label">Tools enabled / run</div>
+                <div class="runs-kpi-value">7 / 7</div>
+                <div class="dash-kpi-sub">
+                  <span>Full stack profile: EXT+</span>
+                  <span class="dash-kpi-trend">OK</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filters + Table -->
+            <div class="runs-body">
+              <div class="runs-filters">
+                <div class="runs-filter-chip">
+                  Profile:
+                  <select>
+                    <option>All</option>
+                    <option>FAST</option>
+                    <option selected>EXT+</option>
+                    <option>FULL</option>
+                    <option>AGGR</option>
+                  </select>
+                </div>
+                <div class="runs-filter-chip">
+                  Severity ≥
+                  <select>
+                    <option>TRACE</option>
+                    <option>INFO</option>
+                    <option>LOW</option>
+                    <option selected>MEDIUM</option>
+                    <option>HIGH</option>
+                    <option>CRITICAL</option>
+                  </select>
+                </div>
+                <div class="runs-filter-chip">
+                  Tool:
+                  <select>
+                    <option>All</option>
+                    <option>Semgrep</option>
+                    <option>CodeQL</option>
+                    <option>Trivy FS</option>
+                    <option>Grype</option>
+                    <option>Gitleaks</option>
+                    <option>KICS</option>
+                    <option>Bandit</option>
+                  </select>
+                </div>
+                <div class="runs-filter-chip">
+                  Time:
+                  <select>
+                    <option selected>Last 7 days</option>
+                    <option>Last 30 days</option>
+                    <option>All time</option>
+                  </select>
+                </div>
+                <div class="runs-filter-chip">
+                  Search:
+                  <input placeholder="run id / SRC / URL / commit" />
+                </div>
+              </div>
+
+              <div class="runs-table-wrap">
+                <div class="runs-table-header">
+                  <span>Lịch sử quét – Enterprise run index</span>
+                  <div class="runs-table-actions">
+                    <button class="btn-ghost">Export run index (CSV)</button>
+                    <button class="btn-ghost">Export findings_unified.json</button>
+                    <button class="btn-ghost">Export SBOM</button>
+                  </div>
+                </div>
+                <div class="runs-table-body">
+                  <table class="vsp-table">
+                    <thead>
+                      <tr>
+                        <th>Run ID</th>
+                        <th>Timestamp</th>
+                        <th>Profile</th>
+                        <th>SRC</th>
+                        <th>URL</th>
+                        <th>CRI</th>
+                        <th>HIGH</th>
+                        <th>MED</th>
+                        <th>LOW</th>
+                        <th>INFO</th>
+                        <th>TRACE</th>
+                        <th>Total</th>
+                        <th>Tools</th>
+                        <th>Reports</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>RUN_20251128_154500</td>
+                        <td>2025-11-28 15:45</td>
+                        <td>EXT+</td>
+                        <td>/home/test/Data/khach6</td>
+                        <td>https://staging.example.com</td>
+                        <td>2</td><td>7</td><td>48</td><td>71</td><td>90</td><td>33</td><td>251</td>
+                        <td>7/7</td>
+                        <td>HTML · PDF · JSON</td>
+                      </tr>
+                      <tr>
+                        <td>RUN_20251127_102423</td>
+                        <td>2025-11-27 10:24</td>
+                        <td>FAST</td>
+                        <td>/home/test/Data/khach6</td>
+                        <td>—</td>
+                        <td>0</td><td>3</td><td>21</td><td>35</td><td>40</td><td>18</td><td>117</td>
+                        <td>5/7</td>
+                        <td>HTML · JSON</td>
+                      </tr>
+                      <tr>
+                        <td>RUN_20251125_192300</td>
+                        <td>2025-11-25 19:23</td>
+                        <td>FULL</td>
+                        <td>/home/test/Data/khach5</td>
+                        <td>https://demo.app.com</td>
+                        <td>4</td><td>11</td><td>72</td><td>88</td><td>110</td><td>52</td><td>337</td>
+                        <td>7/7</td>
+                        <td>HTML · PDF · CSV</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: DATA SOURCE -->
+        <section id="tab-data" class="tab-pane">
+          <div class="data-layout">
+            <!-- Left: File pane -->
+            <div class="data-side">
+              <div class="data-side-title">Data source – unified security data</div>
+              <div class="data-side-title" style="font-size:11px; color:var(--vsp-text-muted);">
+                summary_unified_v2.json & findings_unified_v2.json
+              </div>
+              <div class="data-file-list">
+                <div class="data-file-item">
+                  <div class="data-file-name">summary_unified_v2.json</div>
+                  <div class="data-file-meta">
+                    1 record – CIO-level summary (KPI, charts, mapping ISO / OWASP)
+                  </div>
+                </div>
+                <div class="data-file-item">
+                  <div class="data-file-name">findings_unified_v2.json</div>
+                  <div class="data-file-meta">
+                    60k+ findings – 7 tools – normalized 6 severity
+                  </div>
+                </div>
+                <div class="data-file-item">
+                  <div class="data-file-name">sbom_trivy.json</div>
+                  <div class="data-file-meta">
+                    SBOM – components, licenses, vulnerabilities
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: main table + mini charts -->
+            <div class="data-main">
+              <div class="data-filters">
+                <div class="data-filter-chip">
+                  Severity:
+                  <select>
+                    <option>All</option>
+                    <option>CRITICAL</option>
+                    <option>HIGH</option>
+                    <option>MEDIUM</option>
+                    <option>LOW</option>
+                    <option>INFO</option>
+                    <option>TRACE</option>
+                  </select>
+                </div>
+                <div class="data-filter-chip">
+                  Tool:
+                  <select>
+                    <option>All</option>
+                    <option>Semgrep</option>
+                    <option>CodeQL</option>
+                    <option>Trivy FS</option>
+                    <option>Grype</option>
+                    <option>Gitleaks</option>
+                    <option>KICS</option>
+                    <option>Bandit</option>
+                  </select>
+                </div>
+                <div class="data-filter-chip">
+                  CWE / CVE:
+                  <input placeholder="CWE-79 / CVE-2023-XXXX" />
+                </div>
+                <div class="data-filter-chip">
+                  Folder:
+                  <input placeholder="src/backend/ ..." />
+                </div>
+                <div class="data-filter-chip">
+                  Search:
+                  <input placeholder="message / rule id / file" />
+                </div>
+              </div>
+
+              <div class="data-mini-charts">
+                <div class="data-mini-card">
+                  <div class="data-mini-label">Findings by severity</div>
+                  <div class="data-mini-value">CRI/H/M/L/I/T</div>
+                  <div style="font-size:10px; color:var(--vsp-text-muted);">
+                    12 / 37 / 184 / 322 / 411 / 268
+                  </div>
+                </div>
+                <div class="data-mini-card">
+                  <div class="data-mini-label">Top 3 tools by volume</div>
+                  <div class="data-mini-value">Semgrep, Trivy, CodeQL</div>
+                  <div style="font-size:10px; color:var(--vsp-text-muted);">
+                    Based on findings_unified.json
+                  </div>
+                </div>
+                <div class="data-mini-card">
+                  <div class="data-mini-label">Top 3 CWE</div>
+                  <div class="data-mini-value">CWE-79, CWE-89, CWE-22</div>
+                  <div style="font-size:10px; color:var(--vsp-text-muted);">
+                    From normalized mapping
+                  </div>
+                </div>
+                <div class="data-mini-card">
+                  <div class="data-mini-label">Top dirs</div>
+                  <div class="data-mini-value">src/api, src/web, infra/</div>
+                  <div style="font-size:10px; color:var(--vsp-text-muted);">
+                    For triage / refactor
+                  </div>
+                </div>
+              </div>
+
+              <div class="data-table-wrap">
+                <div class="data-table-body">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Severity</th>
+                        <th>Tool</th>
+                        <th>File</th>
+                        <th>Line</th>
+                        <th>Rule ID</th>
+                        <th>Message</th>
+                        <th>CWE</th>
+                        <th>CVE</th>
+                        <th>Component</th>
+                        <th>Tags</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>CRITICAL</td>
+                        <td>Semgrep</td>
+                        <td>src/api/auth.py</td>
+                        <td>142</td>
+                        <td>SEM_SQL_INJECTION</td>
+                        <td>Untrusted input concatenated into SQL query.</td>
+                        <td>CWE-89</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>backend, auth, db</td>
+                      </tr>
+                      <tr>
+                        <td>HIGH</td>
+                        <td>CodeQL</td>
+                        <td>src/web/views/user.js</td>
+                        <td>88</td>
+                        <td>js/xss/tainted-html</td>
+                        <td>Possible XSS – unescaped user-controlled data in HTML.</td>
+                        <td>CWE-79</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>frontend, xss</td>
+                      </tr>
+                      <tr>
+                        <td>MEDIUM</td>
+                        <td>Trivy FS</td>
+                        <td>requirements.txt</td>
+                        <td>12</td>
+                        <td>TRIVY_PKG_CVE</td>
+                        <td>Flask 1.0.2 is affected by CVE-2020-XXXX.</td>
+                        <td>—</td>
+                        <td>CVE-2020-XXXX</td>
+                        <td>Flask</td>
+                        <td>sbom, python</td>
+                      </tr>
+                      <tr>
+                        <td>LOW</td>
+                        <td>Bandit</td>
+                        <td>src/utils/log.py</td>
+                        <td>57</td>
+                        <td>B501</td>
+                        <td>Request without timeout – potential DoS.</td>
+                        <td>CWE-400</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>best-practice</td>
+                      </tr>
+                      <tr>
+                        <td>INFO</td>
+                        <td>Gitleaks</td>
+                        <td>.github/workflows/ci.yml</td>
+                        <td>34</td>
+                        <td>GITLEAKS_GENERIC</td>
+                        <td>Suspicious token-like string (review manually).</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>secret, ci</td>
+                      </tr>
+                      <tr>
+                        <td>TRACE</td>
+                        <td>KICS</td>
+                        <td>infra/terraform/main.tf</td>
+                        <td>107</td>
+                        <td>KICS_GENERAL</td>
+                        <td>Informational – resource without explicit tags.</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>cloud, tag</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 4: SETTINGS -->
+        <section id="tab-settings" class="tab-pane">
+          <div class="settings-layout">
+            <!-- General -->
+            <div class="settings-card">
+              <div class="settings-title">General configuration</div>
+              <div class="settings-sub">
+                Định nghĩa đường dẫn mặc định, export format và giới hạn hiển thị.
+              </div>
+              <div class="settings-field">
+                <label>Default SRC path</label>
+                <input value="/home/test/Data/khach6" />
+              </div>
+              <div class="settings-field">
+                <label>Default RUN_DIR base</label>
+                <input value="out" />
+              </div>
+              <div class="settings-field">
+                <label>Default export type</label>
+                <select>
+                  <option>HTML</option>
+                  <option selected>HTML + PDF</option>
+                  <option>CSV + JSON</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label>Max rows in UI table</label>
+                <input value="1000" />
+              </div>
+              <div class="settings-field">
+                <label>Language / locale</label>
+                <select>
+                  <option selected>vi-VN</option>
+                  <option>en-US</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Tool stack -->
+            <div class="settings-card">
+              <div class="settings-title">Tool stack (7 tools)</div>
+              <div class="settings-sub">
+                Bật / tắt từng tool, filter ngôn ngữ, path ignore.
+              </div>
+              <div class="settings-checkbox-list">
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> Semgrep (SAST)
+                </label>
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> Gitleaks (Secrets)
+                </label>
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> Bandit (Python)
+                </label>
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> Trivy FS (Vuln / Misconfig)
+                </label>
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> Grype (SBOM vuln)
+                </label>
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> KICS (IaC / Cloud)
+                </label>
+                <label class="settings-checkbox-item">
+                  <input type="checkbox" checked /> CodeQL (Multi-lang SAST)
+                </label>
+              </div>
+              <div class="settings-field">
+                <label>Semgrep languages</label>
+                <input value="python, javascript, go, java" />
+              </div>
+              <div class="settings-field">
+                <label>Ignore paths (glob / regex)</label>
+                <input value="tests/**, node_modules/**, dist/**" />
+              </div>
+              <div class="settings-field">
+                <label>Severity override mode</label>
+                <select>
+                  <option selected>Use unified severity (VSP)</option>
+                  <option>Keep original from tools</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Profiles + Integrations -->
+            <div class="settings-card">
+              <div class="settings-title">Profiles & Integrations</div>
+              <div class="settings-sub">
+                Quản lý profile (FAST / EXT+ / FULL / AGGR) và tích hợp DevSecOps.
+              </div>
+
+              <div class="settings-field">
+                <label>Profiles</label>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                  <span class="settings-tag">FAST</span>
+                  <span class="settings-tag">EXT+</span>
+                  <span class="settings-tag">FULL</span>
+                  <span class="settings-tag">AGGR</span>
+                  <span class="settings-tag">Custom…</span>
+                </div>
+              </div>
+
+              <div class="settings-field">
+                <label>FAST profile – tool list</label>
+                <input value="Semgrep, Gitleaks, Trivy FS" />
+              </div>
+              <div class="settings-field">
+                <label>EXT+ profile – tool list</label>
+                <input value="Semgrep, Gitleaks, Bandit, Trivy FS, Grype, KICS, CodeQL" />
+              </div>
+
+              <div class="settings-field">
+                <label>Integrations</label>
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                  <span class="settings-tag">Webhook (JSON payload)</span>
+                  <span class="settings-tag">Slack / Teams alerts</span>
+                  <span class="settings-tag">Dependency-Track / GitLab / JFrog (SBOM)</span>
+                  <span class="settings-tag">SARIF → GitHub Security</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: RULE OVERRIDES -->
+        <section id="tab-rules" class="tab-pane">
+          <div class="rules-layout">
+            <!-- Left: table -->
+            <div class="rules-left">
+              <div class="runs-table-header" style="margin-bottom:0;">
+                <span>Rule overrides – giảm nhiễu, tinh chỉnh severity</span>
+                <div class="runs-table-actions">
+                  <button class="btn-ghost">Export overrides.yaml</button>
+                  <button class="btn-ghost">Import</button>
+                </div>
+              </div>
+              <div class="rules-table-wrap">
+                <div class="rules-table-body">
+                  <table class="rules-table">
+                    <thead>
+                      <tr>
+                        <th>Rule ID</th>
+                        <th>Tool</th>
+                        <th>Current</th>
+                        <th>Override</th>
+                        <th>Scope</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>GITLEAKS_GENERIC_SECRET</td>
+                        <td>Gitleaks</td>
+                        <td>HIGH</td>
+                        <td>LOW</td>
+                        <td>path:^tests/</td>
+                        <td>Giảm nhiễu secret trong thư mục test.</td>
+                      </tr>
+                      <tr>
+                        <td>SEMGREP_PY_SQL</td>
+                        <td>Semgrep</td>
+                        <td>HIGH</td>
+                        <td>CRITICAL</td>
+                        <td>—</td>
+                        <td>SQL injection path ảnh hưởng dữ liệu thật.</td>
+                      </tr>
+                      <tr>
+                        <td>KICS_PUBLIC_BUCKET</td>
+                        <td>KICS</td>
+                        <td>MEDIUM</td>
+                        <td>HIGH</td>
+                        <td>env:prod</td>
+                        <td>Cloud bucket public trong môi trường production.</td>
+                      </tr>
+                      <tr>
+                        <td>CODEQL_JS_XSS_TAINTED</td>
+                        <td>CodeQL</td>
+                        <td>HIGH</td>
+                        <td>HIGH</td>
+                        <td>path:^src/web/</td>
+                        <td>Giữ nguyên – critical cho frontend.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: editor + metrics -->
+            <div class="rules-right">
+              <div class="rules-metrics">
+                <div class="rules-metrics-chip">
+                  Overrides active: <strong>24</strong>
+                </div>
+                <div class="rules-metrics-chip">
+                  Max downgrade: <strong>CRITICAL → LOW</strong>
+                </div>
+                <div class="rules-metrics-chip">
+                  Rules ignored: <strong>12</strong>
+                </div>
+              </div>
+
+              <div class="rules-editor" id="rules-editor">
+overrides:
+  - id: GITLEAKS_GENERIC_SECRET
+    tool: Gitleaks
+    severity: LOW
+    scope: "path:^tests/"
+    comment: "Ignore generic tokens in unit tests"
+
+  - id: SEMGREP_PY_SQL
+    tool: Semgrep
+    severity: CRITICAL
+    scope: null
+    comment: "SQL injection in production DB access layer"
+
+  - id: KICS_PUBLIC_BUCKET
+    tool: KICS
+    severity: HIGH
+    scope: "env:prod"
+    comment: "Public bucket only critical in production"
+
+allowlist:
+  files:
+    - "tests/**"
+  cves:
+    - "CVE-2019-XXXX"
+  cwes:
+    - "CWE-561"
+              </div>
+
+              <div class="rules-preview" id="rules-preview">
+Hover / chọn 1 rule ở bảng bên trái → VSP sẽ highlight các findings bị ảnh hưởng trong unified findings.
+
+Từ góc nhìn CIO / CISO:
+- Giảm nhiễu (false positive) có kiểm soát.
+- Giữ được full trace cho audit (ISO 27001).
+- Mọi override đều có scope, lý do, và có thể rollback.
+
+Từ góc nhìn Dev / Security:
+- Dễ hiểu rule nào đang bị override.
+- Thấy ngay tác động lên số lượng findings.
+- Có thể thử nghiệm profile mới trước khi áp dụng rộng.
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ---- TAB SWITCHING ----
+  const tabButtons = document.querySelectorAll('.vsp-tab-btn');
+  const panes = {
+    dashboard: document.getElementById('tab-dashboard'),
+    runs:      document.getElementById('tab-runs'),
+    data:      document.getElementById('tab-data'),
+    settings:  document.getElementById('tab-settings'),
+    rules:     document.getElementById('tab-rules'),
+  };
+  const mainTitleText = document.getElementById('vsp-main-title-text');
+
+  const titleMap = {
+    dashboard: 'TAB 1 – Dashboard',
+    runs: 'TAB 2 – Runs & Reports',
+    data: 'TAB 3 – Data Source',
+    settings: 'TAB 4 – Settings',
+    rules: 'TAB 5 – Rule Overrides',
+  };
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      tabButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      Object.entries(panes).forEach(([key, pane]) => {
+        if (key === tab) pane.classList.add('active');
+        else pane.classList.remove('active');
+      });
+      if (titleMap[tab]) {
+        mainTitleText.textContent = titleMap[tab];
+      }
+    });
+  });
+
+  // ---- SIMPLE DEMO CHARTS (static data) ----
+  const ctxSeverity = document.getElementById('chartSeverity');
+  const ctxTrend    = document.getElementById('chartTrend');
+  const ctxByTool   = document.getElementById('chartByTool');
+  const ctxCWE      = document.getElementById('chartCWE');
+
+  if (ctxSeverity && window.Chart) {
+    new Chart(ctxSeverity, {
+      type: 'doughnut',
+      data: {
+        labels: ['Critical', 'High', 'Medium', 'Low', 'Info', 'Trace'],
+        datasets: [{
+          data: [12, 37, 184, 322, 411, 268],
+          backgroundColor: [
+            '#ef4444',
+            '#f97316',
+            '#eab308',
+            '#22c55e',
+            '#0ea5e9',
+            '#a855f7'
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+              color: '#e5e7eb',
+              font: { size: 10 }
+            }
+          },
+          tooltip: {
+            enabled: true
+          }
+        }
+      }
+    });
+  }
+
+  if (ctxTrend && window.Chart) {
+    new Chart(ctxTrend, {
+      type: 'line',
+      data: {
+        labels: ['Run 1','Run 2','Run 3','Run 4','Run 5','Run 6','Run 7','Run 8','Run 9','Run 10'],
+        datasets: [{
+          label: 'Total findings',
+          data: [320,280,260,275,290,310,295,270,255,251],
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34,197,94,0.1)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            enabled: true
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#9ca3af', font: { size: 9 } },
+            grid: { color: 'rgba(31,41,55,0.5)' }
+          },
+          y: {
+            ticks: { color: '#9ca3af', font: { size: 9 } },
+            grid: { color: 'rgba(31,41,55,0.5)' }
+          }
+        }
+      }
+    });
+  }
+
+  if (ctxByTool && window.Chart) {
+    new Chart(ctxByTool, {
+      type: 'bar',
+      data: {
+        labels: ['Semgrep','CodeQL','Trivy','Grype','Gitleaks','KICS'],
+        datasets: [
+          {
+            label: 'Critical',
+            data: [7,3,1,1,0,0],
+            backgroundColor: '#ef4444'
+          },
+          {
+            label: 'High',
+            data: [19,11,4,3,0,0],
+            backgroundColor: '#f97316'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#e5e7eb', font: { size: 9 } }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#9ca3af', font: { size: 9 } },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: '#9ca3af', font: { size: 9 } },
+            grid: { color: 'rgba(31,41,55,0.5)' }
+          }
+        }
+      }
+    });
+  }
+
+  if (ctxCWE && window.Chart) {
+    new Chart(ctxCWE, {
+      type: 'bar',
+      data: {
+        labels: ['CWE-79','CWE-89','CWE-22','CWE-200','CWE-400'],
+        datasets: [{
+          label: 'Findings',
+          data: [48,32,21,18,11],
+          backgroundColor: '#0ea5e9'
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#9ca3af', font: { size: 9 } },
+            grid: { color: 'rgba(31,41,55,0.5)' }
+          },
+          y: {
+            ticks: { color: '#9ca3af', font: { size: 9 } },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+</script>
+</body>
+</html>

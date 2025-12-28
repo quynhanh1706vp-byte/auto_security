@@ -1,0 +1,70 @@
+{
+  "name": "VSP UI Spec 2025 (P1 skeleton)",
+  "base_env": "VSP_UI_BASE",
+  "tabs": [
+    {
+      "path": "/vsp5",
+      "required": true,
+      "markers_required": [
+        "id=\"vsp-dashboard-main\"",
+        "data-testid=\"kpi_total\"",
+        "data-testid=\"kpi_critical\"",
+        "data-testid=\"kpi_high\"",
+        "data-testid=\"kpi_medium\"",
+        "data-testid=\"kpi_low\"",
+        "data-testid=\"kpi_info_trace\""
+      ],
+      "markers_optional": [
+        "data-testid=\"kpi_posture_score\"",
+        "data-testid=\"chart_trend\"",
+        "data-testid=\"tbl_top_findings\""
+      ]
+    },
+    {
+      "path": "/runs",
+      "required": true,
+      "markers_required": ["id=\"vsp-runs-main\""],
+      "markers_optional": ["data-testid=\"runs_filters\"", "data-testid=\"runs_export\""]
+    },
+    {
+      "path": "/data_source",
+      "required": true,
+      "markers_required": ["id=\"vsp-data-source-main\""],
+      "markers_optional": ["data-testid=\"ds_filters\"", "data-testid=\"ds_table\""]
+    },
+    {
+      "path": "/settings",
+      "required": true,
+      "markers_required": ["id=\"vsp-settings-main\""],
+      "markers_optional": ["data-testid=\"profile_manager\"", "data-testid=\"tool_toggles\""]
+    },
+    {
+      "path": "/rule_overrides",
+      "required": true,
+      "markers_required": ["id=\"vsp-rule-overrides-main\""],
+      "markers_optional": ["data-testid=\"override_editor\"", "data-testid=\"override_apply\""]
+    }
+  ],
+  "api": [
+    {
+      "path": "/api/vsp/rid_latest",
+      "required": true,
+      "json_keys_any": ["rid"]
+    },
+    {
+      "path": "/api/vsp/runs?limit=20&offset=0",
+      "required": true,
+      "json_keys_any": ["runs", "total"]
+    },
+    {
+      "path": "/api/vsp/top_findings_v1?limit=5",
+      "required": false,
+      "json_keys_any": ["items", "total"]
+    },
+    {
+      "path": "/api/vsp/trend_v1",
+      "required": false,
+      "json_keys_any": ["points"]
+    }
+  ]
+}

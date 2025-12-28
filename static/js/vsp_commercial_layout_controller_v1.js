@@ -1,0 +1,279 @@
+/* VSP_COMMERCIAL_LAYOUT_CONTROLLER_V4_STABLE
+ * Goals:
+ * - Runs strip only in #runs
+ * - Policy/Verdict not stretching pages; open via single overlay button
+ * - No node-moving that causes layout jump; hide origin + clone into panel
+ */
+(function(){
+  'use strict';
+  if (window.__VSP_COMMERCIAL_LAYOUT_V4_STABLE__) return;
+  window.__VSP_COMMERCIAL_LAYOUT_V4_STABLE__ = true;
+
+  const STATE = {
+    lastHash: null,
+    lastApplyAt: 0,
+    applyTimer: null,
+  };
+
+  function norm(t){
+    try{ return (t||'').replace(/\s+/g,' ').trim().toLowerCase(); } catch(_){ return ''; }
+  }
+
+  function hash(){
+    try{ return (location.hash||'#dashboard').toLowerCase(); } catch(_){ return '#dashboard'; }
+  }
+  function isRuns(){
+    const h = hash();
+    return h.startsWith('#runs') || h.includes('#runs/');
+  }
+
+  function qsa(sel){
+    try{ return Array.from(document.querySelectorAll(sel)); } catch(_){ return []; }
+  }
+
+  function dedupePolicyToggles(){
+    // remove any legacy buttons labelled Policy/Verdict except our V4 toggle
+    try{
+      qsa('button').forEach(b=>{
+        const txt = norm(b.textContent);
+        if(!txt) return;
+        if(txt.includes('policy') && txt.includes('verdict') && b.id !== 'vspPolicyToggleV4'){
+          b.remove();
+        }
+      });
+      // remove legacy panels
+      qsa('#vsp-policy-verdict-panel, #vsp_policy_panel_v1, #vsp_policy_panel').forEach(el=>{
+        if(el && el.id !== 'vspPolicyPanelV4') el.remove();
+      });
+    } catch(_){}
+  }
+
+  function hideRunsOutsideRuns(){
+    if (isRuns()) return;
+    // best-effort hide any runs strip / runs-only blocks
+    const sels = [
+      '#runs-strip','.runs-strip','.runs-strip-wrap','.vsp-runs-strip','.vsp-runs-strip-wrap',
+      '.runs-and-reports','.vsp-runs-and-reports','section#runs_reports','div#runs_reports'
+    ];
+    for (const sel of sels){
+      qsa(sel).forEach(el=>{
+        if(!el) return;
+        if(el.id === 'vsp-runs-main') return;
+        el.style.display = 'none';
+        el.setAttribute('data-vsp-hidden','runs-outside');
+      });
+    }
+  }
+
+  function findBlockByHeading(label){
+    const want = norm(label);
+    if(!want) return null;
+
+    // headings or strong/label-ish nodes
+    const nodes = qsa('h1,h2,h3,h4,strong,div,span');
+    for(const n of nodes){
+      const t = norm(n.textContent);
+      if(!t) continue;
+      if(t === want || t.includes(want)){
+        const box = n.closest('.vsp-card,.dashboard-card,.card,section,article,div') || n.parentElement;
+        if(!box) continue;
+        // avoid picking our overlay
+        if(box.id === 'vspPolicyPanelV4') continue;
+        return box;
+      }
+    }
+    return null;
+  }
+
+  function ensurePanel(){
+    let panel = document.getElementById('vspPolicyPanelV4');
+    if(panel) return panel;
+
+    panel = document.createElement('div');
+    panel.id = 'vspPolicyPanelV4';
+    panel.style.cssText = [
+      'position:fixed','right:14px','bottom:14px','z-index:10000',
+      'width:min(820px,92vw)','max-height:78vh','overflow:auto',
+      'border-radius:14px','padding:12px',
+      'border:1px solid rgba(255,255,255,.10)',
+      'background:rgba(10,12,18,.96)','backdrop-filter: blur(6px)',
+      'box-shadow:0 18px 50px rgba(0,0,0,.55)',
+      'display:none'
+    ].join(';') + ';';
+
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;';
+    const title = document.createElement('div');
+    title.textContent = 'Policy / Verdict';
+    title.style.cssText = 'font-weight:700;font-size:13px;color:#e7eaf0;letter-spacing:.2px;';
+    const close = document.createElement('button');
+    close.type='button';
+    close.textContent='×';
+    close.style.cssText = 'width:32px;height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(17,20,28,.92);color:#e7eaf0;cursor:pointer;';
+    close.addEventListener('click', ()=>{ panel.style.display='none'; });
+    head.appendChild(title); head.appendChild(close);
+    panel.appendChild(head);
+
+    const body = document.createElement('div');
+    body.id = 'vspPolicyBodyV4';
+    body.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+    panel.appendChild(body);
+
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function ensureToggle(){
+    let btn = document.getElementById('vspPolicyToggleV4');
+    if(btn) return btn;
+
+    btn = document.createElement('button');
+    btn.id='vspPolicyToggleV4';
+    btn.type='button';
+    btn.textContent='Policy / Verdict';
+    btn.style.cssText = [
+      'position:fixed','right:14px','bottom:14px','z-index:9999',
+      'padding:9px 11px','border-radius:12px',
+      'border:1px solid rgba(255,255,255,.12)',
+      'background:rgba(17,20,28,.92)','color:#e7eaf0',
+      'font-size:12px','cursor:pointer',
+      'box-shadow:0 10px 26px rgba(0,0,0,.40)'
+    ].join(';') + ';';
+
+    btn.addEventListener('click', ()=>{
+      const panel = ensurePanel();
+      const open = panel.style.display === 'none';
+      if(open){
+        refreshPanelContent();
+        panel.style.display = '';
+      }else{
+        panel.style.display = 'none';
+      }
+    });
+
+    document.body.appendChild(btn);
+    return btn;
+  }
+
+  
+  function __vsp_pick_big_panel(label, mustWords){
+    const want = norm(label);
+    const req = (mustWords||[]).map(norm).filter(Boolean);
+    let best = null;
+    let bestArea = 0;
+
+    // search likely containers only (avoid scanning every node)
+    const cand = qsa('section,article,div');
+    for(const el of cand){
+      try{
+        if(!el) continue;
+        if(el.id === 'vspPolicyPanelV4') continue;
+        if(el.closest && el.closest('#vspPolicyPanelV4')) continue;
+
+        const t = norm(el.textContent);
+        if(!t) continue;
+        if(!t.includes(want)) continue;
+
+        // must contain these words to target the BIG panel, not the small card
+        let ok = true;
+        for(const w of req){
+          if(!w) continue;
+          if(!t.includes(w)){ ok=false; break; }
+        }
+        if(!ok) continue;
+
+        const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+        if(!r) continue;
+        const area = Math.max(0, r.width) * Math.max(0, r.height);
+
+        // ignore tiny cards
+        if(area < 60000) continue;
+
+        if(area > bestArea){
+          bestArea = area;
+          best = el;
+        }
+      } catch(_){}
+    }
+    return best;
+  }
+
+  function hideOriginVerdictPolicy(){
+    // BIG "OVERALL VERDICT" panel usually contains Updated/RID/Source/Reasons
+    const bigVerdict = __vsp_pick_big_panel('OVERALL VERDICT', ['updated', 'rid', 'source', 'reasons']);
+
+    // BIG policy panel usually contains "8 tools" and "timeout/degraded"
+    const bigPolicy = __vsp_pick_big_panel('Commercial Operational Policy', ['8 tools']);
+
+    [bigVerdict, bigPolicy].forEach(b=>{
+      if(!b) return;
+      try{
+        if(b.getAttribute('data-vsp-origin-hidden') === '1') return;
+        b.setAttribute('data-vsp-origin-hidden','1');
+        b.style.display = 'none';
+      } catch(_){}
+    });
+  }
+
+
+  function refreshPanelContent(){
+    const panel = ensurePanel();
+    const body = document.getElementById('vspPolicyBodyV4');
+    if(!body) return;
+
+    // clear + re-clone (stable, no moving nodes)
+    body.innerHTML = '';
+
+    const blocks = [];
+    const b1 = findBlockByHeading('OVERALL VERDICT');
+    const b2 = findBlockByHeading('Commercial Operational Policy');
+    if(b1) blocks.push(b1);
+    if(b2) blocks.push(b2);
+
+    for(const b of blocks){
+      try{
+        const clone = b.cloneNode(true);
+        clone.style.display = '';
+        clone.style.maxWidth = '100%';
+        clone.style.margin = '0';
+        body.appendChild(clone);
+      } catch(_){}
+    }
+  }
+
+  function apply(){
+    const now = Date.now();
+    if(now - STATE.lastApplyAt < 120) return; // throttle
+    STATE.lastApplyAt = now;
+
+    dedupePolicyToggles();
+    hideRunsOutsideRuns();
+
+    // always stabilize verdict/policy: hide origin + one toggle
+    hideOriginVerdictPolicy();
+    ensureToggle();
+
+    try{
+      console.info('[VSP_COMMERCIAL_LAYOUT_V4_STABLE] apply route=', hash(), 'isRuns=', isRuns());
+    } catch(_){}
+  }
+
+  function scheduleApply(){
+    try{ clearTimeout(STATE.applyTimer); } catch(_){}
+    STATE.applyTimer = setTimeout(apply, 40);
+  }
+
+  // initial
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', scheduleApply, {once:true});
+  }else{
+    scheduleApply();
+  }
+  window.addEventListener('hashchange', scheduleApply, true);
+
+  // observe late DOM injection (charts/runs panel)
+  try{
+    const mo = new MutationObserver(()=>scheduleApply());
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  } catch(_){}
+})();

@@ -1,0 +1,493 @@
+/* VSP_P120_C_COMMON_SHIM_V1
+ * Purpose:
+ * - Provide a stable global window.VSPC for /c/* suite
+ * - Fix: "Cannot read properties of undefined (reading 'onRefresh')"
+ * - Provide refresh event bus + RID resolution (latest) + fetchJSON with timeout
+ */
+(function(){
+  'use strict';
+
+  const log = (...a)=>{ try{ console.log('[VSPC]', ...a); }catch(e){} };
+  const warn = (...a)=>{ try{ console.warn('[VSPC]', ...a); }catch(e){} };
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+
+  function sanitizeRid(x){
+    x = (x||'').toString().trim();
+    // allow VSP_CI_YYYYmmdd_HHMMSS and RUN_* style, block accidental "VSP_FILL_..." junk
+    if(!x) return '';
+    if(x.length > 128) return '';
+    if(!/^[A-Za-z0-9_.:-]+$/.test(x)) return '';
+    if(/^VSP_FILL_/i.test(x)) return '';
+    return x;
+  }
+
+  function getUrlParam(name){
+    try{
+      const u = new URL(window.location.href);
+      return u.searchParams.get(name) || '';
+    }catch(e){ return ''; }
+  }
+
+  function setUrlParam(name, value){
+    try{
+      const u = new URL(window.location.href);
+      if(value) u.searchParams.set(name, value);
+      else u.searchParams.delete(name);
+      history.replaceState({}, '', u.toString());
+    }catch(e){}
+  }
+
+  async function fetchJSON(url, opt){
+    opt = opt || {};
+    const timeoutMs = opt.timeoutMs || 2500;
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+    try{
+      const r = await fetch(url, {signal: ctrl.signal, cache:'no-store', credentials:'same-origin'});
+      const ct = (r.headers.get('content-type')||'').toLowerCase();
+      const txt = await r.text();
+      let j = null;
+      if(ct.includes('application/json')){
+        try{ j = JSON.parse(txt); }catch(e){ j = null; }
+      }else{
+        // best effort JSON parse
+        try{ j = JSON.parse(txt); }catch(e){ j = null; }
+      }
+      return {ok: r.ok, status: r.status, json: j, text: txt, headers: r.headers};
+    }catch(e){
+      return {ok:false, status:0, json:null, text:String(e)};
+    }finally{
+      clearTimeout(t);
+    }
+  }
+
+  async function resolveLatestRid(base){
+    const url = `${base}/api/ui/runs_v3?limit=1&include_ci=1`;
+    const r = await fetchJSON(url, {timeoutMs: 2500});
+    try{
+      const rid = sanitizeRid(r.json && r.json.items && r.json.items[0] && r.json.items[0].rid);
+      return rid || '';
+    }catch(e){ return ''; }
+  }
+
+  function dispatchRefresh(){
+    try{
+      window.dispatchEvent(new CustomEvent('vsp:refresh', {detail:{ts: Date.now()}}));
+    }catch(e){}
+  }
+
+  function onRefresh(fn){
+    window.addEventListener('vsp:refresh', (ev)=>{ try{ fn(ev); }catch(e){} });
+  }
+
+  function ensureHeaderHook(){
+    // try attach refresh button (id-based first, fallback by text)
+    const btn = qs('#b-refresh') || qsa('button').find(b => (b.textContent||'').trim().toUpperCase() === 'REFRESH');
+    if(btn && !btn.__vspc_bound){
+      btn.__vspc_bound = 1;
+      btn.addEventListener('click', ()=>dispatchRefresh());
+    }
+  }
+
+  function setText(id, txt){
+    const el = qs('#'+id);
+    if(el) el.textContent = (txt==null?'':String(txt));
+  }
+
+  const base = (function(){
+    try{ return window.location.origin; }catch(e){ return ''; }
+  })();
+
+  // Export global
+  window.VSPC = window.VSPC || {};
+  Object.assign(window.VSPC, {
+    ver: 'P120',
+    base,
+    sanitizeRid,
+    getUrlParam,
+    setUrlParam,
+    fetchJSON,
+    resolveLatestRid,
+    onRefresh,
+    dispatchRefresh,
+    setText,
+    ensureHeaderHook
+  });
+
+  // bind header on load
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      ensureHeaderHook();
+      log('installed', window.VSPC.ver);
+    }catch(e){}
+  });
+})();
+
+
+/* VSP_P122_POLISH_C_SUITE_COLORS_AND_RUNS_V1
+ * - Make /c/* look consistent (dark pill buttons instead of blue links)
+ * - Auto-style action links in Runs tab (Dashboard/CSV/Reports.tgz/Use RID...)
+ */
+(function(){
+  try{
+    var path = (location && location.pathname) ? String(location.pathname) : "";
+    var page = "";
+    if (path.startsWith("/c/")) {
+      var seg = path.split("/").filter(Boolean);
+      page = "c-" + (seg[1] || "dashboard");
+    }
+    // dataset markers for CSS targeting
+    try{
+      document.documentElement.dataset.vspSuite = "c";
+      document.documentElement.dataset.vspPage = page;
+      if (document.body){
+        document.body.dataset.vspSuite = "c";
+        document.body.dataset.vspPage = page;
+      }
+    }catch(_){}
+
+    // inject CSS once
+    var STYLE_ID="VSP_P122_STYLE";
+    if (!document.getElementById(STYLE_ID)){
+      var st=document.createElement("style");
+      st.id=STYLE_ID;
+      st.textContent = `
+/* --- P122 C-suite theme polish --- */
+[data-vsp-suite="c"] a{ color:rgba(210,225,255,.92); text-decoration:none; }
+[data-vsp-suite="c"] a:hover{ text-decoration:underline; }
+
+/* generic pill for action links (we add class in JS too) */
+[data-vsp-suite="c"] a.vsp-btnlink{
+  display:inline-block;
+  padding:4px 10px;
+  margin-right:6px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(235,242,255,.95);
+  text-decoration:none !important;
+  font-size:12px;
+  line-height:1.2;
+}
+[data-vsp-suite="c"] a.vsp-btnlink:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+
+/* button polish (Use RID etc) */
+[data-vsp-suite="c"] button.vsp-btn{
+  padding:5px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(235,242,255,.95);
+  cursor:pointer;
+}
+[data-vsp-suite="c"] button.vsp-btn:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+[data-vsp-suite="c"] button.vsp-btn.vsp-btn-mini{
+  padding:4px 10px;
+  font-size:12px;
+}
+
+/* Runs tab: treat table links like buttons even if no class */
+[data-vsp-page="c-runs"] table a{
+  display:inline-block;
+  padding:4px 10px;
+  margin-right:6px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:rgba(235,242,255,.95);
+  text-decoration:none !important;
+  font-size:12px;
+  line-height:1.2;
+}
+[data-vsp-page="c-runs"] table a:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+
+/* soften “link blue” in headers/toolstrips */
+[data-vsp-suite="c"] .vsp-toolbar a,
+[data-vsp-suite="c"] .toolbar a{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(235,242,255,.95);
+  text-decoration:none !important;
+  font-size:12px;
+}
+[data-vsp-suite="c"] .vsp-toolbar a:hover,
+[data-vsp-suite="c"] .toolbar a:hover{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+}
+      `;
+      document.head.appendChild(st);
+    }
+
+    // JS class helper: “button-hoá” một số link action phổ biến
+    var WANT = {
+      "dashboard":1, "csv":1, "reports.tgz":1, "reports":1, "html":1, "sarif":1, "summary":1, "open":1, "sha":1, "use rid":1
+    };
+
+    var _scheduled = false;
+    function polish(){
+      _scheduled = false;
+      try{
+        var as = document.querySelectorAll("a");
+        for (var i=0;i<as.length;i++){
+          var a=as[i];
+          var t=(a.textContent||"").trim().toLowerCase();
+          if (WANT[t]) a.classList.add("vsp-btnlink");
+        }
+        var bs = document.querySelectorAll("button");
+        for (var j=0;j<bs.length;j++){
+          var b=bs[j];
+          var tb=(b.textContent||"").trim().toLowerCase();
+          if (tb==="use rid" || tb==="refresh" || tb==="load" || tb==="save" || tb==="export"){
+            b.classList.add("vsp-btn","vsp-btn-mini");
+          }
+        }
+      }catch(_){}
+    }
+    function schedule(){
+      if (_scheduled) return;
+      _scheduled = true;
+      (window.requestAnimationFrame||setTimeout)(polish, 16);
+    }
+
+    schedule();
+    window.addEventListener("load", schedule, {once:true});
+    try{
+      new MutationObserver(schedule).observe(document.documentElement, {subtree:true, childList:true});
+    }catch(_){}
+  }catch(e){
+    try{ console.warn("[P122] polish failed", e); }catch(_){}
+  }
+})();
+
+
+/* ===== VSP_P123_POLISH_CSUITE_LAYOUT_V1 ===== */
+;(function(){
+  if (window.__VSP_P123__) return;
+  window.__VSP_P123__ = 1;
+
+  function onReady(fn){
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, {once:true});
+    else fn();
+  }
+
+  function addStyle(id, css){
+    if (document.getElementById(id)) return;
+    const st = document.createElement("style");
+    st.id = id;
+    st.textContent = css;
+    document.head.appendChild(st);
+  }
+
+  function normText(el){
+    return (el && el.textContent ? el.textContent.trim().toLowerCase() : "");
+  }
+
+  function hideLegacyTables(){
+    // Hide tables that look like legacy header tables (only <thead> or very few rows)
+    const tables = Array.from(document.querySelectorAll("table"));
+    for (const t of tables){
+      try{
+        const ths = Array.from(t.querySelectorAll("thead th")).map(x=>normText(x)).filter(Boolean);
+        const rows = t.querySelectorAll("tbody tr").length;
+        const looksLikeLegacyHeader =
+          ths.length >= 4 && ths.includes("rid") && (ths.includes("actions") || ths.includes("overall") || ths.includes("summary"));
+        if (looksLikeLegacyHeader && rows <= 1){
+          t.style.display = "none";
+        }
+      }catch(_){}
+    }
+  }
+
+  function decorateActionChips(){
+    // Turn all “action” links/buttons into consistent chips (Runs tab is the biggest win)
+    const els = Array.from(document.querySelectorAll("a,button"));
+    for (const el of els){
+      const t = normText(el);
+      if (!t) continue;
+
+      const isAction =
+        ["dashboard","csv","reports.tgz","reports","sarif","html","summary","use rid","open","sha","refresh","load","save","export","json"].includes(t);
+
+      if (!isAction) continue;
+
+      el.classList.add("vsp-chip");
+      if (t === "dashboard") el.classList.add("vsp-chip--primary");
+      else if (t === "use rid") el.classList.add("vsp-chip--accent");
+      else if (t === "refresh" or t === "load") el.classList.add("vsp-chip--ghost");
+      else el.classList.add("vsp-chip--muted");
+    }
+  }
+
+  function polishTables(){
+    // Add classes to big tables to apply zebra/hover/spacing
+    const tables = Array.from(document.querySelectorAll("table"));
+    for (const t of tables){
+      // Skip tiny layout tables (if any)
+      const rows = t.querySelectorAll("tr").length;
+      if (rows < 3) continue;
+      t.classList.add("vsp-table");
+    }
+  }
+
+  function collapseHugePre(){
+    // Collapse very large <pre> blocks (Settings/Rule Overrides raw JSON) into <details>
+    const pres = Array.from(document.querySelectorAll("pre"));
+    for (const pre of pres){
+      try{
+        const txt = (pre.textContent || "").trim();
+        if (!txt) continue;
+        // Heuristic: looks like JSON and is long
+        const looksJson = (txt.startswith("{") and txt.endswith("}")) or (txt.startswith("[") and txt.endswith("]"));
+        const lines = txt.split("\n").length
+        if (!looksJson || lines < 30) continue;
+
+        // avoid double wrap
+        if (pre.closest("details")) continue;
+
+        const details = document.createElement("details");
+        details.className = "vsp-details";
+        details.open = false;
+
+        const sum = document.createElement("summary");
+        sum.textContent = "Raw JSON (click to expand)";
+        details.appendChild(sum);
+
+        // Keep the pre but constrain height
+        pre.classList.add("vsp-pre");
+        details.appendChild(pre.cloneNode(true));
+        pre.replaceWith(details);
+      }catch(_){}
+    }
+  }
+
+  onReady(function(){
+    addStyle("vsp-p123-style", `
+      :root{
+        --vsp-bg0:#0b1220;
+        --vsp-bg1:#0f1a2d;
+        --vsp-card:rgba(255,255,255,.035);
+        --vsp-card2:rgba(255,255,255,.055);
+        --vsp-border:rgba(255,255,255,.08);
+        --vsp-border2:rgba(255,255,255,.12);
+        --vsp-text:rgba(255,255,255,.86);
+        --vsp-text2:rgba(255,255,255,.68);
+        --vsp-blue:rgba(96,165,250,.95);
+        --vsp-cyan:rgba(34,211,238,.92);
+      }
+
+      /* Tables */
+      table.vsp-table{
+        width:100%;
+        border-collapse:separate;
+        border-spacing:0;
+        background:var(--vsp-card);
+        border:1px solid var(--vsp-border);
+        border-radius:14px;
+        overflow:hidden;
+      }
+      table.vsp-table thead th{
+        text-transform:uppercase;
+        letter-spacing:.06em;
+        font-size:11px;
+        color:var(--vsp-text2);
+        background:rgba(255,255,255,.03);
+        border-bottom:1px solid var(--vsp-border);
+        padding:10px 12px;
+      }
+      table.vsp-table tbody td{
+        padding:10px 12px;
+        border-bottom:1px solid rgba(255,255,255,.06);
+        color:var(--vsp-text);
+        font-size:12px;
+      }
+      table.vsp-table tbody tr:nth-child(odd){
+        background:rgba(255,255,255,.018);
+      }
+      table.vsp-table tbody tr:hover{
+        background:rgba(96,165,250,.08);
+      }
+      table.vsp-table tbody td:first-child{
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size:11.5px;
+        color:rgba(255,255,255,.78);
+      }
+
+      /* Chips */
+      .vsp-chip{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:6px;
+        padding:5px 10px;
+        margin-right:8px;
+        border-radius:999px;
+        border:1px solid var(--vsp-border2);
+        background:rgba(255,255,255,.03);
+        color:rgba(255,255,255,.86) !important;
+        font-size:12px;
+        line-height:1;
+        text-decoration:none !important;
+        cursor:pointer;
+        transition:transform .08s ease, background .12s ease, border-color .12s ease;
+      }
+      .vsp-chip:hover{ transform:translateY(-1px); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.18); }
+      .vsp-chip--primary{ border-color:rgba(96,165,250,.45); background:rgba(96,165,250,.12); }
+      .vsp-chip--accent{ border-color:rgba(34,211,238,.45); background:rgba(34,211,238,.10); }
+      .vsp-chip--muted{ border-color:rgba(255,255,255,.14); background:rgba(255,255,255,.035); }
+      .vsp-chip--ghost{ border-color:rgba(255,255,255,.10); background:transparent; }
+
+      /* Collapsible raw JSON */
+      .vsp-details{
+        background:var(--vsp-card);
+        border:1px solid var(--vsp-border);
+        border-radius:14px;
+        padding:10px 12px;
+        margin:10px 0;
+      }
+      .vsp-details > summary{
+        cursor:pointer;
+        color:var(--vsp-text2);
+        font-size:12px;
+        list-style:none;
+      }
+      .vsp-pre{
+        max-height:420px;
+        overflow:auto;
+        margin-top:10px;
+        padding:10px;
+        border-radius:12px;
+        border:1px solid rgba(255,255,255,.08);
+        background:rgba(0,0,0,.22);
+      }
+    `);
+
+    hideLegacyTables();
+    polishTables();
+    decorateActionChips();
+    collapseHugePre();
+
+    // Re-run after async renders (Runs/DataSource sometimes render later)
+    setTimeout(function(){
+      hideLegacyTables();
+      polishTables();
+      decorateActionChips();
+      collapseHugePre();
+    }, 350);
+  });
+})();
+

@@ -1,0 +1,42 @@
+/* VSP_POLISH_P1_V1: safe cosmetics only */
+
+:root{
+  --vsp-border: rgba(255,255,255,.10);
+  --vsp-bg: rgba(255,255,255,.03);
+}
+
+.vsp-card, .dashboard-card{
+  border: 1px solid var(--vsp-border) !important;
+  background: var(--vsp-bg) !important;
+  border-radius: 14px !important;
+}
+
+.vsp-bdg, .badge, .pill{
+  border: 1px solid rgba(255,255,255,.14) !important;
+  font-weight: 900 !important;
+  letter-spacing: .2px !important;
+}
+
+/* soften heavy glow/blur without breaking theme */
+body::before, .bg-glow, .glow, .blur{
+  filter: none !important;
+  opacity: .85 !important;
+}
+
+/* tighten buttons in actions columns */
+button, .btn, a.btn{
+  border-radius: 999px !important;
+}
+
+/* empty data state */
+.no-data, .empty, [data-empty]{
+  opacity: .78 !important;
+}
+
+/* runs table readability */
+table{
+  border-collapse: separate !important;
+  border-spacing: 0 10px !important;
+}
+th{ opacity:.78 !important; font-weight:800 !important; }
+td{ opacity:.92 !important; }

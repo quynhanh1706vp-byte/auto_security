@@ -1,0 +1,97 @@
+/* VSP_P1_NETGUARD_EARLY_V5
+   - MUST run before any poll captures fetch/XHR
+   - Prevent DevTools spam during restart by cache+hold for /api/vsp/runs (fetch + XHR)
+   - Intercept placeholder <URL> calls
+   - Suppress noisy console logs ([VSP] poll down; backoff...) without hiding real errors
+*/
+;(()=>{
+  if (window.__vsp_p1_netguard_early_v5) return;
+  window.__vsp_p1_netguard_early_v5 = true;
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */
+/* [REMOVED injected RUNS wrapper block] */
+
+/* [REMOVED injected RUNS wrapper block] */

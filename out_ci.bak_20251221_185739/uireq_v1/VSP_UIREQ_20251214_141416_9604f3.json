@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "req_id": "VSP_UIREQ_20251214_141416_9604f3",
+  "created_at": "2025-12-14T07:14:16Z",
+  "started_at": "2025-12-14T07:14:16Z",
+  "finished_at": null,
+  "status": "RUNNING",
+  "final": false,
+  "exit_code": null,
+  "gate": "UNKNOWN",
+  "stage": {
+    "i": 1,
+    "n": 8,
+    "name": "Gitleaks (EXT)",
+    "progress": 12
+  },
+  "ci_run_dir": "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416",
+  "vsp_run_id": "",
+  "flag": {
+    "has_findings": null
+  },
+  "degraded": 0,
+  "degraded_reasons": "",
+  "sync": {
+    "done": false,
+    "msg": "",
+    "ok": null
+  },
+  "meta": {
+    "mode": "local",
+    "outer": "/home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_outer_full_v1.sh",
+    "profile": "FULL_EXT",
+    "target": "/home/test/Data/SECURITY-10-10-v4"
+  },
+  "watch": {
+    "last_stage_at": 1765696456.2176557,
+    "last_stage_sig": "",
+    "start_ts": 1765696456.2176564
+  },
+  "log_file": "/home/test/Data/SECURITY_BUNDLE/ui/out_ci/uireq_v1/UIREQ_20251214_141416_9604f3.log",
+  "tail": "[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4\n[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER\n[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data\n[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4\n[VSP_CI_OUTER_RUNNERLOG_V1] runner_log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/runner.log\n[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251214_141416\n[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416\n[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===\n[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh\n[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data\n[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4\n[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416\n[VSP_CI_GATE] RUN_ID      = VSP_CI_20251214_141416\n[VSP_CI_GATE_AUTOPICK_RUNNER_V1] RUNNER=/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh\n[VSP_CI_GATE] RUNNER      = /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh\n[VSP_CI_GATE] === CHẠY RUNNER VSP (FULL SCAN) ===\n[VSP_CI_GATE] Cmd: /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh \"/home/test/Data/SECURITY-10-10-v4\" \"/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416\"\n===== [BOOT] runner.log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/runner.log ts=2025-12-14T14:14:16+07:00 =====\n==============================================\n[VSP] RUN ALL TOOLS V2 – PROFILE=FULL_EXT LEVEL=FULL_EXT\nROOT     = /home/test/Data/SECURITY_BUNDLE\nSRC      = /home/test/Data/SECURITY-10-10-v4\nOUT_DIR  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416\nNO_NET   = 0\n==============================================\n\n===== [3/8] KICS (EXT) =====\n===== [KICS_V3] 2025-12-14T14:14:16+07:00 =====\n[KICS_V3] ROOT=/home/test/Data/SECURITY_BUNDLE\n[KICS_V3] SRC=/home/test/Data/SECURITY-10-10-v4\n[KICS_V3] OUT_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416\n[KICS_V3] OUT_KICS=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/kics\n[KICS_V3] TIMEOUT=1800s KILL=30s\n[KICS_V3] EXCL_MODE=list\n[KICS_V3] CMD: kics scan -p /home/test/Data/SECURITY-10-10-v4 -o /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/kics --report-formats json --no-color --exclude-paths /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416,/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/kics,/home/test/Data/SECURITY-10-10-v4/.git,/home/test/Data/SECURITY-10-10-v4/node_modules,/home/test/Data/SECURITY-10-10-v4/out_ci,/home/test/Data/SECURITY-10-10-v4/dist,/home/test/Data/SECURITY-10-10-v4/build,/home/test/Data/SECURITY-10-10-v4/target,/home/test/Data/SECURITY-10-10-v4/venv,/home/test/Data/SECURITY-10-10-v4/.venv,/home/test/Data/SECURITY-10-10-v4/__pycache__,/home/test/Data/SECURITY-10-10-v4/.cache,/home/test/Data/SECURITY-10-10-v4/.idea,/home/test/Data/SECURITY-10-10-v4/.vscode\ntimeout: gặp lỗi khi chạy câu lệnh “kics”: Không có tập tin hoặc thư mục như vậy\n[KICS_V3][DEGRADED] reason=missing rc=127 (kics not found)\n[KICS] rc=0\n\n===== [1/8] Gitleaks (EXT) =====\n[Gitleaks] ROOT    = /home/test/Data/SECURITY_BUNDLE\n[Gitleaks] OUT_DIR = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416\n[Gitleaks] SRC     = /home/test/Data/SECURITY-10-10-v4\n[Gitleaks] PROFILE = ext\n[Gitleaks] MODE    = BUILTIN_RULES\n[Gitleaks] JSON    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/gitleaks/gitleaks.json\n[Gitleaks] LOG     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_141416/gitleaks/gitleaks.log",
+  "request_id": "VSP_UIREQ_20251214_141416_9604f3",
+  "rid": "VSP_UIREQ_20251214_141416_9604f3",
+  "status_url": "/api/vsp/run_status_v1/VSP_UIREQ_20251214_141416_9604f3",
+  "updated_at": "2025-12-14T07:18:01Z",
+  "stage_index": 1,
+  "stage_total": 8,
+  "stage_name": "Gitleaks (EXT)",
+  "progress_pct": 12
+}

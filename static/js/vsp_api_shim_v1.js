@@ -1,0 +1,5 @@
+// VSP API SHIM – DISABLED
+// Bản thương mại 2025 dùng API thật từ Core (8961), không intercept nữa.
+(function () {
+  console.log("[VSP_API_SHIM] disabled – dùng API runs_v3 thật từ Core");
+})();

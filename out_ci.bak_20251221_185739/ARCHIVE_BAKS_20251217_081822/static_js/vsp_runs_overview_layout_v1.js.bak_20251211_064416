@@ -1,0 +1,160 @@
+// VSP_RUNS_OVERVIEW_LAYOUT_V1
+// Gom 3 KPI (TOTAL RUNS, CRITICAL + HIGH, AVG FINDINGS / RUN) thành 1 grid,
+// và hiển thị thêm "Last run" chip dựa trên dữ liệu /api/vsp/runs_index_v3 đã load.
+
+(function () {
+  const LOG = "[VSP_RUNS_LAYOUT]";
+
+  function findKpiCards() {
+    const titlesToFind = [
+      "TOTAL RUNS",
+      "CRITICAL + HIGH",
+      "AVG FINDINGS / RUN",
+    ];
+
+    const found = {};
+    const allEls = Array.from(document.querySelectorAll("*"));
+
+    for (const el of allEls) {
+      const text = (el.textContent || "").trim().toUpperCase();
+      if (!text) continue;
+      for (const t of titlesToFind) {
+        if (!found[t] && text === t) {
+          // tìm card cha, ưu tiên .vsp-kpi-card, sau đó div gần nhất
+          let card = el.closest(".vsp-kpi-card");
+          if (!card) {
+            card = el.closest("div");
+          }
+          if (card) {
+            found[t] = card;
+          }
+        }
+      }
+    }
+
+    const cards = titlesToFind.map((t) => found[t]).filter(Boolean);
+    if (cards.length === 3) {
+      console.log(LOG, "Đã tìm thấy đủ 3 KPI card.");
+    } else {
+      console.warn(LOG, "Không tìm đủ 3 KPI card. Found =", cards.length);
+    }
+    return cards;
+  }
+
+  function buildGrid(cards) {
+    if (!cards.length) return;
+    const parent = cards[0].parentElement;
+    if (!parent) return;
+
+    // Nếu đã wrap rồi thì thôi
+    if (parent.classList.contains("vsp-runs-overview-grid")) {
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "vsp-runs-overview-grid";
+
+    parent.insertBefore(grid, cards[0]);
+    for (const c of cards) {
+      grid.appendChild(c);
+    }
+
+    console.log(LOG, "Đã wrap 3 KPI vào .vsp-runs-overview-grid");
+  }
+
+  function buildLastRunChip() {
+    // chờ object global nếu vsp_runs_tab_v1.js có expose; nếu không thì fetch riêng
+    const container = document.querySelector("[data-vsp-runs-overview]");
+    // Nếu template chưa có attribute này, fallback: dùng parent của grid
+    let parentForChip = container;
+    if (!parentForChip) {
+      const grid = document.querySelector(".vsp-runs-overview-grid");
+      parentForChip = grid ? grid.parentElement : null;
+    }
+    if (!parentForChip) {
+      console.warn(LOG, "Không tìm thấy chỗ gắn Last run chip.");
+      return;
+    }
+
+    // Nếu đã có chip thì không làm lại
+    if (parentForChip.querySelector(".vsp-runs-last-run")) {
+      return;
+    }
+
+    // Tự fetch runs_index_v3
+    fetch("/api/vsp/runs_index_v3?limit=1")
+      .then((r) => r.json())
+      .then((data) => {
+        const items = data.items || [];
+        const last = items[0];
+        if (!last) {
+          console.log(LOG, "Không có run nào để hiển thị last run chip.");
+          return;
+        }
+
+        const runId = last.run_id || last.id || "N/A";
+        const started = last.started_at || last.start_time || "";
+        const findings = last.total_findings ?? last.findings_total ?? null;
+
+        const chip = document.createElement("div");
+        chip.className = "vsp-runs-last-run";
+
+        const label = document.createElement("div");
+        label.className = "vsp-runs-last-run-label";
+        label.textContent = "Last run";
+
+        const meta = document.createElement("div");
+        meta.className = "vsp-runs-last-run-meta";
+
+        const spanId = document.createElement("span");
+        spanId.textContent = runId;
+
+        const spanTime = document.createElement("span");
+        spanTime.textContent = started || "time: N/A";
+
+        const spanF = document.createElement("span");
+        spanF.textContent =
+          findings != null ? `${findings} findings` : "findings: N/A";
+
+        meta.appendChild(spanId);
+        meta.appendChild(spanTime);
+        meta.appendChild(spanF);
+
+        chip.appendChild(label);
+        chip.appendChild(meta);
+
+        // gắn chip ngay dưới grid nếu có, nếu không thì cuối container
+        const grid = parentForChip.querySelector(".vsp-runs-overview-grid");
+        if (grid && grid.nextSibling) {
+          parentForChip.insertBefore(chip, grid.nextSibling);
+        } else if (grid) {
+          parentForChip.appendChild(chip);
+        } else {
+          parentForChip.appendChild(chip);
+        }
+
+        console.log(LOG, "Đã render Last run chip.");
+      })
+      .catch((e) => {
+        console.warn(LOG, "Lỗi fetch runs_index_v3:", e);
+      });
+  }
+
+  function init() {
+    try {
+      const cards = findKpiCards();
+      if (cards.length) {
+        buildGrid(cards);
+      }
+      buildLastRunChip();
+    } catch (e) {
+      console.warn(LOG, "Init error:", e);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

@@ -1,0 +1,205 @@
+/* ===========================
+ * VSP 2025 – Layout fix V1
+ * Chỉ thêm style, không override mạnh
+ * =========================== */
+
+/* Tổng thể – nền + text */
+body {
+  background: radial-gradient(circle at top left, #0b1120 0, #020617 45%, #000 100%);
+  color: #e5e7eb;
+}
+
+/* Khung nội dung chính – để không bị dính sát mép trái/phải */
+.vsp-page,
+#vsp-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 20px 32px;
+}
+
+/* Section chung cho Dashboard / Runs / DS / Settings / Overrides */
+.vsp-section {
+  margin-bottom: 20px;
+}
+
+.vsp-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.vsp-section-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.vsp-section-header .vsp-subtitle {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Card chuẩn dùng cho KPI / chart / panel form */
+.vsp-card {
+  background: radial-gradient(circle at top left, #0f172a 0, #020617 60%);
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 14px 16px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.8);
+}
+
+.vsp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.vsp-card-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+/* KPI grid trên Dashboard */
+.vsp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 1200px) {
+  .vsp-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Chart grid – 2x2 trên Dashboard */
+.vsp-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1200px) {
+  .vsp-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Chiều cao tối thiểu cho các chart để tránh khung trống quá lớn */
+#vsp-chart-severity,
+#vsp-chart-trend,
+#vsp-chart-tool,
+#vsp-chart-cwe {
+  min-height: 240px;
+}
+
+/* Giới hạn chiều cao canvas để tránh block đỏ khổng lồ ở Data Source mini charts */
+canvas {
+  max-height: 340px;
+}
+
+/* Nếu Data Source mini charts có wrapper riêng, giới hạn chiều cao */
+#vsp-ds-mini-charts,
+.vsp-ds-mini-charts,
+.vsp-ds-mini-wrapper {
+  max-height: 320px;
+  overflow: hidden;
+}
+
+/* Bảng chung cho Runs & Data Source & Rule Overrides */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+th,
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+}
+
+th {
+  text-align: left;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+tr:hover td {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+/* Wrapper cho các bảng nhiều dòng – để không kéo dài hết chiều cao màn hình */
+.vsp-table-scroll {
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+/* Hàng đang chọn (runs history) */
+.vsp-row-selected td {
+  background: rgba(34, 197, 94, 0.12);
+  border-bottom-color: rgba(34, 197, 94, 0.12);
+}
+
+/* Toolbar nút ở Runs / Settings / Rule overrides */
+.vsp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vsp-btn-primary,
+.vsp-btn-secondary {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.vsp-btn-primary {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #020617;
+  font-weight: 500;
+}
+
+.vsp-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.vsp-btn-secondary:hover {
+  background: rgba(30, 64, 175, 0.7);
+}
+
+/* Settings / Rule overrides – container tối đa 960px để không bị dạt lên trên quá nhiều */
+.vsp-settings-container,
+.vsp-overrides-container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* Advanced JSON editor gói trong <details> */
+.vsp-advanced summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.vsp-advanced[open] summary {
+  color: #22c55e;
+}
+
+/* Một chút margin dưới cho footer nhỏ ở các tab để tránh dính mép dưới */
+.vsp-footer {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #6b7280;
+}

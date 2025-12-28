@@ -1,0 +1,12 @@
+[09:42:57] == restart 8910 ==
+[09:42:59] == node --check bundle ==
+[09:42:59] == smoke 5 tabs ==
+[09:43:00] == resolve latest RID/RUN_DIR ==
+[09:43:00] [RID]=VSP_CI_20251215_034956
+[09:43:00] [RUN_DIR]=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_034956
+[09:43:00] == capture UI meta ==
+[09:43:01] == stability STRICT (N=300) ==
+[09:44:36] == ensure ISO evidence + rebuild report tgz ==
+[09:44:40] == pack audit bundle (auto COMMERCIAL snapshot) ==
+[09:44:43] == collect artifacts into release dir ==
+[09:44:43] == build RELEASE_SHA256SUMS (no self-reference) + verify ==

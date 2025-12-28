@@ -1,0 +1,20 @@
+{
+  "request_id": "VSP_UIREQ_20251213_161159_wcj4y7",
+  "synthetic_req_id": true,
+  "mode": "local",
+  "profile": "FULL_EXT",
+  "target_type": "path",
+  "target": "/home/test/Data/SECURITY-10-10-v4",
+  "ci_run_dir": "",
+  "runner_log": "",
+  "ci_root_from_pid": null,
+  "watchdog_pid": 0,
+  "stage_sig": "0/0||0",
+  "progress_pct": 0,
+  "killed": false,
+  "kill_reason": "",
+  "final": false,
+  "stall_timeout_sec": 600,
+  "total_timeout_sec": 7200,
+  "state_bootstrap_ts": 1765617119
+}

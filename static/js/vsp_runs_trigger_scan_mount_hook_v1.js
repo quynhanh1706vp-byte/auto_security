@@ -1,0 +1,56 @@
+(function(){
+
+  // VSP_ROUTE_GUARD_RUNS_ONLY_V1
+  function __vsp_is_runs_only_v1(){
+    try {
+      const h = (location.hash||"").toLowerCase();
+      return h.startsWith("#runs") || h.includes("#runs/");
+    } catch(_) { return false; }
+  }
+  if(!__vsp_is_runs_only_v1()){
+    try{ console.info("[VSP_ROUTE_GUARD_RUNS_ONLY_V1] skip", "vsp_runs_trigger_scan_mount_hook_v1.js", "hash=", location.hash); } catch(_){}
+    return;
+  }
+/*VSP_DISABLE_LEGACY_RUNSCAN_V1*/return;})();
+(function(){/*VSP_DISABLE_DUP_SCAN_V1*/return;})();
+(function(){
+  if (window.__VSP_RUNSCAN_MOUNT_HOOK_V1__) return;
+  window.__VSP_RUNSCAN_MOUNT_HOOK_V1__ = true;
+
+  function log(){ try{ console.log.apply(console, arguments); } catch(e){} }
+
+  function tryMount(){
+    if (typeof window.VSP_RUNSCAN_MOUNT === "function") {
+      var ok = false;
+      try { ok = window.VSP_RUNSCAN_MOUNT(); } catch(e){ log("[RUNSCAN_HOOK] mount error", e); }
+      if (ok) log("[RUNSCAN_HOOK] mounted (or already mounted)");
+      return ok;
+    }
+    return false;
+  }
+
+  // 1) hash/router changes
+  window.addEventListener("hashchange", function(){
+    setTimeout(tryMount, 50);
+    setTimeout(tryMount, 250);
+    setTimeout(tryMount, 800);
+  });
+
+  // 2) click on Runs tab button
+  document.addEventListener("click", function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest(".vsp-tab-btn[data-tab='runs']") : null;
+    if (!btn) return;
+    setTimeout(tryMount, 10);
+    setTimeout(tryMount, 200);
+    setTimeout(tryMount, 800);
+  }, true);
+
+  // 3) fallback retries at startup
+  var n=0, it=setInterval(function(){
+    n++;
+    if (tryMount()) { clearInterval(it); return; }
+    if (n>120) clearInterval(it);
+  }, 200);
+
+  log("[RUNSCAN_HOOK] mount hook ready");
+})();

@@ -1,0 +1,258 @@
+
+  // VSP_DD_CALLSAFE_P0_V2: ALWAYS call window drilldown as function, never crash
+  function __VSP_DD_CALL__(/*...args*/){
+    try{
+
+
+/* VSP_FIX_DRILLDOWN_ARTIFACTS_NOT_FUNCTION_P0_V2
+ * Fix: TypeError VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2(...) is not a function
+ * Normalize BEFORE first use:
+ *   - if function: keep
+ *   - if object with .open(): wrap as function(arg)->obj.open(arg)
+ *   - else: no-op (never throw)
+ */
+(function(){
+  'use strict';
+  if (window.__VSP_FIX_DRILLDOWN_ARTIFACTS_NOT_FUNCTION_P0_V2) return;
+  window.__VSP_FIX_DRILLDOWN_ARTIFACTS_NOT_FUNCTION_P0_V2 = 1;
+
+  function normalize(v){
+    if (typeof v === 'function') return v;
+    if (v && typeof v.open === 'function') {
+      const obj = v;
+      const fn = function(arg){ try { return obj.open(arg); } catch(e){ console.warn('[VSP][DD_FIX] open() failed', e); return null; } };
+      fn.__wrapped_from_object = true;
+      return fn;
+    }
+    const noop = function(_arg){ return null; };
+    noop.__noop = true;
+    return noop;
+  }
+
+  try {
+    // trap future assignments
+    let _val = window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2;
+    Object.defineProperty(window, 'VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2', {
+      configurable: true, enumerable: true,
+      get: function(){ return _val; },
+      set: function(v){ _val = normalize(v); }
+    });
+    window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = _val;
+  } catch(e) {
+    window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = normalize(window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2);
+  }
+})();
+
+      var fn = (typeof window !== "undefined" && typeof window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 === "function")
+        ? window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2
+        : function(){ return {open:function(){},show:function(){},close:function(){},destroy:function(){}}; };
+      return fn.apply(null, arguments);
+    }catch(_){
+      return {open:function(){},show:function(){},close:function(){},destroy:function(){}};
+    }
+  }
+
+  // VSP_DD_GUARD_LOCAL_V1: never crash if drilldown symbol isn't a function
+  try{
+    function __vsp_dd_stub(){
+      try{ console.info("[VSP][DD] local stub invoked"); }catch(_){}
+      return {open:function(){},show:function(){},close:function(){},destroy:function(){}};
+    }
+    if (typeof window !== "undefined") {
+      if (typeof window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 !== "function") {
+        window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = __vsp_dd_stub;
+      }
+    }
+  }catch(_){}
+"use strict";
+
+/**
+ * VSP_DASHBOARD_COMM_ENHANCE_V1
+ * - Bổ sung KPI cho TAB 2 (Runs & Reports): Total runs + Last run timestamp
+ * - Đổ bảng Run index vào #vsp-runs-container
+ * - Đổ bảng Data Source (severity + theo tool) vào #vsp-datasource-container
+ */
+(function () {
+  function formatTs(ts) {
+    if (!ts) return "–";
+    return String(ts).replace("T", " ").split(".")[0];
+  }
+
+  /* ======================
+   *  RUNS & REPORTS (TAB 2)
+   * ====================== */
+  function renderRuns(data) {
+    var container = document.getElementById("vsp-runs-container");
+    if (!container) return;
+
+    var items;
+    if (Array.isArray(data)) {
+      items = data;
+    } else if (data && Array.isArray(data.items)) {
+      items = data.items;
+    } else {
+      items = [];
+    }
+
+    if (!items.length) {
+      container.innerHTML =
+        '<p style="font-size:12px;color:#9ca3c7;">Không tải được dữ liệu runs.</p>';
+      return;
+    }
+
+    // KPI: total runs + last run timestamp
+    var totalRuns = items.length;
+    var latest = items[0] || {};
+    var kpiCards = document.querySelectorAll("#tab-runs .kpi-value");
+    if (kpiCards[0]) {
+      kpiCards[0].textContent = String(totalRuns);
+    }
+    if (kpiCards[1]) {
+      kpiCards[1].textContent = formatTs(latest.ts || latest.ts_last_run);
+    }
+
+    // Bảng Run index
+    var html = '';
+    html += '<div style="max-height: 320px; overflow:auto;">';
+    html += '<table class="vsp-table">';
+    html += '<thead><tr>';
+    html += '<th>Run ID</th>';
+    html += '<th>Total</th>';
+    html += '<th>CRI</th>';
+    html += '<th>HIGH</th>';
+    html += '<th>MED</th>';
+    html += '<th>LOW</th>';
+    html += '</tr></thead><tbody>';
+
+    items.forEach(function (r) {
+      var sev = r.by_severity || r.severity || {};
+      var total = r.total_findings || r.total || 0;
+      html += '<tr>';
+      html += '<td style="white-space:nowrap;">' + (r.run_id || "–") + '</td>';
+      html += '<td>' + total + '</td>';
+      html += '<td>' + (sev.CRITICAL || 0) + '</td>';
+      html += '<td>' + (sev.HIGH || 0) + '</td>';
+      html += '<td>' + (sev.MEDIUM || 0) + '</td>';
+      html += '<td>' + (sev.LOW || 0) + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  function loadRuns() {
+    fetch("/api/vsp/runs_index_v3_v3", { cache: "no-store" })
+      .then(function (res) { return res.json(); })
+      .then(function (data) { renderRuns(data); })
+      .catch(function (err) {
+        console.error("[VSP] load runs_index_v3 error:", err);
+        var container = document.getElementById("vsp-runs-container");
+        if (container) {
+          container.innerHTML =
+            '<p style="font-size:12px;color:#fca5a5;">Lỗi khi tải dữ liệu runs.</p>';
+        }
+      });
+  }
+
+  /* ======================
+   *  DATA SOURCE (TAB 3)
+   * ====================== */
+  function get(obj, key) {
+    return obj && obj[key] != null ? obj[key] : 0;
+  }
+
+  function renderDatasource(data) {
+    var container = document.getElementById("vsp-datasource-container");
+    if (!container) return;
+
+    var summary = (data && data.summary) ? data.summary : data || {};
+    var bySev = summary.by_severity || summary.severity || {};
+    var byTool = summary.by_tool || {};
+
+    var html = '';
+    html += '<div class="vsp-card-soft">';
+    html += '<div style="display:grid;grid-template-columns:minmax(0,0.7fr) minmax(0,1fr);gap:8px;">';
+
+    // Bảng theo severity
+    html += '<div>';
+    html += '<div style="font-size:12px;font-weight:600;color:#e5e7eb;margin-bottom:4px;">Tổng quan theo mức độ</div>';
+    html += '<table class="vsp-table" style="font-size:11px;">';
+    html += '<thead><tr><th>Severity</th><th>Count</th></tr></thead><tbody>';
+    ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].forEach(function (sev) {
+      html += '<tr>';
+      html += '<td>' + sev + '</td>';
+      html += '<td>' + get(bySev, sev) + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '</div>';
+
+    // Bảng theo tool
+    html += '<div>';
+    html += '<div style="font-size:12px;font-weight:600;color:#e5e7eb;margin-bottom:4px;">Theo tool</div>';
+
+    var toolNames = Object.keys(byTool || {});
+    if (!toolNames.length) {
+      html += '<p style="font-size:11px;color:#9ca3c7;">Không có dữ liệu theo tool.</p>';
+    } else {
+      html += '<table class="vsp-table" style="font-size:11px;">';
+      html += '<thead><tr>';
+      html += '<th>Tool</th>';
+      html += '<th>CRI</th>';
+      html += '<th>HIGH</th>';
+      html += '<th>MED</th>';
+      html += '<th>LOW</th>';
+      html += '<th>INFO</th>';
+      html += '<th>TRACE</th>';
+      html += '</tr></thead><tbody>';
+
+      toolNames.forEach(function (tool) {
+        var sev = byTool[tool] || {};
+        html += '<tr>';
+        html += '<td>' + tool + '</td>';
+        html += '<td>' + get(sev,"CRITICAL") + '</td>';
+        html += '<td>' + get(sev,"HIGH") + '</td>';
+        html += '<td>' + get(sev,"MEDIUM") + '</td>';
+        html += '<td>' + get(sev,"LOW") + '</td>';
+        html += '<td>' + get(sev,"INFO") + '</td>';
+        html += '<td>' + get(sev,"TRACE") + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+    }
+
+    html += '</div>'; // col tool
+    html += '</div>'; // grid
+    html += '</div>'; // card-soft
+
+    container.innerHTML = html;
+  }
+
+  function loadDatasource() {
+    fetch("/api/vsp/datasource?mode=dashboard", { cache: "no-store" })
+      .then(function (res) { return res.json(); })
+      .then(function (data) { renderDatasource(data); })
+      .catch(function (err) {
+        console.error("[VSP] load datasource dashboard error:", err);
+        var container = document.getElementById("vsp-datasource-container");
+        if (container) {
+          container.innerHTML =
+            '<p style="font-size:12px;color:#fca5a5;">Lỗi khi tải unified datasource.</p>';
+        }
+      });
+  }
+
+  /* ======================
+   *  INIT
+   * ====================== */
+  function init() {
+    loadRuns();
+    loadDatasource();
+  }
+
+  // Cho chắc chắn chạy sau khi DOM sẵn sàng
+  document.addEventListener("DOMContentLoaded", init);
+  window.VSP_DASHBOARD_COMM_ENHANCE_V1 = init;
+})();

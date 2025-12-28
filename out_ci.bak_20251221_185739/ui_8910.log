@@ -1,0 +1,18 @@
+nohup: đang bỏ qua dữ liệu vào
+[2025-12-16 10:49:57 +0700] [333485] [INFO] Starting gunicorn 23.0.0
+[2025-12-16 10:49:57 +0700] [333485] [INFO] Listening at: http://127.0.0.1:8910 (333485)
+[2025-12-16 10:49:57 +0700] [333485] [INFO] Using worker: gthread
+[2025-12-16 10:49:57 +0700] [333487] [INFO] Booting worker with pid: 333487
+[2025-12-16 10:49:57 +0700] [333488] [INFO] Booting worker with pid: 333488
+[2025-12-16 11:34:21 +0700] [333485] [INFO] Handling signal: term
+[2025-12-16 11:34:22 +0700] [333487] [INFO] Worker exiting (pid: 333487)
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_EXPORT_FORCE_BIND_V5] rebound: [('/api/vsp/run_export_v3', 'vsp_run_export_v3'), ('/api/vsp/run_export_v3/<rid>', 'api_vsp_run_export_v3_commercial_real_v1')]
+[2025-12-16 11:34:22 +0700] [333488] [INFO] Worker exiting (pid: 333488)
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_EXPORT_FORCE_BIND_V5] rebound: [('/api/vsp/run_export_v3', 'vsp_run_export_v3'), ('/api/vsp/run_export_v3/<rid>', 'api_vsp_run_export_v3_commercial_real_v1')]
+[2025-12-16 11:34:22 +0700] [333485] [INFO] Shutting down: Master

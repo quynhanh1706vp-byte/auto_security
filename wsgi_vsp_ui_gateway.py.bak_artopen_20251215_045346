@@ -1,0 +1,300 @@
+import importlib
+
+m = importlib.import_module("vsp_demo_app")
+
+if hasattr(m, "app"):
+    application = m.app
+elif hasattr(m, "create_app"):
+    application = m.create_app()
+else:
+    raise RuntimeError("vsp_demo_app has no 'app' or 'create_app'")
+
+
+
+# === VSP_GATEWAY_EXPORT_V3_IN_WSGI_V1 ===
+def _vsp_install_export_v3_on_app(_app):
+    # Install export route on the REAL gateway Flask app (application/app)
+    try:
+        from flask import request, jsonify, send_file, Response
+    except Exception:
+        return
+    from pathlib import Path
+    import glob, mimetypes
+
+    if _app is None or not hasattr(_app, "route"):
+        return
+    if getattr(_app, "_vsp_export_v3_installed", False):
+        return
+    setattr(_app, "_vsp_export_v3_installed", True)
+
+    def _vsp_norm_rid_to_ci_key(rid: str) -> str:
+        s = (rid or "").strip()
+        if s.startswith("RUN_"):
+            s = s[len("RUN_"):]
+        return s
+
+    def _vsp_resolve_ci_run_dir(rid: str):
+        key = _vsp_norm_rid_to_ci_key(rid)
+        bases = [
+            "/home/test/Data/SECURITY-10-10-v4/out_ci",
+            "/home/test/Data/SECURITY_BUNDLE/out",
+            "/home/test/Data/SECURITY_BUNDLE/ui/out_ci",
+        ]
+        for b in bases:
+            d = Path(b) / key
+            if d.is_dir():
+                return d
+        # glob fallback
+        pats = [f"**/{key}", f"**/RUN_{key}", f"**/{key}*"]
+        for b in bases:
+            bp = Path(b)
+            if not bp.exists():
+                continue
+            for pat in pats:
+                for m in bp.glob(pat):
+                    if m.is_dir():
+                        return m
+        return None
+
+    def _vsp_export_candidates(ci_run_dir, fmt: str):
+        d = Path(ci_run_dir)
+        html = [
+            d / "reports" / "vsp_run_report_cio_v3.html",
+            d / "reports" / "report.html",
+            d / "reports" / "index.html",
+            d / "vsp_run_report_cio_v3.html",
+            d / "report.html",
+        ]
+        pdf = [
+            d / "reports" / "report.pdf",
+            d / "reports" / "vsp_run_report_cio_v3.pdf",
+            d / "report.pdf",
+        ]
+        zips = [
+            d / "reports" / "report.zip",
+            d / "reports.zip",
+            d / "report.zip",
+        ]
+        if fmt == "html":
+            cands = html + [Path(x) for x in glob.glob(str(d / "reports" / "*.html"))]
+        elif fmt == "pdf":
+            cands = pdf + [Path(x) for x in glob.glob(str(d / "reports" / "*.pdf"))]
+        else:
+            cands = zips + [Path(x) for x in glob.glob(str(d / "reports" / "*.zip"))]
+
+        out = []
+        for f in cands:
+            try:
+                if f.is_file() and f.stat().st_size > 0:
+                    out.append(f)
+            except Exception:
+                pass
+        # de-dupe
+        seen = set(); uniq = []
+        for f in out:
+            k = str(f)
+            if k not in seen:
+                uniq.append(f); seen.add(k)
+        return uniq
+
+    @_app.route("/api/vsp/run_export_v3/<rid>", methods=["GET","HEAD"])
+    def api_vsp_run_export_v3(rid):
+        fmt = (request.args.get("fmt", "html") or "html").lower().strip()
+        if fmt not in ("html","pdf","zip"):
+            return jsonify(ok=False, error="bad_fmt", fmt=fmt), 400
+
+        ci_dir = _vsp_resolve_ci_run_dir(rid)
+        if not ci_dir:
+            return jsonify(ok=False, error="run_not_found", rid=rid), 404
+
+        cands = _vsp_export_candidates(ci_dir, fmt)
+        if not cands:
+            # IMPORTANT: differentiate from missing-route
+            return jsonify(ok=False, error="export_file_not_found", rid=rid, fmt=fmt, ci_run_dir=str(ci_dir)), 404
+
+        f = cands[0]
+        ctype = mimetypes.guess_type(str(f))[0] or ("text/html" if fmt=="html" else "application/pdf" if fmt=="pdf" else "application/zip")
+
+        if request.method == "HEAD":
+            resp = Response(status=200)
+            resp.headers["Content-Type"] = ctype
+            try:
+                resp.headers["Content-Length"] = str(f.stat().st_size)
+            except Exception:
+                pass
+            return resp
+
+        as_attach = (fmt == "zip")
+        return send_file(str(f), mimetype=ctype, as_attachment=as_attach, download_name=f.name)
+
+# Install onto the live app
+try:
+    _APP = globals().get("application") or globals().get("app")
+    _vsp_install_export_v3_on_app(_APP)
+except Exception:
+    pass
+# === /VSP_GATEWAY_EXPORT_V3_IN_WSGI_V1 ===
+
+
+
+
+# === VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_FILL8_BYTOOL_V1 ===
+def _vsp_statusv2_fill8_bytool(obj: dict) -> dict:
+    """
+    Ensure run_gate_summary.by_tool includes 8 commercial tools keys.
+    If missing, set verdict=NOT_RUN and total=0 (do NOT override existing).
+    """
+    want = ["SEMGREP","TRIVY","KICS","GITLEAKS","CODEQL","BANDIT","SYFT","GRYPE"]
+    try:
+        rgs = obj.get("run_gate_summary") or {}
+        by_tool = rgs.get("by_tool") or {}
+        if not isinstance(by_tool, dict):
+            by_tool = {}
+        changed = False
+        for k in want:
+            if k not in by_tool:
+                by_tool[k] = {"tool": k, "verdict": "NOT_RUN", "total": 0}
+                changed = True
+            else:
+                # normalize shape a bit (keep existing verdict/total)
+                v = by_tool.get(k) or {}
+                if isinstance(v, dict):
+                    if "tool" not in v:
+                        v["tool"] = k
+                        changed = True
+                    by_tool[k] = v
+        if changed:
+            rgs["by_tool"] = by_tool
+            obj["run_gate_summary"] = rgs
+    except Exception:
+        pass
+    return obj
+
+def _vsp_try_fill8_on_json_bytes(b: bytes) -> bytes:
+    import json
+    try:
+        obj = json.loads(b.decode("utf-8", errors="ignore"))
+        if isinstance(obj, dict) and obj.get("ok") is True:
+            obj2 = _vsp_statusv2_fill8_bytool(obj)
+            return json.dumps(obj2, ensure_ascii=False).encode("utf-8")
+    except Exception:
+        return b
+    return b
+
+# Hook into existing bytes postprocess chain if present; otherwise wrap WSGI app at the end.
+try:
+    # If there is a global postprocess dispatcher, extend it
+    if "_VSP_STATUSV2_BYTES_POSTPROCESSORS" in globals() and isinstance(globals().get("_VSP_STATUSV2_BYTES_POSTPROCESSORS"), list):
+        globals()["_VSP_STATUSV2_BYTES_POSTPROCESSORS"].append(_vsp_try_fill8_on_json_bytes)
+    else:
+        globals()["_VSP_STATUSV2_BYTES_POSTPROCESSORS"] = [_vsp_try_fill8_on_json_bytes]
+except Exception:
+    pass
+# === /VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_FILL8_BYTOOL_V1 ===
+
+
+
+
+# === VSP_WSGI_STATUSV2_FILL8_MW_V1 ===
+def _vsp_statusv2_fill8_obj(obj: dict) -> dict:
+    want = ["SEMGREP","TRIVY","KICS","GITLEAKS","CODEQL","BANDIT","SYFT","GRYPE"]
+    try:
+        rgs = obj.get("run_gate_summary") or {}
+        by_tool = rgs.get("by_tool") or {}
+        if not isinstance(by_tool, dict):
+            by_tool = {}
+        for k in want:
+            if k not in by_tool:
+                by_tool[k] = {"tool": k, "verdict": "NOT_RUN", "total": 0}
+            else:
+                v = by_tool.get(k)
+                if isinstance(v, dict) and "tool" not in v:
+                    v["tool"] = k
+                    by_tool[k] = v
+        rgs["by_tool"] = by_tool
+        obj["run_gate_summary"] = rgs
+    except Exception:
+        pass
+    return obj
+
+def _vsp_statusv2_fill8_bytes(body_bytes: bytes) -> bytes:
+    import json
+    try:
+        obj = json.loads(body_bytes.decode("utf-8", errors="ignore"))
+        if isinstance(obj, dict) and obj.get("ok") is True and isinstance(obj.get("run_gate_summary"), dict):
+            obj = _vsp_statusv2_fill8_obj(obj)
+            return json.dumps(obj, ensure_ascii=False).encode("utf-8")
+    except Exception:
+        return body_bytes
+    return body_bytes
+
+def _vsp_wsgi_wrap_statusv2_fill8(app):
+    if getattr(app, "_vsp_wrapped_statusv2_fill8", False):
+        return app
+    setattr(app, "_vsp_wrapped_statusv2_fill8", True)
+
+    def _wrapped(environ, start_response):
+        path = (environ.get("PATH_INFO") or "")
+        if not path.startswith("/api/vsp/run_status_v2/"):
+            return app(environ, start_response)
+
+        # capture status/headers
+        captured = {"status": None, "headers": None, "exc": None}
+        def _sr(status, headers, exc_info=None):
+            captured["status"] = status
+            captured["headers"] = list(headers) if headers else []
+            captured["exc"] = exc_info
+            # delay calling real start_response until we potentially rewrite body
+            return None
+
+        iterable = app(environ, _sr)
+
+        # buffer body (status_v2 JSON is small)
+        chunks = []
+        try:
+            for c in iterable:
+                if c:
+                    chunks.append(c)
+        finally:
+            try:
+                close = getattr(iterable, "close", None)
+                if close:
+                    close()
+            except Exception:
+                pass
+
+        body = b"".join(chunks)
+        # Only rewrite when JSON-ish
+        hdrs = captured["headers"] or []
+        ct = ""
+        for k, v in hdrs:
+            if str(k).lower() == "content-type":
+                ct = str(v).lower()
+                break
+
+        if ("application/json" in ct) or (body.lstrip().startswith(b"{")):
+            body2 = _vsp_statusv2_fill8_bytes(body)
+        else:
+            body2 = body
+
+        # fix Content-Length
+        new_hdrs = []
+        for k, v in hdrs:
+            if str(k).lower() == "content-length":
+                continue
+            new_hdrs.append((k, v))
+        new_hdrs.append(("Content-Length", str(len(body2))))
+
+        start_response(captured["status"] or "200 OK", new_hdrs, captured["exc"])
+        return [body2]
+
+    return _wrapped
+
+try:
+    _APP = globals().get("application") or globals().get("app")
+    if _APP is not None:
+        globals()["application"] = _vsp_wsgi_wrap_statusv2_fill8(_APP)
+except Exception:
+    pass
+# === /VSP_WSGI_STATUSV2_FILL8_MW_V1 ===
+

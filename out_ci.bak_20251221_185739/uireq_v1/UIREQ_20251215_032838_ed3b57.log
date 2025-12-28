@@ -1,0 +1,54 @@
+[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER
+[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data
+[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER_RUNNERLOG_V1] runner_log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/runner.log
+[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251215_032838
+[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838
+[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===
+[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh
+[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data
+[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838
+[VSP_CI_GATE] RUN_ID      = VSP_CI_20251215_032838
+[VSP_CI_GATE_AUTOPICK_RUNNER_V1] RUNNER=/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] RUNNER      = /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] === CHẠY RUNNER VSP (FULL SCAN) ===
+[VSP_CI_GATE] Cmd: /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh "/home/test/Data/SECURITY-10-10-v4" "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838"
+===== [BOOT] runner.log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/runner.log ts=2025-12-15T03:28:38+07:00 =====
+==============================================
+[VSP] RUN ALL TOOLS V2 – PROFILE=FULL_EXT LEVEL=FULL_EXT
+ROOT     = /home/test/Data/SECURITY_BUNDLE
+SRC      = /home/test/Data/SECURITY-10-10-v4
+OUT_DIR  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838
+NO_NET   = 0
+==============================================
+
+===== [3/8] KICS (EXT) =====
+===== [KICS_V4] 2025-12-15T03:28:38+07:00 =====
+[KICS_V4] ROOT=/home/test/Data/SECURITY_BUNDLE
+[KICS_V4] SRC=/home/test/Data/SECURITY-10-10-v4
+[KICS_V4] OUT_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838
+[KICS_V4] OUT_KICS=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/kics
+[KICS_V4] TIMEOUT=1800s KILL=30s
+[KICS_V4] MODE=docker image=checkmarx/kics:latest
+[KICS_V4] docker mounts: SRC=/home/test/Data/SECURITY-10-10-v4->/path OUT=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/kics->/out
+[KICS_V4] CMD: docker run --rm -t --user 1000:1000 -v /home/test/Data/SECURITY-10-10-v4:/path -v /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/kics:/out checkmarx/kics:latest scan -p /path -o /out --report-formats json --no-color --exclude-paths /out,/path/.git,/path/node_modules,/path/out_ci,/path/dist,/path/build,/path/target,/path/venv,/path/.venv,/path/__pycache__,/path/.cache,/path/.idea,/path/.vscode
+[KICS_V4][OK] results_found rc=40 (do NOT mark degraded)
+[OK] wrote kics/kics_summary.json
+/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh: dòng 731: _GATE_OUT_DIR: biến chưa liên kết
+[RUN_GATE] autogate(TRAP): build run_gate_summary.json out_dir=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838
+/home/test/Data/SECURITY_BUNDLE/bin/vsp_run_gate_build_v1.py:9: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return datetime.utcnow().isoformat() + "Z"
+[RUN_GATE][OK] overall=AMBER tools=['KICS']
+[RUN_GATE] OK wrote /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/run_gate_summary.json
+[VSP_CI_GATE] Runner kết thúc với RC=1
+[VSP_CI_GATE] [VSP_CI_GATE] Runner RC normalize: raw=0 -> rc=0 degraded=0
+[VSP_CI_GATE] Không thấy /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/report/summary_unified.json, thử gọi engine unify BE để build báo cáo thương mại...
+[VSP_CI_GATE] WARN: Không tìm thấy script unify: /home/test/Data/bin/vsp_unify_from_run_dir_v1.sh
+[VSP_CI_GATE]       (Set ENV VSP_UNIFY_SCRIPT để trỏ đúng engine unify BE đang dùng).
+[VSP_CI_GATE] WARN: Không tìm thấy /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/report/summary_unified.json – bỏ qua phần gate theo severity.
+[VSP_CI_GATE]       Kiểm tra lại unify trong runner hoặc script unify BE.
+[VSP_CI_OUTER] Gate core kết thúc với mã trả về: 1
+[VSP_CI_SUMMARY] ERROR: Không tìm thấy /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251215_032838/report/summary_unified.json
+[VSP_CI_OUTER] === VSP CI OUTER: THẤT BẠI (RC=1) ===

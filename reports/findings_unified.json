@@ -1,0 +1,209 @@
+{
+  "run_dir": "/home/test/Data/SECURITY_BUNDLE/out_ci/VSP_CI_20251218_114312",
+  "generated_at": "2025-12-18T12:16:33.409399",
+  "findings": [],
+  "counts_by_severity": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0,
+    "INFO": 0,
+    "TRACE": 0
+  },
+  "notes": [
+    "placeholder generated: unify did not produce findings_unified.json"
+  ],
+  "ok": true,
+  "items": [
+    {
+      "tool": "CODEQL",
+      "severity": "INFO",
+      "title": "CODEQL: summary present but counts=0 (codeql_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "ref": "codeql_summary.json"
+    },
+    {
+      "tool": "GITLEAKS",
+      "severity": "INFO",
+      "title": "GITLEAKS: summary present but counts=0 (gitleaks_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "ref": "gitleaks_summary.json"
+    },
+    {
+      "tool": "GRYPE",
+      "severity": "INFO",
+      "title": "GRYPE: summary present but counts=0 (grype.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "ref": "grype.json"
+    },
+    {
+      "tool": "KICS",
+      "severity": "HIGH",
+      "title": "KICS SUMMARY (no-raw): HIGH=136 (from kics_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "count": 136,
+      "ref": "kics_summary.json"
+    },
+    {
+      "tool": "KICS",
+      "severity": "MEDIUM",
+      "title": "KICS SUMMARY (no-raw): MEDIUM=17 (from kics_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "count": 17,
+      "ref": "kics_summary.json"
+    },
+    {
+      "tool": "KICS",
+      "severity": "LOW",
+      "title": "KICS SUMMARY (no-raw): LOW=34 (from kics_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "count": 34,
+      "ref": "kics_summary.json"
+    },
+    {
+      "tool": "KICS",
+      "severity": "INFO",
+      "title": "KICS SUMMARY (no-raw): INFO=10 (from kics_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "count": 10,
+      "ref": "kics_summary.json"
+    },
+    {
+      "tool": "SEMGREP",
+      "severity": "INFO",
+      "title": "SEMGREP: summary present but counts=0 (semgrep_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "ref": "semgrep_summary.json"
+    },
+    {
+      "tool": "SYFT",
+      "severity": "INFO",
+      "title": "SYFT: summary present but counts=0 (syft.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "ref": "syft.json"
+    },
+    {
+      "tool": "TRIVY",
+      "severity": "INFO",
+      "title": "TRIVY: summary present but counts=0 (trivy_summary.json)",
+      "file": "",
+      "line": 0,
+      "cwe": null,
+      "rule": null,
+      "source": "summary_stub",
+      "ref": "trivy_summary.json"
+    }
+  ],
+  "total": 10,
+  "by_tool": {
+    "CODEQL": 1,
+    "GITLEAKS": 1,
+    "GRYPE": 1,
+    "KICS": 4,
+    "SEMGREP": 1,
+    "SYFT": 1,
+    "TRIVY": 1
+  },
+  "by_tool_severity": {
+    "BANDIT": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 0,
+      "TRACE": 0
+    },
+    "CODEQL": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 1,
+      "TRACE": 0
+    },
+    "GITLEAKS": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 1,
+      "TRACE": 0
+    },
+    "GRYPE": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 1,
+      "TRACE": 0
+    },
+    "KICS": {
+      "CRITICAL": 0,
+      "HIGH": 1,
+      "MEDIUM": 1,
+      "LOW": 1,
+      "INFO": 1,
+      "TRACE": 0
+    },
+    "SEMGREP": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 1,
+      "TRACE": 0
+    },
+    "SYFT": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 1,
+      "TRACE": 0
+    },
+    "TRIVY": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0,
+      "INFO": 1,
+      "TRACE": 0
+    }
+  }
+}

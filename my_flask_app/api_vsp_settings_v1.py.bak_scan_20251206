@@ -1,0 +1,155 @@
+from __future__ import annotations
+
+from pathlib import Path
+from flask import Blueprint, jsonify
+import json
+import datetime as dt
+
+# Dò OUT_DIR chuẩn: /home/test/Data/SECURITY_BUNDLE/out
+UI_DIR = Path(__file__).resolve().parent
+ROOT = UI_DIR.parent
+OUT_DIR = ROOT.parent / "out"
+
+bp_vsp_settings_v1 = Blueprint(
+    "vsp_settings_v1",
+    __name__,
+    url_prefix="/api/vsp",
+)
+
+
+def _detect_last_run():
+    """
+    Tìm RUN_VSP_FULL_EXT_* mới nhất trong OUT_DIR,
+    đọc summary_unified_v2.json nếu có (để lấy meta).
+    """
+    if not OUT_DIR.is_dir():
+        return None
+
+    # Ưu tiên RUN_VSP_FULL_EXT_*, fallback RUN_*
+    candidates = [
+        d
+        for d in OUT_DIR.iterdir()
+        if d.is_dir() and d.name.startswith("RUN_VSP_FULL_EXT")
+    ]
+    if not candidates:
+        candidates = [
+            d
+            for d in OUT_DIR.iterdir()
+            if d.is_dir() and d.name.startswith("RUN_")
+        ]
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+    run_dir = candidates[0]
+
+    summary_json = run_dir / "report" / "summary_unified_v2.json"
+    summary_data: dict = {}
+    if summary_json.is_file():
+        try:
+            summary_data = json.loads(summary_json.read_text(encoding="utf-8"))
+        except Exception:
+            summary_data = {}
+
+    return {
+        "run_id": run_dir.name,
+        "run_dir": str(run_dir),
+        "summary": summary_data,
+        "ts": dt.datetime.fromtimestamp(run_dir.stat().st_mtime).isoformat(),
+    }
+
+
+@bp_vsp_settings_v1.get("/settings/get")
+def api_vsp_settings_get():
+    """
+    Trả config cho header + TAB Settings:
+    - profile (EXT+)
+    - src_path (nếu tìm được trong meta)
+    - last_run_id / last_run_ts
+    - danh sách 8 tool
+    """
+    last = _detect_last_run()
+
+    profile = "EXT+"
+    src_path = None
+
+    if last and isinstance(last.get("summary"), dict):
+        meta = last["summary"].get("meta", {})
+        if isinstance(meta, dict):
+            src_path = (
+                meta.get("src_path")
+                or meta.get("root")
+                or meta.get("repo")
+                or meta.get("project_root")
+            )
+
+    tools = [
+        {"name": "gitleaks", "description": "Secrets scanner (API keys, tokens)", "enabled": True},
+        {"name": "semgrep", "description": "SAST multi-language (code patterns)", "enabled": True},
+        {"name": "kics", "description": "IaC security (Terraform, K8s, Cloud)", "enabled": True},
+        {"name": "codeql", "description": "Deep code analysis (logic bugs, dataflow)", "enabled": True},
+        {"name": "bandit", "description": "Python security lints", "enabled": True},
+        {"name": "trivy_fs", "description": "Filesystem / config scan", "enabled": True},
+        {"name": "syft", "description": "SBOM generator (packages inventory)", "enabled": True},
+        {"name": "grype", "description": "Vulnerability scan from SBOM", "enabled": True},
+    ]
+
+    return jsonify(
+        {
+            "ok": True,
+            "profile": profile,
+            "src_path": src_path or "--",
+            "last_run_id": (last or {}).get("run_id"),
+            "last_run_ts": (last or {}).get("ts"),
+            "out_dir": str(OUT_DIR),
+            "tools": tools,
+        }
+    )
+
+
+@bp_vsp_settings_v1.get("/overrides/list")
+def api_vsp_overrides_list():
+    """
+    Trả danh sách Rule Overrides.
+    Nếu có file config/vsp_overrides.json thì đọc, ngược lại trả demo.
+    """
+    items = []
+
+    config_file = ROOT / "config" / "vsp_overrides.json"
+    if config_file.is_file():
+        try:
+            data = json.loads(config_file.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                items = data.get("items", [])
+            elif isinstance(data, list):
+                items = data
+        except Exception:
+            items = []
+
+    if not items:
+        # Demo 3 rule, giống layout trong UI
+        items = [
+            {
+                "tool": "codeql",
+                "rule_id": "cpp/uninitialized-variable",
+                "scope": "src/**/*.cpp",
+                "action": "DOWNGRADE → MEDIUM",
+                "note": "Legacy module, đã có guard.",
+            },
+            {
+                "tool": "semgrep",
+                "rule_id": "python.django.security.xss",
+                "scope": "tests/**",
+                "action": "IGNORE",
+                "note": "Chỉ áp dụng cho test code.",
+            },
+            {
+                "tool": "kics",
+                "rule_id": "aws-s3-public-read",
+                "scope": "infra/**",
+                "action": "MANUAL REVIEW",
+                "note": "Require DevSecOps approval.",
+            },
+        ]
+
+    return jsonify({"ok": True, "items": items})

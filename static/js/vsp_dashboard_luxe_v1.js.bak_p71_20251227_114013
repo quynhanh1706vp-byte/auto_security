@@ -1,0 +1,487 @@
+
+/* VSP_P70_FALLBACK_KPI_MIN_V1
+ * Goal: If dashboard is still blank, render a minimal KPI + Top Findings view using datasource + top_findings_v2.
+ */
+(function(){
+  try{
+    function nativeGE(id){ try { return Document.prototype.getElementById.call(document, id); } catch(e){ return null; } }
+    function hostEl(){
+      // Prefer SAFE getter from P69B if exists
+      try{
+        if (window.__VSP_GET_SAFE) {
+          return window.__VSP_GET_SAFE("vsp-dashboard-main") || window.__VSP_GET_SAFE("vsp5_root") || document.body;
+        }
+      }catch(e){}
+      return nativeGE("vsp-dashboard-main") || nativeGE("vsp5_root") || document.body;
+    }
+
+    function getRID(){
+      try{
+        const u = new URL(window.location.href);
+        return u.searchParams.get("rid") || "";
+      }catch(e){
+        const m = (window.location.search||"").match(/[?&]rid=([^&]+)/);
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+    }
+
+    async function fetchJSON(url){
+      const r = await fetch(url, {credentials:"same-origin"});
+      const ct = (r.headers.get("content-type")||"");
+      if (!r.ok) throw new Error("HTTP "+r.status+" for "+url);
+      if (ct.includes("application/json")) return await r.json();
+      // best-effort
+      const t = await r.text();
+      try { return JSON.parse(t); } catch(e){ return {"ok":false,"raw":t}; }
+    }
+
+    function pickSevCounts(ds){
+      // Try common shapes
+      const k = ds && ds.kpis ? ds.kpis : null;
+      if (k && typeof k === "object") {
+        // direct map?
+        const cand = k.by_sev || k.severity || k.sev || k.counts || k;
+        if (cand && typeof cand === "object") {
+          const out = {};
+          ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].forEach(sv=>{
+            let v = cand[sv];
+            if (v == null) v = cand[sv.toLowerCase()];
+            if (v == null) v = cand[sv.toLowerCase().slice(0,4)];
+            if (typeof v === "number") out[sv]=v;
+          });
+          if (Object.keys(out).length) return out;
+        }
+      }
+      // Compute from findings list if possible
+      const out = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+      const arr = (ds && ds.findings) ? ds.findings : [];
+      if (Array.isArray(arr)) {
+        for (const f of arr) {
+          const sv = String((f && (f.severity || f.sev || f.level)) || "").toUpperCase();
+          if (out[sv] != null) out[sv] += 1;
+        }
+        return out;
+      }
+      return out;
+    }
+
+    function mk(tag, attrs, text){
+      const el = document.createElement(tag);
+      if (attrs) for (const k in attrs) el.setAttribute(k, attrs[k]);
+      if (text != null) el.textContent = text;
+      return el;
+    }
+
+    function render(ds, top){
+      const host = hostEl();
+      const dash = nativeGE("vsp-dashboard-main") || host;
+
+      // If already rendered something meaningful, don't override
+      const meaningful = (dash.children && dash.children.length > 0 && !dash.querySelector("[data-vsp-p70-root]"));
+      if (meaningful) return;
+
+      // Clear only our own previous fallback
+      const old = dash.querySelector("[data-vsp-p70-root]");
+      if (old) old.remove();
+
+      const root = mk("div", {"data-vsp-p70-root":"1"});
+      root.style.padding = "14px 16px";
+      root.style.margin = "10px 0";
+
+      const h1 = mk("div", null, "Dashboard (Fallback KPIs)");
+      h1.style.fontSize = "14px";
+      h1.style.fontWeight = "700";
+      h1.style.color = "rgba(255,255,255,.88)";
+      h1.style.marginBottom = "10px";
+      root.appendChild(h1);
+
+      const grid = mk("div");
+      grid.style.display = "grid";
+      grid.style.gridTemplateColumns = "repeat(6, minmax(0, 1fr))";
+      grid.style.gap = "10px";
+
+      function card(title, value){
+        const c = mk("div");
+        c.style.border = "1px solid rgba(255,255,255,.10)";
+        c.style.borderRadius = "12px";
+        c.style.background = "rgba(255,255,255,.04)";
+        c.style.padding = "10px 10px";
+        const t = mk("div", null, title);
+        t.style.fontSize = "11px";
+        t.style.color = "rgba(255,255,255,.62)";
+        const v = mk("div", null, String(value));
+        v.style.fontSize = "18px";
+        v.style.fontWeight = "800";
+        v.style.color = "rgba(255,255,255,.92)";
+        v.style.marginTop = "6px";
+        c.appendChild(t); c.appendChild(v);
+        return c;
+      }
+
+      const total = (ds && (ds.total ?? ds.returned ?? (Array.isArray(ds.findings)?ds.findings.length:null))) ?? "-";
+      grid.appendChild(card("TOTAL", total));
+
+      const sev = pickSevCounts(ds);
+      grid.appendChild(card("CRITICAL", sev.CRITICAL ?? 0));
+      grid.appendChild(card("HIGH", sev.HIGH ?? 0));
+      grid.appendChild(card("MEDIUM", sev.MEDIUM ?? 0));
+      grid.appendChild(card("LOW", sev.LOW ?? 0));
+      grid.appendChild(card("INFO", sev.INFO ?? 0));
+
+      root.appendChild(grid);
+
+      // Top findings list
+      const box = mk("div");
+      box.style.marginTop = "12px";
+      box.style.border = "1px solid rgba(255,255,255,.10)";
+      box.style.borderRadius = "12px";
+      box.style.background = "rgba(0,0,0,.18)";
+      box.style.padding = "10px 12px";
+
+      const h2 = mk("div", null, "Top Findings (v2)");
+      h2.style.fontSize = "12px";
+      h2.style.fontWeight = "700";
+      h2.style.color = "rgba(255,255,255,.80)";
+      h2.style.marginBottom = "8px";
+      box.appendChild(h2);
+
+      const items = (top && top.items && Array.isArray(top.items)) ? top.items : [];
+      if (!items.length) {
+        const em = mk("div", null, "(no items)");
+        em.style.color = "rgba(255,255,255,.55)";
+        em.style.fontSize = "11px";
+        box.appendChild(em);
+      } else {
+        const ul = mk("div");
+        ul.style.display = "grid";
+        ul.style.gap = "6px";
+        for (const it of items.slice(0, 8)) {
+          const row = mk("div");
+          row.style.display = "flex";
+          row.style.justifyContent = "space-between";
+          row.style.gap = "10px";
+          row.style.border = "1px solid rgba(255,255,255,.06)";
+          row.style.borderRadius = "10px";
+          row.style.padding = "8px 10px";
+          row.style.background = "rgba(255,255,255,.03)";
+
+          const left = mk("div");
+          left.style.minWidth = "0";
+          const title = (it.title || it.rule_id || it.id || it.cwe || it.category || "finding").toString();
+          const sev = (it.severity || it.sev || it.level || "").toString().toUpperCase();
+          const a = mk("div", null, title);
+          a.style.color = "rgba(255,255,255,.85)";
+          a.style.fontSize = "12px";
+          a.style.whiteSpace = "nowrap";
+          a.style.overflow = "hidden";
+          a.style.textOverflow = "ellipsis";
+          const b = mk("div", null, (it.tool ? ("tool="+it.tool+"  ") : "") + (it.where ? ("where="+it.where) : ""));
+          b.style.color = "rgba(255,255,255,.50)";
+          b.style.fontSize = "10px";
+          b.style.marginTop = "2px";
+          left.appendChild(a); left.appendChild(b);
+
+          const right = mk("div", null, sev || "-");
+          right.style.color = "rgba(255,255,255,.78)";
+          right.style.fontSize = "11px";
+          right.style.fontWeight = "700";
+          right.style.flex = "0 0 auto";
+
+          row.appendChild(left); row.appendChild(right);
+          ul.appendChild(row);
+        }
+        box.appendChild(ul);
+      }
+
+      root.appendChild(box);
+
+      // footer info
+      const meta = mk("div", null, "rid=" + (ds.rid || getRID() || "-") + "  run_id=" + (ds.run_id || "-"));
+      meta.style.marginTop = "10px";
+      meta.style.fontSize = "10px";
+      meta.style.color = "rgba(255,255,255,.45)";
+      root.appendChild(meta);
+
+      // ensure dash has content
+      dash.appendChild(root);
+    }
+
+    async function run(){
+      const rid = getRID();
+      if (!rid) { console.warn("[VSP] P70 no rid in URL"); return; }
+      console.info("[VSP] P70 fallback check rid=", rid);
+
+      const dash = nativeGE("vsp-dashboard-main");
+      // If dashboard already has children, do nothing
+      if (dash && dash.children && dash.children.length > 0) return;
+
+      try{
+        const [ds, top] = await Promise.all([
+          fetchJSON("/api/vsp/datasource?rid="+encodeURIComponent(rid)),
+          fetchJSON("/api/vsp/top_findings_v2?limit=8")
+        ]);
+        render(ds, top);
+        console.info("[VSP] P70 rendered fallback KPIs");
+      }catch(e){
+        console.warn("[VSP] P70 fallback fetch/render failed:", e);
+        // still show a minimal banner so it won't look dead
+        try{
+          const host = nativeGE("vsp-dashboard-main") || hostEl();
+          const note = mk("div", {"data-vsp-p70-root":"1"}, "[VSP] Fallback failed: "+String(e));
+          note.style.padding="12px 14px";
+          note.style.margin="10px 0";
+          note.style.border="1px solid rgba(255,255,255,.10)";
+          note.style.borderRadius="12px";
+          note.style.background="rgba(255,255,255,.04)";
+          note.style.color="rgba(255,255,255,.70)";
+          host.appendChild(note);
+        }catch(_){}
+      }
+    }
+
+    // Run fallback only if still blank after a short delay
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function(){ setTimeout(run, 900); }, {once:true});
+    } else {
+      setTimeout(run, 900);
+    }
+  }catch(e){}
+})();
+
+
+/* VSP_P69B_SAFE_GET_V1
+ * Fix blank dashboard by using a SAFE DOM getter based on native getElementById (no recursion),
+ * plus alias fallback for dashboard containers.
+ */
+(function(){
+  try{
+    if (window.__VSP_GET_SAFE) return;
+
+    // Native getElementById (never replaced)
+    function nativeGE(id){
+      try { return Document.prototype.getElementById.call(document, id); }
+      catch(e){ return null; }
+    }
+
+    function canonHost(){
+      return nativeGE("vsp-dashboard-main") || nativeGE("vsp5_root") || document.body;
+    }
+
+    window.__VSP_GET_SAFE = function(id){
+      var el = nativeGE(id);
+      if (!el && id && /dash|dashboard|vsp-dashboard|vsp_dashboard/i.test(String(id))) {
+        var host = canonHost();
+        try{
+          var esc = (window.CSS && CSS.escape) ? CSS.escape(String(id)) : String(id).replace(/[^a-zA-Z0-9_\-]/g,"\\$&");
+          var alias = host.querySelector("#"+esc);
+          if (!alias) {
+            alias = document.createElement("div");
+            alias.id = String(id);
+            host.appendChild(alias);
+          }
+          el = alias;
+        }catch(e){
+          el = host;
+        }
+      }
+      return el;
+    };
+
+    console.info("[VSP] luxe boot marker (P69B)");
+
+    // If still empty after a moment, show a banner (so it won't look dead)
+    window.addEventListener("DOMContentLoaded", function(){
+      setTimeout(function(){
+        try{
+          var m = nativeGE("vsp-dashboard-main");
+          if (m && m.children && m.children.length === 0 && !m.querySelector("[data-vsp-p69b-banner]")) {
+            var note = document.createElement("div");
+            note.setAttribute("data-vsp-p69b-banner","1");
+            note.style.padding = "14px 16px";
+            note.style.margin = "10px 0";
+            note.style.border = "1px solid rgba(255,255,255,.12)";
+            note.style.borderRadius = "10px";
+            note.style.background = "rgba(255,255,255,.04)";
+            note.style.color = "rgba(255,255,255,.75)";
+            note.textContent = "[VSP] Dashboard JS loaded but rendered nothing yet. Check DevTools Console/Network for errors.";
+            m.appendChild(note);
+          }
+        }catch(e){}
+      }, 1500);
+    }, {once:true});
+  }catch(e){}
+})();
+
+
+/* P66_LUXE_API_COMPAT_V1: rewrite legacy API urls to v2 + attach rid when possible */
+(function(){
+  if (window.__vspFetchCompatPatched) return;
+  window.__vspFetchCompatPatched = true;
+
+  function getRid(){
+    try{
+      const u = new URL(location.href);
+      return u.searchParams.get("rid") || u.searchParams.get("run_id") || "";
+    }catch(e){ return ""; }
+  }
+
+  function normalizeToRel(url){
+    try{
+      if (typeof url !== "string") return "";
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        const u = new URL(url);
+        if (u.origin !== location.origin) return url; // cross-origin: don't touch
+        return u.pathname + u.search;
+      }
+      return url;
+    }catch(e){ return url; }
+  }
+
+  function rewriteRel(url){
+    try{
+      url = normalizeToRel(url);
+
+      // map old endpoints
+      url = url.replace("/api/vsp/top_findings_v1", "/api/vsp/top_findings_v2");
+      url = url.replace("/api/vsp/top_findings_v0", "/api/vsp/top_findings_v2");
+
+      // datasource dashboard mode -> datasource?rid=<rid>
+      if (url.includes("/api/vsp/datasource") && url.includes("mode=dashboard")) {
+        const rid = getRid();
+        url = "/api/vsp/datasource" + (rid ? ("?rid="+encodeURIComponent(rid)) : "");
+      }
+
+      // if calling datasource without rid, attach rid if we have one
+      if (url.startsWith("/api/vsp/datasource") && !url.includes("rid=")) {
+        const rid = getRid();
+        if (rid) url += (url.includes("?") ? "&" : "?") + "rid=" + encodeURIComponent(rid);
+      }
+
+      return url;
+    }catch(e){ return url; }
+  }
+
+  const _fetch = window.fetch;
+  window.fetch = function(input, init){
+    try{
+      if (typeof input === "string") {
+        return _fetch.call(this, rewriteRel(input), init);
+      }
+      if (input && typeof input === "object" && input.url) {
+        const newUrl = rewriteRel(input.url);
+        if (typeof newUrl === "string" && newUrl !== input.url) {
+          input = new Request(newUrl, input);
+        }
+      }
+    }catch(e){}
+    return _fetch.call(this, input, init);
+  };
+})();
+
+/* VSP_DASHBOARD_LUXE_SAFE_V2 - minimal, no-crash dashboard bootstrap */
+(function(){
+  'use strict';
+
+  function el(tag, attrs){
+    const x = document.createElement(tag);
+    if(attrs){ for(const k of Object.keys(attrs)) x.setAttribute(k, attrs[k]); }
+    return x;
+  }
+  function safeText(x, t){ try{ x.textContent = t; } catch(_){} }
+
+  function renderOverlay(stats){
+    const id="vsp_dash_luxe_safe_v2";
+    let box = __VSP_GET_SAFE(id);
+    if(!box){
+      box = el("div", { id });
+      box.style.position="fixed";
+      box.style.right="14px";
+      box.style.bottom="14px";
+      box.style.zIndex="99999";
+      box.style.padding="12px 14px";
+      box.style.borderRadius="14px";
+      box.style.background="rgba(10,16,28,0.92)";
+      box.style.border="1px solid rgba(255,255,255,0.08)";
+      box.style.boxShadow="0 10px 30px rgba(0,0,0,0.35)";
+      box.style.fontFamily="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto";
+      box.style.fontSize="12px";
+      box.style.color="rgba(255,255,255,0.86)";
+      box.style.minWidth="260px";
+
+      const title = el("div");
+      title.style.fontWeight="700";
+      title.style.marginBottom="8px";
+      safeText(title, "VSP Dashboard (SAFE)");
+      box.appendChild(title);
+
+      const body = el("div", { id: id+"_body" });
+      box.appendChild(body);
+
+      document.body.appendChild(box);
+    }
+    const body = __VSP_GET_SAFE(id+"_body");
+    if(!body) return;
+
+    body.innerHTML = "";
+    const lines = [
+      ["RID", stats.rid || "(none)"],
+      ["Total", String(stats.total || 0)],
+      ["CRITICAL", String(stats.CRITICAL||0)],
+      ["HIGH", String(stats.HIGH||0)],
+      ["MEDIUM", String(stats.MEDIUM||0)],
+      ["LOW", String(stats.LOW||0)],
+      ["INFO", String(stats.INFO||0)],
+      ["TRACE", String(stats.TRACE||0)]
+    ];
+    for(const [k,v] of lines){
+      const row = el("div");
+      row.style.display="flex";
+      row.style.justifyContent="space-between";
+      row.style.gap="10px";
+      row.style.padding="2px 0";
+      const a=el("span"); a.style.opacity="0.75"; safeText(a,k);
+      const b=el("span"); b.style.fontWeight="700"; safeText(b,v);
+      row.appendChild(a); row.appendChild(b);
+      body.appendChild(row);
+    }
+  }
+
+  function normSev(s){
+    s = String(s||"").toUpperCase().trim();
+    if(["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"].includes(s)) return s;
+    if(s==="INFORMATIONAL") return "INFO";
+    return "TRACE";
+  }
+
+  async function fetchTop(){
+    const u = "/api/vsp/top_findings_v2?limit=200";
+    const res = await fetch(u, { credentials:"same-origin" });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  }
+
+  async function boot(){
+    const stats = {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0,total:0,rid:(window.__VSP_RID||null)};
+    try{
+      const j = await fetchTop();
+      const items = Array.isArray(j.items) ? j.items : [];
+      stats.total = (typeof j.total==="number") ? j.total : items.length;
+      stats.rid = j.run_id || j.rid || stats.rid || null;
+      for(const it of items){
+        const sev = normSev(it.severity || it.sev || it.level);
+        stats[sev] = (stats[sev]||0) + 1;
+      }
+    }catch(e){
+      stats.err = String(e||"");
+      try{ console.warn("[VSP] dashboard safe fetch failed", e); }catch(_){}
+    }
+    renderOverlay(stats);
+    window.__VSP_DASHBOARD_LUXE_SAFE_V2 = { ok:true, stats };
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", () => boot().catch(()=>{}));
+  } else {
+    boot().catch(()=>{});
+  }
+})();

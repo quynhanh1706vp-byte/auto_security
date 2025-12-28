@@ -1,0 +1,203 @@
+/* VSP_P2_DATA_SOURCE_CHARTS_V1 (safe agg via /api/ui/findings_agg_v1; no big DOM render) */
+(()=> {
+  const $ = (q)=> document.querySelector(q);
+  const $$ = (q)=> Array.from(document.querySelectorAll(q));
+  const esc = (s)=> String(s||"").replace(/</g,"&lt;");
+
+  function fmt(n){ try{ return (Number(n)||0).toLocaleString(); }catch(_){ return String(n||0); } }
+
+  async function getLatestRid(){
+    try{
+      const r = await fetch("/api/vsp/runs?limit=1", {cache:"no-store"});
+      const j = await r.json();
+      // accept {runs:[{rid:...}]} or list
+      if(Array.isArray(j?.runs) && j.runs[0]?.rid) return j.runs[0].rid;
+      if(Array.isArray(j) && j[0]?.rid) return j[0].rid;
+    }catch(e){}
+    return null;
+  }
+
+  function ridFromUrl(){
+    const u = new URL(location.href);
+    return (u.searchParams.get("rid")||"").trim() || null;
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if(el) el.textContent = v;
+  }
+
+  function renderBars(container, items, keyName){
+    if(!container) return;
+    container.innerHTML = "";
+    const max = Math.max(1, ...items.map(x=> Number(x.count)||0));
+    for(const it of items){
+      const row = document.createElement("div");
+      row.style.display="grid";
+      row.style.gridTemplateColumns="180px 1fr 70px";
+      row.style.gap="10px";
+      row.style.alignItems="center";
+      row.style.margin="6px 0";
+
+      const name = document.createElement("div");
+      name.style.fontSize="12px";
+      name.style.opacity="0.92";
+      name.style.whiteSpace="nowrap";
+      name.style.overflow="hidden";
+      name.style.textOverflow="ellipsis";
+      name.textContent = it[keyName] || "—";
+
+      const barWrap = document.createElement("div");
+      barWrap.style.height="10px";
+      barWrap.style.borderRadius="10px";
+      barWrap.style.background="rgba(159,176,199,0.12)";
+      barWrap.style.position="relative";
+      barWrap.style.overflow="hidden";
+
+      const bar = document.createElement("div");
+      bar.style.height="100%";
+      bar.style.width = (Math.round((Number(it.count)||0)/max*1000)/10)+"%";
+      bar.style.background="rgba(159,176,199,0.45)";
+      barWrap.appendChild(bar);
+
+      const cnt = document.createElement("div");
+      cnt.style.fontSize="12px";
+      cnt.style.opacity="0.85";
+      cnt.style.textAlign="right";
+      cnt.textContent = fmt(it.count||0);
+
+      row.appendChild(name);
+      row.appendChild(barWrap);
+      row.appendChild(cnt);
+      container.appendChild(row);
+    }
+  }
+
+  function renderSeverityDonutLike(container, bySev){
+    // Lightweight: not real donut (no lib). Just 6 rows with bars.
+    if(!container) return;
+    const levels = ["CRITICAL","HIGH","MEDIUM","LOW","INFO","TRACE"];
+    const items = levels.map(k=>({level:k, count:Number(bySev?.[k]||0)}));
+    renderBars(container, items.map(x=>({sev:x.level, count:x.count})), "sev");
+  }
+
+  async function loadAgg(){
+    const ridBox = document.getElementById("vsp_ds_rid");
+    let rid = ridFromUrl() || (ridBox ? (ridBox.value||"").trim() : null) || null;
+    if(!rid) rid = await getLatestRid();
+    if(ridBox && rid) ridBox.value = rid;
+    if(!rid){
+      setText("vsp_ds_status", "No RID found");
+      return;
+    }
+
+    setText("vsp_ds_status", "Loading…");
+    try{
+      const r = await fetch(`/api/ui/findings_agg_v1?rid=${encodeURIComponent(rid)}`, {cache:"no-store"});
+      const j = await r.json();
+      if(!j?.ok) throw new Error(j?.err || "agg failed");
+
+      setText("vsp_ds_status", `RID: ${rid} • source: ${j.source||"unknown"}`);
+
+      renderSeverityDonutLike(document.getElementById("vsp_ds_sev"), j.by_severity || {});
+      renderBars(document.getElementById("vsp_ds_tools"), (j.by_tool||[]).map(x=>({tool:x.tool, count:x.count})), "tool");
+      renderBars(document.getElementById("vsp_ds_rules"), (j.top_rules||[]).map(x=>({rule_id:x.rule_id, count:x.count})), "rule_id");
+      renderBars(document.getElementById("vsp_ds_paths"), (j.top_paths||[]).map(x=>({path:x.path, count:x.count})), "path");
+
+      // Drill-ready: emit filter hints (no breaking existing table logic)
+      const hint = document.getElementById("vsp_ds_hint");
+      if(hint){
+        hint.innerHTML = `Tip: click-to-filter can be wired later by passing filters into existing table loader (tool/severity/rule/path).`;
+      }
+    }catch(e){
+      console.warn("[DS_AGG] failed:", e);
+      setText("vsp_ds_status", "Agg load failed. Check safe API patch / restart.");
+    }
+  }
+
+  function hook(){
+    const btn = document.getElementById("vsp_ds_reload");
+    if(btn && !btn.__hooked){
+      btn.__hooked = true;
+      btn.addEventListener("click", loadAgg);
+    }
+    setTimeout(loadAgg, 120);
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", hook);
+  else hook();
+})();
+
+/* VSP_P0_JS_AUTOREFRESH_GREENBADGE_V1 - auto poll RID latest + UI OK badge */
+(function(){
+  const POLL_MS = 5000;
+
+  function ensureBadge(){
+    let el = document.getElementById("vsp-ui-ok-badge");
+    if(el) return el;
+    el = document.createElement("div");
+    el.id = "vsp-ui-ok-badge";
+    el.style.cssText = [
+      "position:fixed","right:14px","bottom:14px","z-index:99999",
+      "padding:10px 12px","border-radius:12px","font:600 12px/1.2 system-ui,Segoe UI,Roboto,Arial",
+      "background:#1b2333","color:#d6e2ff","border:1px solid rgba(255,255,255,.12)",
+      "box-shadow:0 10px 30px rgba(0,0,0,.35)"
+    ].join(";");
+    el.textContent = "UI OK: …";
+    document.body.appendChild(el);
+    return el;
+  }
+
+  async function fetchJSON(url){
+    try{
+      const r = await fetch(url, {cache:"no-store"});
+      const ct = (r.headers.get("content-type")||"").toLowerCase();
+      if(!ct.includes("application/json")){
+        return {ok:false, err:"non-json", status:r.status, url};
+      }
+      const j = await r.json();
+      if(typeof j !== "object" || j === null) return {ok:false, err:"bad-json", status:r.status, url};
+      j._http_status = r.status;
+      return j;
+    }catch(e){
+      return {ok:false, err:String(e), url};
+    }
+  }
+
+  function setBadge(ok, rid, detail){
+    const el = ensureBadge();
+    if(ok){
+      el.textContent = `UI OK: GREEN • ${rid||"-"}`;
+      el.style.borderColor = "rgba(65,255,164,.35)";
+      el.style.background = "rgba(10,28,18,.92)";
+      el.style.color = "#bfffe0";
+    }else{
+      el.textContent = `UI OK: RED • ${rid||"-"}`;
+      el.style.borderColor = "rgba(255,96,96,.45)";
+      el.style.background = "rgba(35,10,12,.92)";
+      el.style.color = "#ffd4d4";
+    }
+    if(detail && detail.err){ el.title = detail.err; } else { el.title = ""; }
+  }
+
+  let lastRID = null;
+  async function tick(){
+    const latest = await fetchJSON("/api/vsp/rid_latest_gate_root");
+    const rid = (latest && latest.ok && latest.rid) ? latest.rid : null;
+
+    if(rid && rid !== lastRID){
+      lastRID = rid;
+      window.VSP_CURRENT_RID = rid;
+      console.log("[AutoRID] new RID =>", rid);
+      window.dispatchEvent(new CustomEvent("vsp:rid-changed", {detail:{rid}}));
+      if(typeof window.VSP_reloadAll === "function"){
+        try{ window.VSP_reloadAll(); }catch(e){}
+      }
+    }
+
+    const health = await fetchJSON("/api/vsp/ui_health_v1?rid=" + encodeURIComponent(lastRID||""));
+    setBadge(!!(health && health.ok), lastRID, health);
+  }
+
+  setTimeout(()=>{ ensureBadge(); tick(); setInterval(tick, POLL_MS); }, 1200);
+})();

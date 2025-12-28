@@ -1,0 +1,174 @@
+/* VSP_P2_RUNS_KPI_COMPACT_V3_SAFE (no heavy canvas; DOMReady; single-fetch; layout-safe) */
+(()=> {
+  if (window.__vsp_runs_kpi_compact_v3_safe) return;
+  window.__vsp_runs_kpi_compact_v3_safe = true;
+
+  const $ = (q)=> document.querySelector(q);
+
+  // single-flight + throttle
+  let __kpi_inflight = false;
+  let __kpi_last_ts = 0;
+  let __kpi_last_days = null;
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (!el) return false;
+    el.textContent = (v===null || v===undefined || v==="") ? "—" : String(v);
+    return true;
+  }
+
+  function hideHeavyCanvases(){
+    const c1 = document.getElementById("vsp_runs_kpi_canvas_overall");
+    const c2 = document.getElementById("vsp_runs_kpi_canvas_sev");
+    const w1 = document.getElementById("vsp_runs_kpi_canvas_wrap_overall") || (c1? c1.parentElement : null);
+    const w2 = document.getElementById("vsp_runs_kpi_canvas_wrap_sev") || (c2? c2.parentElement : null);
+    if (w1) w1.style.display = "none";
+    if (w2) w2.style.display = "none";
+  }
+
+  async function fetchKpi(days){
+    const now = Date.now();
+    const d = String(days || 30);
+
+    if (__kpi_inflight) return null;
+    if (__kpi_last_days === d && (now - __kpi_last_ts) < 2500) return null;
+
+    __kpi_inflight = true;
+    __kpi_last_days = d;
+    __kpi_last_ts = now;
+
+    const q = encodeURIComponent(d);
+    const urls = [
+      `/api/ui/runs_kpi_v2?days=${q}`,
+      `/api/ui/runs_kpi_v1?days=${q}`,
+    ];
+
+    const ac = new AbortController();
+    const t = setTimeout(()=>{ try{ ac.abort(); }catch(_e){} }, 2500);
+
+    try{
+      let lastErr = null;
+      for (const u of urls){
+        try{
+          const r = await fetch(u, {cache:"no-store", signal: ac.signal});
+          const j = await r.json();
+          if (j && j.ok) return j;
+          lastErr = new Error(j?.err || j?.error || "not ok");
+        }catch(e){
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error("kpi fetch failed");
+    } finally {
+      clearTimeout(t);
+      __kpi_inflight = false;
+    }
+  }
+
+  function renderCompactTrend(rootId, labels, seriesMap){
+    const root = document.getElementById(rootId);
+    if (!root) return;
+
+    if (!labels || !labels.length || !seriesMap || !Object.keys(seriesMap).length){
+      root.innerHTML = '<div style="color:#94a3b8;font-size:12px">No trend data</div>';
+      return;
+    }
+
+    const keys = Object.keys(seriesMap);
+    const L = labels.slice(-14);
+    const start = Math.max(0, labels.length - 14);
+
+    // compute max stacked
+    let max = 1;
+    for (let i=start;i<labels.length;i++){
+      let sum = 0;
+      for (const k of keys) sum += (Number(seriesMap[k]?.[i]||0) || 0);
+      if (sum > max) max = sum;
+    }
+
+    const rows = L.map((day, idx)=>{
+      const i = start + idx;
+      let sum = 0;
+      let segs = '';
+      for (const k of keys){
+        const v = (Number(seriesMap[k]?.[i]||0) || 0);
+        sum += v;
+      }
+      // simple bar based on total only (avoid per-key DOM spam)
+      const w = Math.max(2, Math.round((sum / max) * 100));
+      segs = `<div style="height:10px;border-radius:999px;background:rgba(148,163,184,.22);overflow:hidden">
+                <div style="height:10px;width:${w}%;background:rgba(148,163,184,.6)"></div>
+              </div>`;
+      return `<div style="display:grid;grid-template-columns:92px 1fr 56px;gap:10px;align-items:center;margin:6px 0">
+                <div style="color:#94a3b8;font-size:12px">${day}</div>
+                ${segs}
+                <div style="text-align:right;color:#cbd5e1;font-size:12px">${sum}</div>
+              </div>`;
+    }).join("");
+
+    root.innerHTML = `<div style="padding:6px 0">${rows}</div>`;
+  }
+
+  function applyKpi(j, days){
+    // top numbers
+    setText("vsp_runs_kpi_total_runs_window", j.total_runs);
+    setText("vsp_runs_kpi_GREEN", j.by_overall?.GREEN ?? "—");
+    setText("vsp_runs_kpi_AMBER", j.by_overall?.AMBER ?? "—");
+    setText("vsp_runs_kpi_RED",   j.by_overall?.RED ?? "—");
+    setText("vsp_runs_kpi_UNKNOWN", j.by_overall?.UNKNOWN ?? "—");
+    setText("vsp_runs_kpi_findings", j.has_findings ?? "—");
+    setText("vsp_runs_kpi_latest", j.latest_rid ?? "—");
+
+    const meta = document.getElementById("vsp_runs_kpi_meta");
+    if (meta){
+      meta.textContent = `window=${days}d • total=${j.total_runs ?? "—"} • has_gate=${j.has_gate ?? "—"} • ts=${j.ts ?? "—"}`;
+    }
+
+    // compact trends (only if API supplies)
+    renderCompactTrend("vsp_runs_kpi_trend_overall_compact", j.trend?.labels, j.trend?.overall);
+    renderCompactTrend("vsp_runs_kpi_trend_sev_compact", j.trend?.labels, j.trend?.sev);
+  }
+
+  async function fillKpi(days){
+    hideHeavyCanvases();
+    const meta = document.getElementById("vsp_runs_kpi_meta");
+    if (meta) meta.textContent = "loading KPI...";
+    try{
+      const j = await fetchKpi(days);
+      if (!j) return; // skipped by throttle/singleflight
+      applyKpi(j, days);
+    }catch(e){
+      if (meta) meta.textContent = `KPI error: ${e?.message || e}`;
+      // keep placeholders as "—" (layout-safe)
+      renderCompactTrend("vsp_runs_kpi_trend_overall_compact", null, null);
+      renderCompactTrend("vsp_runs_kpi_trend_sev_compact", null, null);
+    }
+  }
+
+  function boot(){
+    const sel = $("#vsp_runs_kpi_window_days");
+    const btn = $("#vsp_runs_kpi_reload_btn");
+
+    const getDays = ()=> {
+      const v = sel ? String(sel.value || "30") : "30";
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : 30;
+    };
+
+    if (btn){
+      btn.addEventListener("click", ()=> fillKpi(getDays()));
+    }
+    if (sel){
+      sel.addEventListener("change", ()=> fillKpi(getDays()));
+    }
+
+    // initial
+    fillKpi(getDays());
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot, {once:true});
+  } else {
+    boot();
+  }
+})();

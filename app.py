@@ -1,0 +1,2961 @@
+from flask import send_from_directory, abort, jsonify
+#!/usr/bin/env python3
+import os
+import json
+import datetime
+import subprocess
+from flask import (
+    Flask,
+    request as flask_request,
+    redirect,
+    url_for,
+    render_template_string,
+    jsonify,
+    send_file,
+    abort,
+)# ===== CONFIG =====
+ROOT = "/home/test/Data/SECURITY_BUNDLE"
+OUT_DIR = os.path.join(ROOT, "out")
+SCAN_WRAPPER = "/home/test/Data/SECURITY_BUNDLE/bin/run_with_status.sh"
+DEFAULT_SRC = "/home/test/Data/Khach"
+STATE_FILE = os.path.join(ROOT, "ui", "ui_state.json")
+TOOL_CONFIG_FILE = os.path.join(ROOT, "ui", "tool_config.json")
+
+CANONICAL_SEV_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+
+DEFAULT_TOOLS = [
+    {"id": "gitleaks",       "name": "Gitleaks",        "note": "secrets"},
+    {"id": "semgrep",        "name": "Semgrep",         "note": "SAST"},
+    {"id": "bandit",         "name": "Bandit",          "note": "Python"},
+    {"id": "trivy_secret",   "name": "Trivy Secret",    "note": "secrets"},
+    {"id": "trivy_misconf",  "name": "Trivy Misconfig", "note": "IaC"},
+    {"id": "trivy_vuln",     "name": "Trivy Vuln",      "note": "Image/FS vuln"},
+    {"id": "grype",          "name": "Grype",           "note": "SBOM"},
+]
+
+DEFAULT_TOOL_CONFIG = {
+    "gitleaks": {
+        "enabled": True,
+        "level": "aggr",
+        "modes": {"offline": True, "online": True, "cicd": True},
+    },
+    "semgrep": {
+        "enabled": True,
+        "level": "aggr",
+        "modes": {"offline": True, "online": True, "cicd": True},
+    },
+    "bandit": {
+        "enabled": True,
+        "level": "fast",
+        "modes": {"offline": True, "online": False, "cicd": True},
+    },
+    "trivy_secret": {
+        "enabled": True,
+        "level": "fast",
+        "modes": {"offline": True, "online": False, "cicd": True},
+    },
+    "trivy_misconf": {
+        "enabled": True,
+        "level": "fast",
+        "modes": {"offline": True, "online": False, "cicd": True},
+    },
+    "trivy_vuln": {
+        "enabled": True,
+        "level": "aggr",
+        "modes": {"offline": True, "online": True, "cicd": True},
+    },
+    "grype": {
+        "enabled": True,
+        "level": "fast",
+        "modes": {"offline": True, "online": False, "cicd": True},
+    },
+}
+
+app = Flask(__name__)
+
+@app.route("/v2")
+def security_bundle_v2():
+    """Serve static SECURITY_BUNDLE_FULL_5_PAGES.html (5 tab)"""
+    from flask import send_from_directory
+    # Directory tính từ thư mục ui/
+    return send_from_directory(
+        "my_flask_app/my_flask_app",
+        "SECURITY_BUNDLE_FULL_5_PAGES.html"
+    )
+
+# Global defaults cho Gitleaks / Grype count
+gitleaks_count = 0
+grype_count = 0
+
+
+# ===== HELPERS =====
+
+def list_run_dirs():
+    if not os.path.isdir(OUT_DIR):
+        return []
+    runs = []
+    for name in os.listdir(OUT_DIR):
+        if not name.startswith("RUN_"):
+            continue
+        full = os.path.join(OUT_DIR, name)
+        if os.path.isdir(full):
+            runs.append(full)
+    runs.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return runs
+
+def get_env_run_dir():
+    for key in ("RUN", "RUN_DIR", "SECURITY_BUNDLE_RUN"):
+        val = os.environ.get(key)
+        if val and os.path.isdir(val):
+            return val
+    return None
+
+def get_current_run_dir():
+    run_dir = get_env_run_dir()
+    if run_dir:
+        return run_dir
+    for full in list_run_dirs():
+        path = os.path.join(full, "report", "findings.json")
+        if os.path.isfile(path):
+            return full
+    runs = list_run_dirs()
+    if runs:
+        return runs[0]
+    return None
+
+def load_json(path, default):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return default
+    except Exception as e:
+        print(f"[WARN] load_json({path}) error: {e}")
+        return default
+
+def load_summary(run_dir):
+    if not run_dir:
+        return {}
+    path = os.path.join(run_dir, "report", "summary_unified.json")
+    return load_json(path, {})
+
+def load_findings_raw(run_dir):
+    if not run_dir:
+        return []
+    path = os.path.join(run_dir, "report", "findings.json")
+    return load_json(path, [])
+
+def get_findings_list(run_dir):
+    raw = load_findings_raw(run_dir)
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        for key in ("findings", "items", "results"):
+            val = raw.get(key)
+            if isinstance(val, list):
+                return val
+    return []
+
+def get_meta_src(summary):
+    if not isinstance(summary, dict):
+        return None
+    meta = summary.get("meta")
+    if isinstance(meta, dict):
+        return (
+            meta.get("src")
+            or meta.get("SRC")
+            or meta.get("source")
+            or meta.get("SOURCE")
+        )
+    return (
+        summary.get("src")
+        or summary.get("SRC")
+        or summary.get("source")
+        or summary.get("SOURCE")
+    )
+
+def load_ui_state():
+    data = load_json(STATE_FILE, {})
+    src = data.get("src") or DEFAULT_SRC
+    profile = data.get("profile") or "Aggressive"
+    mode = data.get("mode") or "Offline"
+    return {"src": src, "profile": profile, "mode": mode}
+
+def save_ui_state(src, profile, mode):
+    state = {
+        "src": src or DEFAULT_SRC,
+        "profile": profile or "Aggressive",
+        "mode": mode or "Offline",
+    }
+    try:
+        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] save_ui_state error: {e}")
+
+def load_tool_config():
+    """Đọc tool_config.json, chấp nhận cả dict lẫn list, luôn trả về dict."""
+    from pathlib import Path
+    cfg_path = Path(ROOT) / "tool_config.json"
+    if not cfg_path.exists():
+        print("[WARN] Không tìm thấy", cfg_path)
+        return {}
+
+    import json
+    try:
+        raw = json.loads(cfg_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        print("[WARN] Lỗi đọc tool_config.json:", e)
+        return {}
+
+    from collections.abc import Mapping
+
+    # Chuẩn: file là dict
+    if isinstance(raw, Mapping):
+        return raw
+
+    # Nếu file là list các cấu hình
+    if isinstance(raw, list):
+        converted = {}
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            tid = item.get("id") or item.get("tool_id") or item.get("name")
+            if tid:
+                converted[tid] = item
+        return converted
+
+    # Kiểu khác: bỏ qua
+    print("[WARN] tool_config.json không phải dict/list – trả về {}.")
+    return {}
+
+def save_tool_config_from_form(form):
+    cfg = {}
+    for t in DEFAULT_TOOLS:
+        tid = t["id"]
+        enabled = form.get(f"enabled_{tid}") == "on"
+        level = form.get(f"level_{tid}") or DEFAULT_TOOL_CONFIG[tid]["level"]
+        modes = {}
+        for m in ("offline", "online", "cicd"):
+            modes[m] = form.get(f"mode_{tid}_{m}") == "on"
+        cfg[tid] = {"enabled": enabled, "level": level, "modes": modes}
+    try:
+        os.makedirs(os.path.dirname(TOOL_CONFIG_FILE), exist_ok=True)
+        with open(TOOL_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] save_tool_config error: {e}")
+
+def level_from_profile(profile):
+    if not profile:
+        return "fast"
+    p = profile.lower()
+    return "aggr" if "agg" in p else "fast"
+
+def mode_to_no_net(mode):
+    if not mode:
+        return "1"
+    m = mode.lower()
+    if "off" in m:
+        return "1"
+    return "0"
+
+def call_scan(src, profile, mode):
+    env = os.environ.copy()
+    env["SRC"] = src
+    env["LEVEL"] = level_from_profile(profile)
+    env["NO_NET"] = mode_to_no_net(mode)
+    env.setdefault("LOG_LEVEL", "INFO")
+    print(f"[UI] call_scan: SRC={env['SRC']} LEVEL={env['LEVEL']} NO_NET={env['NO_NET']}")
+    try:
+        subprocess.Popen([SCAN_WRAPPER], env=env)
+    except Exception as e:
+        print(f"[ERR] call_scan error: {e}")
+
+def normalize_severity(value):
+    if value is None:
+        return "LOW"
+    if isinstance(value, (int, float)):
+        v = float(value)
+        if v >= 8.5:
+            return "CRITICAL"
+        if v >= 6.5:
+            return "HIGH"
+        if v >= 4.0:
+            return "MEDIUM"
+        return "LOW"
+    s = str(value).strip().upper()
+    if not s:
+        return "LOW"
+    if s in ("CRITICAL", "CRIT", "P1", "SEV_CRITICAL"):
+        return "CRITICAL"
+    if s in ("HIGH", "H", "P2", "SEV_HIGH"):
+        return "HIGH"
+    if s in ("MEDIUM", "MED", "MODERATE", "P3", "SEV_MEDIUM"):
+        return "MEDIUM"
+    return "LOW"
+
+# ===== TEMPLATE (FULL MÀN + MENU DỌC) =====
+
+PAGE = r"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SECURITY_BUNDLE UI</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    // === Scan status pill (frontend only) ===
+    function updateScanStatusPill(state) {
+      var pill = document.getElementById('scanStatusPill');
+      if (!pill) return;
+      pill.classList.remove('scan-status-idle', 'scan-status-running', 'scan-status-error');
+      if (state === 'running') {
+        pill.textContent = 'Running...';
+        pill.classList.add('scan-status-running');
+      } else if (state === 'error') {
+        pill.textContent = 'Error';
+        pill.classList.add('scan-status-error');
+      } else {
+        pill.textContent = 'Idle';
+        pill.classList.add('scan-status-idle');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var runBtn = document.getElementById('runScanBtn');
+      if (!runBtn) return;
+      runBtn.addEventListener('click', function () {
+        // khi user bấm Run scan → set trạng thái Running trong UI
+        updateScanStatusPill('running');
+        // sau 10 phút nếu không có gì khác, tự về Idle để đỡ treo trạng thái
+        setTimeout(function () {
+          updateScanStatusPill('idle');
+        }, 10 * 60 * 1000);
+      });
+      // khởi tạo trạng thái lúc load trang
+      updateScanStatusPill('idle');
+    });
+
+</script>
+  <style>
+    :root {
+      --bg-main: #020617;
+      --bg-sidebar: #020617;
+      --bg-card: #020617;
+      --border-subtle: #1f2937;
+      --border-strong: #374151;
+      --text-muted: #9ca3af;
+      --text-soft: #6b7280;
+      --accent: #4f46e5;
+      --accent-soft: #6366f1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+      color: #e5e7eb;
+    }
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+    }
+    /* SIDEBAR */
+    .sidebar {
+      width: 230px;
+      padding: 16px 14px;
+      border-right: 1px solid #0f172a;
+      background: radial-gradient(circle at top left, #020617 0, #020617 45%, #020617 100%);
+      box-shadow: 10px 0 30px rgba(15,23,42,0.9);
+    }
+    .sb-section-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      margin-bottom: 6px;
+    }
+    .sb-card {
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+      padding: 10px 10px 9px;
+      box-shadow: 0 14px 30px rgba(15,23,42,0.9);
+      margin-bottom: 14px;
+    }
+    .sb-title {
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .sb-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-bottom: 6px;
+    }
+    .sb-project-id {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .sb-metrics {
+      font-size: 11px;
+      color: var(--text-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sb-src {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sb-pill-total {
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid #22c55e;
+      padding: 1px 8px;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .sidebar-nav {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      padding: 7px 9px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #e5e7eb;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.16s ease, border-color 0.16s ease, transform 0.06s ease;
+    }
+    .nav-item:hover {
+      background: #020617;
+      border-color: #111827;
+    }
+    .nav-item.active {
+      background: #111827;
+      border-color: #1d4ed8;
+      box-shadow: inset 2px 0 0 #4f46e5;
+    }
+    .nav-label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11px;
+    }
+    .nav-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-top: 1px;
+    }
+
+    /* MAIN AREA */
+    .main-area {
+      flex: 1;
+      padding: 16px 20px 28px;
+      max-width: calc(100vw - 230px);
+      overflow-x: hidden;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .title-block h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .title-block small {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    .project-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .project {
+      font-size: 12px;
+      background: #020617;
+      border-radius: 999px;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      box-shadow: 0 0 0 1px rgba(15,23,42,0.8), 0 18px 40px rgba(15,23,42,0.9);
+    }
+    .project-label {
+      text-transform: uppercase;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
+    }
+    .project-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+    .mode-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #1d4ed8;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #bfdbfe;
+      background: rgba(37,99,235,0.16);
+    }
+    .scan-status {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .scan-status strong { color: #e5e7eb; }
+    .scan-dot-ok {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
+      margin-right: 2px;
+    }
+
+    .controls {
+      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+      border-radius: 14px;
+      border: 1px solid var(--border-subtle);
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: 2.2fr 2.2fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.8);
+      margin-top: 10px;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    input[type="text"], select {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 13px;
+      outline: none;
+    }
+    input::placeholder { color: var(--text-soft); }
+    input:focus, select:focus {
+      border-color: var(--accent-soft);
+      box-shadow: 0 0 0 1px rgba(99,102,241,0.4);
+    }
+    .run-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 50%, #22c55e 100%);
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(79,70,229,0.5);
+      white-space: nowrap;
+    }
+
+    .main {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1.7fr 1.3fr;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      padding: 13px 14px;
+      box-shadow: 0 14px 30px rgba(15,23,42,0.9);
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card h2 span.badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-soft);
+      background: #020617;
+      border-radius: 999px;
+      border: 1px solid #111827;
+      padding: 2px 8px;
+    }
+
+    .metrics {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .metric {
+      background: #020617;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 8px 10px;
+      min-width: 135px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top left, rgba(79,70,229,0.15), transparent 55%);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    .metric-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+    .metric-value {
+      margin-top: 2px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .severity-legend {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+    .sev-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .sev-critical { background: #f97373; }
+    .sev-high { background: #fb923c; }
+    .sev-medium { background: #facc15; }
+    .sev-low { background: #4ade80; }
+
+    .sev-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid transparent;
+    }
+    .sev-pill-critical {
+      background: rgba(248,113,113,0.18);
+      border-color: rgba(248,113,113,0.75);
+      color: #fecaca;
+    }
+    .sev-pill-high {
+      background: rgba(251,146,60,0.18);
+      border-color: rgba(251,146,60,0.75);
+      color: #fed7aa;
+    }
+    .sev-pill-medium {
+      background: rgba(250,204,21,0.18);
+      border-color: rgba(250,204,21,0.75);
+      color: #fef9c3;
+    }
+    .sev-pill-low {
+      background: rgba(74,222,128,0.18);
+      border-color: rgba(74,222,128,0.75);
+      color: #bbf7d0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 6px 4px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+    }
+    tbody tr:hover { background: #0b1120; }
+    td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .col-sev { text-align: center; }
+    .col-rule {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .col-location, .col-message {
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tool-note { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+
+    .pill-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid #4b5563;
+      color: var(--text-soft);
+    }
+
+    .runs-table td span.badge-current {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #22c55e;
+      border-radius: 999px;
+      border: 1px solid #22c55e;
+      padding: 2px 6px;
+      margin-left: 6px;
+    }
+
+    .settings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .settings-table th, .settings-table td {
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 6px 4px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .settings-table th {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+    }
+    .settings-modes label {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-right: 8px;
+    }
+    .settings-modes input[type="checkbox"] { margin-right: 3px; }
+    .save-btn {
+      margin-top: 10px;
+      border: none;
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      color: white;
+      background: #22c55e;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(34,197,94,0.4);
+    }
+
+    @media (max-width: 960px) {
+      .app-shell { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #0f172a; }
+      .main-area { max-width: 100%; }
+      .controls { grid-template-columns: 1fr; }
+      .main { grid-template-columns: 1fr; }
+    }
+  
+    .scan-status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0.75rem;
+      height: 26px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      border: 1px solid transparent;
+      margin-left: 0.75rem;
+      white-space: nowrap;
+    }
+    .scan-status-idle {
+      background: rgba(34,197,94,0.12);
+      color: #4ade80;
+      border-color: rgba(34,197,94,0.35);
+    }
+    .scan-status-running {
+      background: rgba(59,130,246,0.12);
+      color: #60a5fa;
+      border-color: rgba(59,130,246,0.35);
+    }
+    .scan-status-error {
+      background: rgba(239,68,68,0.12);
+      color: #fca5a5;
+      border-color: rgba(239,68,68,0.35);
+    }
+
+
+/* PATCH_SCAN_UI_ENHANCE_V1 */
+/* CSS cho tab SCAN: status line + quick preset + run button */
+
+.scan-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.scan-preset-btn {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148,163,184,0.6);
+  background: rgba(15,23,42,0.8);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.scan-preset-btn:hover {
+  border-color: rgba(148,163,184,1);
+}
+
+.scan-preset-btn.active {
+  background: rgba(59,130,246,0.18);
+  border-color: rgba(59,130,246,0.8);
+  color: #bfdbfe;
+}
+
+/* Nút Run scan: có thể thêm icon bên trái */
+.run-scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.run-scan-btn .run-icon {
+  font-size: 0.8rem;
+}
+
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-section-title">Security bundle</div>
+    <div class="sb-card">
+      <div class="sb-title">SECURITY_BUNDLE</div>
+      <div class="sb-sub">Multi-tool offline scan</div>
+      <div class="sb-project-id">RUN: {{ current_run_id }}</div>
+      <div class="sb-metrics">
+        <span class="sb-pill-total">
+          <span>{{ scan_status.total }} findings</span>
+          <span>Crit/High: {{ scan_status.crit }}/{{ scan_status.high }}</span>
+        </span>
+        <span class="sb-src">SRC: {{ scan_status.src }}</span>
+      </div>
+    </div>
+
+    <div class="sb-section-title">Main</div>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('index', tab='dashboard') }}"
+         class="nav-item {% if current_tab == 'dashboard' %}active{% endif %}">
+        <span class="nav-label">Dashboard</span>
+        <span class="nav-sub">Overview</span>
+      </a>
+      <a href="{{ url_for('index', tab='scan') }}"
+         class="nav-item {% if current_tab == 'scan' %}active{% endif %}">
+        <span class="nav-label">Scan project</span>
+        <span class="nav-sub">RUN ONE PROJECT</span>
+      </a>
+      <a href="{{ url_for('index', tab='runs') }}"
+         class="nav-item {% if current_tab == 'runs' %}active{% endif %}">
+        <span class="nav-label">Runs &amp; Reports</span>
+        <span class="nav-sub">History</span>
+      </a>
+      <a href="{{ url_for('index', tab='data') }}"
+         class="nav-item {% if current_tab == 'data' %}active{% endif %}">
+        <span class="nav-label">Data source</span>
+        <span class="nav-sub">JSON</span>
+      </a>
+      <a href="{{ url_for('index', tab='settings') }}"
+         class="nav-item {% if current_tab == 'settings' %}active{% endif %}">
+        <span class="nav-label">Settings</span>
+        <span class="nav-sub">Tools</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-area">
+    <div class="header">
+      <div class="title-block">
+        <h1>SECURITY SCAN</h1>
+        <small>SECURITY_BUNDLE • Multi-tool offline scan</small>
+
+        <div class="project-row">
+          <div class="project">
+            <span class="project-label">PROJECT</span>
+            <span class="project-value">{{ current_run_id }}</span>
+          </div>
+          <div class="mode-pill">
+            MODE: {{ current_mode }} • PROFILE: {{ current_profile }}
+          </div>
+        </div>
+
+        <div class="scan-status">
+          <span class="scan-dot-ok"></span>
+          <span>Last scan:</span>
+          <strong>{{ scan_status.time }}</strong>
+          <span>• SRC:</span>
+          <strong>{{ scan_status.src }}</strong>
+          <span>• Total:</span>
+          <strong>{{ scan_status.total }}</strong>
+          <span>• Crit/High:</span>
+          <strong>{{ scan_status.crit }}/{{ scan_status.high }}</strong>
+          <span>• Tools enabled:</span>
+          <strong>{{ scan_status.enabled_tools }}/{{ scan_status.total_tools }}</strong>
+        </div>
+      </div>
+    </div>
+
+    {% if current_tab in ('dashboard', 'scan') %}
+    <form method="post" action="{{ url_for('run_scan_route') }}">
+      <div class="controls">
+        <div>
+          <label for="target_url">Target URL (optional)</label>
+          <input type="text" id="target_url" name="target_url"
+                 placeholder="https://app.example.com (for report only)">
+        </div>
+        <div>
+          <label for="src">SRC folder</label>
+          <input type="text" id="src" name="src" value="{{ current_src }}">
+        </div>
+        <div>
+          <label for="profile">Profile</label>
+          <select id="profile" name="profile">
+            <option value="Fast" {% if current_profile == "Fast" %}selected{% endif %}>Fast</option>
+            <option value="Aggressive" {% if current_profile == "Aggressive" %}selected{% endif %}>Aggressive</option>
+          </select>
+        </div>
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode" name="mode">
+            <option value="Offline" {% if current_mode == "Offline" %}selected{% endif %}>Offline</option>
+            <option value="Online" {% if current_mode == "Online" %}selected{% endif %}>Online</option>
+            <option value="CI/CD" {% if current_mode == "CI/CD" %}selected{% endif %}>CI/CD</option>
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="run-btn">Run scan</button>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+
+    {% if current_tab == 'dashboard' %}
+    <!-- DASHBOARD -->
+    <div class="main">
+      <div class="card">
+        <h2>
+          <span>Dashboard</span>
+          <span class="badge">Severity buckets: Critical / High / Medium / Low</span>
+        </h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Total findings</div>
+            <div class="metric-value">{{ total_findings }}</div>
+            <div class="metric-sub">Across all tools</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Critical / High</div>
+            <div class="metric-value">{{ critical }} / {{ high }}</div>
+            <div class="metric-sub">by severity</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Last updated</div>
+            <div class="metric-value" style="font-size:14px;">{{ last_updated }}</div>
+            <div class="metric-sub">RUN folder mtime</div>
+          </div>
+        </div>
+
+        <canvas id="severityChart" height="150"></canvas>
+        <div class="severity-legend">
+          <span><span class="sev-dot sev-critical"></span>Critical</span>
+          <span><span class="sev-dot sev-high"></span>High</span>
+          <span><span class="sev-dot sev-medium"></span>Medium</span>
+          <span><span class="sev-dot sev-low"></span>Low (incl. Info / Warn / Unknown)</span>
+        </div>
+
+        <script>
+          const sevCtx = document.getElementById('severityChart').getContext('2d');
+          const sevData = {{ severity_chart|tojson }};
+          new Chart(sevCtx, {
+            type: 'bar',
+            data: {
+              labels: sevData.labels,
+              datasets: [{
+                label: 'Findings',
+                data: sevData.data,
+                backgroundColor: sevData.colors,
+                borderColor: sevData.colors,
+                borderWidth: 1,
+                borderRadius: 6,
+                maxBarThickness: 52
+              }]
+            },
+            options: {
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { grid: { display: false } },
+                y: {
+                  beginAtZero: true,
+                  ticks: { precision: 0 },
+                  grid: { color: 'rgba(55,65,81,0.4)' }
+                }
+              }
+            }
+          });
+        </script>
+      </div>
+
+      <div class="card">
+        <h2>
+          <span>By tool / Config</span>
+          <span class="badge">Đọc từ tool_config.json + summary/findings</span>
+        </h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Enabled</th>
+              <th>Level</th>
+              <th>Modes</th>
+              <th>Ghi chú</th>
+              <th style="text-align:right;">Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in tools %}
+            <tr>
+              <td><span class="pill-flag">{{ row.name }}</span></td>
+              <td>{{ row.enabled }}</td>
+              <td>{{ row.level }}</td>
+              <td>{{ row.modes_label }}</td>
+              <td class="tool-note">{{ row.note }}</td>
+              <td>{{ row.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- hàng thứ 2: Top risk + Trend -->
+    <div class="main">
+      <div class="card">
+        <h2>
+          <span>Top risk findings</span>
+          <span class="badge">Critical / High (max {{ top_risk_limit }})</span>
+        </h2>
+        {% if top_risks %}
+        <table>
+          <thead>
+            <tr>
+              <th>Sev</th>
+              <th>Tool</th>
+              <th>Rule</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in top_risks %}
+            <tr>
+              <td class="col-sev">
+                <span class="sev-pill sev-pill-{{ f.severity|lower }}">{{ f.severity }}</span>
+              </td>
+              <td>{{ f.tool }}</td>
+              <td class="col-rule">{{ f.rule }}</td>
+              <td class="col-location">{{ f.location }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p style="font-size:12px; color:var(--text-soft);">
+            ✅ Không có Critical. {{ high }} High, {{ sev_buckets['MEDIUM'] }} Medium, {{ sev_buckets['LOW'] }} Low.
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2>
+          <span>Trend – last runs</span>
+          <span class="badge">So sánh với RUN trước</span>
+        </h2>
+        {% if trend_runs %}
+        <table>
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Total</th>
+              <th>Crit/High</th>
+              <th>Δ Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in trend_runs %}
+            <tr>
+              <td>{{ r.id }}</td>
+              <td>{{ r.total }}</td>
+            <td style="text-align:center;">
+              <a href="{{ url_for('download_report_html', run_id=r.id) }}" target="_blank">
+                HTML
+              </a>
+              |
+              <a href="{{ url_for('download_report_pdf', run_id=r.id) }}" target="_blank">
+                PDF
+              </a>
+            </td>
+            <td style="text-align:center;">
+              <a href="{{ url_for('download_report_html', run_id=r.id) }}" target="_blank">
+                HTML
+              </a>
+              |
+              <a href="{{ url_for('download_report_pdf', run_id=r.id) }}" target="_blank">
+                PDF
+              </a>
+            </td>
+              <td>{{ r.critical }}/{{ r.high }}</td>
+              <td>
+                {% if r.delta_label %}
+                  {{ r.delta_label }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p style="font-size:12px; color:var(--text-soft);">
+            Chưa đủ dữ liệu RUN để hiển thị trend.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% elif current_tab == 'data' %}
+    <!-- DATA SOURCE -->
+    <div class="main">
+      <div class="card">
+        <h2>
+          <span>DATA SOURCE / JSON SUMMARY</span>
+          <span class="badge">Đọc trực tiếp từ summary_unified &amp; findings</span>
+        </h2>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Total findings</div>
+            <div class="metric-value">{{ total_findings }}</div>
+            <div class="metric-sub">Across all tools</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Tools</div>
+            <div class="metric-value">{{ tool_count }}</div>
+            <div class="metric-sub">Có findings</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:16px; margin-top:6px;">
+          <div style="flex:1;">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-muted); margin-bottom:4px;">
+              Severity buckets
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th style="text-align:right;">Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sev in severity_order %}
+                <tr>
+                  <td>
+                    <span class="sev-pill sev-pill-{{ sev|lower }}">
+                      {{ sev }}
+                    </span>
+                  </td>
+                  <td>{{ sev_buckets[sev] }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div style="flex:1;">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-muted); margin-bottom:4px;">
+              By tool
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th style="text-align:right;">Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in by_tool_rows %}
+                <tr>
+                  <td>{{ row.tool }}</td>
+                  <td>{{ row.count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p style="font-size:11px; color:var(--text-soft); margin-top:8px;">
+          Toàn bộ JSON có thể đọc qua API: <code>/api/summary</code> và <code>/api/findings</code>.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>
+          <span>Sample findings</span>
+          <span class="badge">Top {{ sample_limit }} records</span>
+        </h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Sev</th>
+              <th>Rule</th>
+              <th>Location</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in sample_findings %}
+            <tr>
+              <td>{{ f.tool }}</td>
+              <td class="col-sev">
+                <span class="sev-pill sev-pill-{{ f.severity|lower }}">{{ f.severity }}</span>
+              </td>
+              <td class="col-rule">{{ f.rule }}</td>
+              <td class="col-location">{{ f.location }}</td>
+              <td class="col-message">{{ f.message }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="cards-grid">
+  
+    <div class="kpi-value">
+      {{ gitleaks_count }}
+    </div>
+  </div>
+
+  
+    <div class="kpi-value">
+      {{ grype_count }}
+    </div>
+  </div>
+</div>
+
+{% elif current_tab == 'runs' %}
+    <!-- RUNS & REPORTS -->
+    <div class="card">
+      <h2>
+        <span>Runs &amp; Reports</span>
+        <span class="badge">Danh sách RUN trong {{ OUT_DIR }}</span>
+      </h2>
+      {% if runs_info %}
+            <table class="runs-table">
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Time</th>
+            <th>SRC (meta)</th>
+            <th style="text-align:right;">Total findings</th>
+            <th style="text-align:center;">Export</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in runs_info %}
+          <tr>
+            <td>
+              {{ r.id }}
+              {% if r.id == current_run_id %}
+                <span class="badge-current">current</span>
+              {% endif %}
+            </td>
+            <td>{{ r.time }}</td>
+            <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis;">{{ r.src }}</td>
+            <td style="text-align:right;">{{ r.total }}</td>
+            <td style="text-align:center;">
+              <a href="{{ url_for('download_report_html', run_id=r.id) }}" target="_blank">HTML</a>
+              |
+              <a href="{{ url_for('download_report_pdf', run_id=r.id) }}" target="_blank">PDF</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p style="font-size:12px; color:var(--text-soft);">
+          Chưa tìm thấy RUN nào trong thư mục <code>{{ OUT_DIR }}</code>.
+        </p>
+      {% endif %}
+      <p style="font-size:11px; color:var(--text-soft); margin-top:8px;">
+        HTML report cho mỗi RUN: <code>report/security_resilient.html</code> (mở bằng browser offline).
+      </p>
+    </div>
+
+    {% elif current_tab == 'settings' %}
+    <!-- SETTINGS -->
+    <div class="card">
+      <h2>
+        <span>Settings – Tool config</span>
+        <span class="badge">Bật/tắt tool + mode cho từng tool</span>
+      </h2>
+      <p style="font-size:12px; color:var(--text-soft); margin-bottom:10px;">
+        Mỗi dòng tương ứng với <strong>1 tool</strong> trong bundle. Bạn có thể
+        bật/tắt tool, chọn level (fast/aggr) và chọn tool đó được phép chạy ở mode nào
+        (Offline / Online / CI/CD). Kết quả sẽ được lưu vào file <code>{{ tool_config_file }}</code>.
+      </p>
+      <form method="post" action="{{ url_for('save_tool_config_route') }}">
+        <table class="settings-table">
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Enabled</th>
+              <th>Level</th>
+              <th>Modes</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in tool_settings %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>
+                <input type="checkbox" name="enabled_{{ row.id }}" {% if row.enabled %}checked{% endif %}>
+              </td>
+              <td>
+                <select name="level_{{ row.id }}">
+                  <option value="fast" {% if row.level == 'fast' %}selected{% endif %}>fast</option>
+                  <option value="aggr" {% if row.level == 'aggr' %}selected{% endif %}>aggr</option>
+                </select>
+              </td>
+              <td class="settings-modes">
+                <label>
+                  <input type="checkbox" name="mode_{{ row.id }}_offline" {% if row.modes.offline %}checked{% endif %}>
+                  Offline
+                </label>
+                <label>
+                  <input type="checkbox" name="mode_{{ row.id }}_online" {% if row.modes.online %}checked{% endif %}>
+                  Online
+                </label>
+                <label>
+                  <input type="checkbox" name="mode_{{ row.id }}_cicd" {% if row.modes.cicd %}checked{% endif %}>
+                  CI/CD
+                </label>
+              </td>
+              <td>{{ row.note }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <button type="submit" class="save-btn">Lưu cấu hình tool</button>
+      </form>
+    </div>
+    {% endif %}
+  </main>
+</div>
+
+<!-- PATCH_SCAN_UI_ENHANCE_V2 -->
+<style>
+/* Quick presets cho PROFILE + nút Run scan ở tab=scan */
+
+.scan-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.scan-preset-btn {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148,163,184,0.6);
+  background: rgba(15,23,42,0.8);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.scan-preset-btn:hover {
+  border-color: rgba(148,163,184,1);
+}
+
+.scan-preset-btn.active {
+  background: rgba(59,130,246,0.18);
+  border-color: rgba(59,130,246,0.8);
+  color: #bfdbfe;
+}
+
+/* Nút Run scan có icon ▶ */
+.run-scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.run-scan-btn .run-icon {
+  font-size: 0.8rem;
+}
+</style>
+
+<script>
+// Quick presets + nâng nút Run scan, chỉ khi tab=scan
+window.addEventListener("DOMContentLoaded", function () {
+  try {
+    if (!location.search.includes("tab=scan")) return;
+
+    // Tìm select profile
+    var profileSelect =
+      document.querySelector('select[name="profile"]') ||
+      document.querySelector('#profile') ||
+      document.querySelector('select[data-role="profile"]');
+
+    if (!profileSelect) return;
+
+    // Tạo wrapper preset
+    var presetsWrapper = document.createElement("div");
+    presetsWrapper.className = "scan-presets";
+
+    var presets = [
+      { key: "quick", label: "Quick scan" },
+      { key: "standard", label: "Standard" },
+      { key: "aggressive", label: "Aggressive" }
+    ];
+
+    presets.forEach(function (p) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "scan-preset-btn";
+      btn.setAttribute("data-scan-preset", p.key);
+      btn.textContent = p.label;
+      presetsWrapper.appendChild(btn);
+    });
+
+    // Chèn ngay dưới ô PROFILE
+    var container = profileSelect.parentElement;
+    if (container && container.parentElement && container.parentElement !== document.body) {
+      container = container.parentElement;
+    }
+    if (!container) container = profileSelect;
+
+    if (container.nextSibling) {
+      container.parentElement.insertBefore(presetsWrapper, container.nextSibling);
+    } else if (container.parentElement) {
+      container.parentElement.appendChild(presetsWrapper);
+    }
+
+    var buttons = presetsWrapper.querySelectorAll(".scan-preset-btn");
+
+    function norm(str) {
+      return (str || "").toString().trim().toLowerCase();
+    }
+
+    function syncActive() {
+      var v = norm(profileSelect.value);
+      var t = "";
+      if (profileSelect.selectedIndex >= 0) {
+        t = norm(profileSelect.options[profileSelect.selectedIndex].text);
+      }
+      buttons.forEach(function (btn) {
+        var k = norm(btn.getAttribute("data-scan-preset"));
+        var match =
+          v.includes(k) ||
+          t.includes(k) ||
+          (k === "quick" && (v.includes("fast") || t.includes("fast"))) ||
+          (k === "standard" && v.includes("std"));
+        if (match) btn.classList.add("active");
+        else btn.classList.remove("active");
+      });
+    }
+
+    buttons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var k = norm(btn.getAttribute("data-scan-preset"));
+        var matched = false;
+        Array.prototype.forEach.call(profileSelect.options, function (opt) {
+          var ov = norm(opt.value);
+          var ot = norm(opt.text);
+          if (
+            ov.includes(k) ||
+            ot.includes(k) ||
+            (k === "quick" && (ov.includes("fast") || ot.includes("fast"))) ||
+            (k === "standard" && ov.includes("std"))
+          ) {
+            profileSelect.value = opt.value;
+            matched = true;
+          }
+        });
+        if (matched) {
+          buttons.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          var evt = new Event("change", { bubbles: true });
+          profileSelect.dispatchEvent(evt);
+        }
+      });
+    });
+
+    profileSelect.addEventListener("change", syncActive);
+    syncActive();
+
+    // Nâng nút Run scan: thêm class + icon
+    var runBtn = null;
+    Array.prototype.forEach.call(document.querySelectorAll("button"), function (b) {
+      if (/run\s*scan/i.test(b.textContent || "")) {
+        runBtn = b;
+      }
+    });
+    if (runBtn && !runBtn.classList.contains("run-scan-btn")) {
+      runBtn.classList.add("run-scan-btn");
+      if (!runBtn.querySelector(".run-icon")) {
+        var icon = document.createElement("span");
+        icon.className = "run-icon";
+        icon.textContent = "▶";
+        if (runBtn.firstChild) {
+          runBtn.insertBefore(icon, runBtn.firstChild);
+        } else {
+          runBtn.appendChild(icon);
+        }
+      }
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[scan-ui] enhance error:", e);
+  }
+});
+</script>
+
+</body>
+</html>
+"""
+
+# ===== ROUTES =====
+
+@app.route("/", methods=["GET"])
+
+
+def index():
+    tool_cfg_rows = []  # ensure defined even without TOOL_CONFIG
+    run_dir = get_current_run_dir()
+    current_run_id = os.path.basename(run_dir) if run_dir else "N/A"
+
+    tab = (flask_request.args.get("tab") or "dashboard").lower()
+    if tab not in ("dashboard", "data", "runs", "settings", "scan"):
+        tab = "dashboard"
+
+    summary = load_summary(run_dir)
+    findings = get_findings_list(run_dir)
+    ui_state = load_ui_state()
+    tool_config = load_tool_config()
+
+    meta_src = get_meta_src(summary)
+    current_src = meta_src or ui_state["src"] or DEFAULT_SRC
+    current_profile = ui_state["profile"]
+    current_mode = ui_state["mode"]
+
+    # group by tool
+    by_tool = {}
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        raw_tool = (
+            item.get("tool")
+            or item.get("source")
+            or item.get("scanner")
+            or "Unknown"
+        )
+        t = str(raw_tool).lower()
+        if "gitleaks" in t:
+            key = "Gitleaks"
+        elif "semgrep" in t:
+            key = "Semgrep"
+        elif "bandit" in t:
+            key = "Bandit"
+        elif "trivy" in t and "misconf" in t:
+            key = "TrivyMisconf"
+        elif "trivy" in t and ("vuln" in t or "vulnerability" in t):
+            key = "TrivyVuln"
+        elif "trivy" in t and "secret" in t:
+            key = "TrivySecret"
+        elif "grype" in t:
+            key = "Grype"
+        else:
+            key = str(raw_tool)
+        by_tool[key] = by_tool.get(key, 0) + 1
+
+    # severity buckets
+    sev_buckets = {k: 0 for k in CANONICAL_SEV_ORDER}
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        raw_sev = (
+            item.get("normalized_severity")
+            or item.get("severity")
+            or item.get("severity_label")
+            or item.get("priority")
+        )
+        sev = normalize_severity(raw_sev)
+        sev_buckets[sev] = sev_buckets.get(sev, 0) + 1
+
+    total_findings = 0
+    if isinstance(summary, dict):
+        ov = summary.get("overview")
+        if isinstance(ov, dict):
+            total_findings = ov.get("total_findings") or ov.get("total") or 0
+        if not total_findings and isinstance(summary.get("total_findings"), int):
+            total_findings = summary["total_findings"]
+    if not total_findings:
+        total_findings = sum(sev_buckets.values())
+
+    critical = sev_buckets.get("CRITICAL", 0)
+    high = sev_buckets.get("HIGH", 0)
+
+    severity_colors = {
+        "CRITICAL": "#f97373",
+        "HIGH":     "#fb923c",
+        "MEDIUM":   "#facc15",
+        "LOW":      "#4ade80",
+    }
+    severity_chart = {
+        "labels": CANONICAL_SEV_ORDER,
+        "data":   [sev_buckets[k] for k in CANONICAL_SEV_ORDER],
+        "colors": [severity_colors[k] for k in CANONICAL_SEV_ORDER],
+    }
+
+    last_updated = "N/A"
+    if run_dir and os.path.isdir(run_dir):
+        ts = datetime.datetime.fromtimestamp(os.path.getmtime(run_dir))
+        last_updated = ts.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Dashboard tool rows (khớp alias log By tool)
+    tools = []
+    mode_labels = {"offline": "Offline", "online": "Online", "cicd": "CI/CD"}
+
+    tool_aliases = {
+        "gitleaks":      ["Gitleaks", "gitleaks"],
+        "semgrep":       ["Semgrep", "semgrep"],
+        "bandit":        ["Bandit", "bandit"],
+        "trivy_secret":  ["TrivySecret", "Trivy Secret"],
+        "trivy_misconf": ["TrivyMisconf", "Trivy Misconfig"],
+        "trivy_vuln":    ["TrivyVuln", "Trivy Vuln"],
+        "grype":         ["Grype", "grype"],
+    }
+
+    for t in DEFAULT_TOOLS:
+        tid = t["id"]
+        cfg = tool_config.get(tid, DEFAULT_TOOL_CONFIG[tid])
+
+        count = 0
+        for alias in tool_aliases.get(tid, [t["name"]]):
+            if alias in by_tool:
+                count = by_tool[alias]
+                break
+
+        enabled_str = "[x]" if cfg.get("enabled") else "[ ]"
+        modes = cfg.get("modes", {})
+        modes_label = ", ".join(
+            label for key, label in mode_labels.items() if modes.get(key)
+        ) or "-"
+        tools.append({
+            "id": tid,
+            "name": t["name"],
+            "note": t["note"],
+            "enabled": enabled_str,
+            "level": cfg.get("level", ""),
+            "modes_label": modes_label,
+            "count": count,
+        })
+
+    # Settings data
+    tool_settings = []
+    for t in DEFAULT_TOOLS:
+        tid = t["id"]
+        cfg = tool_config.get(tid, DEFAULT_TOOL_CONFIG[tid])
+        tool_settings.append({
+            "id": tid,
+            "name": t["name"],
+            "note": t["note"],
+            "enabled": cfg.get("enabled", True),
+            "level": cfg.get("level", "fast"),
+            "modes": cfg.get("modes", {"offline": True, "online": True, "cicd": True}),
+        })
+
+    # Runs + trend data
+    runs_info = []
+    run_dirs = list_run_dirs()
+    for p in run_dirs:
+        rid = os.path.basename(p)
+        s = load_summary(p)
+        find_list = get_findings_list(p)
+
+        t_total = 0
+        if isinstance(s, dict):
+            ov = s.get("overview")
+            if isinstance(ov, dict):
+                t_total = ov.get("total_findings") or ov.get("total") or 0
+            if not t_total and isinstance(s.get("total_findings"), int):
+                t_total = s["total_findings"]
+        if not t_total:
+            t_total = len(find_list)
+
+        try:
+            ts = datetime.datetime.fromtimestamp(os.path.getmtime(p))
+            t_time = ts.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            t_time = "N/A"
+
+        t_src = get_meta_src(s) or ""
+
+        buckets_run = {k: 0 for k in CANONICAL_SEV_ORDER}
+        for it in find_list:
+            if not isinstance(it, dict):
+                continue
+            rsev = (
+                it.get("normalized_severity")
+                or it.get("severity")
+                or it.get("severity_label")
+                or it.get("priority")
+            )
+            bsev = normalize_severity(rsev)
+            buckets_run[bsev] = buckets_run.get(bsev, 0) + 1
+
+        runs_info.append({
+            "id": rid,
+            "time": t_time,
+            "src": t_src,
+            "total": t_total,
+            "critical": buckets_run.get("CRITICAL", 0),
+            "high": buckets_run.get("HIGH", 0),
+        })
+
+    for i, r in enumerate(runs_info):
+        if i + 1 < len(runs_info):
+            prev = runs_info[i + 1]
+            diff = r["total"] - prev["total"]
+            if diff > 0:
+                r["delta_label"] = f"+{diff}"
+            elif diff < 0:
+                r["delta_label"] = str(diff)
+            else:
+                r["delta_label"] = "0"
+        else:
+            r["delta_label"] = ""
+
+    trend_runs = runs_info[:4]
+
+    # Top risk findings (Critical / High)
+    top_risk_limit = 10
+    risk_items = []
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        sev = normalize_severity(
+            item.get("normalized_severity")
+            or item.get("severity")
+            or item.get("severity_label")
+            or item.get("priority")
+        )
+        if sev not in ("CRITICAL", "HIGH"):
+            continue
+
+        raw_tool = (
+            item.get("tool")
+            or item.get("source")
+            or item.get("scanner")
+            or "Unknown"
+        )
+        extra = item.get("extra") if isinstance(item.get("extra"), dict) else {}
+
+        rule_candidates = [
+            item.get("rule"),
+            item.get("rule_id"),
+            item.get("check_id"),
+            item.get("test_id"),
+            item.get("VulnerabilityID"),
+            item.get("vulnerability_id"),
+            item.get("id"),
+            extra.get("rule_id") if extra else None,
+        ]
+        rule = next((str(x) for x in rule_candidates if x not in (None, "", "-")), "-")
+        rule = rule.replace("\n", " ")[:80]
+
+        loc_candidates = [
+            item.get("location"),
+            item.get("path"),
+            item.get("file"),
+            item.get("file_path"),
+            item.get("target"),
+            extra.get("path") if extra else None,
+        ]
+        location = next((str(x) for x in loc_candidates if x not in (None, "", "-")), "-")
+        location = location.replace("\n", " ")[:120]
+
+        risk_items.append({
+            "severity": sev,
+            "tool": raw_tool,
+            "rule": rule,
+            "location": location,
+        })
+
+    sev_weight = {"CRITICAL": 2, "HIGH": 1}
+    risk_items.sort(key=lambda x: (-sev_weight.get(x["severity"], 0), x["tool"], x["rule"]))
+    top_risks = risk_items[:top_risk_limit]
+
+    # Sample findings (Data tab)
+    sample_limit = 40
+    sample_findings = []
+    for item in findings[:sample_limit]:
+        if not isinstance(item, dict):
+            continue
+        raw_tool = (
+            item.get("tool")
+            or item.get("source")
+            or item.get("scanner")
+            or "Unknown"
+        )
+        sev = normalize_severity(
+            item.get("normalized_severity")
+            or item.get("severity")
+            or item.get("severity_label")
+            or item.get("priority")
+        )
+        extra = item.get("extra") if isinstance(item.get("extra"), dict) else {}
+
+        rule_candidates = [
+            item.get("rule"),
+            item.get("rule_id"),
+            item.get("check_id"),
+            item.get("test_id"),
+            item.get("VulnerabilityID"),
+            item.get("vulnerability_id"),
+            item.get("id"),
+            extra.get("rule_id") if extra else None,
+        ]
+        rule = next((str(x) for x in rule_candidates if x not in (None, "", "-")), "-")
+        rule = rule.replace("\n", " ")[:80]
+
+        loc_candidates = [
+            item.get("location"),
+            item.get("path"),
+            item.get("file"),
+            item.get("file_path"),
+            item.get("target"),
+            extra.get("path") if extra else None,
+        ]
+        location = next((str(x) for x in loc_candidates if x not in (None, "", "-")), "-")
+        location = location.replace("\n", " ")[:120]
+
+        msg_candidates = [
+            item.get("message"),
+            item.get("msg"),
+            item.get("title"),
+            item.get("description"),
+            item.get("summary"),
+            extra.get("message") if extra else None,
+        ]
+        message = next((str(x) for x in msg_candidates if x not in (None, "", "-")), "-")
+        message = message.replace("\n", " ")[:160]
+
+        sample_findings.append({
+            "tool": raw_tool,
+            "severity": sev,
+            "rule": rule,
+            "location": location,
+            "message": message,
+        })
+
+    # Scan status strip (dùng cho header + sidebar)
+    enabled_tools = sum(1 for cfg in tool_config.values() if cfg.get("enabled"))
+    if runs_info:
+        latest = runs_info[0]
+        scan_status = {
+            "time": latest["time"],
+            "src": latest["src"] or current_src,
+            "total": latest["total"],
+            "crit": latest["critical"],
+            "high": latest["high"],
+            "enabled_tools": enabled_tools,
+            "total_tools": len(DEFAULT_TOOLS),
+        }
+    else:
+        scan_status = {
+            "time": last_updated,
+            "src": current_src,
+            "total": total_findings,
+            "crit": critical,
+            "high": high,
+            "enabled_tools": enabled_tools,
+            "total_tools": len(DEFAULT_TOOLS),
+        }
+
+    by_tool_rows = [
+        {"tool": k, "count": v}
+        for k, v in sorted(by_tool.items(), key=lambda x: (-x[1], x[0]))
+    ]
+    tool_count = sum(1 for v in by_tool.values() if v > 0)
+
+    
+    # sync tool_cfg_rows COUNT từ summary_unified trước khi render
+    try:
+        if 'tool_cfg_rows' in locals():
+            _sum_for_tools = locals().get('summary_for_stats') or locals().get('summary') or {}
+            tool_cfg_rows = sync_tool_cfg_counts(_sum_for_tools or {}, tool_cfg_rows)
+    except Exception as e:
+        print("[WARN] sync_tool_cfg_counts failed:", e)
+
+    tool_cfg_rows = sync_tool_cfg_counts(summary, tool_cfg_rows)
+
+    return render_template_string(
+        PAGE,
+        root=ROOT,
+        OUT_DIR=OUT_DIR,
+        DEFAULT_SRC=DEFAULT_SRC,
+        scan_wrapper=SCAN_WRAPPER,
+        run_dir=run_dir or "N/A",
+        current_run_id=current_run_id,
+        current_src=current_src,
+        current_profile=current_profile,
+        current_mode=current_mode,
+        current_tab=tab,
+        total_findings=total_findings,
+        gitleaks_count=gitleaks_count,
+        grype_count=grype_count,
+        critical=critical,
+        high=high,
+        last_updated=last_updated,
+        severity_chart=severity_chart,
+        tools=tools,
+        state_file=STATE_FILE,
+        tool_config_file=TOOL_CONFIG_FILE,
+        runs_info=runs_info,
+        tool_settings=tool_settings,
+        severity_order=CANONICAL_SEV_ORDER,
+        sev_buckets=sev_buckets,
+        by_tool_rows=by_tool_rows,
+        tool_count=tool_count,
+        sample_findings=sample_findings,
+        sample_limit=sample_limit,
+        top_risks=top_risks,
+        top_risk_limit=top_risk_limit,
+        trend_runs=trend_runs,
+        scan_status=scan_status,
+    )
+
+@app.route("/run_scan", methods=["POST"])
+def run_scan_route():
+    src = flask_request.form.get("src") or DEFAULT_SRC
+    profile = flask_request.form.get("profile") or "Aggressive"
+    mode = flask_request.form.get("mode") or "Offline"
+    target_url = flask_request.form.get("target_url") or ""
+    if target_url:
+        os.environ["TARGET_URL"] = target_url
+
+    save_ui_state(src, profile, mode)
+    print(f"[UI] run_scan_route: SRC={src}, profile={profile}, mode={mode}")
+    call_scan(src, profile, mode)
+    return redirect(url_for("index", tab="dashboard"))
+
+@app.route("/save_tool_config", methods=["POST"])
+def save_tool_config_route():
+    save_tool_config_from_form(flask_request.form)
+    return redirect(url_for("index", tab="settings"))
+
+@app.route("/api/summary", methods=["GET"])
+def api_summary():
+    run_dir = get_current_run_dir()
+    summary = load_summary(run_dir)
+    return jsonify(summary)
+
+@app.route("/api/findings", methods=["GET"])
+def api_findings():
+    run_dir = get_current_run_dir()
+    findings = load_findings_raw(run_dir)
+    return jsonify(findings)
+
+
+def get_run_dir_by_id(run_id: str):
+    """Tìm thư mục RUN_... theo id để phục vụ export report."""
+    for p in list_run_dirs():
+        if os.path.basename(p) == run_id:
+            return p
+    return None
+
+
+
+
+@app.route("/report/<run_id>/html")
+def download_report_html(run_id):
+    # Trả về HTML report chính cho 1 RUN bất kỳ.
+    run_path = os.path.join(OUT_DIR, run_id)
+    if not os.path.isdir(run_path):
+        abort(404)
+
+    # Thư mục chứa report
+    report_dir = os.path.join(run_path, "report")
+    if not os.path.isdir(report_dir):
+        abort(404)
+
+    # Ưu tiên simple_report.html, sau đó tới pm_style_report.html, summary.html, index.html
+    candidates = [
+        "simple_report.html",
+        "pm_style_report.html",
+        "summary.html",
+        "index.html",
+    ]
+
+    for fname in candidates:
+        fpath = os.path.join(report_dir, fname)
+        if os.path.isfile(fpath):
+            return send_from_directory(report_dir, fname)
+
+    abort(404)
+
+@app.route("/report/<run_id>/pdf")
+def download_report_pdf(run_id):
+    """
+    Tải file PDF report nếu có. Đường dẫn mặc định:
+    report/security_resilient.pdf
+
+    Nếu chưa generate PDF thì báo 404 gọn.
+    """
+    run_dir = get_run_dir_by_id(run_id)
+    if not run_dir:
+        abort(404, description="Run not found")
+
+    path = os.path.join(run_dir, "report", "security_resilient.pdf")
+    if not os.path.isfile(path):
+        abort(404, description="PDF report not found. Hãy dùng HTML và Print → Save as PDF.")
+
+    # cho trình duyệt mở hoặc tải về
+    return send_file(path, mimetype="application/pdf")
+
+
+
+@app.route("/report/<run_id>/<path:asset>")
+def download_report_asset(run_id, asset):
+    """
+    Phục vụ các file data cho báo cáo Security Resilient:
+    - summary_unified.json
+    - findings_unified.json
+    - summary_matrix.csv
+    - findings.json
+    """
+    run_dir = get_run_dir_by_id(run_id)
+    if not run_dir:
+        abort(404, description="Run not found")
+
+    allowed = {
+        "summary_unified.json",
+        "findings_unified.json",
+        "summary_matrix.csv",
+        "findings.json",
+    }
+    if asset not in allowed:
+        abort(404, description="Asset not allowed")
+
+    path = os.path.join(run_dir, "report", asset)
+    if not os.path.isfile(path):
+        abort(404, description=f"{asset} not found in report dir")
+
+    if asset.endswith(".json"):
+        mime = "application/json"
+    elif asset.endswith(".csv"):
+        mime = "text/csv"
+    else:
+        mime = "application/octet-stream"
+
+    return send_file(path, mimetype=mime)
+
+
+
+def _extract_tool_counts_from_summary(summary):
+    """
+    Lấy map {tool_name: count} từ summary_unified.json.
+    Hỗ trợ:
+      - {"by_tool": {"Bandit": 1647, "Semgrep": 360, ...}}
+      - {"by_tool": [{"tool": "Bandit", "count": 1647}, ...]}
+    """
+    counts = {}
+    if not isinstance(summary, dict):
+        return counts
+
+    by_tool = summary.get("by_tool") or summary.get("tools") or {}
+
+    # Dạng dict: {"Bandit": 1647, "Semgrep": 360, ...}
+    if isinstance(by_tool, dict):
+        for name, value in by_tool.items():
+            try:
+                counts[str(name)] = int(value)
+            except Exception:
+                continue
+
+    # Dạng list: [{"tool": "...", "count": ...}, ...]
+    elif isinstance(by_tool, list):
+        for item in by_tool:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("tool") or item.get("name") or item.get("id")
+            if not name:
+                continue
+            value = item.get("count") or item.get("value") or item.get("total") or 0
+            try:
+                counts[str(name)] = int(value)
+            except Exception:
+                continue
+
+    return counts
+
+
+def sync_tool_cfg_counts(summary, tool_cfg_rows):
+    """
+    Đồng bộ cột COUNT trong BY TOOL / CONFIG với summary của RUN hiện tại.
+
+    - Không đổi thứ tự các dòng.
+    - Tool không có trong summary thì giữ nguyên COUNT cũ (hoặc 0 nếu không có).
+    """
+    counts = _extract_tool_counts_from_summary(summary)
+    if not tool_cfg_rows:
+        return tool_cfg_rows
+
+    new_rows = []
+    for row in tool_cfg_rows:
+        name = None
+        if isinstance(row, dict):
+            name = row.get("name") or row.get("tool") or row.get("id")
+
+        if not name:
+            new_rows.append(row)
+            continue
+
+        # count cũ nếu không có trong summary
+        if isinstance(row, dict):
+            old = row.get("count", 0)
+        else:
+            old = 0
+
+        value = counts.get(str(name), old)
+        try:
+            value = int(value or 0)
+        except Exception:
+            value = 0
+
+        if isinstance(row, dict):
+            nr = dict(row)
+            nr["count"] = value
+        else:
+            try:
+                row.count = value
+            except Exception:
+                pass
+            nr = row
+
+        new_rows.append(nr)
+
+    return new_rows
+
+
+
+
+
+@app.route("/runs/<run_id>/export/<fmt>")
+def export_run(run_id, fmt):
+    """Export artifacts cho một RUN.
+
+    fmt: 'csv' | 'pdf' | 'html'
+    """
+    from pathlib import Path
+
+    # Chỉ cho 3 định dạng
+    if fmt not in {"csv", "pdf", "html"}:
+        abort(404)
+
+    base = ROOT / "out" / run_id
+    if not base.exists():
+        abort(404)
+
+    report = base / "report"
+    if not report.is_dir():
+        report = base
+
+    if fmt == "csv":
+        candidates = ["findings_unified.csv", "findings.csv"]
+    elif fmt == "html":
+        candidates = ["security_resilient.html", "simple_report.html"]
+    else:  # pdf
+        candidates = ["security_resilient.pdf", "simple_report.pdf"]
+
+    for name in candidates:
+        f = report / name
+        if f.is_file():
+            return send_from_directory(str(report), name, as_attachment=True)
+
+    abort(404)
+
+
+
+# ==== STATIC 5-TABS UI (/ui5) ====
+from pathlib import Path as _PathUi5
+
+@app.route("/ui5", methods=["GET"])
+def ui5_full_pages():
+    """Serve static SECURITY_BUNDLE_FULL_5_PAGES.html (5 tabs demo)."""
+    base = _PathUi5(__file__).resolve().parent
+    html_path = base / "my_flask_app" / "my_flask_app" / "SECURITY_BUNDLE_FULL_5_PAGES.html"
+    try:
+        return html_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        return f"<h1>UI5 error</h1><pre>{exc}</pre>", 500
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "8905"))
+    app.run(host="0.0.0.0", port=port, debug=False)
+
+def compute_tool_stats(summary_dict):
+    """
+    Build stats theo tool từ summary_unified.json:
+    - ds_tools_total: số tool có findings (>0)
+    - ds_by_tool: list {tool, count}
+    - tool_counts_full: dict {tool: count}
+    """
+    tool_counts_full = {}
+    ds_by_tool = []
+    try:
+        if isinstance(summary_dict, dict):
+            by_tool_list = summary_dict.get("by_tool") or summary_dict.get("tools") or []
+            for item in by_tool_list:
+                if isinstance(item, dict):
+                    name = item.get("tool") or item.get("name")
+                    if not name:
+                        continue
+                    count = int(item.get("count") or item.get("value") or 0)
+                    tool_counts_full[name] = tool_counts_full.get(name, 0) + count
+
+        ds_by_tool = [
+            {"tool": name, "count": cnt}
+            for name, cnt in sorted(tool_counts_full.items())
+        ]
+        ds_tools_total = len([x for x in ds_by_tool if x["count"] > 0])
+        return ds_tools_total, ds_by_tool, tool_counts_full
+    except Exception as e:
+        print(f"[WARN] compute_tool_stats error: {e}")
+        return 0, [], {}
+
+
+# === override_sync_tool_cfg_counts_v6 ===
+def _norm_tool_name(name: str) -> str:
+    if not name:
+        return ""
+    # Upper + bỏ khoảng trắng + dấu gạch dưới cho dễ map
+    return "".join(str(name).upper().replace("-", " ").split())
+
+def sync_tool_cfg_counts(summary, tool_cfg_rows):
+    """
+    Bản override: đồng bộ COUNT cho BY TOOL / CONFIG
+    từ summary_unified.json (by_tool) → tool_cfg_rows.
+    """
+    if summary is None:
+        summary = {}
+    by_tool = summary.get("by_tool") or []
+
+    tool_counts = {}
+
+    # Gộp counts từ summary['by_tool']
+    if isinstance(by_tool, dict):
+        items = []
+        for k, v in by_tool.items():
+            items.append({"tool": k, "count": v})
+    else:
+        items = list(by_tool)
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        raw_name = (
+            item.get("tool")
+            or item.get("name")
+            or item.get("label")
+            or item.get("id")
+        )
+        key = _norm_tool_name(raw_name)
+        if not key:
+            continue
+        # count có thể nằm trong field 'count' hoặc value luôn (dict by_tool cũ)
+        val = item.get("count", 0)
+        try:
+            cnt = int(val)
+        except Exception:
+            try:
+                cnt = int(item)
+            except Exception:
+                cnt = 0
+        if cnt < 0:
+            cnt = 0
+        tool_counts[key] = tool_counts.get(key, 0) + cnt
+
+    # Gán COUNT vào từng dòng tool_cfg_rows
+    rows = tool_cfg_rows or []
+    if not isinstance(rows, list):
+        return tool_cfg_rows
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        raw_label = (
+            row.get("tool")
+            or row.get("name")
+            or row.get("label")
+            or row.get("id")
+        )
+        key = _norm_tool_name(raw_label)
+        if not key:
+            continue
+        row["count"] = int(tool_counts.get(key, 0))
+
+    return rows
+# ===== helper: đồng bộ COUNT cho BY TOOL / CONFIG từ summary_unified.json =====
+
+def _extract_tool_counts_from_summary(summary):
+    """
+    Trả về dict {tool_name: count} đọc từ summary_unified.json.
+
+    Hỗ trợ 2 kiểu:
+      1) "by_tool": {"Bandit": 1647, "Semgrep": 360, ...}
+      2) "by_tool": [
+             {"tool": "Bandit", "count": 1647},
+             {"tool": "Semgrep", "count": 360},
+             ...
+         ]
+    """
+    counts = {}
+    if not isinstance(summary, dict):
+        return counts
+
+    by_tool = summary.get("by_tool") or summary.get("tools") or {}
+    # Kiểu dict đơn giản
+    if isinstance(by_tool, dict):
+        for name, value in by_tool.items():
+            try:
+                counts[str(name)] = int(value)
+            except Exception:
+                continue
+    # Kiểu list các object
+    elif isinstance(by_tool, list):
+        for item in by_tool:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("tool") or item.get("name") or item.get("id")
+            if not name:
+                continue
+            value = (
+                item.get("count")
+                or item.get("value")
+                or item.get("total")
+                or 0
+            )
+            try:
+                counts[str(name)] = int(value)
+            except Exception:
+                continue
+
+    return counts
+
+
+def sync_tool_cfg_counts(summary, tool_cfg_rows):
+    """
+    Nhận summary_unified (dict) + list tool_cfg_rows (BY TOOL / CONFIG)
+    → trả về list tool_cfg_rows mới với cột COUNT đã sync theo summary.
+
+    - Không đổi thứ tự tool.
+    - Tool nào không có trong summary thì giữ nguyên COUNT cũ (hoặc 0).
+    """
+    counts = _extract_tool_counts_from_summary(summary)
+    if not tool_cfg_rows:
+        return tool_cfg_rows
+
+    new_rows = []
+    for row in tool_cfg_rows:
+        name = None
+        if isinstance(row, dict):
+            name = row.get("name") or row.get("tool") or row.get("id")
+
+        if not name:
+            # Không xác định được tên tool → để nguyên
+            new_rows.append(row)
+            continue
+
+        # Lấy count từ summary, fallback về count cũ nếu không có
+        if isinstance(row, dict):
+            old = row.get("count", 0)
+        else:
+            old = 0
+        value = counts.get(str(name), old)
+
+        try:
+            value = int(value or 0)
+        except Exception:
+            value = 0
+
+        if isinstance(row, dict):
+            nr = dict(row)
+            nr["count"] = value
+        else:
+            # Nếu row là object, thử set attribute count
+            try:
+                row.count = value
+            except Exception:
+                pass
+            nr = row
+
+        new_rows.append(nr)
+
+    return new_rows
+
+
+def _extract_tool_counts_from_summary(summary):
+    """
+    Lấy map {tool_name: count} từ summary_unified.json.
+    Hỗ trợ:
+      - {"by_tool": {"Bandit": 1647, "Semgrep": 360, ...}}
+      - {"by_tool": [{"tool": "Bandit", "count": 1647}, ...]}
+    """
+    counts = {}
+    if not isinstance(summary, dict):
+        return counts
+
+    by_tool = summary.get("by_tool") or summary.get("tools") or {}
+
+    # Dạng dict: {"Bandit": 1647, "Semgrep": 360, ...}
+    if isinstance(by_tool, dict):
+        for name, value in by_tool.items():
+            try:
+                counts[str(name)] = int(value)
+            except Exception:
+                continue
+
+    # Dạng list: [{"tool": "...", "count": ...}, ...]
+    elif isinstance(by_tool, list):
+        for item in by_tool:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("tool") or item.get("name") or item.get("id")
+            if not name:
+                continue
+            value = item.get("count") or item.get("value") or item.get("total") or 0
+            try:
+                counts[str(name)] = int(value)
+            except Exception:
+                continue
+
+    return counts
+
+
+def sync_tool_cfg_counts(summary, tool_cfg_rows):
+    """
+    Đồng bộ cột COUNT trong BY TOOL / CONFIG với summary của RUN hiện tại.
+
+    - Không đổi thứ tự các dòng.
+    - Tool không có trong summary thì giữ nguyên COUNT cũ (hoặc 0 nếu không có).
+    """
+    counts = _extract_tool_counts_from_summary(summary)
+    if not tool_cfg_rows:
+        return tool_cfg_rows
+
+    new_rows = []
+    for row in tool_cfg_rows:
+        name = None
+        if isinstance(row, dict):
+            name = row.get("name") or row.get("tool") or row.get("id")
+
+        if not name:
+            new_rows.append(row)
+            continue
+
+        # count cũ nếu không có trong summary
+        if isinstance(row, dict):
+            old = row.get("count", 0)
+        else:
+            old = 0
+
+        value = counts.get(str(name), old)
+        try:
+            value = int(value or 0)
+        except Exception:
+            value = 0
+
+        if isinstance(row, dict):
+            nr = dict(row)
+            nr["count"] = value
+        else:
+            try:
+                row.count = value
+            except Exception:
+                pass
+            nr = row
+
+        new_rows.append(nr)
+
+    return new_rows
+
+
+# ===== RUN STATUS API & MINI PANEL =====
+
+RUN_STATUS_PATH = os.path.join(ROOT, "ui", "run_status.json")
+
+def _load_run_status():
+    try:
+        with open(RUN_STATUS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"status": "idle", "msg": "Chưa chạy scan nào."}
+
+@app.route("/api/run_status")
+def api_run_status():
+    return jsonify(_load_run_status())
+
+@app.route("/ui/run_panel")
+def ui_run_panel():
+    status = _load_run_status()
+    html = """
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<title>SECURITY_BUNDLE – Run panel</title>
+<style>
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+}
+.card {
+  background: rgba(15,23,42,0.96);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 18px 45px rgba(0,0,0,0.55);
+  width: 420px;
+}
+h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.sub {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 16px;
+}
+label {
+  font-size: 13px;
+  color: #9ca3af;
+  display: block;
+  margin-bottom: 4px;
+}
+input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 13px;
+}
+button {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary {
+  background: linear-gradient(135deg,#22c55e,#16a34a);
+  color: #022c22;
+}
+button.primary[disabled] {
+  opacity: 0.6;
+  cursor: wait;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  margin-top: 12px;
+}
+.status-idle  { background: rgba(148,163,184,0.12); color:#e5e7eb; }
+.status-run   { background: rgba(59,130,246,0.12); color:#60a5fa; }
+.status-done  { background: rgba(34,197,94,0.12); color:#4ade80; }
+.status-fail  { background: rgba(239,68,68,0.12); color:#fca5a5; }
+.msg {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+small {
+  display:block;
+  margin-top:10px;
+  font-size:11px;
+  color:#6b7280;
+}
+</style>
+<body>
+<div class="card">
+  <h1>Run Security Scan</h1>
+  <div class="sub">Bấm Run để chạy <code>run_all_with_grype_fix.sh</code>. Trạng thái sẽ cập nhật tự động.</div>
+  <label for="srcInput">SRC path</label>
+  <input id="srcInput" type="text" value="{{ src }}" />
+  <button id="runBtn" class="primary">Run scan</button>
+  <div id="statusPill" class="status-pill status-{{ status_cls }}">
+    <span id="statusText">{{ status_text }}</span>
+  </div>
+  <div id="statusMsg" class="msg">{{ msg }}</div>
+  <small>API: <code>/api/run_status</code> · UI chính: <code>/?tab=dashboard</code></small>
+</div>
+<script>
+function classifyStatus(s) {
+  if (!s) return "idle";
+  s = s.toLowerCase();
+  if (s === "running") return "run";
+  if (s === "failed") return "fail";
+  if (s === "done") return "done";
+  return "idle";
+}
+async function fetchStatus() {
+  try {
+    const r = await fetch("/api/run_status");
+    if (!r.ok) return;
+    const data = await r.json();
+    const pill = document.getElementById("statusPill");
+    const text = document.getElementById("statusText");
+    const msg  = document.getElementById("statusMsg");
+    const cls = "status-" + classifyStatus(data.status);
+    pill.className = "status-pill " + cls;
+    text.textContent = data.status || "idle";
+    msg.textContent = data.msg || "";
+    const btn = document.getElementById("runBtn");
+    if (data.status === "running") {
+      btn.disabled = true;
+      btn.textContent = "Đang chạy...";
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Run scan";
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+async function runScan() {
+  const btn = document.getElementById("runBtn");
+  const src = document.getElementById("srcInput").value;
+  btn.disabled = true;
+  btn.textContent = "Đang chạy...";
+  try {
+    await fetch("/run_scan", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ src: src })
+    });
+  } catch (e) {
+    console.error(e);
+  }
+  fetchStatus();
+}
+document.getElementById("runBtn").addEventListener("click", runScan);
+setInterval(fetchStatus, 3000);
+fetchStatus();
+// PATCH_SCAN_UI_JS_ENHANCE_V1
+
+// PATCH_SCAN_UI_JS_ENHANCE_V1
+// Thêm quick preset cho PROFILE ở tab=scan + chỉnh nút Run scan
+
+(function enhanceScanUI() {
+  try {
+    // Chỉ chạy khi đang ở tab=scan
+    if (!location.search.includes("tab=scan")) return;
+
+    // Tìm select profile
+    var profileSelect =
+      document.querySelector('select[name="profile"]') ||
+      document.querySelector('#profile') ||
+      document.querySelector('select[data-role="profile"]');
+    if (!profileSelect) return;
+
+    // Tạo wrapper preset
+    var presetsWrapper = document.createElement("div");
+    presetsWrapper.className = "scan-presets";
+
+    var presets = [
+      { key: "quick", label: "Quick scan" },
+      { key: "standard", label: "Standard" },
+      { key: "aggressive", label: "Aggressive" }
+    ];
+
+    presets.forEach(function(p) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "scan-preset-btn";
+      btn.setAttribute("data-scan-preset", p.key);
+      btn.textContent = p.label;
+      presetsWrapper.appendChild(btn);
+    });
+
+    // Chèn sau container của select profile
+    var parent = profileSelect.parentElement;
+    var container = parent && parent.parentElement ? parent.parentElement : parent;
+    if (!container) container = profileSelect;
+    if (container.nextSibling) {
+      container.parentElement.insertBefore(presetsWrapper, container.nextSibling);
+    } else {
+      container.parentElement.appendChild(presetsWrapper);
+    }
+
+    var buttons = presetsWrapper.querySelectorAll(".scan-preset-btn");
+
+    function normalize(str) {
+      return (str || "").toString().trim().toLowerCase();
+    }
+
+    function syncActiveFromSelect() {
+      var currentVal = normalize(profileSelect.value);
+      var currentText = normalize(
+        profileSelect.options[profileSelect.selectedIndex || 0]?.text
+      );
+      buttons.forEach(function(btn) {
+        var key = btn.getAttribute("data-scan-preset");
+        var k = normalize(key);
+        var match =
+          currentVal.includes(k) ||
+          currentText.includes(k) ||
+          (k === "quick" && (currentVal.includes("fast") || currentText.includes("fast"))) ||
+          (k === "standard" && currentVal.includes("std"));
+        if (match) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+    }
+
+    buttons.forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var key = btn.getAttribute("data-scan-preset");
+        if (!key) return;
+        var k = normalize(key);
+        var matched = false;
+
+        // Tìm option tương ứng
+        Array.prototype.forEach.call(profileSelect.options, function(opt) {
+          var ov = normalize(opt.value);
+          var ot = normalize(opt.text);
+          if (
+            ov.includes(k) ||
+            ot.includes(k) ||
+            (k === "quick" && (ov.includes("fast") || ot.includes("fast"))) ||
+            (k === "standard" && ov.includes("std"))
+          ) {
+            profileSelect.value = opt.value;
+            matched = true;
+          }
+        });
+
+        if (matched) {
+          // Cập nhật trạng thái active
+          buttons.forEach(function(b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+
+          // Trigger change nếu có listener
+          var evt = new Event("change", { bubbles: true });
+          profileSelect.dispatchEvent(evt);
+        }
+      });
+    });
+
+    // Đồng bộ lần đầu
+    syncActiveFromSelect();
+
+    // Nếu user tự đổi profile bằng tay
+    profileSelect.addEventListener("change", syncActiveFromSelect);
+
+    // Tìm nút Run scan và thêm class + icon
+    var runBtn = null;
+    Array.prototype.forEach.call(document.querySelectorAll("button"), function(b) {
+      if (/run\s*scan/i.test(b.textContent || "")) {
+        runBtn = b;
+      }
+    });
+    if (runBtn && !runBtn.classList.contains("run-scan-btn")) {
+      runBtn.classList.add("run-scan-btn");
+      // Chỉ thêm icon nếu chưa có
+      if (!runBtn.querySelector(".run-icon")) {
+        var spanIcon = document.createElement("span");
+        spanIcon.className = "run-icon";
+        spanIcon.textContent = "▶";
+        // Đưa icon vào trước text
+        if (runBtn.firstChild) {
+          runBtn.insertBefore(spanIcon, runBtn.firstChild);
+        } else {
+          runBtn.appendChild(spanIcon);
+        }
+      }
+    }
+  } catch (e) {
+    console && console.warn && console.warn("[scan-ui] enhance error:", e);
+  }
+})();
+
+</script>
+</body>
+</html>
+"""
+    status_cls = "idle"
+    status_text = status.get("status", "idle")
+    msg = status.get("msg", "")
+    if status_text:
+        s = status_text.lower()
+        if s == "running":
+            status_cls = "run"
+        elif s == "failed":
+            status_cls = "fail"
+        elif s == "done":
+            status_cls = "done"
+    return render_template_string(
+        html,
+        src=flask_request.args.get("src", ""),
+        status_cls=status_cls,
+        status_text=status_text,
+        msg=msg,
+    )
+
+
+@app.route("/")
+def root_redirect_to_v2():
+    """Redirect root / sang UI 5 tab (/v2)."""
+    from flask import redirect
+    return redirect("/ui5")
+
+@app.route("/")
+def index_ui5():
+    """Root redirect sang UI 5 tab mới."""
+    return redirect("/ui5")
+
+# ==== FORCE MAIN ENTRY ON PORT 8910 ====
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8910, debug=True)
+
+# === PM-STYLE REPORT ROUTE V2 (HTML/PDF) ===
+@app.route('/pm_report/<run_id>/<fmt>')
+def pm_style_report_v2(run_id, fmt):
+    """Serve PM-style HTML/PDF report cho một RUN_*"""
+    import os
+    from flask import abort, send_file
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    run_dir = os.path.join(base_dir, 'out', run_id, 'report')
+
+    if not os.path.isdir(run_dir):
+        abort(404)
+
+    if fmt == 'html':
+        candidates = ['pm_style_report.html', 'pm_style_report_print.html']
+    elif fmt == 'pdf':
+        candidates = ['pm_style_report.pdf', 'pm_style_report_print.pdf']
+    else:
+        abort(404)
+
+    for name in candidates:
+        p = os.path.join(run_dir, name)
+        if os.path.exists(p):
+            return send_file(p)
+
+    abort(404)

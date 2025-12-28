@@ -1,0 +1,165 @@
+/* VSP RunScan Commercial V1 */
+:root{
+  --vsp-accent: #6ee7ff;
+  --vsp-accent2:#a78bfa;
+  --vsp-good:#34d399;
+  --vsp-warn:#fbbf24;
+  --vsp-bad:#fb7185;
+  --vsp-muted:#94a3b8;
+  --vsp-border: rgba(255,255,255,0.08);
+  --vsp-surface:#0b1020;
+  --vsp-surface2:#0f1730;
+  --vsp-glow: 0 0 0 1px rgba(110,231,255,0.15), 0 18px 60px rgba(0,0,0,0.45);
+}
+
+.vsp-runscan-wrap{
+  margin-top: 14px;
+  border: 1px solid var(--vsp-border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(19,24,50,0.65), rgba(11,16,32,0.85));
+  box-shadow: var(--vsp-glow);
+  overflow: hidden;
+}
+
+.vsp-runscan-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(90deg, rgba(110,231,255,0.08), rgba(167,139,250,0.06));
+}
+.vsp-runscan-title{
+  display:flex; gap:10px; align-items:center;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.vsp-runscan-dot{
+  width:10px; height:10px; border-radius:50%;
+  background: radial-gradient(circle at 30% 30%, var(--vsp-accent), rgba(110,231,255,0.15));
+  box-shadow: 0 0 18px rgba(110,231,255,0.35);
+}
+.vsp-runscan-sub{
+  font-size:12px; color: var(--vsp-muted);
+  margin-top: 2px;
+}
+.vsp-runscan-body{
+  padding: 14px 16px 16px 16px;
+}
+
+.vsp-runscan-grid{
+  display:grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 14px;
+}
+@media (max-width: 1100px){
+  .vsp-runscan-grid{ grid-template-columns: 1fr; }
+}
+
+.vsp-runscan-field{
+  display:flex;
+  flex-direction:column;
+  gap: 8px;
+}
+.vsp-runscan-label{
+  font-size: 12px;
+  color: var(--vsp-muted);
+}
+.vsp-runscan-input, .vsp-runscan-select{
+  width:100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(8,12,26,0.8);
+  color: #e5e7eb;
+  outline: none;
+}
+.vsp-runscan-input:focus, .vsp-runscan-select:focus{
+  border-color: rgba(110,231,255,0.45);
+  box-shadow: 0 0 0 3px rgba(110,231,255,0.12);
+}
+
+.vsp-runscan-actions{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  flex-wrap: wrap;
+}
+.vsp-runscan-btn{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(15,23,48,0.9);
+  color:#e5e7eb;
+  cursor:pointer;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  user-select:none;
+}
+.vsp-runscan-btn:hover{
+  transform: translateY(-1px);
+  border-color: rgba(110,231,255,0.35);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.35);
+}
+.vsp-runscan-btn.primary{
+  border-color: rgba(110,231,255,0.35);
+  background: linear-gradient(90deg, rgba(110,231,255,0.18), rgba(167,139,250,0.14));
+}
+.vsp-runscan-btn.danger{
+  border-color: rgba(251,113,133,0.35);
+  background: rgba(251,113,133,0.08);
+}
+
+.vsp-runscan-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(8,12,26,0.7);
+  font-size: 12px;
+  color: #e5e7eb;
+}
+.vsp-runscan-pill .k{
+  color: var(--vsp-muted);
+}
+.vsp-runscan-pill.good{ border-color: rgba(52,211,153,0.35); }
+.vsp-runscan-pill.warn{ border-color: rgba(251,191,36,0.35); }
+.vsp-runscan-pill.bad{  border-color: rgba(251,113,133,0.35); }
+.vsp-runscan-pill.info{ border-color: rgba(110,231,255,0.30); }
+
+.vsp-runscan-log{
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(6,9,18,0.75);
+  overflow: hidden;
+}
+.vsp-runscan-log-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  color: var(--vsp-muted);
+  font-size: 12px;
+}
+.vsp-runscan-log-body{
+  max-height: 220px;
+  overflow:auto;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #d1d5db;
+  white-space: pre-wrap;
+}
+.vsp-runscan-kv{
+  display:grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px 10px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.vsp-runscan-kv .k{ color: var(--vsp-muted); }
+.vsp-runscan-kv .v{ color: #e5e7eb; word-break: break-all; }

@@ -1,0 +1,330 @@
+/* VSP tabs polish placeholder – tránh 404, có thể tinh chỉnh sau */
+.vsp-tabs-nav { }
+.vsp-tabs-nav button { }
+.vsp-tabs-content { }
+
+/* ===== [VSP][UI_POLISH_V1] Dashboard footer notes & table layout ===== */
+
+/* 3 dòng mô tả dưới Dashboard (Settings / Data Source / Rule Overrides) */
+.vsp-footer-note {
+  margin: 2px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #64748b; /* slate-500 */
+}
+
+.vsp-footer-note:first-of-type {
+  margin-top: 12px;
+}
+
+/* Thu gọn cột Location (path) trong các bảng dashboard, tránh tràn chữ */
+#vsp-dashboard-layout-full table tr > td:nth-child(2),
+#vsp-dashboard-layout-full table tr > th:nth-child(2) {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nhìn bảng gọn hơn một chút */
+#vsp-dashboard-layout-full table th,
+#vsp-dashboard-layout-full table td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* =========================================================
+ * [VSP][DASHBOARD_COMPACT_FINAL_V2]
+ * Mục tiêu:
+ *  - Bỏ max-height / overflow ẩn để không bị cắt nội dung.
+ *  - Bỏ zoom/scale làm mờ chữ.
+ *  - Giảm padding, chiều cao chart, padding bảng để Dashboard
+ *    gọn lại, nhìn “đủ 1 màn”, không thừa khoảng trắng.
+ * ======================================================= */
+
+/* 0) Shell không khoá max-height, cho phép nội dung tự nhiên */
+.vsp-shell {
+  min-height: 100vh;
+  max-height: none;
+  overflow: visible;
+}
+
+/* 1) Dashboard tab: giảm padding & margin dư */
+#tab-dashboard {
+  min-height: auto !important;
+  padding-top: 10px !important;
+  padding-bottom: 18px !important;
+  margin-bottom: 0 !important;
+}
+
+/* 2) Bỏ zoom/scale ở chế độ laptop 768–900px (tránh blur chữ) */
+@media (min-height: 700px) and (max-height: 900px) {
+  #tab-dashboard {
+    zoom: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* 3) Card Dashboard gọn hơn một chút */
+#tab-dashboard .vsp-card {
+  padding-top: 12px !important;
+  padding-bottom: 14px !important;
+}
+
+/* 4) KPI card bớt dày → giảm chiều cao tổng hàng KPI */
+#tab-dashboard .vsp-kpi-card {
+  padding: 8px 12px !important;
+}
+
+/* 5) Chart wrapper thấp hơn để toàn bộ phần donut + trend + bar
+ *    không đẩy bảng xuống quá sâu */
+#tab-dashboard .vsp-chart-canvas-wrapper {
+  height: 185px !important;
+}
+
+/* 6) Bảng phía dưới Dashboard: padding hàng nhỏ lại, giảm chiều cao */
+#tab-dashboard .vsp-table th,
+#tab-dashboard .vsp-table td {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+/* 7) Giảm khoảng cách dọc giữa các section lớn */
+#tab-dashboard .vsp-section,
+#tab-dashboard .vsp-row,
+#tab-dashboard .vsp-grid {
+  row-gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+/* 8) Badge góc phải trên cùng Dashboard không bị dính mép */
+#tab-dashboard .vsp-badge-top-right {
+  margin-right: 16px !important;
+}
+
+/* 9) Footer note 3 dòng dưới cùng sát lên, không có gap thừa */
+.vsp-footer-note {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+/* =========================================================
+ * [VSP][DASHBOARD_COMPACT_FINAL_V3]
+ * Ép Dashboard gọn lại, hạn chế scroll dọc.
+ * Ưu tiên override bằng selector cụ thể + !important.
+ * ======================================================= */
+
+/* 0) Chỉ cho phép scroll bên trong content, tránh scroll body 2 lớp */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.vsp-shell {
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.vsp-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.vsp-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-top: 10px !important;
+  padding-bottom: 8px !important;
+}
+
+/* 1) Tab Dashboard gọn hơn */
+#tab-dashboard {
+  padding-top: 4px !important;
+  padding-bottom: 8px !important;
+  margin-bottom: 0 !important;
+}
+
+/* 2) Hàng KPI mỏng lại */
+#tab-dashboard .vsp-kpi-card {
+  padding: 6px 10px !important;
+}
+
+/* 3) Giảm chiều cao chart */
+#tab-dashboard .vsp-chart-canvas-wrapper {
+  height: 165px !important;
+}
+
+/* 4) Bảng phía dưới: giảm padding hàng để không chiếm quá nhiều chiều cao */
+#tab-dashboard .vsp-table th,
+#tab-dashboard .vsp-table td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+}
+
+/* 5) Giảm khoảng cách giữa các block lớn */
+#tab-dashboard .vsp-section,
+#tab-dashboard .vsp-row,
+#tab-dashboard .vsp-grid,
+#tab-dashboard .row {
+  row-gap: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+/* 6) Badge góc trên bên phải không dính mép */
+#tab-dashboard .vsp-badge-top-right {
+  margin-right: 16px !important;
+}
+
+/* 7) Footer note gọn hơn ở cuối Dashboard */
+#tab-dashboard .vsp-footer-note {
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+}
+
+/* =========================================================
+   [VSP][DASHBOARD_COMPACT_FINAL_V3]
+   ép TAB 1 – Dashboard gọn lại trong 1 màn hình laptop 1366x768
+   ========================================================= */
+
+#tab-dashboard {
+  min-height: auto !important;
+  padding-top: 12px !important;
+  padding-bottom: 10px !important;
+  margin-bottom: 0 !important;
+}
+
+/* Giảm khoảng cách dọc giữa các block lớn */
+#tab-dashboard .vsp-section {
+  margin-bottom: 10px !important;
+  padding-top: 6px !important;
+  padding-bottom: 8px !important;
+}
+
+/* Giảm row-gap chung trong dashboard */
+#tab-dashboard .vsp-row,
+#tab-dashboard .vsp-grid {
+  row-gap: 8px !important;
+}
+
+/* KPI cards: thấp hơn, padding mỏng lại */
+#tab-dashboard .vsp-kpi-card {
+  padding: 8px 10px !important;
+  min-height: 82px !important;
+}
+
+/* Hàng 3 chart: cao ít hơn một chút */
+#tab-dashboard .vsp-chart-row {
+  margin-top: 8px !important;
+}
+
+#tab-dashboard .vsp-chart-canvas-wrapper {
+  height: 170px !important;
+  max-height: 170px !important;
+}
+
+/* Bảng phía dưới: font nhỏ + padding mỏng để tiết kiệm height */
+#tab-dashboard .vsp-table {
+  margin-top: 2px !important;
+  margin-bottom: 4px !important;
+}
+
+#tab-dashboard .vsp-table th,
+#tab-dashboard .vsp-table td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  font-size: 10px !important;
+}
+
+/* Nếu có wrapper hàng bảng cuối cùng thì giảm gap */
+#tab-dashboard .vsp-bottom-row {
+  margin-top: 8px !important;
+}
+
+/* Thu nhỏ riêng Dashboard ~92% để cố fit full 768px */
+@media (min-height: 720px) and (max-height: 900px) {
+  #tab-dashboard {
+    transform: scale(0.92);
+    transform-origin: top left;
+  }
+}
+
+/* Đảm bảo sau khi scale không bị xuất hiện khoảng trắng dưới */
+.vsp-content {
+  padding-bottom: 8px !important;
+}
+
+
+/* =========================================================
+   [VSP][DASHBOARD_COMPACT_V4_FINAL]
+   Tối ưu TAB 1 – Dashboard cho màn hình ~1366x768
+   - Nén header + content padding
+   - Giảm chiều cao chart và table
+   - Scale toàn bộ tab xuống ~86% để fit 1 màn
+   ========================================================= */
+
+@media (min-width: 1300px) and (max-width: 1500px)
+       and (min-height: 720px) and (max-height: 820px) {
+
+  /* Header & content đỡ tốn chiều cao */
+  .vsp-header {
+    padding: 8px 20px !important;
+  }
+
+  .vsp-content {
+    padding-top: 10px !important;
+    padding-bottom: 4px !important;
+  }
+
+  /* Toàn bộ Dashboard thu lại 86% */
+  #tab-dashboard {
+    transform: scale(0.86) !important;
+    transform-origin: top left !important;
+    min-height: auto !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Giảm chiều cao các chart */
+  #tab-dashboard .vsp-chart-canvas-wrapper {
+    height: 150px !important;
+    max-height: 150px !important;
+  }
+
+  /* Giảm padding & font bảng phía dưới */
+  #tab-dashboard .vsp-table {
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+  }
+
+  #tab-dashboard .vsp-table th,
+  #tab-dashboard .vsp-table td {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    font-size: 9px !important;
+  }
+
+  /* Các block lớn bớt gap dọc */
+  #tab-dashboard .vsp-section {
+    margin-bottom: 6px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  #tab-dashboard .vsp-row,
+  #tab-dashboard .vsp-grid {
+    row-gap: 6px !important;
+  }
+
+  /* KPI cards mỏng & thấp hơn */
+  #tab-dashboard .vsp-kpi-card {
+    padding: 6px 10px !important;
+    min-height: 72px !important;
+  }
+}
+

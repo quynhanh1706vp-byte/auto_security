@@ -1,0 +1,150 @@
+<div id="vsp-dashboard-main"
+     style="padding:24px 32px 32px 32px; color:#E5E7EB; font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;">
+
+  <!-- Header nhỏ mô tả -->
+  <div style="margin-bottom:16px;">
+    <div style="font-size:13px; opacity:0.7;">
+      CIO-level view · auto refresh from <code>/api/vsp/dashboard_v3</code>
+    </div>
+  </div>
+
+  
+  <!-- KPI ZONE -->
+  <div class="vsp-kpi-zone">
+
+    <!-- Hàng 1: 5 KPI chính -->
+    <div class="vsp-kpi-row vsp-kpi-row-main">
+      <!-- TOTAL FINDINGS -->
+      <div class="vsp-kpi-card">
+        <div class="vsp-kpi-label">TOTAL FINDINGS</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-total-findings">--</div>
+        <div class="vsp-kpi-subtitle">Tổng số phát hiện trong lần scan mới nhất.</div>
+      </div>
+
+      <!-- SECURITY SCORE -->
+      <div class="vsp-kpi-card">
+        <div class="vsp-kpi-label">SECURITY SCORE</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-score">--</div>
+        <div class="vsp-kpi-subtitle">0–100 (higher is better)</div>
+      </div>
+
+      <!-- TOP RISKY TOOL -->
+      <div class="vsp-kpi-card">
+        <div class="vsp-kpi-label">TOP RISKY TOOL</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-top-tool">--</div>
+        <div class="vsp-kpi-subtitle">Tool sinh nhiều CRITICAL/HIGH nhất.</div>
+      </div>
+
+      <!-- TOP IMPACTED CWE -->
+      <div class="vsp-kpi-card">
+        <div class="vsp-kpi-label">TOP IMPACTED CWE</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-top-cwe">--</div>
+        <div class="vsp-kpi-subtitle">Mã CWE bị ảnh hưởng nhiều nhất.</div>
+      </div>
+
+      <!-- TOP VULNERABLE MODULE -->
+      <div class="vsp-kpi-card">
+        <div class="vsp-kpi-label">TOP VULNERABLE MODULE</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-top-module">--</div>
+        <div class="vsp-kpi-subtitle">Thư viện / path có rủi ro cao nhất.</div>
+      </div>
+    </div>
+
+    <!-- Hàng 2: 6 severity bucket -->
+    <div class="vsp-kpi-row vsp-kpi-row-severity">
+      <div class="vsp-kpi-card vsp-kpi-severity-pill">
+        <div class="vsp-kpi-label">CRITICAL</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-sev-critical">--</div>
+      </div>
+      <div class="vsp-kpi-card vsp-kpi-severity-pill">
+        <div class="vsp-kpi-label">HIGH</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-sev-high">--</div>
+      </div>
+      <div class="vsp-kpi-card vsp-kpi-severity-pill">
+        <div class="vsp-kpi-label">MEDIUM</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-sev-medium">--</div>
+      </div>
+      <div class="vsp-kpi-card vsp-kpi-severity-pill">
+        <div class="vsp-kpi-label">LOW</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-sev-low">--</div>
+      </div>
+      <div class="vsp-kpi-card vsp-kpi-severity-pill">
+        <div class="vsp-kpi-label">INFO</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-sev-info">--</div>
+      </div>
+      <div class="vsp-kpi-card vsp-kpi-severity-pill">
+        <div class="vsp-kpi-label">TRACE</div>
+        <div class="vsp-kpi-value" id="vsp-kpi-sev-trace">--</div>
+      </div>
+    </div>
+
+  </div>
+  <!-- CHART ZONE -->
+<!-- CHART ZONE -->
+  <div>
+    <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.7; margin-bottom:4px;">
+      Charts
+    </div>
+    <div style="font-size:12px; opacity:0.7; margin-bottom:12px;">
+      Severity, trend, tool risk, top CWE / module
+    </div>
+
+    <!-- Row 1: severity + trend -->
+    <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+      <div style="flex:1 1 360px; min-height:220px; border-radius:14px;
+                  background:rgba(15,23,42,0.9); border:1px solid rgba(30,64,175,0.6); padding:16px;">
+        <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">Severity Distribution</div>
+        <div id="vsp-chart-severity"
+             style="width:100%; height:170px;"></div>
+      </div>
+
+      <div style="flex:1 1 360px; min-height:220px; border-radius:14px;
+                  background:rgba(15,23,42,0.9); border:1px solid rgba(30,64,175,0.35); padding:16px;">
+        <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">Findings Trend</div>
+        <div style="font-size:11px; opacity:0.6; margin-bottom:4px;">Total findings per scan (latest runs)</div>
+        <div id="vsp-chart-trend"
+             style="width:100%; height:170px;"></div>
+      </div>
+    </div>
+
+    <!-- Row 2: by tool + top CWE -->
+    <div style="display:flex; flex-wrap:wrap; gap:16px;">
+      <div style="flex:1 1 360px; min-height:220px; border-radius:14px;
+                  background:rgba(15,23,42,0.9); border:1px solid rgba(30,64,175,0.35); padding:16px;">
+        <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">Critical / High by Tool</div>
+          <div id="vsp-chart-by-tool" class="vsp-chart-box"></div>
+
+        <div style="font-size:11px; opacity:0.6; margin-bottom:4px;">
+          Top security tools (Semgrep, CodeQL, Gitleaks, ...)
+        </div>
+        <div id="vsp-chart-bytool"
+             style="width:100%; height:170px;"></div>
+      </div>
+
+      <div style="flex:1 1 360px; min-height:220px; border-radius:14px;
+                  background:rgba(15,23,42,0.9); border:1px solid rgba(30,64,175,0.35); padding:16px;">
+        <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">Top CWE Exposure</div>
+          <div id="vsp-chart-top-cwe" class="vsp-chart-box"></div>
+
+        <div style="font-size:11px; opacity:0.6; margin-bottom:4px;">
+          Top weaknesses by total findings
+        </div>
+        <div id="vsp-chart-topcwe"
+             style="width:100%; height:170px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/static/js/vsp_tabs_hash_router_v1.js" defer></script>
+<script src="/static/js/vsp_dashboard_enhance_v1.js?v=20251217_070656" defer></script>
+<script src="/static/js/vsp_dashboard_cleanup_v1.js?v=20251217_070656" defer></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/vsp_dashboard_charts_v2.js?v=20251217_070656" defer></script>
+
+<script src="/static/js/vsp_runs_tab_simple_v2.js" defer></script>
+<script src="/static/js/vsp_datasource_tab_simple_v1.js" defer></script>
+<script src="/static/js/vsp_settings_tab_simple_v1.js" defer></script>
+<script src="/static/js/vsp_rules_tab_simple_v1.js" defer></script>
+</body>
+</html>

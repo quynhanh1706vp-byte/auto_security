@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Server: gunicorn
+Date: Fri, 19 Dec 2025 07:46:39 GMT
+Connection: keep-alive
+Content-Disposition: attachment; filename=khach6_RUN_20251129_143155_027307.reports.20251219_144639.tgz
+Content-Type: application/gzip
+Content-Length: 243
+Last-Modified: Fri, 19 Dec 2025 07:46:39 GMT
+Cache-Control: no-cache
+ETag: "1766130399.6327891-243-3883147811"
+X-VSP-FILLREAL: P1_V5
+

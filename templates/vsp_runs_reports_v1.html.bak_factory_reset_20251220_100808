@@ -1,0 +1,74 @@
+<!-- VSP_RUNS_MIN_PAGE_P0_V2 -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>VSP Runs & Reports</title>
+  <style>
+    :root{ color-scheme: dark; }
+    body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+          background:#070b14; color:#d6e2ff; }
+    .wrap{ max-width:1200px; margin:0 auto; padding:18px 16px 40px; }
+    h1{ font-size:18px; margin:0 0 10px; letter-spacing:.2px; }
+    .bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:10px 0 12px; }
+    input, select{ background:#0b1222; border:1px solid rgba(255,255,255,.10); color:#d6e2ff;
+                   padding:8px 10px; border-radius:10px; outline:none; }
+    .btn2{ background:#0b1222; border:1px solid rgba(255,255,255,.10); color:#d6e2ff; padding:8px 10px;
+           border-radius:10px; cursor:pointer; }
+    .meta{ opacity:.75; font-size:12px; }
+    .banner{ display:none; margin:10px 0; padding:10px 12px; border-radius:12px; font-size:13px; }
+    .banner.warn{ background:rgba(255,200,0,.10); border:1px solid rgba(255,200,0,.35); }
+    .banner.err{ background:rgba(255,70,70,.10); border:1px solid rgba(255,70,70,.35); }
+    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:14px;
+           border:1px solid rgba(255,255,255,.08); }
+    thead th{ text-align:left; font-size:12px; opacity:.75; padding:10px 12px; background:#0a1020; }
+    tbody td{ padding:10px 12px; border-top:1px solid rgba(255,255,255,.06); vertical-align:top; }
+    code.rid{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New";
+              font-size:12px; }
+    .has{ display:flex; gap:10px; flex-wrap:wrap; font-family: ui-monospace, monospace; font-size:12px; }
+    .ok{ color:#7CFFB6; }
+    .no{ color:#ff7a7a; }
+    a.btn{ display:inline-block; padding:6px 10px; border-radius:10px; margin-right:6px;
+           border:1px solid rgba(255,255,255,.10); background:#0b1222; color:#d6e2ff; text-decoration:none; }
+    a.btn:hover, .btn2:hover{ filter:brightness(1.08); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>VSP Runs & Reports</h1>
+    <div class="meta">Marker: <b>VSP_RUNS_MIN_PAGE_P0_V2</b> · Runs loaded: <b id="runs_loaded">0</b></div>
+
+    <div class="bar">
+      <button class="btn2" id="reload">Reload</button>
+      <label class="meta">limit:
+        <select id="limit">
+          <option>20</option>
+          <option>50</option>
+          <option selected>200</option>
+          <option>500</option>
+        </select>
+      </label>
+      <input id="q" placeholder="Filter by run_id..." size="28"/>
+      <span class="meta">API: <code>/api/vsp/runs</code></span>
+    </div>
+
+    <div id="banner" class="banner warn"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:55%">Run</th>
+          <th style="width:25%">Artifacts</th>
+          <th style="width:20%">Quick open</th>
+        </tr>
+      </thead>
+      <tbody id="runs_tbody">
+        <tr><td colspan="3" class="meta">Booting…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script src="/static/js/vsp_runs_page_min_p0_v2.js?v=20251220_100253"></script>
+</body>
+</html>

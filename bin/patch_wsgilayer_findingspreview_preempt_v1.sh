@@ -1,0 +1,323 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+F="wsgi_vsp_ui_gateway_exportpdf_only.py"
+[ -f "$F" ] || { echo "[ERR] missing $F"; exit 2; }
+
+TS="$(date +%Y%m%d_%H%M%S)"
+cp -f "$F" "$F.bak_findings_preempt_${TS}"
+echo "[BACKUP] $F.bak_findings_preempt_${TS}"
+
+cat > "$F" <<'PY'
+import os, glob, json, fnmatch
+from urllib.parse import parse_qs
+import wsgi_vsp_ui_gateway as base
+
+def _now_iso():
+    import datetime
+    return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+def _ovr_path():
+    return os.environ.get("VSP_RULE_OVERRIDES_FILE") or "/home/test/Data/SECURITY_BUNDLE/ui/out_ci/vsp_rule_overrides_v1.json"
+
+def _load_ovr():
+    path = _ovr_path()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            obj = json.load(f)
+    except Exception:
+        obj = {"version": 1, "updated_at": None, "items": []}
+    if not isinstance(obj, dict):
+        obj = {"version": 1, "updated_at": None, "items": []}
+    obj.setdefault("version", 1)
+    obj.setdefault("updated_at", None)
+    obj.setdefault("items", [])
+    if not isinstance(obj["items"], list):
+        obj["items"] = []
+    return obj
+
+def _atomic_write(path, obj):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+def _norm_sev(s):
+    if s is None:
+        return "INFO"
+    x = str(s).strip().upper()
+    m = {
+        "CRITICAL":"CRITICAL","HIGH":"HIGH","MEDIUM":"MEDIUM","LOW":"LOW","INFO":"INFO","TRACE":"TRACE",
+        "WARN":"LOW","WARNING":"LOW","ERROR":"MEDIUM","ERR":"MEDIUM","NOTE":"INFO","UNKNOWN":"INFO","NONE":"INFO"
+    }
+    return m.get(x, "INFO")
+
+def _match_one(f, m):
+    if not isinstance(m, dict):
+        return False
+    for k in ("rule_id","tool","cwe"):
+        if m.get(k):
+            if str(f.get(k,"")) != str(m.get(k,"")):
+                return False
+    pg = m.get("path_glob")
+    if pg:
+        path = f.get("path") or f.get("file") or f.get("filename") or ""
+        if not fnmatch.fnmatch(path, pg):
+            return False
+    mc = m.get("message_contains")
+    if mc:
+        msg = f.get("message") or f.get("title") or ""
+        if str(mc).lower() not in str(msg).lower():
+            return False
+    return True
+
+def _apply_overrides(items, overrides, show_suppressed=False):
+    applied = {"suppressed": 0, "downgraded": 0}
+    out = []
+    for f in (items or []):
+        if not isinstance(f, dict):
+            out.append(f); continue
+        f["severity_norm"] = _norm_sev(f.get("severity") or f.get("severity_norm") or f.get("level"))
+        suppressed = False
+        for r in overrides.get("items", []) or []:
+            if not isinstance(r, dict):
+                continue
+            if not _match_one(f, r.get("match", {}) or {}):
+                continue
+            act = (r.get("action") or "").lower().strip()
+            if act == "suppress":
+                suppressed = True
+                f["suppressed"] = True
+                f["override_action"] = "suppress"
+                f["override_id"] = r.get("id")
+                f["override_justification"] = r.get("justification")
+                applied["suppressed"] += 1
+                break
+            if act == "downgrade":
+                newsev = _norm_sev(r.get("set_severity") or "INFO")
+                if f.get("severity_norm") != newsev:
+                    f["severity_orig"] = f.get("severity_norm")
+                    f["severity_norm"] = newsev
+                    f["override_action"] = "downgrade"
+                    f["override_id"] = r.get("id")
+                    f["override_justification"] = r.get("justification")
+                    applied["downgraded"] += 1
+        if suppressed and not show_suppressed:
+            continue
+        out.append(f)
+    return out, applied
+
+def _norm_rid(rid: str) -> str:
+    rid = (rid or "").strip()
+    return rid[4:] if rid.startswith("RUN_") else rid
+
+def _resolve_ci_dir(rid: str) -> str:
+    rn = _norm_rid(rid)
+    root = os.environ.get("VSP_CI_OUT_ROOT") or "/home/test/Data/SECURITY-10-10-v4/out_ci"
+    cand = os.path.join(root, rn)
+    if os.path.isdir(cand):
+        return cand
+    for d in sorted(glob.glob(os.path.join(root, "VSP_CI_*")), reverse=True):
+        if rn in os.path.basename(d):
+            return d
+    return ""
+
+def _pick_latest(paths):
+    best = ""
+    best_m = -1.0
+    for f in paths:
+        try:
+            m = os.path.getmtime(f)
+        except Exception:
+            continue
+        if m > best_m:
+            best_m = m
+            best = f
+    return best
+
+def _pick_pdf(ci_dir: str) -> str:
+    cands = []
+    for pat in (os.path.join(ci_dir, "reports", "*.pdf"), os.path.join(ci_dir, "*.pdf")):
+        cands.extend(glob.glob(pat))
+    return _pick_latest([f for f in cands if os.path.isfile(f)])
+
+def _pick_findings(ci_dir: str) -> str:
+    cands = []
+    # prefer canonical
+    cands += [os.path.join(ci_dir, "reports", "findings_unified.json")]
+    cands += [os.path.join(ci_dir, "findings_unified.json")]
+    # fallback patterns
+    cands += glob.glob(os.path.join(ci_dir, "reports", "findings_unified*.json"))
+    cands += glob.glob(os.path.join(ci_dir, "findings_unified*.json"))
+    cands = [f for f in cands if os.path.isfile(f)]
+    return _pick_latest(cands)
+
+def _json_response(start_response, code: int, obj: dict, layer: str):
+    body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+    status = "200 OK" if code == 200 else f"{code} ERROR"
+    start_response(status, [
+        ("Content-Type","application/json"),
+        ("Content-Length", str(len(body))),
+        ("X-VSP-WSGI-LAYER", layer),
+    ])
+    return [body]
+
+class CommercialPreemptApp:
+    def __init__(self, inner):
+        self.inner = inner
+
+    def __call__(self, environ, start_response):
+        path = (environ.get("PATH_INFO") or "").strip()
+        method = (environ.get("REQUEST_METHOD") or "GET").upper().strip()
+        q = parse_qs(environ.get("QUERY_STRING", "") or "")
+
+        # (1) Rule Overrides API
+        if path == "/api/vsp/rule_overrides_v1":
+            try:
+                if method == "GET":
+                    return _json_response(start_response, 200, _load_ovr(), "RULE_OVERRIDES_V1")
+                if method == "POST":
+                    try:
+                        length = int(environ.get("CONTENT_LENGTH") or "0")
+                    except Exception:
+                        length = 0
+                    raw = (environ.get("wsgi.input").read(length) if length > 0 else b"") or b"{}"
+                    obj = json.loads(raw.decode("utf-8", errors="ignore") or "{}")
+                    if not isinstance(obj, dict):
+                        raise ValueError("invalid_json")
+                    obj.setdefault("version", 1)
+                    obj.setdefault("items", [])
+                    if not isinstance(obj["items"], list):
+                        raise ValueError("items_must_be_list")
+
+                    norm_items = []
+                    for it in obj["items"]:
+                        if not isinstance(it, dict):
+                            continue
+                        action = (it.get("action") or "").lower().strip()
+                        if action not in ("suppress","downgrade"):
+                            continue
+                        just = (it.get("justification") or "").strip()
+                        if not just:
+                            continue
+                        match = it.get("match") or {}
+                        if not isinstance(match, dict):
+                            match = {}
+                        out = {
+                            "id": it.get("id") or f"ovr_{int(__import__('time').time()*1000)}",
+                            "match": match,
+                            "action": action,
+                            "justification": just,
+                            "expires_at": it.get("expires_at") or None,
+                        }
+                        if action == "downgrade":
+                            out["set_severity"] = _norm_sev(it.get("set_severity") or "INFO")
+                        norm_items.append(out)
+
+                    obj["items"] = norm_items
+                    obj["updated_at"] = _now_iso()
+                    _atomic_write(_ovr_path(), obj)
+                    return _json_response(start_response, 200, obj, "RULE_OVERRIDES_V1")
+
+                return _json_response(start_response, 405, {"ok": False, "error": "METHOD_NOT_ALLOWED"}, "RULE_OVERRIDES_V1")
+            except Exception as e:
+                return _json_response(start_response, 500, {"ok": False, "error": "RULE_OVERRIDES_ERR", "detail": str(e)}, "RULE_OVERRIDES_V1")
+
+        # (2) Export PDF
+        if path.startswith("/api/vsp/run_export_v3/"):
+            fmt = (q.get("fmt", ["html"])[0] or "html").lower().strip()
+            if fmt == "pdf":
+                rid = path.split("/api/vsp/run_export_v3/", 1)[1].strip("/")
+                ci_dir = _resolve_ci_dir(rid)
+                pdf = _pick_pdf(ci_dir) if ci_dir else ""
+                if pdf and os.path.isfile(pdf):
+                    size = os.path.getsize(pdf)
+                    start_response("200 OK", [
+                        ("Content-Type", "application/pdf"),
+                        ("Content-Disposition", f'attachment; filename="{os.path.basename(pdf)}"'),
+                        ("Content-Length", str(size)),
+                        ("X-VSP-EXPORT-AVAILABLE", "1"),
+                        ("X-VSP-EXPORT-FILE", os.path.basename(pdf)),
+                        ("X-VSP-WSGI-LAYER", "EXPORTPDF_ONLY"),
+                    ])
+                    return open(pdf, "rb")
+                return _json_response(start_response, 404, {"ok": False, "http_code": 404, "error": "PDF_NOT_FOUND", "ci_run_dir": ci_dir or None}, "EXPORTPDF_ONLY")
+
+        # (3) Findings preview (PREEMPT — fix inner 500 HTML)
+        if path.startswith("/api/vsp/findings_preview_v1/") and method == "GET":
+            rid = path.split("/api/vsp/findings_preview_v1/", 1)[1].strip("/")
+            ci_dir = _resolve_ci_dir(rid)
+            limit = q.get("limit", [None])[0]
+            try:
+                limit_n = int(limit) if limit else None
+            except Exception:
+                limit_n = None
+            show_supp = (q.get("show_suppressed", ["0"])[0] or "0").strip().lower() in ("1","true","yes","on")
+
+            fpath = _pick_findings(ci_dir) if ci_dir else ""
+            if not fpath:
+                obj = {
+                    "ok": True,
+                    "rid": rid,
+                    "ci_run_dir": ci_dir or None,
+                    "has_findings": False,
+                    "total": 0,
+                    "warning": "findings_file_not_found",
+                    "file": None,
+                    "items": [],
+                }
+                obj["rule_overrides"] = {"updated_at": _load_ovr().get("updated_at"), "applied": {"suppressed": 0, "downgraded": 0}, "show_suppressed": show_supp}
+                return _json_response(start_response, 200, obj, "FINDINGS_PREEMPT_V1")
+
+            try:
+                raw = json.load(open(fpath, "r", encoding="utf-8"))
+            except Exception as e:
+                return _json_response(start_response, 500, {"ok": False, "error": "FINDINGS_PARSE_FAILED", "file": fpath, "detail": str(e)}, "FINDINGS_PREEMPT_V1")
+
+            # normalize list
+            if isinstance(raw, dict):
+                items = raw.get("items") if isinstance(raw.get("items"), list) else raw.get("findings") if isinstance(raw.get("findings"), list) else []
+            elif isinstance(raw, list):
+                items = raw
+            else:
+                items = []
+
+            total = len(items)
+            if limit_n is not None:
+                items = items[:limit_n]
+
+            overrides = _load_ovr()
+            items2, applied = _apply_overrides(items, overrides, show_suppressed=show_supp)
+
+            obj = {
+                "ok": True,
+                "rid": rid,
+                "ci_run_dir": ci_dir or None,
+                "has_findings": len(items2) > 0,
+                "total": total,
+                "items_n": len(items2),
+                "file": fpath,
+                "items": items2,
+                "rule_overrides": {"updated_at": overrides.get("updated_at"), "applied": applied, "show_suppressed": show_supp},
+            }
+            return _json_response(start_response, 200, obj, "FINDINGS_PREEMPT_V1")
+
+        # default passthrough
+        return self.inner(environ, start_response)
+
+_inner = getattr(base, "application", None) or getattr(base, "app", None)
+application = CommercialPreemptApp(_inner)
+
+try:
+    print("[VSP_WSGI_COMMERCIAL_PREEMPT] installed (exportpdf + rule_overrides + findings_preempt)")
+except Exception:
+    pass
+PY
+
+python3 -m py_compile "$F"
+echo "[OK] py_compile OK"
+
+rm -f out_ci/ui_8910.lock
+/home/test/Data/SECURITY_BUNDLE/ui/bin/restart_8910_gunicorn_commercial_v5.sh

@@ -1,0 +1,29 @@
+{
+  "generated_at": "2025-12-13T05:39:50Z",
+  "run_id": "RUN_VSP_CI_20251213_121928",
+  "findings_total": 0,
+  "by_severity": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0,
+    "INFO": 0,
+    "TRACE": 0
+  },
+  "by_tool": {
+    "kics": {
+      "total": 0,
+      "by_severity": {
+        "CRITICAL": 0,
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "INFO": 0,
+        "TRACE": 0
+      }
+    }
+  },
+  "top_cwe": [],
+  "top_rules": [],
+  "top_files": []
+}

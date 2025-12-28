@@ -1,0 +1,438 @@
+
+/* ===================== VSP_P0_CIO_KPI_NO_NA_CONSIST_V1P4 ===================== */
+(function(){
+  try{
+    if (window.__VSP_CIO_KPI_V1P4__) return;
+    window.__VSP_CIO_KPI_V1P4__ = true;
+
+    function _num(v){
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+    function _upperKey(k){ try{return String(k||"").toUpperCase();}catch(e){return "";} }
+
+    function _extractSevBag(obj){
+      if(!obj || typeof obj !== "object") return null;
+      return obj.counts_by_severity || obj.by_severity || obj.severity || obj.counts || null;
+    }
+
+    window.__vspCioNormalizeCountsV1P4 = function(obj){
+      try{
+        if(!obj || typeof obj !== "object") return obj;
+
+        // normalize severity bucket
+        const bag = _extractSevBag(obj);
+        const sev = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0, INFO:0, TRACE:0 };
+        if (bag && typeof bag === "object"){
+          for (const k in bag){
+            const uk = _upperKey(k);
+            if (uk in sev) sev[uk] = _num(bag[k]);
+          }
+        }
+
+        // prefer explicit totals if present, else compute from sev
+        const explicitTotal =
+          obj.total ??
+          obj.total_findings ??
+          obj.findings_total ??
+          (obj.counts_total && (obj.counts_total.TOTAL ?? obj.counts_total.total)) ??
+          null;
+
+        const computedTotal = sev.CRITICAL + sev.HIGH + sev.MEDIUM + sev.LOW + sev.INFO + sev.TRACE;
+        const total = _num(explicitTotal) || computedTotal;
+
+        // stamp back stable keys (no —)
+        obj.total = total;
+        obj.total_findings = total;
+        obj.findings_total = total;
+
+        obj.critical = _num(obj.critical) || sev.CRITICAL;
+        obj.high = _num(obj.high) || sev.HIGH;
+
+        obj.counts_by_severity = { ...sev };
+        obj.by_severity = { ...sev };
+
+        // stable counts_total shape
+        obj.counts_total = { ...sev, TOTAL: total };
+
+        return obj;
+      }catch(e){ return obj; }
+    };
+
+    window.__vspCioNormalizePayloadV1P4 = function(payload){
+      try{
+        if(!payload || typeof payload !== "object") return payload;
+
+        // common containers
+        const cands = [
+          payload,
+          payload.data,
+          payload.dashboard,
+          payload.summary,
+          payload.gate,
+          payload.run_gate,
+          payload.run,
+          payload.counts_total
+        ];
+        for (const c of cands){
+          if (c && typeof c === "object") window.__vspCioNormalizeCountsV1P4(c);
+        }
+
+        // if payload has counts_total as object with sev keys, also ensure TOTAL
+        if (payload.counts_total && typeof payload.counts_total === "object"){
+          const sev = { CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0 };
+          for (const k in payload.counts_total){
+            const uk = _upperKey(k);
+            if (uk in sev) sev[uk] = _num(payload.counts_total[k]);
+          }
+          const tot = _num(payload.counts_total.TOTAL ?? payload.counts_total.total) || (sev.CRITICAL+sev.HIGH+sev.MEDIUM+sev.LOW+sev.INFO+sev.TRACE);
+          payload.counts_total = { ...sev, TOTAL: tot };
+        }
+
+        return payload;
+      }catch(e){ return payload; }
+    };
+
+    // scrub any "—" appearing in UI (CIO trust)
+    function scrubNA(root){
+      try{
+        root = root || document;
+        const nodes = root.querySelectorAll("*");
+        for (const n of nodes){
+          const t = (n && n.childNodes && n.childNodes.length===1 && n.childNodes[0].nodeType===3) ? (n.textContent||"") : "";
+          if(!t) continue;
+          if (t.trim() === "—" || t.trim() === "not available"){
+            n.textContent = "0";
+            n.setAttribute("title","No data for this run");
+          }
+          // common pattern: "Total findings: —"
+          if (t.includes("—")){
+            const tt = t.replace(/\bN\/A\b/g, "0").replace(/not available/gi,"0");
+            if (tt !== t){
+              n.textContent = tt;
+              n.setAttribute("title","No data for this run");
+            }
+          }
+        }
+      }catch(e){}
+    }
+
+    function attachObserver(){
+      try{
+        scrubNA(document);
+        const obs = new MutationObserver(function(){ scrubNA(document); });
+        obs.observe(document.documentElement || document.body, { childList:true, subtree:true, characterData:true });
+      }catch(e){}
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", attachObserver, { once:true });
+    else attachObserver();
+
+  }catch(e){}
+})();
+/* ===================== /VSP_P0_CIO_KPI_NO_NA_CONSIST_V1P4 ===================== */
+
+
+/* ===================== VSP_P0_COMMERCIAL_UX_POLISH_V1P0 =====================
+   1) CIO KPI: never show "—"/"not available" -> show 0 or "—" + tooltip
+   2) Remove debug/internal strings: Unified data source..., file paths
+============================================================================ */
+
+(function(){
+  try{
+    if (window.__VSP_CIO_POLISH_V1P0__) return;
+    window.__VSP_CIO_POLISH_V1P0__ = true;
+
+    function isBad(v){
+      if (v === null || v === undefined) return true;
+      const t = (typeof v === "string") ? v.trim().toLowerCase() : "";
+      return t === "n/a" || t === "na" || t === "not available" || t === "none" || t === "null" || t === "undefined";
+    }
+    function toNum(v){
+      if (typeof v === "number" && isFinite(v)) return v;
+      if (typeof v === "string"){
+        const x = Number(v.replace(/,/g,"").trim());
+        if (isFinite(x)) return x;
+      }
+      return 0;
+    }
+    function fmtVal(v, mode){
+      // mode: "num" -> always number, "dash" -> "—" when bad
+      if (mode === "dash") return isBad(v) ? "—" : String(v);
+      return String(toNum(v));
+    }
+
+    // scrub visible debug strings in DOM (safe, idempotent)
+    function scrubText(root){
+      try{
+        const w = root || document;
+        const bad = [
+          /Unified data source\s+[^\n]+/ig,
+          /findings_unified\.json/ig,
+          /\/home\/test\/[^\s"'<>]+/ig
+        ];
+        const nodes = w.querySelectorAll ? w.querySelectorAll("*") : [];
+        for(const el of nodes){
+          if (!el || !el.childNodes) continue;
+          for(const n of el.childNodes){
+            if (!n || n.nodeType !== 3) continue; // text node
+            let t = n.nodeValue || "";
+            let changed = t;
+            changed = changed.replace(/Unified data source\s+findings_unified\.json/ig, "Unified Findings (8 tools)");
+            for(const rx of bad){
+              changed = changed.replace(rx, function(m){
+                if (/Unified data source/i.test(m)) return "Unified Findings (8 tools)";
+                return "";
+              });
+            }
+            if (changed !== t) n.nodeValue = changed;
+          }
+        }
+      }catch(e){}
+    }
+
+    // Patch KPI rendering by wrapping common global render hooks if they exist
+    const old = window.__vspRenderKpiCard;
+    window.__vspRenderKpiCard = function(el, label, value, opts){
+      try{
+        const mode = (opts && opts.mode) ? opts.mode : "num";
+        const shown = fmtVal(value, mode);
+        if (el){
+          el.textContent = shown;
+          if (shown === "—" || shown === "0"){
+            el.title = (opts && opts.title) ? opts.title : "No data for this run. Select a valid RID.";
+          }
+        }
+      }catch(e){}
+      if (typeof old === "function") return old(el, label, value, opts);
+    };
+
+    // Global helper for any KPI setter in this file
+    window.__vspCioKpiSet = function(sel, v, mode){
+      try{
+        const el = document.querySelector(sel);
+        if (!el) return;
+        const shown = fmtVal(v, mode||"num");
+        el.textContent = shown;
+        if (shown === "—" || shown === "0"){
+          el.title = "No data for this run. Select a valid RID.";
+        }
+      }catch(e){}
+    };
+
+    // run once + on next ticks (after async loads)
+    function bootScrub(){
+      scrubText(document);
+      setTimeout(()=>scrubText(document), 500);
+      setTimeout(()=>scrubText(document), 1500);
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootScrub, { once:true });
+    else bootScrub();
+
+  }catch(e){}
+})();
+ /* ===================== /VSP_P0_COMMERCIAL_UX_POLISH_V1P0 ===================== */
+
+/* VSP_P0_FINDINGS_MISSING_BANNER_V1
+ * Show banner when: findings_unified is missing/empty BUT counts_total > 0 for the run.
+ * Button: Open Data Source -> /data_source?rid=...
+ */
+(function(){
+  "use strict";
+
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+
+  function getRID(){
+    try{
+      const u = new URL(window.location.href);
+      return (u.searchParams.get("rid")||"").trim();
+    }catch(e){ return ""; }
+  }
+
+  function sumCounts(obj){
+    if(!obj || typeof obj !== "object") return 0;
+    let s = 0;
+    for(const k of Object.keys(obj)){
+      const v = obj[k];
+      if(typeof v === "number" && isFinite(v)) s += v;
+      else if(v && typeof v === "object"){
+        // tolerate nested
+        for(const kk of Object.keys(v)){
+          const vv = v[kk];
+          if(typeof vv === "number" && isFinite(vv)) s += vv;
+        }
+      }
+    }
+    return s;
+  }
+
+  async function fetchJSON(url, timeoutMs){
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeoutMs||4000);
+    try{
+      const r = await fetch(url, {credentials:"same-origin", signal: ctrl.signal});
+      const txt = await r.text();
+      try{ return JSON.parse(txt); } catch(_){ return null; }
+    }catch(_e){
+      return null;
+    }finally{
+      clearTimeout(t);
+    }
+  }
+
+  async function tryGateSummary(rid){
+    const base = "/api/vsp/findings_page_v3?rid=" + encodeURIComponent(rid) + "&limit=200&offset=0&__path=";
+    const candidates = ["run_gate_summary.json","reports/run_gate_summary.json","report/run_gate_summary.json"];
+    for(const p of candidates){
+      const j = await fetchJSON(base + encodeURIComponent(p), 3500);
+      if(j && typeof j === "object"){
+        // gate file itself often has ok/counts_total
+        if(j.counts_total || j.by_tool || j.ok !== undefined) return j;
+      }
+    }
+    return null;
+  }
+
+  async function tryFindings(rid){
+    const url = "/api/vsp/findings_page_v3?rid=" + encodeURIComponent(rid)
+              + "&limit=200&offset=0&__path=" + encodeURIComponent("unified")
+              + "&limit=1";
+    const j = await fetchJSON(url, 4500);
+    return j;
+  }
+
+  function findInjectAnchor(){
+    // Prefer a stable container if present
+    const anchors = [
+      "#vsp-dashboard-main",
+      "#vsp-dashboard-root",
+      "main",
+      ".container",
+      ".dashboard",
+      "body"
+    ];
+    for(const a of anchors){
+      const el = qs(a);
+      if(el) return el;
+    }
+    return document.body;
+  }
+
+  function findTopFindingsCard(){
+    // Best-effort: locate a card whose heading contains "Top Findings"
+    const cards = qsa(".card, .vsp-card, .panel, section, article, div");
+    for(const c of cards){
+      const h = c.querySelector("h1,h2,h3,h4,.title,.card-title");
+      const t = (h ? (h.textContent||"") : (c.getAttribute("data-title")||"")).toLowerCase();
+      if(t.includes("top findings") || t.includes("findings") && t.includes("top")) return c;
+    }
+    return null;
+  }
+
+  function ensureBanner(rid){
+    const existing = qs("#vsp-findings-missing-banner");
+    if(existing) return existing;
+
+    const el = document.createElement("div");
+    el.id = "vsp-findings-missing-banner";
+    el.setAttribute("role","alert");
+    el.style.cssText = [
+      "border:1px solid rgba(255,193,7,0.35)",
+      "background:rgba(255,193,7,0.10)",
+      "color:#ffd36a",
+      "padding:12px 14px",
+      "border-radius:12px",
+      "margin:12px 0",
+      "display:flex",
+      "align-items:center",
+      "justify-content:space-between",
+      "gap:12px",
+      "font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial",
+      "font-size:14px"
+    ].join(";");
+
+    const left = document.createElement("div");
+    left.textContent = "⚠ Findings file missing for this run (rid=" + rid + "). counts_total > 0 nhưng findings_unified rỗng/missing.";
+
+    const right = document.createElement("div");
+    right.style.cssText = "display:flex; gap:10px; align-items:center;";
+
+    const btn = document.createElement("a");
+    btn.textContent = "Open Data Source";
+    btn.href = "/data_source?rid=" + encodeURIComponent(rid);
+    btn.style.cssText = [
+      "display:inline-block",
+      "padding:8px 10px",
+      "border-radius:10px",
+      "border:1px solid rgba(255,193,7,0.45)",
+      "background:rgba(255,193,7,0.14)",
+      "color:#ffe08a",
+      "text-decoration:none",
+      "font-weight:600"
+    ].join(";");
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "×";
+    close.title = "Dismiss";
+    close.style.cssText = [
+      "width:34px",
+      "height:34px",
+      "border-radius:10px",
+      "border:1px solid rgba(255,255,255,0.12)",
+      "background:rgba(255,255,255,0.06)",
+      "color:#e6e6e6",
+      "cursor:pointer",
+      "font-size:18px",
+      "line-height:1"
+    ].join(";");
+
+    close.addEventListener("click", ()=>{ try{ el.remove(); }catch(_e){} });
+
+    right.appendChild(btn);
+    right.appendChild(close);
+
+    el.appendChild(left);
+    el.appendChild(right);
+    return el;
+  }
+
+  async function main(){
+    const rid = getRID();
+    if(!rid) return;
+
+    const gate = await tryGateSummary(rid);
+    const countsTotal = gate && gate.counts_total ? gate.counts_total : null;
+    const countsSum = sumCounts(countsTotal);
+
+    // only care when counts_total > 0
+    if(!(countsSum > 0)) return;
+
+    const f = await tryFindings(rid);
+    const findingsArr = (f && Array.isArray(f.findings)) ? f.findings : null;
+    const findingsLen = findingsArr ? findingsArr.length : 0;
+
+    // If request failed or findings empty => show banner
+    const shouldBanner = (!f) || (findingsArr && findingsLen === 0) || (!findingsArr && (f.ok === false));
+
+    if(!shouldBanner) return;
+
+    const banner = ensureBanner(rid);
+
+    // Prefer insert inside Top Findings card if found, else prepend to main anchor
+    const topCard = findTopFindingsCard();
+    if(topCard){
+      topCard.insertBefore(banner, topCard.firstChild);
+      return;
+    }
+    const anchor = findInjectAnchor();
+    anchor.insertBefore(banner, anchor.firstChild);
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", main);
+  }else{
+    main();
+  }
+})();

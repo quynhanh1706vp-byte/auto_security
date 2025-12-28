@@ -1,0 +1,9 @@
+/* VSP_NOOP_RID_AUTOFIX_FORCE_V2
+ * Commercial Dashboard contract: rid comes ONLY from /api/vsp/rid_latest_gate_root (DashCommercialV1),
+ * NEVER from this legacy rid_autofix module.
+ */
+(()=> {
+  if (window.__vsp_noop_rid_autofix_force_v2) return;
+  window.__vsp_noop_rid_autofix_force_v2 = true;
+  try { console.info("[VSP] rid_autofix DISABLED (noop force v2)"); } catch(e){}
+})();

@@ -1,0 +1,12 @@
+VSP COMMERCIAL RELEASE — FINAL (STRICT)
+
+UI:
+- URL: http://127.0.0.1:8910/vsp4
+- Tabs: Dashboard / Runs & Reports / Data Source / Settings / Rule Overrides
+- Smoke 5 tabs: PASS
+- Stability STRICT: PASS (300 rounds)
+
+Report:
+- REPORT.tgz includes ISO evidence under report/__meta/iso/
+Audit:
+- AUDIT_BUNDLE includes COMMERCIAL snapshot

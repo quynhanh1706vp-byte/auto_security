@@ -1,0 +1,33 @@
+[VSP_CI_OUTER] REPO_ROOT  = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER] SCRIPT_DIR = /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER
+[VSP_CI_OUTER] BUNDLE_ROOT= /home/test/Data
+[VSP_CI_OUTER] SRC_ROOT   = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_OUTER_RUNNERLOG_V1] runner_log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922/runner.log
+[VSP_CI_OUTER] RUN_ID     = VSP_CI_20251214_074922
+[VSP_CI_OUTER] RUN_DIR    = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922
+[VSP_CI_OUTER] === VSP CI OUTER BẮT ĐẦU ===
+[VSP_CI_OUTER] Gọi gate core: /home/test/Data/SECURITY-10-10-v4/ci/VSP_CI_OUTER/vsp_ci_gate_core_v1.sh
+[VSP_CI_GATE] BUNDLE_ROOT = /home/test/Data
+[VSP_CI_GATE] SRC_ROOT    = /home/test/Data/SECURITY-10-10-v4
+[VSP_CI_GATE] RUN_DIR     = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922
+[VSP_CI_GATE] RUN_ID      = VSP_CI_20251214_074922
+[VSP_CI_GATE_AUTOPICK_RUNNER_V1] RUNNER=/home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] RUNNER      = /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh
+[VSP_CI_GATE] === CHẠY RUNNER VSP (FULL SCAN) ===
+[VSP_CI_GATE] Cmd: /home/test/Data/SECURITY_BUNDLE/bin/run_all_tools_v2.sh "/home/test/Data/SECURITY-10-10-v4" "/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922"
+===== [BOOT] runner.log=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922/runner.log ts=2025-12-14T07:49:22+07:00 =====
+==============================================
+[VSP] RUN ALL TOOLS V2 – PROFILE=FULL_EXT LEVEL=FULL_EXT
+ROOT     = /home/test/Data/SECURITY_BUNDLE
+SRC      = /home/test/Data/SECURITY-10-10-v4
+OUT_DIR  = /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922
+NO_NET   = 0
+==============================================
+
+===== [3/8] KICS (EXT) =====
+[KICS_V3] SRC=/home/test/Data/SECURITY-10-10-v4
+[KICS_V3] OUT_DIR=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922
+[KICS_V3] OUT_KICS=/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922/kics
+[KICS_V3] TIMEOUT=1800s KILL=30s
+[KICS_V3] EXCL_MODE=list
+[KICS_V3] CMD: kics scan -p /home/test/Data/SECURITY-10-10-v4 -o /home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922/kics --report-formats json --no-color --exclude-paths /home/test/Data/SECURITY-10-10-v4/out_ci,/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922,/home/test/Data/SECURITY-10-10-v4/out_ci/VSP_CI_20251214_074922/kics,/home/test/Data/SECURITY-10-10-v4/.git,/home/test/Data/SECURITY-10-10-v4/node_modules

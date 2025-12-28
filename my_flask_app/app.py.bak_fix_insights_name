@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+from flask import Flask
+
+# Import đúng các blueprint đang dùng
+from api_vsp_dashboard_v2 import bp as vsp_dashboard_api
+from api_vsp_datasource_v2 import bp as vsp_datasource_v2
+from api_vsp_runs_v2 import bp as vsp_runs_v2
+from api_vsp_insights_v1 import bp_vsp_insights_v1
+from api_vsp_settings_v1 import bp_vsp_settings_v1
+
+
+def create_app() -> Flask:
+    """
+    Factory tạo Flask app cho my_flask_app:
+    - Chỉ register các API blueprint VSP
+    """
+    app = Flask(
+        __name__,
+        static_folder="../static",
+        template_folder="../templates",
+    )
+
+    # Đăng ký blueprint RÕ RÀNG, tránh quét lung tung
+    app.register_blueprint(vsp_dashboard_api)
+    app.register_blueprint(vsp_datasource_v2)
+    app.register_blueprint(vsp_runs_v2)
+    app.register_blueprint(bp_vsp_insights_v1)
+    app.register_blueprint(bp_vsp_settings_v1)
+app.register_blueprint(bp_insights_v1)
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True, "app": "vsp_my_flask_app"}
+
+    return app
+
+
+# Cho WSGI / gunicorn
+app = create_app()
+
+if __name__ == "__main__":
+    # Dev server riêng (port 8961)
+    app.run(host="0.0.0.0", port=8961, debug=True)

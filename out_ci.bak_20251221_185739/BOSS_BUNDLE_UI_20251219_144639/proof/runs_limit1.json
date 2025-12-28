@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "limit": 1,
+  "_scanned": 500,
+  "items": [
+    {
+      "run_id": "khach6_RUN_20251129_143155_027307",
+      "has": {
+        "csv": false,
+        "html": false,
+        "json": false,
+        "sarif": false,
+        "summary": false
+      }
+    }
+  ],
+  "roots_used": [
+    "/home/test/Data/SECURITY_BUNDLE/out"
+  ],
+  "rid_latest": "khach6_RUN_20251129_143155_027307",
+  "cache_ttl": 3,
+  "scan_cap": 500,
+  "scan_cap_hit": true
+}

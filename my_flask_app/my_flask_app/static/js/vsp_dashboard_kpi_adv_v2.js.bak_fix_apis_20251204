@@ -1,0 +1,159 @@
+/**
+ * VSP Dashboard Advanced KPI v2
+ * - Security Score (0–100)
+ * - Top Risky Tool
+ * - Most Impacted CWE
+ * - Top Vulnerable Module
+ */
+(function () {
+  async function fetchJson(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.warn('[VSP][KPI_ADV] HTTP error', url, res.status);
+        return null;
+      }
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      console.error('[VSP][KPI_ADV] fetch error', url, e);
+      return null;
+    }
+  }
+
+  function computeSecurityScore(sev) {
+    if (!sev) return null;
+    const total =
+      (sev.CRITICAL || 0) +
+      (sev.HIGH || 0) +
+      (sev.MEDIUM || 0) +
+      (sev.LOW || 0) +
+      (sev.INFO || 0) +
+      (sev.TRACE || 0);
+    if (!total) return null;
+    const bad = (sev.CRITICAL || 0) + (sev.HIGH || 0);
+    let score = Math.round(100 * (1 - bad / total));
+    if (score < 0) score = 0;
+    if (score > 100) score = 100;
+    return score;
+  }
+
+  function computeTopRiskyTool(byTool) {
+    if (!byTool || typeof byTool !== 'object') return null;
+    let bestTool = null;
+    let bestVal = -1;
+    for (const [tool, count] of Object.entries(byTool)) {
+      const v = typeof count === 'number' ? count : Number(count) || 0;
+      if (v > bestVal) {
+        bestVal = v;
+        bestTool = tool;
+      }
+    }
+    return bestTool;
+  }
+
+  function getMostImpactedCWE(tables) {
+    if (!tables) return null;
+    return tables.top_cwe || null;
+  }
+
+  function getTopVulnerableModule(tables) {
+    if (!tables) return null;
+    const arr = tables.top_modules;
+    if (Array.isArray(arr) && arr.length > 0) {
+      const item = arr[0];
+      return item.module || item.name || null;
+    }
+    return null;
+  }
+
+  function findCardByLabel(labels) {
+    const nodes = document.querySelectorAll('div, span, h2, h3, h4, p');
+    const upperLabels = labels.map(l => l.toUpperCase());
+    for (const n of nodes) {
+      const txt = (n.textContent || '').trim().toUpperCase();
+      if (!txt) continue;
+      for (const L of upperLabels) {
+        if (txt.includes(L)) {
+          let card = n.closest('.kpi-card, .vsp-kpi-card, .stat-card, .card');
+          if (!card) card = n.parentElement;
+          if (!card) continue;
+          return card;
+        }
+      }
+    }
+    return null;
+  }
+
+  function findValueNode(card) {
+    if (!card) return null;
+    const cands = card.querySelectorAll('.kpi-number, .vsp-kpi-value, .stat-value, .kpi-value, span, div, p, strong, b');
+    let best = null;
+    for (const c of cands) {
+      const txt = (c.textContent || '').trim();
+      if (!txt) continue;
+      if (/^[0-9][0-9,\.%]*$/.test(txt)) {
+        best = c;
+        break;
+      }
+      if (!best) best = c;
+    }
+    return best;
+  }
+
+  function setCardValue(labels, value, suffix) {
+    const card = findCardByLabel(labels);
+    if (!card) {
+      console.warn('[VSP][KPI_ADV] Không tìm thấy card cho', labels.join('/'));
+      return;
+    }
+    const node = findValueNode(card) || card;
+    if (value == null) {
+      node.textContent = 'N/A';
+      return;
+    }
+    let txt = (typeof value === 'number') ? String(value) : String(value);
+    if (suffix) txt += suffix;
+    node.textContent = txt;
+  }
+
+  async function initKpiAdv() {
+    const [dash, tables] = await Promise.all([
+      fetchJson('/api/vsp/dashboard_v2'),
+      fetchJson('/api/vsp/dashboard_tables'),
+    ]);
+
+    if (!dash) {
+      console.warn('[VSP][KPI_ADV] Không có data dashboard_v2.');
+      return;
+    }
+
+    const summary = dash.summary || {};
+    const sev = summary.by_severity || {};
+    const byTool = summary.by_tool || {};
+    const score = computeSecurityScore(sev);
+    const topTool = computeTopRiskyTool(byTool);
+    const mostCWE = getMostImpactedCWE(tables || {});
+    const topModule = getTopVulnerableModule(tables || {});
+
+    setCardValue(['SECURITY SCORE', 'SECURITY POSTURE SCORE'], score, score != null ? '%' : '');
+    setCardValue(['TOP RISKY TOOL', 'RISKY TOOL'], topTool || 'N/A', '');
+    setCardValue(['MOST IMPACTED CWE', 'TOP CWE'], mostCWE || 'N/A', '');
+    setCardValue(['TOP VULNERABLE MODULE', 'TOP MODULE'], topModule || 'N/A', '');
+
+    console.log('[VSP][KPI_ADV] Advanced KPI updated:', {
+      score,
+      topTool,
+      mostCWE,
+      topModule,
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(initKpiAdv, 1300);
+  });
+
+  if (!window.VSP) window.VSP = {};
+  if (!window.VSP.API) window.VSP.API = {};
+  window.VSP.API.refreshKpiAdvanced = initKpiAdv;
+})();

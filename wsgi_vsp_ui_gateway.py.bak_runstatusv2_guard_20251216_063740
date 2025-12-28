@@ -1,0 +1,234 @@
+# coding: utf-8
+"""
+FORCE FULL VSP UI GATEWAY
+- Make gunicorn serve the real Flask app (vsp_demo_app.app)
+- Avoid any exportpdf-only/preempt wrappers hijacking /api/vsp/*
+"""
+from vsp_demo_app import app as application  # gunicorn entrypoint
+app = application
+
+
+
+# === VSP_WSGI_STATUSV2_ALWAYS8_V3 ===
+# Post-process /api/vsp/run_status_v2/* JSON at WSGI layer to always expose 8 tool lanes.
+import json
+
+def _vsp_build_tools_always8_v3(out: dict) -> dict:
+    CANON = ["SEMGREP","GITLEAKS","TRIVY","CODEQL","KICS","GRYPE","SYFT","BANDIT"]
+    ZERO = {"CRITICAL":0,"HIGH":0,"MEDIUM":0,"LOW":0,"INFO":0,"TRACE":0}
+
+    def norm_counts(c):
+        d = dict(ZERO)
+        if isinstance(c, dict):
+            for k,v in c.items():
+                kk = str(k).upper()
+                if kk in d:
+                    try: d[kk] = int(v)
+                    except Exception: d[kk] = 0
+        return d
+
+    def mk(tool, has_key=None, total_key=None, verdict_key=None, counts_key=None, reason_missing="missing_fields"):
+        hasv = out.get(has_key) if has_key else None
+        try: hasv = bool(hasv) if has_key else None
+        except Exception: hasv = None
+
+        total = out.get(total_key, 0) if total_key else 0
+        verdict = out.get(verdict_key) if verdict_key else None
+        counts = norm_counts(out.get(counts_key, {})) if counts_key else dict(ZERO)
+
+        if has_key and hasv is False:
+            return {"tool":tool,"status":"NOT_RUN","verdict":"NOT_RUN","total":0,"counts":dict(ZERO),"reason":"has_flag_false"}
+
+        if verdict is None and (not total) and counts == ZERO:
+            return {"tool":tool,"status":"NOT_RUN","verdict":"NOT_RUN","total":0,"counts":dict(ZERO),"reason":reason_missing}
+
+        vv = str(verdict).upper() if verdict is not None else "OK"
+        try: total_i = int(total)
+        except Exception: total_i = 0
+        return {"tool":tool,"status":vv,"verdict":vv,"total":total_i,"counts":counts}
+
+    tools = {}
+    # your current flat keys in status_v2 response
+    tools["CODEQL"]   = mk("CODEQL",   "has_codeql",   "codeql_total",   "codeql_verdict",   None)
+    tools["GITLEAKS"] = mk("GITLEAKS", "has_gitleaks", "gitleaks_total", "gitleaks_verdict", "gitleaks_counts")
+    tools["SEMGREP"]  = mk("SEMGREP",  "has_semgrep",  "semgrep_total",  "semgrep_verdict",  "semgrep_counts")
+    tools["TRIVY"]    = mk("TRIVY",    "has_trivy",    "trivy_total",    "trivy_verdict",    "trivy_counts")
+
+    # no converters yet -> NOT_RUN but lane must exist
+    for t in ["KICS","GRYPE","SYFT","BANDIT"]:
+        tools[t] = {"tool":t,"status":"NOT_RUN","verdict":"NOT_RUN","total":0,"counts":dict(ZERO),"reason":"no_converter_yet"}
+
+    out["tools"] = tools
+    out["tools_order"] = CANON
+
+    gs = out.get("run_gate_summary")
+    if not isinstance(gs, dict):
+        gs = {}
+    for t in CANON:
+        if t not in gs:
+            gs[t] = {"tool":t,"verdict": tools[t].get("verdict","NOT_RUN"), "total": tools[t].get("total",0)}
+    out["run_gate_summary"] = gs
+    return out
+
+def _vsp_wrap_statusv2_always8_v3(app):
+    def _app(environ, start_response):
+        path = environ.get("PATH_INFO","") or ""
+        if not path.startswith("/api/vsp/run_status_v2/"):
+            return app(environ, start_response)
+
+        captured = {"status": None, "headers": None, "exc": None}
+        def _sr(status, headers, exc_info=None):
+            captured["status"] = status
+            captured["headers"] = headers
+            captured["exc"] = exc_info
+            return lambda x: None
+
+        res_iter = app(environ, _sr)
+        try:
+            body = b"".join(res_iter or [])
+        finally:
+            try:
+                close = getattr(res_iter, "close", None)
+                if callable(close): close()
+            except Exception:
+                pass
+
+        headers = captured["headers"] or []
+        ctype = ""
+        for k,v in headers:
+            if str(k).lower() == "content-type":
+                ctype = str(v)
+                break
+
+        if "application/json" not in ctype.lower():
+            start_response(captured["status"] or "200 OK", headers, captured["exc"])
+            return [body]
+
+        try:
+            out = json.loads((body.decode("utf-8", errors="ignore") or "{}"))
+            if isinstance(out, dict) and (out.get("tools") is None):
+                out = _vsp_build_tools_always8_v3(out)
+                new_body = json.dumps(out, ensure_ascii=False).encode("utf-8")
+
+                new_headers = []
+                for k,v in headers:
+                    if str(k).lower() == "content-length":
+                        continue
+                    new_headers.append((k,v))
+                new_headers.append(("Content-Length", str(len(new_body))))
+
+                start_response(captured["status"] or "200 OK", new_headers, captured["exc"])
+                return [new_body]
+        except Exception:
+            pass
+
+        start_response(captured["status"] or "200 OK", headers, captured["exc"])
+        return [body]
+    return _app
+
+# Wrap if 'application' exists (gunicorn uses wsgi_vsp_ui_gateway:application)
+try:
+    application = _vsp_wrap_statusv2_always8_v3(application)
+except Exception:
+    pass
+
+
+
+# === VSP_RULE_OVERRIDES_FORCE_BIND_V1 BEGIN ===
+import json as _json
+from pathlib import Path as _Path
+from datetime import datetime as _dt, timezone as _tz
+import os as _os
+import tempfile as _tempfile
+
+_VSP_RULE_OVR_PATH = _Path("/home/test/Data/SECURITY_BUNDLE/ui/out_ci/vsp_rule_overrides_v1.json")
+
+def _vsp_rule_ovr_default_v1():
+    return {"meta":{"version":"v1","updated_at":None},"overrides":[]}
+
+def _vsp_rule_ovr_atomic_write_v1(path:_Path, obj:dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = _tempfile.mkstemp(prefix=path.name+".", dir=str(path.parent))
+    try:
+        with _os.fdopen(fd, "w", encoding="utf-8") as f:
+            _json.dump(obj, f, ensure_ascii=False, indent=2)
+        _os.replace(tmp, str(path))
+    finally:
+        try:
+            _os.unlink(tmp)
+        except Exception:
+            pass
+
+class VSPRuleOverridesForceBindV1:
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        path = (environ.get("PATH_INFO") or "")
+        if not path.startswith("/api/vsp/rule_overrides_v1"):
+            return self.app(environ, start_response)
+
+        method = (environ.get("REQUEST_METHOD") or "GET").upper()
+        try:
+            if method == "GET":
+                if _VSP_RULE_OVR_PATH.exists():
+                    try:
+                        data = _json.load(open(_VSP_RULE_OVR_PATH, "r", encoding="utf-8"))
+                    except Exception:
+                        data = _vsp_rule_ovr_default_v1()
+                else:
+                    data = _vsp_rule_ovr_default_v1()
+
+                body = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+                hdrs = [
+                    ("Content-Type","application/json; charset=utf-8"),
+                    ("Content-Length", str(len(body))),
+                    ("Cache-Control","no-cache"),
+                    ("X-VSP-RULE-OVERRIDES-MODE","FORCE_BIND_V1"),
+                ]
+                start_response("200 OK", hdrs)
+                return [body]
+
+            if method == "POST":
+                try:
+                    n = int(environ.get("CONTENT_LENGTH") or "0")
+                except Exception:
+                    n = 0
+                raw = environ["wsgi.input"].read(n) if n > 0 else b"{}"
+                obj = _json.loads(raw.decode("utf-8", errors="replace") or "{}")
+                if not isinstance(obj, dict):
+                    obj = _vsp_rule_ovr_default_v1()
+                obj.setdefault("meta", {})
+                obj["meta"]["updated_at"] = _dt.now(_tz.utc).isoformat()
+                _vsp_rule_ovr_atomic_write_v1(_VSP_RULE_OVR_PATH, obj)
+
+                out = {"ok": True, "file": str(_VSP_RULE_OVR_PATH), "mode":"FORCE_BIND_V1"}
+                body = _json.dumps(out, ensure_ascii=False).encode("utf-8")
+                hdrs = [
+                    ("Content-Type","application/json; charset=utf-8"),
+                    ("Content-Length", str(len(body))),
+                    ("Cache-Control","no-cache"),
+                    ("X-VSP-RULE-OVERRIDES-MODE","FORCE_BIND_V1"),
+                ]
+                start_response("200 OK", hdrs)
+                return [body]
+
+            body = b'{"ok":false,"error":"METHOD_NOT_ALLOWED"}'
+            start_response("405 Method Not Allowed", [
+                ("Content-Type","application/json; charset=utf-8"),
+                ("Content-Length", str(len(body))),
+            ])
+            return [body]
+        except Exception as e:
+            body = _json.dumps({"ok":False,"error":"RULE_OVERRIDES_FORCE_BIND_ERR","detail":str(e)}, ensure_ascii=False).encode("utf-8")
+            start_response("500 Internal Server Error", [
+                ("Content-Type","application/json; charset=utf-8"),
+                ("Content-Length", str(len(body))),
+                ("X-VSP-RULE-OVERRIDES-MODE","FORCE_BIND_V1"),
+            ])
+            return [body]
+# === VSP_RULE_OVERRIDES_FORCE_BIND_V1 END ===
+
+
+# VSP_RULE_OVERRIDES_FORCE_BIND_V1 WRAP
+application = VSPRuleOverridesForceBindV1(application)

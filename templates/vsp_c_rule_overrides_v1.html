@@ -1,0 +1,32 @@
+{% extends "vsp_c_base_v1.html" %}
+{% block body %}
+  <div class="panel">
+    <div class="h">
+      <div>
+        <div class="hh">Rule Overrides</div>
+        <div class="hh2">Prefer backend /api/vsp/rule_overrides_v1, fallback localStorage</div>
+      </div>
+      <div class="hh2 mono" id="ro-meta">…</div>
+    </div>
+
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="ro-load">LOAD</button>
+      <button class="btn primary" id="ro-save">SAVE</button>
+      <button class="btn" id="ro-export">EXPORT</button>
+      <span class="pill" id="ro-status">…</span>
+    </div>
+
+    <textarea class="input" id="ro-text" style="min-height:380px; resize:vertical;"
+      placeholder='Paste overrides JSON here. Example: {"disable_rules":["RULE_ID"],"severity_overrides":{"RULE_ID":"LOW"}}'></textarea>
+    <div class="spacer"></div>
+    <div class="muted mono" id="ro-hint">
+      Tip: Nếu backend chưa có endpoint, hệ thống sẽ lưu localStorage key: vsp_rule_overrides_v1.
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/vsp_c_rule_overrides_v1.js?v={{ asset_v }}"></script>
+{% endblock %}
+
+  <script defer src="/static/js/vsp_settings_commercial_summary_v1.js"></script>
+  <script defer src="/static/js/vsp_rule_overrides_commercial_summary_v1.js"></script>

@@ -1,0 +1,20 @@
+VSP UI Commercial P0 Checklist (2025-12-23)
+
+A) Availability
+- /vsp5 /runs /data_source /settings /rule_overrides => 200
+- /ready /readyz /healthz => 200
+
+B) Contracts
+- /api/vsp/rid_latest => 200
+- /api/vsp/dash_kpis, /api/vsp/dash_charts => 200 (degraded allowed)
+- /api/ui/settings_v2 => 200 (tools populated from tools_manifest.json)
+- /api/ui/rule_overrides_v2 GET/POST => 200 (rules_v1)
+
+C) UI Integrity
+- No template leaks ({{ or {%})
+- No duplicate DOM IDs (dashboard anchor present)
+- Assets HEAD 200
+
+D) Evidence
+- DEMO_STEPS.txt
+- vsp_ui_commercial_evidence_*.tar.gz

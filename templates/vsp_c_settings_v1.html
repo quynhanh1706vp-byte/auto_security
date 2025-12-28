@@ -1,0 +1,37 @@
+{% extends "vsp_c_base_v1.html" %}
+{% block body %}
+  <div class="grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="panel">
+      <div class="h"><div class="hh">Settings</div><div class="hh2">Commercial behaviors</div></div>
+      <div class="muted mono">PIN default (stored local): <b id="s-pin">…</b></div>
+      <div class="spacer"></div>
+      <button class="btn" id="s-set-auto">Set AUTO</button>
+      <button class="btn" id="s-set-global">Set PIN GLOBAL</button>
+      <button class="btn" id="s-set-rid">Set USE RID</button>
+      <div class="spacer"></div>
+      <div class="muted mono">
+        Notes:
+        <ul>
+          <li>DATA SOURCE là “effective” dựa trên from_path (GLOBAL_BEST vs RID)</li>
+          <li>UI suite /c/* không đè UI cũ, để rollback dễ.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="h"><div class="hh">Endpoint Probes</div><div class="hh2 mono" id="s-meta">…</div></div>
+      <table class="table">
+        <thead><tr><th>API</th><th>Status</th></tr></thead>
+        <tbody id="s-tb">
+          <tr><td colspan="2" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/vsp_c_settings_v1.js?v={{ asset_v }}"></script>
+{% endblock %}
+
+  <script defer src="/static/js/vsp_settings_commercial_summary_v1.js"></script>
+  <script defer src="/static/js/vsp_rule_overrides_commercial_summary_v1.js"></script>

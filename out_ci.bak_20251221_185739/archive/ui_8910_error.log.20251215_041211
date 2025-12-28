@@ -1,0 +1,7 @@
+[2025-12-15 04:10:32 +0700] [128625] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 04:10:32 +0700] [128625] [INFO] Listening at: http://127.0.0.1:8910 (128625)
+[2025-12-15 04:10:32 +0700] [128625] [INFO] Using worker: gthread
+[2025-12-15 04:10:32 +0700] [128627] [INFO] Booting worker with pid: 128627
+[2025-12-15 04:12:11 +0700] [128625] [INFO] Handling signal: term
+[2025-12-15 04:12:11 +0700] [128627] [INFO] Worker exiting (pid: 128627)
+[2025-12-15 04:12:11 +0700] [128625] [INFO] Shutting down: Master

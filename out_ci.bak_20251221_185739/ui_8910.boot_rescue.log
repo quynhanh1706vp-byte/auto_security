@@ -1,0 +1,234 @@
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+  File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/home/test/Data/SECURITY_BUNDLE/ui/wsgi_vsp_ui_gateway.py", line 12766, in <module>
+    @app.route("/api/ui/runs_kpi_v3")
+     ^^^^^^^^^
+AttributeError: 'function' object has no attribute 'route'
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUNS_REPORTS_BP] mounted /runs + /api/vsp/runs + /api/vsp/run_file
+[VSP_RUN_FILE] registered /api/vsp/run_file (whitelist)
+[VSP_RUN_FILE] mounted /api/vsp/run_file (v2 whitelist)
+[VSP_RUN_FILE] upgraded endpoint v2 -> v3 handler
+[VSP_RUN_FILE] V4 force-bound endpoints=['vsp_run_file_whitelist_v1', 'vsp_run_file_whitelist_v2', 'vsp_runs_reports_bp.api_run_file']
+[VSP_RUN_FILE_ALLOW] mounted /api/vsp/run_file_allow
+[VSP_TABS3] registered blueprint: vsp_tabs_extras_bp_v1
+[VSP_TABS3_V2] registered blueprint: vsp_tabs3_ui_bp_v2
+[VSP_TABS3_V3] registered blueprint: vsp_tabs3_ui_bp_v3
+[VSP_HTML_GUARD] enabled outermost guard
+[VSP_TABS3_SC] short-circuit enabled for /data_source,/settings,/rule_overrides
+[VSP_RUN_FILE] upgraded endpoint v2 -> v3 handler
+[VSP_RUN_FILE] V4 force-bound endpoints=['_api_vsp_run_file', 'vsp_run_file_whitelist_v1', 'vsp_run_file_whitelist_v2', 'vsp_runs_reports_bp.api_run_file']
+[VSP_TABS3_V4] registered blueprint: vsp_tabs3_ui_bp_v4
+[VSP_FIX_RUNS_V3_WRAPAPP_V2] wrapped: ['app', 'application']
+[IMPORT] FAIL: 'function' object has no attribute 'route'
+Thg 12 21 08:29:16 test systemd[1]: vsp-ui-8910.service: Main process exited, code=exited, status=1/FAILURE
+Thg 12 21 08:29:17 test bash[383030]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:17 test bash[383032]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:17 test bash[383034]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:17 test bash[383036]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:18 test bash[383038]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:18 test bash[383040]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:18 test bash[383042]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:19 test bash[383044]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:19 test bash[383046]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:19 test bash[383048]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:20 test bash[383050]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:20 test bash[383052]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:20 test bash[383054]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:21 test bash[383056]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:21 test bash[383058]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:21 test bash[383060]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:22 test bash[383062]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:22 test bash[383064]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:22 test bash[383066]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:22 test bash[383068]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:23 test bash[383070]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:23 test bash[383074]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:23 test bash[383076]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:24 test bash[383078]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:24 test bash[383103]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:24 test bash[383105]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:25 test bash[383107]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:25 test bash[383109]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:25 test bash[383130]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:26 test bash[383138]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:26 test bash[383140]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:26 test bash[383142]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:27 test bash[383144]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:27 test bash[383146]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:27 test bash[383148]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:28 test bash[383150]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:28 test bash[383152]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:28 test bash[383154]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:28 test bash[383156]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:29 test bash[383158]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:29 test bash[383160]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:29 test bash[383162]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:30 test bash[383164]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:30 test bash[383166]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:30 test bash[383168]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:31 test bash[383170]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:31 test bash[383172]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:31 test bash[383174]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:32 test bash[383176]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:32 test bash[383178]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:32 test bash[383180]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:33 test bash[383182]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:33 test bash[383184]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:33 test bash[383186]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:34 test bash[383188]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:34 test bash[383190]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:34 test bash[383193]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:35 test bash[383195]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:35 test bash[383015]: [READY] /vsp5 not reachable
+Thg 12 21 08:29:35 test systemd[1]: vsp-ui-8910.service: Control process exited, code=exited, status=1/FAILURE
+Thg 12 21 08:29:35 test systemd[1]: vsp-ui-8910.service: Failed with result 'exit-code'.
+Thg 12 21 08:29:35 test systemd[1]: Stopped vsp-ui-8910.service - VSP UI Gateway (commercial) :8910.
+Thg 12 21 08:29:35 test systemd[1]: vsp-ui-8910.service: Consumed 1.570s CPU time.
+Thg 12 21 08:29:38 test systemd[1]: Starting vsp-ui-8910.service - VSP UI Gateway (commercial) :8910...
+Thg 12 21 08:29:39 test bash[383284]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUNS_REPORTS_BP] mounted /runs + /api/vsp/runs + /api/vsp/run_file
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE] registered /api/vsp/run_file (whitelist)
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE] mounted /api/vsp/run_file (v2 whitelist)
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE] upgraded endpoint v2 -> v3 handler
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE] V4 force-bound endpoints=['vsp_run_file_whitelist_v1', 'vsp_run_file_whitelist_v2', 'vsp_runs_reports_bp.api_run_file']
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE_ALLOW] mounted /api/vsp/run_file_allow
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_TABS3] registered blueprint: vsp_tabs_extras_bp_v1
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_TABS3_V2] registered blueprint: vsp_tabs3_ui_bp_v2
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_TABS3_V3] registered blueprint: vsp_tabs3_ui_bp_v3
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_HTML_GUARD] enabled outermost guard
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_TABS3_SC] short-circuit enabled for /data_source,/settings,/rule_overrides
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE] upgraded endpoint v2 -> v3 handler
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_RUN_FILE] V4 force-bound endpoints=['_api_vsp_run_file', 'vsp_run_file_whitelist_v1', 'vsp_run_file_whitelist_v2', 'vsp_runs_reports_bp.api_run_file']
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_TABS3_V4] registered blueprint: vsp_tabs3_ui_bp_v4
+Thg 12 21 08:29:39 test gunicorn[383286]: [VSP_FIX_RUNS_V3_WRAPAPP_V2] wrapped: ['app', 'application']
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUNS_REPORTS_BP] mounted /runs + /api/vsp/runs + /api/vsp/run_file
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE] registered /api/vsp/run_file (whitelist)
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE] mounted /api/vsp/run_file (v2 whitelist)
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE] upgraded endpoint v2 -> v3 handler
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE] V4 force-bound endpoints=['vsp_run_file_whitelist_v1', 'vsp_run_file_whitelist_v2', 'vsp_runs_reports_bp.api_run_file']
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE_ALLOW] mounted /api/vsp/run_file_allow
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_TABS3] registered blueprint: vsp_tabs_extras_bp_v1
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_TABS3_V2] registered blueprint: vsp_tabs3_ui_bp_v2
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_TABS3_V3] registered blueprint: vsp_tabs3_ui_bp_v3
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_HTML_GUARD] enabled outermost guard
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_TABS3_SC] short-circuit enabled for /data_source,/settings,/rule_overrides
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE] upgraded endpoint v2 -> v3 handler
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_RUN_FILE] V4 force-bound endpoints=['_api_vsp_run_file', 'vsp_run_file_whitelist_v1', 'vsp_run_file_whitelist_v2', 'vsp_runs_reports_bp.api_run_file']
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_TABS3_V4] registered blueprint: vsp_tabs3_ui_bp_v4
+Thg 12 21 08:29:39 test gunicorn[383287]: [VSP_FIX_RUNS_V3_WRAPAPP_V2] wrapped: ['app', 'application']
+Thg 12 21 08:29:39 test bash[383288]: curl: (56) Recv failure: Kết nối bị đặt lại bởi ngang hàng
+Thg 12 21 08:29:39 test gunicorn[383275]: Traceback (most recent call last):
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 208, in run
+Thg 12 21 08:29:39 test gunicorn[383275]:     self.sleep()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 359, in sleep
+Thg 12 21 08:29:39 test gunicorn[383275]:     ready = select.select([self.PIPE[0]], [], [], 1.0)
+Thg 12 21 08:29:39 test gunicorn[383275]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 241, in handle_chld
+Thg 12 21 08:29:39 test gunicorn[383275]:     self.reap_workers()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 529, in reap_workers
+Thg 12 21 08:29:39 test gunicorn[383275]:     raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+Thg 12 21 08:29:39 test gunicorn[383275]: gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+Thg 12 21 08:29:39 test gunicorn[383275]: During handling of the above exception, another exception occurred:
+Thg 12 21 08:29:39 test gunicorn[383275]: Traceback (most recent call last):
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/bin/gunicorn", line 7, in <module>
+Thg 12 21 08:29:39 test gunicorn[383275]:     sys.exit(run())
+Thg 12 21 08:29:39 test gunicorn[383275]:              ^^^^^
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/app/wsgiapp.py", line 66, in run
+Thg 12 21 08:29:39 test gunicorn[383275]:     WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]", prog=prog).run()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 235, in run
+Thg 12 21 08:29:39 test gunicorn[383275]:     super().run()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/app/base.py", line 71, in run
+Thg 12 21 08:29:39 test gunicorn[383275]:     Arbiter(self).run()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 228, in run
+Thg 12 21 08:29:39 test gunicorn[383275]:     self.halt(reason=inst.reason, exit_status=inst.exit_status)
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 341, in halt
+Thg 12 21 08:29:39 test gunicorn[383275]:     self.stop()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 395, in stop
+Thg 12 21 08:29:39 test gunicorn[383275]:     time.sleep(0.1)
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 241, in handle_chld
+Thg 12 21 08:29:39 test gunicorn[383275]:     self.reap_workers()
+Thg 12 21 08:29:39 test gunicorn[383275]:   File "/home/test/Data/SECURITY_BUNDLE/ui/.venv/lib/python3.12/site-packages/gunicorn/arbiter.py", line 529, in reap_workers
+Thg 12 21 08:29:39 test gunicorn[383275]:     raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+Thg 12 21 08:29:39 test gunicorn[383275]: gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+Thg 12 21 08:29:39 test systemd[1]: vsp-ui-8910.service: Main process exited, code=exited, status=1/FAILURE
+Thg 12 21 08:29:39 test bash[383291]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:40 test bash[383293]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:40 test bash[383295]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:40 test bash[383297]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:41 test bash[383299]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:41 test bash[383301]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:41 test bash[383303]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:42 test bash[383305]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:42 test bash[383307]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:42 test bash[383309]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:43 test bash[383311]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:43 test bash[383313]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:43 test bash[383315]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:44 test bash[383317]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:44 test bash[383319]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:44 test bash[383321]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:45 test bash[383323]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:45 test bash[383325]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:45 test bash[383327]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:45 test bash[383329]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:46 test bash[383349]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:46 test bash[383351]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:46 test bash[383353]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:47 test bash[383355]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:47 test bash[383357]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:47 test bash[383359]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:48 test bash[383361]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:48 test bash[383363]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:48 test bash[383365]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:49 test bash[383367]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:49 test bash[383369]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:49 test bash[383371]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:50 test bash[383373]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:50 test bash[383375]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:50 test bash[383377]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:51 test bash[383379]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:51 test bash[383381]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:51 test bash[383383]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:52 test bash[383385]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:52 test bash[383387]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:52 test bash[383389]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:52 test bash[383391]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:53 test bash[383393]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:53 test bash[383395]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:53 test bash[383397]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:54 test bash[383399]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:54 test bash[383401]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:54 test bash[383403]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:55 test bash[383405]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:55 test bash[383407]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:55 test bash[383409]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:56 test bash[383411]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:56 test bash[383431]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:56 test bash[383433]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:57 test bash[383435]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:57 test bash[383437]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:57 test bash[383439]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:57 test bash[383441]: curl: (7) Failed to connect to 127.0.0.1 port 8910 after 0 ms: Couldn't connect to server
+Thg 12 21 08:29:58 test bash[383276]: [READY] /vsp5 not reachable
+Thg 12 21 08:29:58 test systemd[1]: vsp-ui-8910.service: Control process exited, code=exited, status=1/FAILURE
+Thg 12 21 08:29:58 test systemd[1]: vsp-ui-8910.service: Failed with result 'exit-code'.
+Thg 12 21 08:29:58 test systemd[1]: Failed to start vsp-ui-8910.service - VSP UI Gateway (commercial) :8910.
+Thg 12 21 08:29:58 test systemd[1]: vsp-ui-8910.service: Consumed 1.689s CPU time.

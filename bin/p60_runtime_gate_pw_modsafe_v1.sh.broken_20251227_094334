@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+UI="/home/test/Data/SECURITY_BUNDLE/ui"
+cd "$UI"
+
+BASE="${VSP_UI_BASE:-http://127.0.0.1:8910}"
+OUT="$UI/out_ci"; TS="$(date +%Y%m%d_%H%M%S)"
+EVID="$OUT/p60_runtime_${TS}"
+mkdir -p "$EVID"
+
+echo "== [P60] Runtime gate (Playwright module-safe) ==" | tee "$EVID/summary.txt"
+echo "[INFO] UI=$UI" | tee -a "$EVID/summary.txt"
+echo "[INFO] BASE=$BASE" | tee -a "$EVID/summary.txt"
+echo "[INFO] EVID=$EVID" | tee -a "$EVID/summary.txt"
+
+# get RID reliably (retry)
+RID="${RID:-}"
+if [ -z "${RID}" ]; then
+  for i in 1 2 3 4 5; do
+    RID="$(
+      curl -fsS --connect-timeout 1 -m 6 "$BASE/api/vsp/top_findings_v2?limit=1" \
+      | python3 - <<'PY'
+import sys, json
+try:
+  j=json.load(sys.stdin)
+  print(j.get("rid","") or "")
+except Exception:
+  print("")
+PY
+    )"
+    [ -n "$RID" ] && break
+    sleep 1
+  done
+fi
+echo "[INFO] RID=$RID" | tee -a "$EVID/summary.txt"
+[ -n "$RID" ] || { echo "[ERR] cannot get RID"; exit 2; }
+
+# sanity tabs
+for p in /vsp5 /runs /data_source /settings /rule_overrides; do
+  code="$(curl -sS --connect-timeout 1 -m 6 -o /dev/null -w "%{http_code}" "$BASE$p?rid=$RID" 2>/dev/null || echo 000)"
+  echo "[HTTP] $p => $code" | tee -a "$EVID/summary.txt"
+done
+
+# playwright available?
+node -e "require.resolve('playwright')" >/dev/null 2>&1 || {
+  echo "[ERR] playwright not resolvable in UI (node_modules). You already installed, so this should pass." | tee -a "$EVID/summary.txt"
+  exit 2
+}
+
+PW="$EVID/pw_gate.js"
+cat > "$PW" <<'JS'
+const fs = require('fs');
+const path = require('path');
+
+const BASE = process.env.BASE;
+const RID  = process.env.RID;
+const EVID = process.env.EVID;
+
+const p = (f)=>path.join(EVID,f);
+const now = ()=>new Date().toISOString();
+const append=(f,o)=>fs.appendFileSync(p(f), JSON.stringify(o)+"\n");
+const write=(f,o)=>fs.writeFileSync(p(f), JSON.stringify(o,null,2));
+
+(async ()=>{
+  let chromium;
+  try{
+    // module-safe resolve from CWD (UI)
+    const pw = require(require.resolve('playwright', { paths: [process.cwd()] }));
+    chromium = pw.chromium;
+  }catch(e){
+    write('verdict.json',{ok:false,ts:now(),base:BASE,rid:RID,evidence_dir:EVID,reason:'PLAYWRIGHT_RESOLVE_FAIL',message:String(e&&e.message||e)});
+    process.exit(6);
+  }
+
+  const tabs = [
+    ['/vsp5','vsp5'],
+    ['/runs','runs'],
+    ['/data_source','data_source'],
+    ['/settings','settings'],
+    ['/rule_overrides','rule_overrides'],
+  ];
+
+  const browser = await chromium.launch({ headless:true });
+  const ctx = await browser.newContext({ viewport:{width:1400,height:900}, ignoreHTTPSErrors:true });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(20000);
+  page.setDefaultNavigationTimeout(25000);
+
+  page.on('console', msg=>{
+    const rec={ts:now(),type:msg.type(),text:msg.text(),location:msg.location()};
+    if(msg.type()==='error') append('console_error.jsonl',rec);
+    else if(msg.type()==='warning') append('console_warn.jsonl',rec);
+  });
+  page.on('pageerror', err=>append('pageerror.jsonl',{ts:now(),name:err.name,message:err.message,stack:err.stack||null}));
+  page.on('requestfailed', req=>append('requestfailed.jsonl',{ts:now(),url:req.url(),failure:req.failure()}));
+
+  async function safeShot(name){
+    try{
+      await page.screenshot({ path:p(name), timeout:5000, fullPage:false, animations:'disabled' });
+    }catch(e){
+      append('pw_internal.jsonl',{ts:now(),type:'screenshot_error',name,msg:String(e&&e.message||e)});
+    }
+  }
+  async function gotoFast(url){
+    await page.goto(url, { waitUntil:'commit', timeout:25000 });
+    await page.waitForTimeout(700);
+  }
+
+  for(const [pth,tag] of tabs){
+    const url = `${BASE}${pth}?rid=${encodeURIComponent(RID)}`;
+    append('nav.jsonl',{ts:now(),step:'goto',tag,url});
+    try{
+      await gotoFast(url);
+      try{ fs.writeFileSync(p(`page_${tag}.html`), await page.content()); }catch{}
+      await safeShot(`page_${tag}.png`);
+    }catch(e){
+      append('pageerror.jsonl',{ts:now(),name:'GotoError',message:String(e&&e.message||e),stack:e&&e.stack||null});
+    }
+  }
+
+  await ctx.close(); await browser.close();
+
+  const count=(f)=>{ try{ const s=fs.readFileSync(p(f),'utf-8').trim(); return s? s.split('\n').filter(Boolean).length:0; }catch{return 0;} };
+  const ce=count('console_error.jsonl');
+  const pe=count('pageerror.jsonl');
+  const rf=count('requestfailed.jsonl');
+
+  const ok = (ce===0 && pe===0);
+  write('verdict.json',{ok,ts:now(),base:BASE,rid:RID,evidence_dir:EVID,console_error_lines:ce,pageerror_lines:pe,requestfailed_lines:rf});
+  process.exit(ok?0:6);
+})();
+JS
+
+BASE="$BASE" RID="$RID" EVID="$EVID" node "$PW" >"$EVID/pw_gate.out" 2>"$EVID/pw_gate.err" || true
+
+echo "== verdict ==" | tee -a "$EVID/summary.txt"
+cat "$EVID/verdict.json" | tee -a "$EVID/summary.txt"
+echo "[DONE] Evidence=$EVID"

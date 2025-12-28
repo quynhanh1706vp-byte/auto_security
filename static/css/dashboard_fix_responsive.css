@@ -1,0 +1,35 @@
+/* Fix số TOTAL FINDINGS bị tràn ra ngoài */
+
+.kpi-main-number,
+.kpi-main-value,
+.kpi-total-number,
+.kpi-total-value {
+  position: static !important;
+  transform: none !important;
+  font-size: clamp(36px, 4vw, 60px);
+  line-height: 1.0;
+  margin: 4px 0 0 0;
+}
+
+.kpi-main-card,
+.kpi-total-card {
+  position: relative !important;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.kpi-main-label,
+.kpi-total-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.65);
+  margin-bottom: 4px;
+}
+
+.kpi-main-caption,
+.kpi-total-caption {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+}

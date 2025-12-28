@@ -1,0 +1,992 @@
+/**
+ * VSP Dashboard Live V2
+ * - CIO-level layout cho tab Dashboard
+ * - KPI + donut + Findings by Tool + Top Findings
+ * - Tự tính:
+ *   + Security Score (0–100) từ by_severity
+ *   + Top CWE & Top Module từ mẫu HIGH findings (datasource)
+ *   + Trend Over Time từ /api/vsp/runs (last 10 runs)
+ */
+
+(function () {
+  const API_DASH = "/api/vsp/dashboard";
+  const API_TOP_FINDINGS = "/api/vsp/datasource?severity=HIGH&limit=200";
+  const API_RUNS = "/api/vsp/runs";
+
+  function $(id) { return document.getElementById(id); }
+
+  function fetchJSON(url) {
+    return fetch(url, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+
+  // Chuẩn hoá tên tool hiển thị
+  function toolLabel(key) {
+    if (!key) return "-";
+    var k = String(key).toLowerCase();
+    var map = {
+      gitleaks: "Gitleaks",
+      bandit: "Bandit",
+      grype: "Grype",
+      kics: "KICS",
+      semgrep: "Semgrep",
+      syft: "Syft",
+      "trivy_fs": "Trivy FS",
+      "trivy-fs": "Trivy FS"
+    };
+    return map[k] || key;
+  }
+
+  // Chuẩn hoá tên module => viết hoa chữ cái đầu
+  function moduleLabel(name) {
+    if (!name) return "-";
+    var s = String(name);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  /* ========== 0. INLINE CSS ========== */
+
+  function ensureInlineStyle() {
+    if (document.getElementById("vsp-dashboard-inline-style")) return;
+
+    var css = `
+    .vsp-dashboard-main {
+      padding: 16px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .vsp-dash-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .vsp-dash-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+    }
+    .vsp-dash-sub {
+      margin: 0;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .vsp-dash-env {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+      text-align: right;
+    }
+    .vsp-dash-env .lbl { opacity: 0.7; margin-right: 6px; }
+
+    .vsp-kpi-zone { margin-top: 4px; }
+    .vsp-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .vsp-kpi-card {
+      background: rgba(12, 20, 35, 0.95);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-height: 70px;
+    }
+    .vsp-kpi-card .kpi-label { font-size: 11px; opacity: 0.8; }
+    .vsp-kpi-card .kpi-value {
+      font-size: 18px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .vsp-kpi-card .kpi-subtext { font-size: 10px; opacity: 0.65; }
+
+    /* Total + Info */
+    .vsp-kpi-card.kpi-total {
+      background: linear-gradient(135deg, rgba(129,140,248,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(129,140,248,0.45);
+    }
+    .vsp-kpi-card.kpi-total .kpi-value { color:#c7d2fe; }
+
+    .vsp-kpi-card.kpi-info {
+      background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(56,189,248,0.45);
+    }
+    .vsp-kpi-card.kpi-info .kpi-value { color:#7dd3fc; }
+
+    /* Severity card – đổ màu nền tương ứng */
+    .vsp-kpi-card.kpi-critical {
+      background: linear-gradient(135deg, rgba(248,113,113,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(248,113,113,0.35);
+    }
+    .vsp-kpi-card.kpi-high {
+      background: linear-gradient(135deg, rgba(250,204,21,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(250,204,21,0.35);
+    }
+    .vsp-kpi-card.kpi-medium {
+      background: linear-gradient(135deg, rgba(34,197,94,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(34,197,94,0.35);
+    }
+    .vsp-kpi-card.kpi-low {
+      background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(56,189,248,0.35);
+    }
+    .vsp-kpi-card.kpi-critical .kpi-value { color: #fecaca; }
+    .vsp-kpi-card.kpi-high .kpi-value { color: #facc15; }
+    .vsp-kpi-card.kpi-medium .kpi-value { color: #4ade80; }
+    .vsp-kpi-card.kpi-low .kpi-value { color: #38bdf8; }
+
+    /* 4 KPI nâng cao */
+    .vsp-kpi-card.kpi-score {
+      background: linear-gradient(135deg, rgba(45,212,191,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(45,212,191,0.45);
+    }
+    .vsp-kpi-card.kpi-score .kpi-value { color:#99f6e4; }
+
+    .vsp-kpi-card.kpi-top-tool {
+      background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(59,130,246,0.45);
+    }
+    .vsp-kpi-card.kpi-top-tool .kpi-value { color:#93c5fd; }
+
+    .vsp-kpi-card.kpi-top-cwe {
+      background: linear-gradient(135deg, rgba(251,146,60,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(251,146,60,0.45);
+    }
+    .vsp-kpi-card.kpi-top-cwe .kpi-value { color:#fed7aa; }
+
+    .vsp-kpi-card.kpi-top-module {
+      background: linear-gradient(135deg, rgba(147,51,234,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(147,51,234,0.45);
+    }
+    .vsp-kpi-card.kpi-top-module .kpi-value { color:#e9d5ff; }
+
+    
+    /* KPI advanced & aggregate colors */
+    .vsp-kpi-card.kpi-total {
+      background: linear-gradient(135deg, rgba(129,140,248,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(129,140,248,0.45);
+    }
+    .vsp-kpi-card.kpi-total .kpi-value {
+      color: #c7d2fe;
+    }
+
+    .vsp-kpi-card.kpi-info {
+      background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(56,189,248,0.45);
+    }
+    .vsp-kpi-card.kpi-info .kpi-value {
+      color: #7dd3fc;
+    }
+
+    .vsp-kpi-card.kpi-score {
+      background: linear-gradient(135deg, rgba(45,212,191,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(45,212,191,0.45);
+    }
+    .vsp-kpi-card.kpi-score .kpi-value {
+      color: #99f6e4;
+    }
+
+    .vsp-kpi-card.kpi-top-tool {
+      background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(59,130,246,0.45);
+    }
+    .vsp-kpi-card.kpi-top-tool .kpi-value {
+      color: #93c5fd;
+    }
+
+    .vsp-kpi-card.kpi-top-cwe {
+      background: linear-gradient(135deg, rgba(251,146,60,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(251,146,60,0.45);
+    }
+    .vsp-kpi-card.kpi-top-cwe .kpi-value {
+      color: #fed7aa;
+    }
+
+    .vsp-kpi-card.kpi-top-module {
+      background: linear-gradient(135deg, rgba(147,51,234,0.25), rgba(15,23,42,0.98));
+      border: 1px solid rgba(147,51,234,0.45);
+    }
+    .vsp-kpi-card.kpi-top-module .kpi-value {
+      color: #e9d5ff;
+    }
+
+    /* Highlight dòng #1 trong Top CWE / Top Modules */
+    #vsp-top-cwe-table table tbody tr:first-child {
+      background: linear-gradient(90deg, rgba(251,146,60,0.22), rgba(15,23,42,0.9));
+    }
+    #vsp-top-module-table table tbody tr:first-child {
+      background: linear-gradient(90deg, rgba(129,140,248,0.22), rgba(15,23,42,0.9));
+    }
+
+    .vsp-chart-zone {
+      display: grid;
+      grid-template-columns: 2fr 2fr 2fr;
+      gap: 12px;
+    }
+    .vsp-chart-card {
+      background: rgba(10, 16, 30, 0.96);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 210px;
+    }
+    .vsp-chart-card .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .chart-title-main { font-size: 12px; font-weight: 600; }
+    .chart-sub { font-size: 10px; opacity: 0.7; }
+    .vsp-chart-card .chart-body { flex: 1; position: relative; }
+    .vsp-chart-card canvas { width: 100% !important; height: 100% !important; }
+    .vsp-chart-empty {
+      font-size: 11px;
+      opacity: 0.7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vsp-findings-zone {
+      display: grid;
+      grid-template-columns: 3fr 2fr 2fr;
+      gap: 12px;
+    }
+    .vsp-table-card {
+      background: rgba(10, 16, 30, 0.96);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 220px;
+    }
+    .vsp-table-card .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .table-title-main { font-size: 12px; font-weight: 600; }
+    .table-sub { font-size: 10px; opacity: 0.7; }
+    .vsp-table-card .table-body { flex: 1; overflow: hidden; }
+    .vsp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+    .vsp-table thead tr { background: rgba(255,255,255,0.03); }
+    .vsp-table th,
+    .vsp-table td {
+      padding: 3px 4px;
+      text-align: left;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .vsp-table tbody tr:nth-child(even) {
+      background: rgba(255,255,255,0.01);
+    }
+
+    /* Severity pill cho Top Findings */
+    .vsp-sev-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .vsp-sev-critical {
+      background: rgba(248,113,113,0.15);
+      border: 1px solid rgba(248,113,113,0.5);
+      color: #fecaca;
+    }
+    .vsp-sev-high {
+      background: rgba(250,204,21,0.15);
+      border: 1px solid rgba(250,204,21,0.5);
+      color: #facc15;
+    }
+    .vsp-sev-medium {
+      background: rgba(34,197,94,0.15);
+      border: 1px solid rgba(34,197,94,0.5);
+      color: #4ade80;
+    }
+    .vsp-sev-low {
+      background: rgba(56,189,248,0.15);
+      border: 1px solid rgba(56,189,248,0.5);
+      color: #7dd3fc;
+    }
+    .vsp-sev-info {
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.5);
+      color: #93c5fd;
+    }
+    .vsp-sev-trace {
+      background: rgba(148,163,184,0.15);
+      border: 1px solid rgba(148,163,184,0.5);
+      color: #cbd5f5;
+    }
+
+    .vsp-table-empty {
+      font-size: 11px;
+      opacity: 0.7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    `;
+
+    var style = document.createElement("style");
+    style.id = "vsp-dashboard-inline-style";
+    style.type = "text/css";
+    style.appendChild(document.createTextNode(css));
+    document.head.appendChild(style);
+  }
+
+  /* ========== 1. LAYOUT ========== */
+
+  function buildDashboardLayout() {
+    var tab = document.getElementById("tab-dashboard");
+    if (!tab) return;
+
+    tab.className = "vsp-tab active";
+
+    tab.innerHTML = [
+      '<div class="vsp-dashboard-main">',
+        '<header class="vsp-dash-header">',
+          '<div>',
+            '<h2 class="vsp-dash-title">Security Posture Overview</h2>',
+            '<p class="vsp-dash-sub">Total findings &amp; severity levels CRITICAL → TRACE</p>',
+          '</div>',
+          '<div class="vsp-dash-env">',
+            '<div class="vsp-env-line"><span class="lbl">Run ID</span><span id="vsp-run-id">-</span></div>',
+            '<div class="vsp-env-line"><span class="lbl">Source</span><span id="vsp-src-path">-</span></div>',
+            '<div class="vsp-env-line"><span class="lbl">Profile</span><span id="vsp-profile">EXT+</span></div>',
+          '</div>',
+        '</header>',
+
+        '<section class="vsp-kpi-zone">',
+          '<div class="vsp-kpi-grid">',
+            '<div class="vsp-kpi-card kpi-total">',
+              '<div class="kpi-label">Total Findings</div>',
+              '<div class="kpi-value" id="kpi-total">0</div>',
+              '<div class="kpi-subtext">All severities</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-critical">',
+              '<div class="kpi-label">Critical</div>',
+              '<div class="kpi-value" id="kpi-critical">0</div>',
+              '<div class="kpi-subtext">Must fix first</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-high">',
+              '<div class="kpi-label">High</div>',
+              '<div class="kpi-value" id="kpi-high">0</div>',
+              '<div class="kpi-subtext">High-impact issues</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-medium">',
+              '<div class="kpi-label">Medium</div>',
+              '<div class="kpi-value" id="kpi-medium">0</div>',
+              '<div class="kpi-subtext">Moderate risk</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-low">',
+              '<div class="kpi-label">Low</div>',
+              '<div class="kpi-value" id="kpi-low">0</div>',
+              '<div class="kpi-subtext">Hygiene issues</div>',
+            '</div>',
+
+            '<div class="vsp-kpi-card kpi-info">',
+              '<div class="kpi-label">Info / Trace</div>',
+              '<div class="kpi-value" id="kpi-info-trace">0</div>',
+              '<div class="kpi-subtext">Noise / telemetry</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-score">',
+              '<div class="kpi-label">Security Score</div>',
+              '<div class="kpi-value" id="kpi-score">-</div>',
+              '<div class="kpi-subtext">0 – 100 (computed)</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-top-tool">',
+              '<div class="kpi-label">Top Risky Tool</div>',
+              '<div class="kpi-value" id="kpi-top-tool">-</div>',
+              '<div class="kpi-subtext">Most CRIT/HIGH</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-top-cwe">',
+              '<div class="kpi-label">Top CWE</div>',
+              '<div class="kpi-value" id="kpi-top-cwe">-</div>',
+              '<div class="kpi-subtext">Most frequent pattern (HIGH)</div>',
+            '</div>',
+            '<div class="vsp-kpi-card kpi-top-module">',
+              '<div class="kpi-label">Top Module</div>',
+              '<div class="kpi-value" id="kpi-top-module">-</div>',
+              '<div class="kpi-subtext">Most vulnerable package (HIGH)</div>',
+            '</div>',
+          '</div>',
+        '</section>',
+
+        '<section class="vsp-chart-zone">',
+          '<div class="vsp-chart-card">',
+            '<div class="chart-header">',
+              '<div class="chart-title-main">Severity Distribution</div>',
+              '<div class="chart-sub">CRITICAL → TRACE</div>',
+            '</div>',
+            '<div class="chart-body"><canvas id="chart-severity-donut"></canvas></div>',
+          '</div>',
+          '<div class="vsp-chart-card">',
+            '<div class="chart-header">',
+              '<div class="chart-title-main">Trend Over Time</div>',
+              '<div class="chart-sub">Last 10 runs (total findings)</div>',
+            '</div>',
+            '<div class="chart-body"><canvas id="chart-trend"></canvas></div>',
+          '</div>',
+          '<div class="vsp-chart-card">',
+            '<div class="chart-header">',
+              '<div class="chart-title-main">Findings by Tool</div>',
+              '<div class="chart-sub">Current run by tool</div>',
+            '</div>',
+            '<div class="chart-body"><canvas id="chart-findings-by-tool"></canvas></div>',
+          '</div>',
+        '</section>',
+
+        '<section class="vsp-findings-zone">',
+          '<div class="vsp-table-card">',
+            '<div class="table-header">',
+              '<div class="table-title-main">Top Findings</div>',
+              '<div class="table-sub">Sample HIGH findings</div>',
+            '</div>',
+            '<div class="table-body">',
+              '<table class="vsp-table">',
+                '<thead><tr>',
+                  '<th>#</th><th>Severity</th><th>Tool</th><th>Rule</th><th>File</th><th>Message</th>',
+                '</tr></thead>',
+                '<tbody class="vsp-table-top-findings">',
+                  '<tr><td colspan="6">Loading...</td></tr>',
+                '</tbody>',
+              '</table>',
+            '</div>',
+          '</div>',
+          '<div class="vsp-table-card">',
+            '<div class="table-header">',
+              '<div class="table-title-main">Top CWE</div>',
+              '<div class="table-sub">Most frequent CWE from HIGH sample</div>',
+            '</div>',
+            '<div class="table-body vsp-table-empty" id="vsp-top-cwe-table">Will be populated from datasource sample.</div>',
+          '</div>',
+          '<div class="vsp-table-card">',
+            '<div class="table-header">',
+              '<div class="table-title-main">Top Modules</div>',
+              '<div class="table-sub">Most vulnerable modules from HIGH sample</div>',
+            '</div>',
+            '<div class="table-body vsp-table-empty" id="vsp-top-module-table">Will be populated from datasource sample.</div>',
+          '</div>',
+        '</section>',
+      '</div>'
+    ].join("");
+  }
+
+  /* ========== 2. KPI + SECURITY SCORE + TOP TOOL ========== */
+
+  function renderKPI(payload) {
+    var sev = (payload.summary && payload.summary.by_severity) || {};
+    var total = Number(payload.total_findings || 0);
+    var crit  = Number(sev.CRITICAL || 0);
+    var high  = Number(sev.HIGH || 0);
+    var med   = Number(sev.MEDIUM || 0);
+    var low   = Number(sev.LOW || 0);
+    var info  = Number(sev.INFO || 0);
+    var trace = Number(sev.TRACE || 0);
+    var infoTrace = info + trace;
+
+    var map = {
+      "kpi-total": total,
+      "kpi-critical": crit,
+      "kpi-high": high,
+      "kpi-medium": med,
+      "kpi-low": low,
+      "kpi-info-trace": infoTrace
+    };
+
+    Object.keys(map).forEach(function (id) {
+      var el = $(id);
+      if (el) el.textContent = map[id].toLocaleString();
+    });
+
+    // Security Score (0–100)
+    var scoreEl = $("kpi-score");
+    if (scoreEl) {
+      var baseTotal = total || (crit + high + med + low + info + trace);
+      if (!baseTotal) {
+        scoreEl.textContent = "100";
+      } else {
+        var riskScore = (crit * 5 + high * 2 + med * 1) / Math.max(baseTotal, 1);
+        var secScore = 100 - riskScore * 20;
+        if (!isFinite(secScore)) secScore = 100;
+        secScore = Math.max(0, Math.min(100, secScore));
+        scoreEl.textContent = secScore.toFixed(1);
+      }
+    }
+
+    if ($("vsp-run-id")) $("vsp-run-id").textContent = payload.run_id || "-";
+    if ($("vsp-src-path")) {
+      var src = (payload.source && payload.source.src_path) || "-";
+      $("vsp-src-path").textContent = src;
+    }
+  }
+
+  function updateTopRiskyTool(byToolRaw) {
+    var byTool = byToolRaw || {};
+    var bestTool = null;
+    var bestScore = -1;
+
+    Object.keys(byTool).forEach(function (tool) {
+      var row = byTool[tool];
+      if (row == null) return;
+
+      var score = 0;
+
+      if (typeof row === "number") {
+        score = Number(row) || 0;
+      } else {
+        var c = Number(row.CRITICAL || 0);
+        var h = Number(row.HIGH || 0);
+        var m = Number(row.MEDIUM || 0);
+        if (c || h || m) {
+          score = c * 100 + h * 10 + m;
+        } else {
+          score = Number(row.total || row.TOTAL || 0) || 0;
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestTool = tool;
+      }
+    });
+
+    var el = $("kpi-top-tool");
+    if (!el) return;
+
+    if (!bestTool) {
+      el.textContent = "-";
+    } else if (bestScore <= 0) {
+      el.textContent = toolLabel(bestTool);
+    } else {
+      el.textContent = toolLabel(bestTool) + " (" + bestScore + ")";
+    }
+  }
+
+  /* ========== 3. CHARTS ========== */
+
+  var severityChart = null;
+  var toolChart = null;
+  var trendChart = null;
+
+  function renderSeverityDonut(sevRaw) {
+    if (!window.Chart) return;
+    var ctx = document.getElementById("chart-severity-donut");
+    if (!ctx) return;
+
+    var sev = sevRaw || {};
+    var labels = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "TRACE"];
+    var data = labels.map(function (k) { return Number(sev[k] || 0); });
+
+    var colors = [
+      "#f97373",
+      "#facc15",
+      "#4ade80",
+      "#22c55e",
+      "#38bdf8",
+      "#a855f7"
+    ];
+
+    var cfg = {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "65%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { boxWidth: 10 }
+          }
+        }
+      }
+    };
+
+    if (severityChart) {
+      severityChart.data = cfg.data;
+      severityChart.update();
+    } else {
+      severityChart = new Chart(ctx, cfg);
+    }
+  }
+
+  function renderFindingsByTool(byToolRaw) {
+    if (!window.Chart) return;
+    var ctx = document.getElementById("chart-findings-by-tool");
+    if (!ctx) return;
+
+    var byTool = byToolRaw || {};
+    var keys = Object.keys(byTool).sort();
+    var labels = keys.map(function (k) { return toolLabel(k); });
+
+    var data = keys.map(function (tool) {
+      var row = byTool[tool];
+      if (row == null) return 0;
+
+      if (typeof row === "number") {
+        return Number(row) || 0;
+      }
+
+      var totalBuckets =
+        Number(row.CRITICAL || 0) +
+        Number(row.HIGH || 0) +
+        Number(row.MEDIUM || 0) +
+        Number(row.LOW || 0) +
+        Number(row.INFO || 0) +
+        Number(row.TRACE || 0);
+
+      if (totalBuckets) return totalBuckets;
+
+      return Number(row.total || row.TOTAL || 0) || 0;
+    });
+
+    var cfg = {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: "#38bdf8"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 } },
+          y: { beginAtZero: true }
+        }
+      }
+    };
+
+    if (toolChart) {
+      toolChart.data = cfg.data;
+      toolChart.update();
+    } else {
+      toolChart = new Chart(ctx, cfg);
+    }
+  }
+
+  function renderTrendRuns(runs) {
+    if (!window.Chart) return;
+    var ctx = document.getElementById("chart-trend");
+    if (!ctx) return;
+
+    if (!Array.isArray(runs) || !runs.length) {
+      // không vẽ gì nếu chưa có dữ liệu
+      return;
+    }
+
+    // sort theo thời gian, lấy 10 run cuối
+    var arr = runs.slice();
+    arr.sort(function (a, b) {
+      var ta = a.ts || a.time || a.run_id || "";
+      var tb = b.ts || b.time || b.run_id || "";
+      return String(ta).localeCompare(String(tb));
+    });
+    arr = arr.slice(-10);
+
+    var labels = arr.map(function (r, idx) {
+      var ts = r.ts || r.time || "";
+      if (ts && typeof ts === "string") {
+        return ts.slice(5, 16); // "MM-DDTHH:MM" kiểu rút gọn
+      }
+      return "Run " + (arr.length - idx);
+    });
+
+    var data = arr.map(function (r) {
+      return Number(r.total_findings || (r.summary && r.summary.total_findings) || 0);
+    });
+
+    var cfg = {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Total findings",
+          data: data,
+          tension: 0.3,
+          borderWidth: 2,
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel: function (ctx) {
+                var idx = ctx.dataIndex;
+                var r = arr[idx];
+                if (!r) return "";
+                return "  Run: " + (r.run_id || "-");
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { maxRotation: 45, minRotation: 0 } },
+          y: { beginAtZero: true }
+        }
+      }
+    };
+
+    if (trendChart) {
+      trendChart.data = cfg.data;
+      trendChart.update();
+    } else {
+      trendChart = new Chart(ctx, cfg);
+    }
+  }
+
+  /* ========== 4. TOP FINDINGS + TOP CWE + TOP MODULE ========== */
+
+  function renderTopFindingsTable(items) {
+    var tbody = document.querySelector(".vsp-table-top-findings");
+    if (!tbody) return;
+
+    if (!Array.isArray(items) || !items.length) {
+      tbody.innerHTML = '<tr><td colspan="6">No HIGH findings sampled.</td></tr>';
+      return;
+    }
+
+    var html = items.map(function (item, idx) {
+      var sevRaw = (item.severity || "-").toString().toUpperCase();
+      var sevLabel = sevRaw;
+      var sevClass = "vsp-sev-pill ";
+
+      switch (sevRaw) {
+        case "CRITICAL": sevClass += "vsp-sev-critical"; break;
+        case "HIGH":     sevClass += "vsp-sev-high"; break;
+        case "MEDIUM":   sevClass += "vsp-sev-medium"; break;
+        case "LOW":      sevClass += "vsp-sev-low"; break;
+        case "INFO":     sevClass += "vsp-sev-info"; break;
+        case "TRACE":    sevClass += "vsp-sev-trace"; break;
+        default:
+          sevLabel = sevRaw || "-";
+          sevClass = "";
+      }
+
+      var sevCell = "-";
+      if (sevClass) {
+        sevCell = '<span class="' + sevClass + '">' + sevLabel + '</span>';
+      }
+
+      var toolRaw = item.tool || "-";
+      var tool = toolLabel(toolRaw);
+      var rule = item.rule_id || item.rule || "-";
+      var file = item.file || item.path || "-";
+      var msg = item.message || item.title || item.description || "-";
+
+      return (
+        "<tr>" +
+          "<td>" + (idx + 1) + "</td>" +
+          "<td>" + sevCell + "</td>" +
+          "<td title=\"" + toolRaw + "\">" + tool + "</td>" +
+          "<td title=\"" + rule + "\">" + rule + "</td>" +
+          "<td title=\"" + file + "\">" + file + "</td>" +
+          "<td title=\"" + msg + "\">" + msg + "</td>" +
+        "</tr>"
+      );
+    }).join("");
+
+    tbody.innerHTML = html;
+  }
+
+  function extractCweCodes(raw) {
+    if (!raw) return [];
+    var arr = Array.isArray(raw) ? raw : [raw];
+    var out = [];
+    arr.forEach(function (v) {
+      if (v == null) return;
+      var s = String(v);
+      var m = s.match(/CWE-\d+/g);
+      if (m) m.forEach(function (code) { out.push(code); });
+    });
+    return out;
+  }
+
+  function extractModule(item) {
+    var mod = item.module || item.component || item.package || item.dependency || item.library;
+    if (mod) return String(mod);
+    var file = item.file || item.path || "";
+    var m = String(file).match(/\(([^()]+)\)\s*$/);
+    if (m) return m[1];
+    return null;
+  }
+
+  function updateTopCweAndModuleFromItems(items) {
+    if (!Array.isArray(items) || !items.length) return;
+
+    var sevWeight = {
+      CRITICAL: 5,
+      HIGH: 3,
+      MEDIUM: 1,
+      LOW: 0.5,
+      INFO: 0.1,
+      TRACE: 0
+    };
+
+    var cweScore = {};
+    var moduleScore = {};
+
+    items.forEach(function (it) {
+      var sev = String(it.severity || "").toUpperCase();
+      var w = sevWeight[sev] || 0;
+
+      var cwes = []
+        .concat(extractCweCodes(it.cwe))
+        .concat(extractCweCodes(it.cwe_id))
+        .concat(extractCweCodes(it.cwe_ids));
+
+      cwes.forEach(function (code) {
+        if (code) cweScore[code] = (cweScore[code] || 0) + w;
+      });
+
+      var mod = extractModule(it);
+      if (mod) moduleScore[mod] = (moduleScore[mod] || 0) + w;
+    });
+
+    function topKey(scoreMap) {
+      var best = null;
+      var bestVal = -1;
+      Object.keys(scoreMap).forEach(function (k) {
+        if (scoreMap[k] > bestVal) {
+          bestVal = scoreMap[k];
+          best = k;
+        }
+      });
+      return { key: best, score: bestVal };
+    }
+
+    var topCwe = topKey(cweScore);
+    var topMod = topKey(moduleScore);
+
+    if (topCwe.key && $("kpi-top-cwe")) {
+      $("kpi-top-cwe").textContent = topCwe.key;
+    }
+    if (topMod.key && $("kpi-top-module")) {
+      $("kpi-top-module").textContent = moduleLabel(topMod.key);
+    }
+
+    var cweTable = document.getElementById("vsp-top-cwe-table");
+    var modTable = document.getElementById("vsp-top-module-table");
+
+    function renderSmallTable(el, scoreMap, labelKey, labelFormatter) {
+      if (!el) return;
+      var entries = Object.keys(scoreMap)
+        .map(function (k) { return { key: k, score: scoreMap[k] }; })
+        .sort(function (a, b) { return b.score - a.score; })
+        .slice(0, 5);
+
+      if (!entries.length) {
+        el.textContent = "No data.";
+        return;
+      }
+
+      var rows = entries.map(function (e, idx) {
+        return (
+          "<tr>" +
+            "<td>" + (idx + 1) + "</td>" +
+            "<td>" + labelFormatter(e.key) + "</td>" +
+            "<td>" + e.score.toFixed(1) + "</td>" +
+          "</tr>"
+        );
+      }).join("");
+
+      el.innerHTML =
+        '<table class="vsp-table">' +
+          '<thead><tr><th>#</th><th>' + labelKey + '</th><th>Score</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>';
+    }
+
+    renderSmallTable(cweTable, cweScore, "CWE", function (x) { return x; });
+    renderSmallTable(modTable, moduleScore, "Module", moduleLabel);
+  }
+
+  function loadTopFindings() {
+    fetchJSON(API_TOP_FINDINGS)
+      .then(function (data) {
+        if (!data || !Array.isArray(data.items)) {
+          renderTopFindingsTable([]);
+          return;
+        }
+        var sample = data.items.slice(0, 10);
+        renderTopFindingsTable(sample);
+        updateTopCweAndModuleFromItems(data.items);
+      })
+      .catch(function () {
+        renderTopFindingsTable([]);
+      });
+  }
+
+  function loadTrend() {
+    fetchJSON(API_RUNS)
+      .then(function (data) {
+        if (!data || !Array.isArray(data.runs)) return;
+        renderTrendRuns(data.runs);
+      })
+      .catch(function (err) {
+        console.error("VSP dashboard: error loading /runs", err);
+      });
+  }
+
+  /* ========== 5. INIT ========== */
+
+  window.addEventListener("load", function () {
+    var tab = document.getElementById("tab-dashboard");
+    if (!tab) return;
+
+    ensureInlineStyle();
+    buildDashboardLayout();
+
+    fetchJSON(API_DASH)
+      .then(function (payload) {
+        if (!payload || payload.ok === false) return;
+
+        var summary = payload.summary || {};
+        renderKPI(payload);
+        renderSeverityDonut(summary.by_severity || {});
+        renderFindingsByTool(summary.by_tool || {});
+        updateTopRiskyTool(summary.by_tool || {});
+      })
+      .catch(function (err) {
+        console.error("VSP dashboard: error loading /dashboard_v2", err);
+      });
+
+    loadTopFindings();
+    loadTrend();
+  });
+})();

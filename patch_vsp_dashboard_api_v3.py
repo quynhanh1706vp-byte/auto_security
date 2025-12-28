@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""
+Patch VSP Dashboard API v3
+
+- Tự động tìm các file .py trong ui/ có chứa:
+    /api/vsp/dashboard_v3
+    /api/vsp/runs_index_v3
+    /api/vsp/datasource_v2
+
+- Backup file gốc (*.bak_patch)
+- Ghi đè 3 route:
+    dashboard_v3
+    runs_index_v3
+    datasource_v2
+
+Đầu ra:
+- /api/vsp/dashboard_v3  → đọc summary_unified.json mới nhất
+- /api/vsp/runs_index_v3 → duyệt các RUN_VSP_FULL_EXT_* và đọc summary_unified.json
+- /api/vsp/datasource_v2 → đọc findings_unified.json của run đang chọn
+"""
+
+from pathlib import Path
+import shutil
+import re
+import sys
+import json
+
+
+ROOT = Path("/home/test/Data/SECURITY_BUNDLE")
+UI_BASE = ROOT / "ui"
+
+print(f"[PATCH] ROOT  = {ROOT}")
+print(f"[PATCH] UI_BASE = {UI_BASE}")
+
+
+def find_api_files():
+    candidates = []
+    if not UI_BASE.is_dir():
+        print("[ERR] UI_BASE không tồn tại:", UI_BASE)
+        return candidates
+
+    for p in UI_BASE.rglob("*.py"):
+        try:
+            text = p.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        if (
+            "/api/vsp/dashboard_v3" in text
+            or "/api/vsp/runs_index_v3" in text
+            or "/api/vsp/datasource_v2" in text
+        ):
+            candidates.append((p, text))
+    return candidates
+
+
+def patch_file(path: Path, txt: str):
+    print(f"\n[PATCH] Đang xử lý file: {path}")
+    backup = path.with_suffix(path.suffix + ".bak_patch")
+    shutil.copy(path, backup)
+    print(f"[PATCH] Backup -> {backup}")
+
+    orig_txt = txt
+
+    # -------- PATCH 1: dashboard_v3 --------
+    pattern_dashboard = (
+        r"@bp_dashboard\.route\(\"/api/vsp/dashboard_v3\"[^\)]*\)\s*"
+        r"def\s+dashboard_v3\(\):"
+        r"[\s\S]*?(?=\n@bp_dashboard\.route\(\"/api/vsp/|\Z)"
+    )
+
+    replacement_dashboard = r'''@bp_dashboard.route("/api/vsp/dashboard_v3", methods=["GET"])
+def dashboard_v3():
+    from flask import jsonify
+    from pathlib import Path
+    import json
+
+    cur = Path(__file__).resolve()
+    ROOT = None
+    for p in cur.parents:
+        if (p / "out").is_dir():
+            ROOT = p
+            break
+    if ROOT is None:
+        ROOT = cur.parents[1]
+    out_dir = ROOT / "out"
+    runs = sorted(out_dir.glob("RUN_VSP_FULL_EXT_*"), reverse=True)
+    if not runs:
+        return jsonify(ok=False, error="No runs found")
+
+    latest = runs[0]
+    summary_path = latest / "report" / "summary_unified.json"
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        return jsonify(ok=False, error=f"summary_unified.json error: {e}")
+
+    resp = {
+        "ok": True,
+        "run_id": summary.get("run_id"),
+        "total_findings": summary.get("total_findings", 0),
+        "sbom_total": summary.get("sbom_total", 0),
+        "by_tool": summary.get("by_tool", {}),
+        "by_severity": summary.get("by_severity", {}),
+        "top_cwe": summary.get("top_cwe"),
+        "top_module": summary.get("top_module"),
+        "top_risky_tool": summary.get("top_risky_tool"),
+        "security_score": summary.get("security_score", 0),
+    }
+    return jsonify(resp)

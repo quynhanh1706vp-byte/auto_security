@@ -1,0 +1,89 @@
+/* VSP_DRILLDOWN_STUB_SAFE_CALLABLE_V1 (commercial):
+   - window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 is ALWAYS callable
+   - accepts "real impl" via setter (function or object with .open/.run/.invoke)
+   - fallback: emit intent + navigate #datasource */
+(function(){
+  'use strict';
+  if (window.__VSP_DRILLDOWN_STUB_SAFE_CALLABLE_V1__) return;
+  window.__VSP_DRILLDOWN_STUB_SAFE_CALLABLE_V1__ = 1;
+
+  var _impl = null;
+
+  function _emitIntent(intent){
+    try{
+      window.__VSP_DRILLDOWN_INTENT__ = intent;
+      try{ localStorage.setItem('vsp_drilldown_intent_v1', JSON.stringify(intent)); }catch(_){}
+      window.dispatchEvent(new CustomEvent('vsp:drilldown', { detail: intent }));
+    }catch(_){}
+  }
+
+  function _gotoDataSource(){
+    try{ if (window.location.hash !== '#datasource') window.location.hash = '#datasource'; }catch(_){}
+  }
+
+  function _safeInvoke(impl, args){
+    try{
+      if (typeof impl === 'function') return impl.apply(null, args);
+      if (impl && typeof impl.open === 'function') return impl.open.apply(impl, args);
+      if (impl && typeof impl.run === 'function') return impl.run.apply(impl, args);
+      if (impl && typeof impl.invoke === 'function') return impl.invoke.apply(impl, args);
+    }catch(e){
+      try{ console.warn('[VSP][DD_SAFE_CALLABLE]', e); }catch(_){}
+    }
+    return null;
+  }
+
+  function exported(opts){
+    var intent = {};
+    try{
+      if (typeof opts === 'string') intent.rid = opts;
+      else if (opts && typeof opts === 'object') intent = opts;
+      if (!intent.rid){
+        intent.rid = (window.__VSP_RID_STATE__ && window.__VSP_RID_STATE__.rid) || window.__VSP_RID || null;
+      }
+      intent.ts = Date.now();
+      intent.kind = intent.kind || 'artifacts';
+    }catch(_){}
+
+    var r = _safeInvoke(_impl, arguments);
+    if (r !== null) return r;
+
+    _emitIntent(intent);
+    _gotoDataSource();
+    try{
+      if (typeof window.VSP_DATASOURCE_APPLY_DRILLDOWN_V1 === 'function'){
+        return window.VSP_DATASOURCE_APPLY_DRILLDOWN_V1(intent);
+      }
+    }catch(_){}
+    return null;
+  }
+
+  // Force callable getter/setter forever
+  try{
+    if (window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 && window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 !== exported){
+      _impl = window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2;
+    }
+    Object.defineProperty(window, 'VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2', {
+      configurable: true,
+      enumerable: true,
+      get: function(){ return exported; },
+      set: function(v){
+        _impl = v;
+        try{ console.log('[VSP][DD] accepted real impl'); }catch(_){}
+      }
+    });
+  }catch(e){
+    _impl = window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2;
+    window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = exported;
+  }
+
+  // Re-assert callable if clobbered later
+  setInterval(function(){
+    try{
+      if (window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 !== exported){
+        _impl = window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2;
+        window.VSP_DASH_DRILLDOWN_ARTIFACTS_P1_V2 = exported;
+      }
+    }catch(_){}
+  }, 800);
+})();

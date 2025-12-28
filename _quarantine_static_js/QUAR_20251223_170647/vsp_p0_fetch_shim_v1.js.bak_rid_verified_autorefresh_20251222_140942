@@ -1,0 +1,9 @@
+/* VSP_P1_FETCH_SHIM_NOOP_V1
+ * Commercial clean: disable any fetch/XHR rewrite shim.
+ * Reason: shim was rewriting /api/vsp/rid_latest_gate_root -> /api/vsp/rid_latest_gate_root_gate_root (404),
+ * and causing noise/incorrect contract.
+ */
+(()=> {
+  try { window.__vsp_fetch_shim_disabled_v1 = true; } catch(_){}
+  try { console.log("[VSP] fetch shim DISABLED (commercial clean)"); } catch(_){}
+})();

@@ -1,0 +1,150 @@
+/* VSP_TOPBAR_COMMERCIAL_V1 */
+(() => {
+  if (window.__vsp_topbar_commercial_v1) return;
+  window.__vsp_topbar_commercial_v1 = true;
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+
+  function envLabel(){
+    const h = String(window.location.hostname || "");
+    if (h.includes("staging")) return "STAGING";
+    if (h.includes("localhost") || h.includes("127.0.0.1")) return "LOCAL";
+    return "PROD";
+  }
+
+  function setText(id, v){
+    const el = document.getElementById(id);
+    if (el) el.textContent = (v == null ? "" : String(v));
+  }
+
+  function setPill(id, text, klass){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove("ok","warn","bad","muted");
+    if (klass) el.classList.add(klass);
+  }
+
+  async function getJson(url, timeoutMs=6000){
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), timeoutMs);
+    try{
+      const r = await fetch(url, {signal: c.signal, credentials: "same-origin"});
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function wireExport(rid){
+    const aCsv = $("#vspExportCsv");
+    const aTgz = $("#vspExportTgz");
+    if (aCsv) aCsv.href = `/api/vsp/export_csv?rid=${encodeURIComponent(rid)}`;
+    if (aTgz) aTgz.href = `/api/vsp/export_tgz?rid=${encodeURIComponent(rid)}&scope=reports`;
+  }
+
+  function detectDegraded(summary){
+    // Robust heuristics across versions
+    if (!summary || typeof summary !== "object") return false;
+
+    if (summary.degraded === true) return true;
+    if (summary.degraded_tools && Number(summary.degraded_tools) > 0) return true;
+    if (summary.degraded_count && Number(summary.degraded_count) > 0) return true;
+
+    const tools = summary.tools || summary.by_tool || null;
+    if (Array.isArray(tools)) {
+      return tools.some(t => (t && (t.degraded === true || String(t.status||"").toUpperCase()==="DEGRADED")));
+    }
+    if (tools && typeof tools === "object") {
+      return Object.values(tools).some(t => t && (t.degraded === true || String(t.status||"").toUpperCase()==="DEGRADED"));
+    }
+    return false;
+  }
+
+  function detectVerdict(summary){
+    const cand = [
+      summary.overall,
+      summary.overall_status,
+      summary.verdict,
+      summary.gate,
+      summary.gate_verdict,
+    ].filter(Boolean)[0];
+    return cand ? String(cand).toUpperCase() : "UNKNOWN";
+  }
+
+  function verdictClass(v){
+    const x = String(v||"").toUpperCase();
+    if (x.includes("GREEN") || x==="OK" || x==="PASS") return "ok";
+    if (x.includes("AMBER") || x==="WARN") return "warn";
+    if (x.includes("RED") || x==="FAIL" || x==="BLOCK") return "bad";
+    return "muted";
+  }
+
+  async function main(){
+    setText("vspEnv", envLabel());
+    setText("vspLatestRid", "…");
+    setPill("vspVerdictPill", "…", "muted");
+    setPill("vspDegradedPill", "…", "muted");
+
+    // Latest RID
+    let rid = null;
+    try{
+      const runs = await getJson("/api/vsp/runs?limit=1", 7000);
+      rid = (runs && runs.items && runs.items[0] && runs.items[0].run_id) ? runs.items[0].run_id : null;
+    } catch(_) {}
+
+    if (!rid){
+      setText("vspLatestRid", "N/A");
+      wireExport("N/A");
+      setPill("vspVerdictPill", "UNKNOWN", "muted");
+      setPill("vspDegradedPill", "UNKNOWN", "muted");
+      return;
+    }
+
+    setText("vspLatestRid", rid);
+    wireExport(rid);
+
+    // Summary for verdict/degraded
+    try{
+      // Prefer run_file if gateway serves it
+      const summary = await getJson(`/api/vsp/run_file?rid=${encodeURIComponent(rid)}&name=${encodeURIComponent("reports/run_gate_summary.json")}`, 8000);
+      const verdict = detectVerdict(summary);
+      const degraded = detectDegraded(summary);
+
+      setPill("vspVerdictPill", verdict, verdictClass(verdict));
+      setPill("vspDegradedPill", degraded ? "DEGRADED" : "OK", degraded ? "warn" : "ok");
+    } catch(_) {
+      setPill("vspVerdictPill", "UNKNOWN", "muted");
+      setPill("vspDegradedPill", "UNKNOWN", "muted");
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", main);
+  } else {
+    main();
+  }
+})();
+
+
+/* VSP_TOPBAR_FORCE_VISIBLE_V1 */
+(() => {
+  try{
+    const tb = document.querySelector(".vsp-topbar");
+    if (tb){
+      tb.style.position = "fixed";
+      tb.style.top = "0";
+      tb.style.left = "0";
+      tb.style.right = "0";
+      tb.style.zIndex = "2147483647";
+      tb.style.background = "rgba(12,16,22,0.92)";
+      tb.style.borderBottom = "1px solid rgba(255,255,255,0.10)";
+    }
+    document.body && (document.body.style.paddingTop = "56px");
+    console.info("[VSP][TOPBAR] force-visible v1", "tb=", !!tb, "path=", location.pathname);
+  }catch(e){
+    console.warn("[VSP][TOPBAR] force-visible error", e);
+  }
+})();
+

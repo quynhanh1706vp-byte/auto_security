@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+BASE="${BASE:-http://127.0.0.1:8910}"
+N="${1:-300}" # stability rounds
+TS="$(date +%Y%m%d_%H%M%S)"
+OUT="out_ci/FINALIZE_${TS}"
+mkdir -p "$OUT"
+
+echo "== VSP UI FINALIZE COMMERCIAL P6 =="
+echo "[BASE]=$BASE [N]=$N [OUT]=$OUT"
+
+# 0) restart
+bash /home/test/Data/SECURITY_BUNDLE/ui/bin/restart_ui_8910_hardreset_p0_v1.sh | tee "$OUT/restart.log"
+
+# 1) syntax check JS (fast fail)
+node --check /home/test/Data/SECURITY_BUNDLE/ui/static/js/vsp_bundle_commercial_v2.js
+
+# 2) 5 tabs smoke
+bash /home/test/Data/SECURITY_BUNDLE/ui/bin/vsp_ui_5tabs_smoke_p2_v1.sh | tee "$OUT/ui_5tabs_smoke.log"
+
+# 3) stability
+bash /home/test/Data/SECURITY_BUNDLE/ui/bin/vsp_ui_stability_smoke_p0_v1.sh "$N" | tee "$OUT/ui_stability_${N}.log"
+
+# 4) ISO pack (creates iso evidence + repack report + repack audit once)
+bash /home/test/Data/SECURITY_BUNDLE/ui/bin/vsp_iso_evidence_pack_p4_v1.sh | tee "$OUT/p4_iso_pack.log"
+
+# 5) pack audit again but force COMMERCIAL snapshot (no WARN)
+bash /home/test/Data/SECURITY_BUNDLE/ui/bin/vsp_pack_audit_bundle_p2_v2.sh | tee "$OUT/p2_audit_pack_v2.log"
+
+# 6) build RELEASE folder
+J="$OUT/latest_rid.json"
+curl -sS "$BASE/api/vsp/latest_rid_v1?ts=$TS" > "$J"
+RID="$(python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); print(j.get("rid") or j.get("ci_rid") or "")' "$J")"
+RUN_DIR="$(python3 -c 'import json,sys; j=json.load(open(sys.argv[1])); print(j.get("ci_run_dir") or "")' "$J")"
+echo "[RID]=$RID" | tee "$OUT/rid.txt"
+echo "[RUN_DIR]=$RUN_DIR" | tee "$OUT/run_dir.txt"
+
+REL="out_ci/RELEASE_${TS}"
+mkdir -p "$REL"
+
+# report tgz + sha
+cp -f "$RUN_DIR/$(basename "$RUN_DIR")__REPORT.tgz" "$REL/" || true
+cp -f "$RUN_DIR/SHA256SUMS.txt" "$REL/REPORT_SHA256SUMS.txt" || true
+
+# latest audit tgz + sha
+AB="$(ls -1t out_ci/AUDIT_BUNDLE_${RID}_*.tgz 2>/dev/null | head -n1 || true)"
+AS="$(ls -1t out_ci/AUDIT_BUNDLE_${RID}_*.SHA256SUMS.txt 2>/dev/null | head -n1 || true)"
+[ -n "${AB:-}" ] && cp -f "$AB" "$REL/" || true
+[ -n "${AS:-}" ] && cp -f "$AS" "$REL/" || true
+
+# release sha
+( cd "$REL" && sha256sum *.tgz *.txt > RELEASE_SHA256SUMS.txt ) || true
+
+echo "[OK] RELEASE=$REL"
+ls -la "$REL" | tee "$OUT/release_ls.log"
+echo "== DONE P6 =="

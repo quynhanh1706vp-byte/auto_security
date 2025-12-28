@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "name": "VSP_UI_COMMERCIAL_20251222_160619",
+  "package_path": "releases/VSP_UI_COMMERCIAL_20251222_160619.zip",
+  "sha256": "888ad8655b9294bbef912fed4601bb373b0293fd9a6dd8dc0122a5a632753c6f",
+  "ts": 1766394382,
+  "base": "http://127.0.0.1:8910"
+}

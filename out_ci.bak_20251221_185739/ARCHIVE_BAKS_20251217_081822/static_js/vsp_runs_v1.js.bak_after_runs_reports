@@ -1,0 +1,319 @@
+(function () {
+  const LOG_PREFIX = "[VSP_RUNS_UI_v1]";
+  const API_URL = "/api/vsp/runs_index_v3";
+  const TBODY_ID = "vsp-runs-tbody";
+
+  function log() {
+    console.log(LOG_PREFIX, ...arguments);
+  }
+  function warn() {
+    console.warn(LOG_PREFIX, ...arguments);
+  }
+  function debug() {
+    if (window.VSP_DEBUG) {
+      console.debug(LOG_PREFIX, ...arguments);
+    }
+  }
+
+  log("Init v1 – ready to attach handlers.");
+
+  // ================== RUN CONFIG SYNC (TAB1 <-> TAB2) ==================
+  /**
+   * Giả định:
+   * - Tab 1 dùng các ID:
+   *     #vsp-target-url-main
+   *     #vsp-src-folder-main
+   *     #vsp-profile-main
+   *     #vsp-run-fullscan-main (button RUN FULL SCAN)
+   *
+   * - Tab 2 (Runs & Reports) dùng các ID:
+   *     #vsp-target-url-runs
+   *     #vsp-src-folder-runs
+   *     #vsp-profile-runs
+   *     #vsp-run-fullscan-runs
+   *
+   * Nếu HTML của bạn dùng ID khác, chỉ cần chỉnh lại map[] bên dưới.
+   */
+  function syncRunConfigFields() {
+    const map = [
+      ["vsp-target-url-main", "vsp-target-url-runs"],
+      ["vsp-src-folder-main", "vsp-src-folder-runs"],
+      ["vsp-profile-main", "vsp-profile-runs"],
+    ];
+
+    let anySynced = false;
+
+    map.forEach(([idMaster, idSlave]) => {
+      const master = document.getElementById(idMaster);
+      const slave = document.getElementById(idSlave);
+      if (!master || !slave) return;
+
+      // copy lần đầu
+      slave.value = master.value;
+      anySynced = true;
+
+      // khi đổi ở TAB1 thì TAB2 tự follow
+      master.addEventListener("change", () => {
+        slave.value = master.value;
+      });
+    });
+
+    if (anySynced) {
+      log("Run config Tab2 đã sync từ Tab1.");
+    } else {
+      debug("Không tìm thấy cặp field Run config để sync (check lại ID).");
+    }
+
+    // Button RUN trên Tab2: click hộ button RUN của Tab1 (tận dụng logic sẵn)
+    const btnMain = document.getElementById("vsp-run-fullscan-main");
+    const btnRuns = document.getElementById("vsp-run-fullscan-runs");
+    if (btnMain && btnRuns) {
+      btnRuns.addEventListener("click", function (e) {
+        e.preventDefault();
+        log("Tab2 RUN FULL SCAN → delegate sang Tab1.");
+        btnMain.click();
+      });
+    }
+  }
+
+  // ================== FORMAT, HELPERS ==================
+  function fmtDateTime(raw) {
+    if (!raw) return "";
+    try {
+      if (typeof raw === "string" && raw.indexOf("T") >= 0) {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleString("vi-VN");
+        }
+      }
+    } catch (e) {}
+    return String(raw);
+  }
+
+  function getSev(run, sevKey) {
+    if (!run) return 0;
+    const by = run.by_severity || run.severity_buckets || {};
+    if (typeof by[sevKey] === "number") return by[sevKey];
+
+    const alt = {
+      CRITICAL: ["critical", "crit"],
+      HIGH: ["high"],
+      MEDIUM: ["medium", "med"],
+      LOW: ["low"],
+      INFO: ["info"],
+      TRACE: ["trace"],
+    };
+    const fields = alt[sevKey] || [];
+    for (const f of fields) {
+      if (typeof run[f] === "number") return run[f];
+    }
+    return 0;
+  }
+
+  function collectTotalFindings(run) {
+    if (!run) return "";
+    if (typeof run.total_findings === "number") return run.total_findings;
+    if (typeof run.findings_total === "number") return run.findings_total;
+    if (run.by_severity && typeof run.by_severity === "object") {
+      return Object.values(run.by_severity).reduce(
+        (a, v) => a + (typeof v === "number" ? v : 0),
+        0
+      );
+    }
+    return "";
+  }
+
+  function collectToolsLabel(run) {
+    if (!run) return "–";
+    const arr =
+      run.tools_enabled ||
+      run.tools ||
+      run.enabled_tools ||
+      run.profiles_tools;
+    if (Array.isArray(arr) && arr.length) return arr.join(", ");
+    if (typeof arr === "string" && arr.trim()) return arr;
+    return "–";
+  }
+
+  function collectSrcPath(run) {
+    if (!run) return "–";
+    return (
+      run.src_path ||
+      run.source_root ||
+      run.source_folder ||
+      run.module ||
+      run.project ||
+      "–"
+    );
+  }
+
+  function collectUrl(run) {
+    if (!run) return "–";
+    return (
+      run.target_url ||
+      run.target ||
+      run.app_origin ||
+      run.url ||
+      run.repo ||
+      "–"
+    );
+  }
+
+  // ================== BUILD ROW ==================
+  function buildRunRow(run, idx) {
+    const tr = document.createElement("tr");
+    tr.className = "vsp-run-row";
+
+    const runId =
+      (run && (run.run_id || run.id || run.name)) ||
+      `RUN_${(idx || 0) + 1}`;
+
+    const tsStart =
+      (run &&
+        (run.ts_start ||
+          run.started_at ||
+          run.start_time ||
+          run.created_at)) ||
+      "";
+
+    const profile =
+      (run &&
+        (run.profile ||
+          run.scan_profile ||
+          run.mode ||
+          run.run_profile ||
+          run.kind)) ||
+      "–";
+
+    const srcPath = collectSrcPath(run);
+    const url = collectUrl(run);
+
+    const crit = getSev(run, "CRITICAL");
+    const high = getSev(run, "HIGH");
+    const med = getSev(run, "MEDIUM");
+    const low = getSev(run, "LOW");
+    const info = getSev(run, "INFO");
+    const trace = getSev(run, "TRACE");
+    const total = collectTotalFindings(run);
+    const toolsLabel = collectToolsLabel(run);
+    const reportsLabel = "HTML · PDF · CSV";
+
+    const tds = [
+      `<td class="col-run-id"><span class="mono">${runId}</span></td>`,
+      `<td class="col-run-start">${fmtDateTime(tsStart) || "–"}</td>`,
+      `<td class="col-run-profile">${profile}</td>`,
+      `<td class="col-run-src">${srcPath}</td>`,
+      `<td class="col-run-url">${url}</td>`,
+      `<td class="col-run-crit">${crit || "–"}</td>`,
+      `<td class="col-run-high">${high || "–"}</td>`,
+      `<td class="col-run-med">${med || "–"}</td>`,
+      `<td class="col-run-low">${low || "–"}</td>`,
+      `<td class="col-run-info">${info || "–"}</td>`,
+      `<td class="col-run-trace">${trace || "–"}</td>`,
+      `<td class="col-run-total">${total === "" ? "–" : total}</td>`,
+      `<td class="col-run-tools">${toolsLabel}</td>`,
+      `<td class="col-run-reports">${reportsLabel}</td>`,
+    ];
+
+    tr.innerHTML = tds.join("");
+    return tr;
+  }
+
+  // ================== LOAD TABLE ==================
+  async function loadRunsTable() {
+    const tbody = document.getElementById(TBODY_ID);
+    if (!tbody) {
+      warn("Không tìm thấy tbody#%s – bỏ qua loadRunsTable()", TBODY_ID);
+      return;
+    }
+
+    debug("Bắt đầu loadRunsTable() từ", API_URL);
+    tbody.innerHTML =
+      '<tr class="vsp-run-row-loading"><td colspan="14">Đang tải danh sách RUN...</td></tr>';
+
+    let resp;
+    try {
+      resp = await fetch(API_URL, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+    } catch (err) {
+      warn("Lỗi fetch runs_index_v3:", err);
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-error"><td colspan="14">Không kết nối được tới API runs_index_v3.</td></tr>';
+      return;
+    }
+
+    if (!resp.ok) {
+      warn("API trả lỗi", resp.status, resp.statusText);
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-error"><td colspan="14">API runs_index_v3 trả lỗi ' +
+        resp.status +
+        ".</td></tr>";
+      return;
+    }
+
+    let data;
+    try {
+      data = await resp.json();
+    } catch (err) {
+      warn("Không parse được JSON từ runs_index_v3:", err);
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-error"><td colspan="14">Lỗi parse JSON từ API runs_index_v3.</td></tr>';
+      return;
+    }
+
+    let runs = data && (data.items || data.runs || data);
+    if (!Array.isArray(runs)) {
+      warn("Định dạng runs_index_v3 không như mong đợi:", data);
+      runs = [];
+    }
+
+    tbody.innerHTML = "";
+
+    if (!runs.length) {
+      tbody.innerHTML =
+        '<tr class="vsp-run-row-empty"><td colspan="14">Chưa có RUN nào trong hệ thống.</td></tr>';
+      log("Không có RUN nào để hiển thị.");
+      return;
+    }
+
+    runs.forEach((run, idx) => {
+      const tr = buildRunRow(run, idx);
+      tbody.appendChild(tr);
+    });
+
+    log("Đã render", runs.length, "RUN(s) vào bảng.");
+  }
+
+  // ================== INIT ==================
+  function initRunsTab() {
+    log("Init Runs tab: sync config + load table.");
+    try {
+      syncRunConfigFields();
+    } catch (e) {
+      warn("Lỗi khi sync Run config:", e);
+    }
+    try {
+      loadRunsTable();
+    } catch (e) {
+      warn("Exception ngoài loadRunsTable:", e);
+    }
+  }
+
+  // Nếu DOM đã ready thì gọi luôn, nếu chưa thì chờ DOMContentLoaded
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      log("DOMContentLoaded – gọi initRunsTab()");
+      initRunsTab();
+    });
+  } else {
+    log("document.readyState =", document.readyState, "– gọi initRunsTab() ngay.");
+    initRunsTab();
+  }
+
+  // Cho phép gọi lại bằng tay từ console
+  window.VSP_RUNS = window.VSP_RUNS || {};
+  window.VSP_RUNS.loadRunsTable = loadRunsTable;
+  window.VSP_RUNS.syncRunConfigFields = syncRunConfigFields;
+})();

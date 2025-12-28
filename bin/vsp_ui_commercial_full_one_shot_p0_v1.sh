@@ -1,0 +1,727 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/test/Data/SECURITY_BUNDLE/ui
+
+TS="$(date +%Y%m%d_%H%M%S)"
+echo "== VSP UI COMMERCIAL FULL ONE-SHOT P0 V1 == TS=$TS"
+
+JSF="static/js/vsp_bundle_commercial_v2.js"
+[ -f "$JSF" ] || { echo "[ERR] missing $JSF"; exit 2; }
+cp -f "$JSF" "$JSF.bak_full_${TS}"
+echo "[BACKUP] $JSF.bak_full_${TS}"
+
+# (A) Patch template: ensure export-rid exists (to kill old inline null errors)
+TPL="$(find templates -maxdepth 2 -type f -name "*.html" | xargs -r grep -Il "vsp4" 2>/dev/null | head -n1 || true)"
+# fallback: the known template name from your backup
+[ -z "${TPL:-}" ] && TPL="templates/vsp_4tabs_commercial_v1.html"
+if [ -f "$TPL" ]; then
+  cp -f "$TPL" "$TPL.bak_exportrid_${TS}"
+  python3 - <<PY
+from pathlib import Path
+p=Path("$TPL")
+s=p.read_text(encoding="utf-8", errors="replace")
+if 'id="export-rid"' not in s:
+    # inject hidden span right after <body ...>
+    import re
+    s2=re.sub(r'(<body[^>]*>)', r'\\1\\n<span id="export-rid" style="display:none"></span>', s, count=1, flags=re.I)
+    if s2==s:
+        s2 = '<span id="export-rid" style="display:none"></span>\\n' + s
+    p.write_text(s2, encoding="utf-8")
+    print("[OK] injected export-rid into", p)
+else:
+    print("[OK] export-rid already present in", p)
+PY
+else
+  echo "[WARN] template not found to patch export-rid; relying on JS shell to provide it"
+fi
+
+# (B) Write commercial clean bundle (5 tabs + KPI + runs + datasource + settings + rule overrides)
+cat > "$JSF" <<'JS'
+/* VSP_BUNDLE_COMMERCIAL_V2_FULL_CLEAN_P0_V1: 5 tabs + no console-red + degrade-graceful */
+(function(){
+  'use strict';
+
+  // ---------- utils ----------
+  const $  = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = (s)=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  async function fetchJson(url){
+    const r = await fetch(url, { cache:'no-store' });
+    let j=null;
+    try{ j = await r.json(); }catch(_){}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return j;
+  }
+
+  // ---------- CSS ----------
+  function ensureCss(){
+    if($('#__vsp_full_css')) return;
+    const st=document.createElement('style'); st.id='__vsp_full_css';
+    st.textContent = `
+      :root{ --bg:#0b1020; --panel:rgba(255,255,255,.04); --bd:rgba(255,255,255,.10); --mut:rgba(233,238,247,.70); }
+      body{ margin:0; background:var(--bg); color:#e9eef7; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+      #vspShell{ display:flex; min-height:100vh; }
+      #vspNav{ width:280px; padding:18px 14px; border-right:1px solid rgba(255,255,255,.08); background:rgba(10,14,26,.96); }
+      .brand{ font-weight:900; font-size:16px; letter-spacing:.02em; }
+      .sub{ opacity:.70; font-size:12px; margin-top:2px; }
+      .pill{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--bd); border-radius:999px; background:rgba(255,255,255,.05); font-weight:800; font-size:12px; }
+      .btn{ all:unset; cursor:pointer; padding:8px 10px; border:1px solid var(--bd); border-radius:10px; background:rgba(255,255,255,.06); font-weight:800; font-size:12px; }
+      .btn:hover{ background:rgba(255,255,255,.10); }
+      .navItem{ text-decoration:none; color:#e9eef7; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); display:flex; justify-content:space-between; font-weight:800; }
+      .navItem.on{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); }
+      #vspMain{ flex:1; padding:18px 18px; }
+      .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+      .h1{ font-size:18px; font-weight:950; }
+      .grid2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+      .grid3{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+      .card{ border:1px solid var(--bd); background:var(--panel); border-radius:16px; padding:14px 14px; box-shadow:0 18px 45px rgba(0,0,0,.35); }
+      .kpi{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+      .kpi .t{ opacity:.80; font-weight:850; font-size:12px; letter-spacing:.08em; }
+      .kpi .v{ font-weight:950; font-size:26px; line-height:1; }
+      .mut{ opacity:.75; font-size:12px; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ text-align:left; padding:10px 10px; border-bottom:1px solid rgba(255,255,255,.08); font-size:12px; vertical-align:top; }
+      th{ opacity:.85; font-weight:900; letter-spacing:.06em; font-size:11px; }
+      .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .tag{ display:inline-flex; padding:3px 8px; border:1px solid rgba(255,255,255,.12); border-radius:999px; background:rgba(255,255,255,.05); font-weight:850; font-size:11px; opacity:.92; }
+      .tag.bad{ border-color:rgba(255,80,80,.35); background:rgba(255,80,80,.10); }
+      .tag.ok{ border-color:rgba(80,255,160,.30); background:rgba(80,255,160,.10); }
+      .tag.amb{ border-color:rgba(255,200,80,.35); background:rgba(255,200,80,.10); }
+      .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+      .inp{ all:unset; padding:8px 10px; border:1px solid var(--bd); border-radius:10px; background:rgba(255,255,255,.05); min-width:220px; font-size:12px; }
+      .toast{ position:fixed; right:22px; bottom:24px; z-index:100000; padding:10px 12px; background:rgba(22,24,30,.96);
+        border:1px solid rgba(255,255,255,.10); border-radius:12px; box-shadow:0 14px 35px rgba(0,0,0,.45);
+        font-size:13px; opacity:0; transform:translateY(10px); transition:all .18s ease; }
+      .toast.on{ opacity:1; transform:translateY(0); }
+      .toast.bad{ border-color:rgba(255,80,80,.35); }
+      .toast.good{ border-color:rgba(80,255,160,.30); }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function toast(msg, ok){
+    const t=document.createElement('div');
+    t.className='toast' + (ok===false?' bad':ok===true?' good':'');
+    t.textContent=String(msg||'');
+    document.body.appendChild(t);
+    setTimeout(()=>t.classList.add('on'), 10);
+    setTimeout(()=>t.classList.remove('on'), 2300);
+    setTimeout(()=>{ try{t.remove();}catch(_){ } }, 2800);
+  }
+
+  // ---------- state ----------
+  const STATE = {
+    rid:'',
+    run_dir:'',
+    dashboard:null,
+    runs:null,
+    findings:null,
+    rules:null,
+    degraded:[]
+  };
+
+  async function refreshLatest(){
+    try{
+      const j = await fetchJson('/api/vsp/latest_rid_v1?ts=' + Date.now());
+      STATE.rid = j?.rid || '';
+      STATE.run_dir = j?.ci_run_dir || '';
+      const ridTop = $('#vspRidTop'); if(ridTop) ridTop.textContent = STATE.rid || '(none)';
+      const ridPill = $('#vspRidPill'); if(ridPill) ridPill.textContent = 'RID: ' + (STATE.rid || '(none)');
+    }catch(_){}
+    return STATE;
+  }
+
+  // ---------- shell ----------
+  const TABS = [
+    { key:'dashboard',  label:'Dashboard' },
+    { key:'runs',       label:'Runs & Reports' },
+    { key:'datasource', label:'Data Source' },
+    { key:'settings',   label:'Settings' },
+    { key:'rules',      label:'Rule Overrides' }
+  ];
+
+  function ensureShell(){
+    ensureCss();
+
+    // Always provide export-rid to protect legacy scripts
+    if(!$('#export-rid')){
+      const sp=document.createElement('span'); sp.id='export-rid'; sp.style.display='none';
+      document.body.appendChild(sp);
+    }
+
+    // If template already has content, keep it; but if it is blank/legacy, we replace.
+    // Replace if body is nearly empty OR no vspShell.
+    if($('#vspShell')) return;
+
+    const shell=document.createElement('div'); shell.id='vspShell';
+
+    const nav=document.createElement('div'); nav.id='vspNav';
+    nav.innerHTML = `
+      <div class="brand">VersaSecure Platform</div>
+      <div class="sub">VSP 2025 • UI gateway 8910</div>
+      <div style="margin-top:12px" class="row">
+        <span class="pill mono" id="vspRidPill">RID: (none)</span>
+      </div>
+      <div style="margin-top:10px" class="row">
+        <button class="btn" id="btnOpenHTML">Open HTML</button>
+        <button class="btn" id="btnExportTGZ">Export TGZ</button>
+        <button class="btn" id="btnVerifySHA">Verify SHA</button>
+      </div>
+      <div style="margin-top:14px; opacity:.85; font-size:12px;">Selected: <span id="vspRidTop" class="mono">(none)</span></div>
+      <div style="margin-top:16px; display:grid; gap:8px;">
+        ${TABS.map(t=>`<a href="#${t.key}" class="navItem" data-tab="${t.key}"><span>${t.label}</span><span style="opacity:.55;">›</span></a>`).join('')}
+      </div>
+      <div style="margin-top:16px" class="card">
+        <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">STATUS</div>
+        <div id="vspDegraded" class="mut" style="margin-top:8px;">OK</div>
+      </div>
+    `;
+
+    const main=document.createElement('div'); main.id='vspMain';
+    main.innerHTML = `
+      <div id="pane-dashboard"></div>
+      <div id="pane-runs" style="display:none"></div>
+      <div id="pane-datasource" style="display:none"></div>
+      <div id="pane-settings" style="display:none"></div>
+      <div id="pane-rules" style="display:none"></div>
+    `;
+
+    shell.appendChild(nav);
+    shell.appendChild(main);
+
+    document.body.innerHTML = '';
+    document.body.appendChild(shell);
+  }
+
+  function setDegraded(){
+    const el=$('#vspDegraded');
+    if(!el) return;
+    if(!STATE.degraded.length){ el.textContent='OK'; return; }
+    el.innerHTML = `DEGRADED: <span class="mono">${esc(STATE.degraded.join(', '))}</span>`;
+  }
+
+  function currentTab(){
+    const h=(location.hash||'#dashboard').replace('#','').trim().toLowerCase();
+    const ok = TABS.some(t=>t.key===h);
+    return ok ? h : 'dashboard';
+  }
+
+  async function showTab(tab){
+    for(const t of TABS){
+      const p=$('#pane-'+t.key);
+      if(p) p.style.display = (t.key===tab) ? '' : 'none';
+      const a=$(`.navItem[data-tab="${t.key}"]`);
+      if(a) a.classList.toggle('on', t.key===tab);
+    }
+    await renderTab(tab);
+  }
+
+  // ---------- actions ----------
+  async function resolveRunDir(){
+    await refreshLatest();
+    if(!STATE.run_dir) throw new Error('No ci_run_dir');
+    return STATE.run_dir;
+  }
+
+  async function bindTopActions(){
+    const b1=$('#btnOpenHTML'), b2=$('#btnExportTGZ'), b3=$('#btnVerifySHA');
+    if(b1) b1.onclick = async ()=>{
+      try{ const rd=await resolveRunDir(); window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()), '_blank'); }
+      catch(e){ toast('Open HTML failed ❌', false); }
+    };
+    if(b2) b2.onclick = async ()=>{
+      try{ const rd=await resolveRunDir(); window.location.href='/api/vsp/export_report_tgz_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()); }
+      catch(e){ toast('Export TGZ failed ❌', false); }
+    };
+    if(b3) b3.onclick = async ()=>{
+      try{
+        const rd=await resolveRunDir();
+        const j=await fetchJson('/api/vsp/verify_report_sha_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()));
+        toast(j&&j.ok?'SHA256 OK ✅':'SHA256 FAIL ❌', !!(j&&j.ok));
+      }catch(e){ toast('Verify SHA failed ❌', false); }
+    };
+  }
+
+  // ---------- render helpers ----------
+  function tagVerdict(x){
+    const v=String(x||'').toUpperCase();
+    if(v==='PASS' || v==='OK') return `<span class="tag ok">${esc(v)}</span>`;
+    if(v==='FAIL' || v==='ERROR') return `<span class="tag bad">${esc(v)}</span>`;
+    if(v==='AMBER' || v==='WARN') return `<span class="tag amb">${esc(v)}</span>`;
+    return `<span class="tag">${esc(v||'N/A')}</span>`;
+  }
+
+  function kpiCard(title, val){
+    return `
+      <div class="card">
+        <div class="kpi">
+          <div class="t">${esc(title)}</div>
+          <div class="v">${esc(val)}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---------- Dashboard ----------
+  async function loadDashboard(){
+    try{
+      STATE.dashboard = await fetchJson('/api/vsp/dashboard_v3?ts=' + Date.now());
+    }catch(e){
+      STATE.degraded.push('dashboard_v3');
+      STATE.dashboard = null;
+    }
+    setDegraded();
+  }
+
+  function renderDashboard(){
+    const host=$('#pane-dashboard'); if(!host) return;
+    const d=STATE.dashboard || {};
+    const overall = d.overall || d || {};
+    const gate = d.gate || d.gate_overall || {};
+    const tools = d.tools || {};
+    const sev = overall.severity || overall.sev || overall.counts || {};
+
+    const total = sev.total ?? overall.total ?? (sev.CRITICAL||0)+(sev.HIGH||0)+(sev.MEDIUM||0)+(sev.LOW||0);
+    const c = sev.CRITICAL ?? sev.critical ?? 0;
+    const h = sev.HIGH ?? sev.high ?? 0;
+    const m = sev.MEDIUM ?? sev.medium ?? 0;
+    const l = sev.LOW ?? sev.low ?? 0;
+    const degr = overall.degraded ?? overall.degraded_tools ?? '';
+
+    host.innerHTML = `
+      <div class="topbar">
+        <div class="h1">Dashboard</div>
+        <div class="row">
+          ${tagVerdict(overall.verdict || overall.overall || overall.status)}
+          ${tagVerdict(gate.verdict || gate.status)}
+          <button class="btn" id="btnDashRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="grid3" style="margin-bottom:12px;">
+        ${kpiCard('TOTAL', total)}
+        ${kpiCard('CRITICAL', c)}
+        ${kpiCard('HIGH', h)}
+      </div>
+      <div class="grid3" style="margin-bottom:12px;">
+        ${kpiCard('MEDIUM', m)}
+        ${kpiCard('LOW', l)}
+        ${kpiCard('DEGRADED', degr ? 'YES' : 'NO')}
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">GATE (raw)</div>
+          <pre class="mono mut" style="white-space:pre-wrap; margin:10px 0 0;">${esc(JSON.stringify(gate, null, 2))}</pre>
+        </div>
+        <div class="card">
+          <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">TOOLS (raw)</div>
+          <pre class="mono mut" style="white-space:pre-wrap; margin:10px 0 0;">${esc(JSON.stringify(tools, null, 2))}</pre>
+        </div>
+      </div>
+    `;
+
+    const btn=$('#btnDashRefresh');
+    if(btn) btn.onclick = async ()=>{ await refreshLatest(); await loadDashboard(); renderDashboard(); };
+  }
+
+  // ---------- Runs ----------
+  async function loadRuns(){
+    try{
+      STATE.runs = await fetchJson('/api/vsp/runs_index_v3_fs_resolved?limit=80&ts=' + Date.now());
+    }catch(e){
+      STATE.degraded.push('runs_index_v3');
+      STATE.runs = null;
+    }
+    setDegraded();
+  }
+
+  function pickRunsItems(){
+    const r=STATE.runs;
+    if(!r) return [];
+    if(Array.isArray(r.items)) return r.items;
+    if(Array.isArray(r.runs)) return r.runs;
+    if(Array.isArray(r)) return r;
+    return [];
+  }
+
+  function renderRuns(){
+    const host=$('#pane-runs'); if(!host) return;
+    const items = pickRunsItems();
+
+    host.innerHTML = `
+      <div class="topbar">
+        <div class="h1">Runs & Reports</div>
+        <div class="row">
+          <input class="inp" id="runFilter" placeholder="filter by RID..." />
+          <button class="btn" id="btnRunsRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">LATEST</div>
+        <div class="mut" style="margin-top:8px;">RID: <span class="mono">${esc(STATE.rid||'(none)')}</span></div>
+        <div class="mut">RUN_DIR: <span class="mono">${esc(STATE.run_dir||'(none)')}</span></div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">HISTORY</div>
+          <div class="mut">${items.length} items</div>
+        </div>
+        <div style="margin-top:10px; overflow:auto;">
+          <table>
+            <thead><tr>
+              <th>RID</th><th>RUN_DIR</th><th>STATUS</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="runsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    function row(it){
+      const rid = it.rid || it.run_id || it.id || '';
+      const rd  = it.ci_run_dir || it.run_dir || it.path || '';
+      const st  = it.status || it.verdict || it.overall || '';
+      const safeRd = encodeURIComponent(rd);
+      return `<tr>
+        <td class="mono">${esc(rid)}</td>
+        <td class="mono" style="max-width:520px; word-break:break-all;">${esc(rd)}</td>
+        <td>${tagVerdict(st)}</td>
+        <td class="row">
+          <button class="btn" data-act="open" data-rd="${safeRd}">Open</button>
+          <button class="btn" data-act="tgz" data-rd="${safeRd}">TGZ</button>
+          <button class="btn" data-act="sha" data-rd="${safeRd}">SHA</button>
+        </td>
+      </tr>`;
+    }
+
+    const tbody=$('#runsTbody');
+    const filter=$('#runFilter');
+    const renderList=()=>{
+      const q=(filter?.value||'').trim().toLowerCase();
+      const view = items.filter(it=>{
+        const rid = String(it.rid||it.run_id||'').toLowerCase();
+        return !q || rid.includes(q);
+      });
+      tbody.innerHTML = view.map(row).join('') || `<tr><td colspan="4" class="mut">No runs</td></tr>`;
+    };
+    renderList();
+
+    host.addEventListener('click', async (ev)=>{
+      const btn = ev.target && ev.target.closest && ev.target.closest('button[data-act]');
+      if(!btn) return;
+      const act = btn.getAttribute('data-act');
+      const rd  = decodeURIComponent(btn.getAttribute('data-rd')||'');
+      if(!rd){ toast('Missing run_dir', false); return; }
+      try{
+        if(act==='open') window.open('/api/vsp/open_report_html_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()), '_blank');
+        if(act==='tgz')  window.location.href='/api/vsp/export_report_tgz_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now());
+        if(act==='sha'){
+          const j=await fetchJson('/api/vsp/verify_report_sha_v1?run_dir='+encodeURIComponent(rd)+'&ts='+(Date.now()));
+          toast(j&&j.ok?'SHA256 OK ✅':'SHA256 FAIL ❌', !!(j&&j.ok));
+        }
+      }catch(e){ toast('Action failed', false); }
+    });
+
+    if(filter) filter.oninput = renderList;
+
+    const btnR=$('#btnRunsRefresh');
+    if(btnR) btnR.onclick = async ()=>{ await refreshLatest(); await loadRuns(); renderRuns(); };
+  }
+
+  // ---------- Data Source (best-effort table) ----------
+  async function tryFindings(){
+    const tries = [
+      '/api/vsp/findings_latest_v1',
+      '/api/vsp/findings_unified_latest_v1',
+      '/api/vsp/findings_json_latest_v1',
+      '/api/vsp/report_findings_latest_v1'
+    ];
+    for(const u of tries){
+      try{
+        const j = await fetchJson(u+'?ts='+Date.now());
+        return { ok:true, src:u, data:j };
+      }catch(_){}
+    }
+    return { ok:false };
+  }
+
+  async function loadDatasource(){
+    const r = await tryFindings();
+    if(r.ok){
+      STATE.findings = r.data;
+      STATE.findings_src = r.src;
+    }else{
+      STATE.findings = null;
+      STATE.degraded.push('findings_api');
+    }
+    setDegraded();
+  }
+
+  function normFindingsItems(x){
+    if(!x) return [];
+    if(Array.isArray(x.items)) return x.items;
+    if(Array.isArray(x.findings)) return x.findings;
+    if(Array.isArray(x)) return x;
+    return [];
+  }
+
+  function renderDatasource(){
+    const host=$('#pane-datasource'); if(!host) return;
+    const items = normFindingsItems(STATE.findings).slice(0, 200);
+
+    host.innerHTML = `
+      <div class="topbar">
+        <div class="h1">Data Source</div>
+        <div class="row">
+          <input class="inp" id="dsSearch" placeholder="search text..." />
+          <select class="inp" id="dsSev" style="min-width:160px;">
+            <option value="">Severity: ALL</option>
+            <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>INFO</option><option>TRACE</option>
+          </select>
+          <button class="btn" id="btnDSRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">SOURCE</div>
+        <div class="mut" style="margin-top:8px;">
+          API: <span class="mono">${esc(STATE.findings_src || '(not available)')}</span>
+        </div>
+        <div class="mut">If missing: use Export TGZ → open report/findings.json.</div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">FINDINGS (top 200)</div>
+          <div class="mut">${items.length} rows</div>
+        </div>
+        <div style="margin-top:10px; overflow:auto; max-height:65vh;">
+          <table>
+            <thead><tr>
+              <th>SEV</th><th>RULE</th><th>TITLE</th><th>PATH</th><th>TOOL</th>
+            </tr></thead>
+            <tbody id="dsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    const tb=$('#dsTbody');
+    const inp=$('#dsSearch');
+    const sel=$('#dsSev');
+
+    const row=(it)=>{
+      const sev=String(it.severity||it.sev||'').toUpperCase();
+      const rule=it.rule_id||it.rule||it.check_id||'';
+      const title=it.title||it.message||it.desc||'';
+      const path=it.path||it.file||it.location||'';
+      const tool=it.tool||it.engine||'';
+      return `<tr>
+        <td class="mono">${esc(sev||'')}</td>
+        <td class="mono">${esc(rule||'')}</td>
+        <td>${esc(title||'')}</td>
+        <td class="mono" style="max-width:520px; word-break:break-all;">${esc(path||'')}</td>
+        <td class="mono">${esc(tool||'')}</td>
+      </tr>`;
+    };
+
+    const render=()=>{
+      const q=(inp?.value||'').trim().toLowerCase();
+      const s=(sel?.value||'').trim().toUpperCase();
+      const view=items.filter(it=>{
+        const sev=String(it.severity||it.sev||'').toUpperCase();
+        if(s && sev!==s) return false;
+        if(!q) return true;
+        const blob=(JSON.stringify(it)||'').toLowerCase();
+        return blob.includes(q);
+      });
+      tb.innerHTML = view.map(row).join('') || `<tr><td colspan="5" class="mut">No data</td></tr>`;
+    };
+    if(inp) inp.oninput=render;
+    if(sel) sel.onchange=render;
+    render();
+
+    const btn=$('#btnDSRefresh');
+    if(btn) btn.onclick = async ()=>{ await loadDatasource(); renderDatasource(); };
+  }
+
+  // ---------- Settings ----------
+  function renderSettings(){
+    const host=$('#pane-settings'); if(!host) return;
+    host.innerHTML = `
+      <div class="topbar">
+        <div class="h1">Settings</div>
+        <div class="row">
+          <span class="tag">Commercial</span>
+          <span class="tag">ISO 27001-ready</span>
+          <span class="tag">8 tools</span>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">TOOLS</div>
+          <div class="mut" style="margin-top:10px; line-height:1.6;">
+            Bandit • Semgrep • Gitleaks • KICS • Trivy • Syft • Grype • CodeQL
+          </div>
+          <div class="mut" style="margin-top:10px;">
+            Severity normalize: CRITICAL/HIGH/MEDIUM/LOW/INFO/TRACE
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">OPERATION</div>
+          <div class="mut" style="margin-top:10px; line-height:1.6;">
+            • Export uses run_dir (stable)<br>
+            • Verify SHA checks packed report tgz<br>
+            • Missing APIs will degrade gracefully (no crash)<br>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div style="font-weight:900; letter-spacing:.06em; font-size:11px; opacity:.85;">ENDPOINTS</div>
+        <pre class="mono mut" style="white-space:pre-wrap; margin:10px 0 0;">/api/vsp/latest_rid_v1
+/api/vsp/dashboard_v3
+/api/vsp/runs_index_v3_fs_resolved
+/api/vsp/verify_report_sha_v1?run_dir=...
+/api/vsp/export_report_tgz_v1?run_dir=...
+/api/vsp/open_report_html_v1?run_dir=...</pre>
+      </div>
+    `;
+  }
+
+  // ---------- Rule Overrides (best-effort CRUD, local fallback) ----------
+  async function loadRules(){
+    try{
+      STATE.rules = await fetchJson('/api/vsp/rule_overrides_v1?ts=' + Date.now());
+      STATE.rules_src = '/api/vsp/rule_overrides_v1';
+    }catch(e){
+      STATE.rules = null;
+      STATE.rules_src = '(local only)';
+      STATE.degraded.push('rule_overrides_api');
+    }
+    setDegraded();
+  }
+
+  async function saveRules(payload){
+    try{
+      const r = await fetch('/api/vsp/rule_overrides_v1', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
+  function renderRules(){
+    const host=$('#pane-rules'); if(!host) return;
+    const data = STATE.rules || { overrides: [] };
+    const text = JSON.stringify(data, null, 2);
+
+    host.innerHTML = `
+      <div class="topbar">
+        <div class="h1">Rule Overrides</div>
+        <div class="row">
+          <span class="tag">${esc(STATE.rules_src||'')}</span>
+          <button class="btn" id="btnRulesRefresh">Refresh</button>
+          <button class="btn" id="btnRulesSave">Save</button>
+          <button class="btn" id="btnRulesDownload">Download</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="mut">Edit JSON. If API missing, Save will fallback to localStorage.</div>
+        <textarea id="rulesText" style="width:100%; height:62vh; margin-top:10px; background:rgba(0,0,0,.22); color:#e9eef7; border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:12px; font-size:12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">${esc(text)}</textarea>
+      </div>
+    `;
+
+    $('#btnRulesRefresh').onclick = async ()=>{ await loadRules(); renderRules(); };
+
+    $('#btnRulesSave').onclick = async ()=>{
+      const ta=$('#rulesText');
+      try{
+        const j=JSON.parse(ta.value||'{}');
+        const ok = await saveRules(j);
+        if(ok){ toast('Saved to API ✅', true); await loadRules(); renderRules(); }
+        else { localStorage.setItem('vsp_rule_overrides_draft', JSON.stringify(j)); toast('API missing — saved draft locally ✅', true); }
+      }catch(e){ toast('Invalid JSON ❌', false); }
+    };
+
+    $('#btnRulesDownload').onclick = ()=>{
+      const ta=$('#rulesText');
+      const blob=new Blob([ta.value||'{}'], {type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='rule_overrides.json';
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+    };
+  }
+
+  // ---------- tab render dispatch ----------
+  async function renderTab(tab){
+    await refreshLatest();
+    if(tab==='dashboard'){ await loadDashboard(); renderDashboard(); return; }
+    if(tab==='runs'){ await loadRuns(); renderRuns(); return; }
+    if(tab==='datasource'){ await loadDatasource(); renderDatasource(); return; }
+    if(tab==='settings'){ renderSettings(); return; }
+    if(tab==='rules'){ await loadRules(); renderRules(); return; }
+  }
+
+  // ---------- boot ----------
+  function boot(){
+    try{
+      ensureShell();
+      bindTopActions();
+      window.addEventListener('hashchange', ()=>showTab(currentTab()));
+      showTab(currentTab());
+      console.log('[VSP_COMMERCIAL_FULL_CLEAN] installed');
+    }catch(e){
+      try{ console.warn('[VSP_COMMERCIAL_FULL_CLEAN] boot err', e); }catch(_){}
+    }
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+JS
+
+echo "== node --check =="
+node --check "$JSF"
+
+echo "== restart 8910 =="
+bash /home/test/Data/SECURITY_BUNDLE/ui/bin/restart_ui_8910_hardreset_p0_v1.sh
+
+echo "== self-check endpoints (must be 200) =="
+BASE="http://127.0.0.1:8910"
+for u in \
+  "$BASE/vsp4" \
+  "$BASE/api/vsp/latest_rid_v1" \
+  "$BASE/api/vsp/dashboard_v3" \
+  "$BASE/api/vsp/runs_index_v3_fs_resolved?limit=1" \
+  "$BASE/static/js/vsp_bundle_commercial_v2.js" \
+; do
+  code="$(curl -sS -m 4 -o /dev/null -w '%{http_code}' "$u" || echo 000)"
+  echo "[HTTP] $code $u"
+done
+
+echo "== report verify/export quick check =="
+J="$(curl -sS $BASE/api/vsp/latest_rid_v1 || true)"
+RD="$(echo "$J" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("ci_run_dir",""))' 2>/dev/null || true)"
+echo "[RD]=$RD"
+if [ -n "${RD:-}" ]; then
+  QRD="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$RD")"
+  curl -sS "$BASE/api/vsp/verify_report_sha_v1?run_dir=$QRD" | head -c 240; echo
+  curl -sS -I "$BASE/api/vsp/export_report_tgz_v1?run_dir=$QRD" | head -n 4
+else
+  echo "[WARN] no ci_run_dir from latest_rid_v1"
+fi
+
+echo "[NEXT] Open: http://127.0.0.1:8910/vsp4  (Ctrl+Shift+R). 5 tabs are live."

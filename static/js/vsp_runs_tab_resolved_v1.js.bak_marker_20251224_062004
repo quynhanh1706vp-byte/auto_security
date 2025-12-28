@@ -1,0 +1,4 @@
+/* VSP_AUTOSTUB_JS_V1: file was broken; stubbed to keep UI alive */
+(function(){
+  try{ console.warn('[VSP][AUTOSTUB] '+(document.currentScript&&document.currentScript.src||'js')+' stubbed'); }catch(_){ }
+})();

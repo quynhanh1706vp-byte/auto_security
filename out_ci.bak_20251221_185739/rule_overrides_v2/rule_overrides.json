@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "rules": [
+    {
+      "id": "demo_ignore_1",
+      "action": "IGNORE",
+      "match": {
+        "tool": "semgrep",
+        "rule_id": "javascript.lang.security.audit.detect-eval"
+      },
+      "note": "demo"
+    }
+  ]
+}

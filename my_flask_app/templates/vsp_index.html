@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>VSP Security Bundle – EXT+</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vsp_ui_layout.css') }}">
+</head>
+<body>
+  <div id="vsp-app">
+    <!-- HEADER -->
+    <header class="vsp-header">
+      <div class="vsp-logo">
+        <div class="vsp-logo-main">VSP SECURITY BUNDLE</div>
+        <div class="vsp-logo-sub">EXT+ FULL TOOL (8 TOOLS + UNIFY)</div>
+      </div>
+      <div class="vsp-header-right">
+        <div class="vsp-chip" id="vsp-env-chip">PROFILE: --</div>
+        <div class="vsp-chip" id="vsp-src-chip">SRC: --</div>
+        <button id="vsp-run-btn" class="vsp-btn-primary">RUN FULL SCAN</button>
+      </div>
+    </header>
+
+    <!-- TABS -->
+    <nav class="vsp-tabs">
+      <button class="vsp-tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="vsp-tab-btn" data-tab="runs">Runs &amp; Reports</button>
+      <button class="vsp-tab-btn" data-tab="datasource">Data Source</button>
+      <button class="vsp-tab-btn" data-tab="settings">Settings</button>
+      <button class="vsp-tab-btn" data-tab="overrides">Rule Overrides</button>
+    </nav>
+
+    <!-- MAIN -->
+    <main id="vsp-main">
+      <!-- DASHBOARD TAB (CIO VIEW) -->
+      <section id="tab-dashboard" class="vsp-tab-pane active">
+        <div class="vsp-dashboard-root">
+          <!-- KPI STRIP -->
+          <section class="vsp-panel vsp-panel-kpi">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">SECURITY POSTURE – LAST RUN</div>
+                <div class="vsp-panel-subtitle" id="vsp-last-run-subtitle">No run yet.</div>
+              </div>
+              <div class="vsp-panel-meta" id="vsp-last-run-meta"></div>
+            </header>
+            <div class="vsp-kpi-grid">
+              <div class="vsp-kpi-card vsp-kpi-total">
+                <div class="vsp-kpi-label">TOTAL FINDINGS</div>
+                <div class="vsp-kpi-value" id="kpi-total">--</div>
+              </div>
+              <div class="vsp-kpi-card vsp-kpi-critical">
+                <div class="vsp-kpi-label">CRITICAL</div>
+                <div class="vsp-kpi-value" id="kpi-critical">--</div>
+              </div>
+              <div class="vsp-kpi-card vsp-kpi-high">
+                <div class="vsp-kpi-label">HIGH</div>
+                <div class="vsp-kpi-value" id="kpi-high">--</div>
+              </div>
+              <div class="vsp-kpi-card vsp-kpi-medium">
+                <div class="vsp-kpi-label">MEDIUM</div>
+                <div class="vsp-kpi-value" id="kpi-medium">--</div>
+              </div>
+              <div class="vsp-kpi-card vsp-kpi-low">
+                <div class="vsp-kpi-label">LOW</div>
+                <div class="vsp-kpi-value" id="kpi-low">--</div>
+              </div>
+              <div class="vsp-kpi-card vsp-kpi-info">
+                <div class="vsp-kpi-label">INFO / TRACE</div>
+                <div class="vsp-kpi-value" id="kpi-info-trace">--</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- BIG RISK PANEL (theo đúng layout hình bạn gửi) -->
+          <section class="vsp-panel vsp-panel-risk">
+            <!-- TOP GRID: donut + trend + top CWE -->
+            <div class="vsp-risk-top-grid">
+              <!-- SEVERITY DONUT -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">SEVERITY DISTRIBUTION (6 BUCKETS)</div>
+                  <div class="vsp-risk-sub">Normalized from unified findings.</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-donut-body">
+                  <div class="vsp-risk-donut-wrap">
+                    <canvas id="chart-severity-donut"></canvas>
+                  </div>
+                  <ul id="vsp-bytool-list" class="vsp-bytool-list">
+                    <!-- JS fill: top by tool list hoặc CRIT/HIGH by tool -->
+                  </ul>
+                </div>
+              </div>
+
+              <!-- TREND OVER TIME -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">TREND – FINDINGS OVER TIME</div>
+                  <div class="vsp-risk-sub">Last runs (ordered by time).</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-chart-body">
+                  <canvas id="chart-trend"></canvas>
+                </div>
+              </div>
+
+              <!-- TOP CWE EXPOSURE (demo static) -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">TOP CWE EXPOSURE</div>
+                  <div class="vsp-risk-sub">Mapped from rules / CVEs (demo).</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-topcwe-body">
+                  <table class="vsp-table vsp-table-compact">
+                    <thead>
+                      <tr>
+                        <th>CWE</th>
+                        <th>Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>CWE-79 (XSS)</td><td>48</td></tr>
+                      <tr><td>CWE-89 (SQLi)</td><td>41</td></tr>
+                      <tr><td>CWE-200 (Info leak)</td><td>22</td></tr>
+                      <tr><td>CWE-306 (Auth)</td><td>16</td></tr>
+                      <tr><td>CWE-352 (CSRF)</td><td>14</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- MID GRID: 4 bảng nhỏ -->
+            <div class="vsp-risk-mid-grid">
+              <!-- TOP RISK FINDINGS -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">TOP RISK FINDINGS (PRIORITY LIST)</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-table-wrap">
+                  <table class="vsp-table vsp-table-compact">
+                    <thead>
+                      <tr>
+                        <th>Severity</th>
+                        <th>Location</th>
+                        <th>Rule / CWE</th>
+                        <th>Tool</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="vsp-badge sev-critical">CRITICAL</span></td>
+                        <td>src/api/auth.py:142</td>
+                        <td>CWE-89 (SQL injection)</td>
+                        <td>Semgrep</td>
+                      </tr>
+                      <tr>
+                        <td><span class="vsp-badge sev-high">HIGH</span></td>
+                        <td>src/web/views/user.js:88</td>
+                        <td>CWE-79 (XSS)</td>
+                        <td>CodeQL</td>
+                      </tr>
+                      <tr>
+                        <td><span class="vsp-badge sev-high">HIGH</span></td>
+                        <td>package.json (axios)</td>
+                        <td>CVE-2023-XXXX</td>
+                        <td>Grype</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TOP NOISY PATHS -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">TOP NOISY PATHS (MEDIUM / LOW / INFO / TRACE)</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-table-wrap">
+                  <table class="vsp-table vsp-table-compact">
+                    <thead>
+                      <tr>
+                        <th>Path</th>
+                        <th>MED</th>
+                        <th>LOW</th>
+                        <th>INFO</th>
+                        <th>TRACE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>src/utils/legacy/</td><td>43</td><td>80</td><td>18</td><td>12</td></tr>
+                      <tr><td>src/web/components/</td><td>27</td><td>52</td><td>27</td><td>20</td></tr>
+                      <tr><td>tests/</td><td>5</td><td>21</td><td>34</td><td>19</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- TOP EXPLOITED CVES -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">TOP EXPLOITED CVES (FROM SBOM / TRIVY / GRYPE)</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-table-wrap">
+                  <table class="vsp-table vsp-table-compact">
+                    <thead>
+                      <tr>
+                        <th>CVE</th>
+                        <th>Component</th>
+                        <th>Severity</th>
+                        <th>Version</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>CVE-2023-XXXX</td><td>openssl</td>
+                        <td><span class="vsp-badge sev-critical">CRITICAL</span></td>
+                        <td>1.1.x</td>
+                      </tr>
+                      <tr>
+                        <td>CVE-2022-YYYY</td><td>spring-core</td>
+                        <td><span class="vsp-badge sev-high">HIGH</span></td>
+                        <td>5.3.11</td>
+                      </tr>
+                      <tr>
+                        <td>CVE-2021-ZZZZ</td><td>lodash</td>
+                        <td><span class="vsp-badge sev-high">HIGH</span></td>
+                        <td>4.17.19</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- BY TOOL – SEVERITY BUCKETS -->
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">BY TOOL – SEVERITY BUCKETS</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-table-wrap">
+                  <table class="vsp-table vsp-table-compact">
+                    <thead>
+                      <tr>
+                        <th>Tool</th>
+                        <th>CRI</th>
+                        <th>HIGH</th>
+                        <th>MED</th>
+                        <th>LOW</th>
+                        <th>INFO</th>
+                        <th>TRACE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Semgrep</td><td>6</td><td>21</td><td>62</td><td>43</td><td>34</td><td>12</td></tr>
+                      <tr><td>CodeQL</td><td>2</td><td>7</td><td>18</td><td>27</td><td>25</td><td>9</td></tr>
+                      <tr><td>Trivy FS</td><td>1</td><td>3</td><td>17</td><td>27</td><td>18</td><td>7</td></tr>
+                      <tr><td>Gitleaks</td><td>3</td><td>6</td><td>11</td><td>4</td><td>3</td><td>1</td></tr>
+                      <tr><td>Grype</td><td>0</td><td>4</td><td>8</td><td>12</td><td>7</td><td>2</td></tr>
+                      <tr><td>KICS</td><td>0</td><td>2</td><td>5</td><td>7</td><td>5</td><td>2</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- COMPLIANCE OVERVIEW -->
+            <div class="vsp-risk-compliance">
+              <div class="vsp-risk-card">
+                <div class="vsp-risk-card-header">
+                  <div class="vsp-risk-title">COMPLIANCE OVERVIEW (ISO 27001 / OWASP)</div>
+                </div>
+                <div class="vsp-risk-card-body vsp-risk-table-wrap">
+                  <table class="vsp-table vsp-table-compact">
+                    <thead>
+                      <tr>
+                        <th>Framework</th>
+                        <th>Coverage</th>
+                        <th>Gaps</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>ISO 27001</td>
+                        <td>82%</td>
+                        <td>18%</td>
+                        <td>Thiếu hardening cho vài service public.</td>
+                      </tr>
+                      <tr>
+                        <td>OWASP Top 10</td>
+                        <td>88%</td>
+                        <td>12%</td>
+                        <td>Cần thêm rule cho SSRF &amp; supply-chain.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- RUNS TAB -->
+      <section id="tab-runs" class="vsp-tab-pane">
+        <div class="vsp-two-column">
+          <section class="vsp-panel vsp-panel-runs-list">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">RUNS HISTORY</div>
+                <div class="vsp-panel-subtitle">List of all RUN_* (EXT+ profile).</div>
+              </div>
+            </header>
+            <div class="vsp-panel-body vsp-panel-scroll">
+              <table class="vsp-table">
+                <thead>
+                  <tr>
+                    <th>Run ID</th>
+                    <th>Time</th>
+                    <th>Total</th>
+                    <th>CRIT</th>
+                    <th>HIGH</th>
+                    <th>MED</th>
+                    <th>LOW</th>
+                  </tr>
+                </thead>
+                <tbody id="vsp-runs-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="vsp-panel vsp-panel-run-detail">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">RUN DETAIL</div>
+                <div class="vsp-panel-subtitle" id="vsp-run-detail-subtitle">Select a run from the list.</div>
+              </div>
+              <div class="vsp-panel-meta">
+                <a id="vsp-run-report-link" href="#" target="_blank" class="vsp-link-hidden">Open HTML report</a>
+              </div>
+            </header>
+            <div class="vsp-panel-body vsp-panel-scroll">
+              <div id="vsp-run-detail-content" class="vsp-run-detail-grid"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- DATA SOURCE TAB -->
+      <section id="tab-datasource" class="vsp-tab-pane">
+        <section class="vsp-panel vsp-panel-datasource">
+          <header class="vsp-panel-header">
+            <div>
+              <div class="vsp-panel-title">DATA SOURCE – FINDINGS TABLE</div>
+              <div class="vsp-panel-subtitle" id="vsp-ds-subtitle">Last run findings_unified.json</div>
+            </div>
+            <div class="vsp-panel-meta" id="vsp-ds-meta"></div>
+          </header>
+          <div class="vsp-ds-filters">
+            <select id="ds-tool">
+              <option value="">All tools</option>
+              <option value="gitleaks">gitleaks</option>
+              <option value="semgrep">semgrep</option>
+              <option value="kics">kics</option>
+              <option value="codeql">codeql</option>
+              <option value="bandit">bandit</option>
+              <option value="trivy_fs">trivy_fs</option>
+              <option value="grype">grype</option>
+              <option value="syft">syft</option>
+            </select>
+            <select id="ds-severity">
+              <option value="">All severities</option>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+              <option value="INFO">INFO</option>
+              <option value="TRACE">TRACE</option>
+            </select>
+            <input id="ds-search" type="text" placeholder="Search in message / file..." />
+            <button id="ds-apply" class="vsp-btn-secondary">Apply</button>
+          </div>
+          <div class="vsp-panel-body vsp-panel-scroll">
+            <table class="vsp-table vsp-table-ds">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tool</th>
+                  <th>Severity</th>
+                  <th>File</th>
+                  <th>Line</th>
+                  <th>Rule</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="vsp-ds-tbody"></tbody>
+            </table>
+          </div>
+          <footer class="vsp-ds-footer">
+            <div id="vsp-ds-total">Total: --</div>
+            <div class="vsp-ds-pagination">
+              <button id="ds-prev" class="vsp-btn-ghost">Prev</button>
+              <span id="ds-page-label">Page 1</span>
+              <button id="ds-next" class="vsp-btn-ghost">Next</button>
+            </div>
+          </footer>
+        </section>
+      </section>
+
+      <!-- SETTINGS TAB -->
+      <section id="tab-settings" class="vsp-tab-pane">
+        <div class="vsp-two-column">
+          <section class="vsp-panel">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">ENVIRONMENT</div>
+                <div class="vsp-panel-subtitle">Profile, source path, last run.</div>
+              </div>
+            </header>
+            <div class="vsp-panel-body vsp-env-grid" id="vsp-env-grid"></div>
+          </section>
+
+          <section class="vsp-panel">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">TOOL STACK (8 TOOLS)</div>
+                <div class="vsp-panel-subtitle">Secrets / SAST / IaC / SBOM / Vulns</div>
+              </div>
+            </header>
+            <div class="vsp-panel-body vsp-panel-scroll">
+              <table class="vsp-table">
+                <thead>
+                  <tr>
+                    <th>Tool</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="vsp-tools-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- RULE OVERRIDES TAB -->
+      <section id="tab-overrides" class="vsp-tab-pane">
+        <div class="vsp-two-column">
+          <section class="vsp-panel">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">RULE OVERRIDES – POLICY</div>
+                <div class="vsp-panel-subtitle">
+                  CIO / SecLead định nghĩa cách xử lý cảnh báo: downgrade, ignore, manual-review.
+                </div>
+              </div>
+            </header>
+            <div class="vsp-panel-body vsp-panel-scroll">
+              <p style="font-size:11px; color:#cbd5f5; margin-top:0;">
+                Đây là layout demo cho Rule Overrides. Phase sau mình sẽ nối API / file JSON thực tế.
+              </p>
+            </div>
+          </section>
+
+          <section class="vsp-panel">
+            <header class="vsp-panel-header">
+              <div>
+                <div class="vsp-panel-title">CURRENT OVERRIDES (DEMO)</div>
+                <div class="vsp-panel-subtitle">
+                  Demo static – để bạn xem bố cục. Sau ghép API sẽ load từ JSON.
+                </div>
+              </div>
+            </header>
+            <div class="vsp-panel-body vsp-panel-scroll">
+              <table class="vsp-table vsp-table-compact">
+                <thead>
+                  <tr>
+                    <th>Tool</th>
+                    <th>Rule ID</th>
+                    <th>Scope</th>
+                    <th>Action</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>codeql</td>
+                    <td>cpp/uninitialized-variable</td>
+                    <td>src/**/*.cpp</td>
+                    <td>DOWNGRADE → MEDIUM</td>
+                    <td>Legacy module, đã có guard.</td>
+                  </tr>
+                  <tr>
+                    <td>semgrep</td>
+                    <td>python.django.security.xss</td>
+                    <td>tests/**</td>
+                    <td>IGNORE</td>
+                    <td>Chỉ áp dụng cho test code.</td>
+                  </tr>
+                  <tr>
+                    <td>kics</td>
+                    <td>aws-s3-public-read</td>
+                    <td>infra/**</td>
+                    <td>MANUAL REVIEW</td>
+                    <td>Require DevSecOps approval.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div id="vsp-toast" class="vsp-toast hidden"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/vsp_ui_main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from flask import Flask, redirect, render_template
+
+# Blueprint core V3: dashboard_v3, runs_index_v3, datasource_v2, trend_v1, ...
+from vsp_api_core_v3 import bp_v3 as vsp_api_core_bp
+
+# Reuse blueprint Settings + Overrides từ my_flask_app
+try:
+    from my_flask_app.api_vsp_settings_v1 import bp_vsp_settings_v1
+    from my_flask_app.api_vsp_overrides_v1 import bp_vsp_overrides_v1
+except Exception as e:  # fallback nếu chưa có module
+    bp_vsp_settings_v1 = None
+    bp_vsp_overrides_v1 = None
+    print("[WARN] Không import được my_flask_app settings/overrides:", e)
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+def create_app() -> Flask:
+    """
+    VSP Demo App – bản tối giản cho UI thương mại:
+    - Static:     ui/static
+    - Templates:  ui/templates
+    - Routes:
+        /                -> redirect sang /security_bundle
+        /security_bundle -> render vsp_dashboard_2025.html
+    - API:
+        /api/vsp/*      -> từ vsp_api_core_v3 + my_flask_app (settings, overrides)
+    """
+    app = Flask(
+        __name__,
+        static_folder="static",
+        template_folder="templates",
+    )
+
+    # Core v3 APIs
+    app.register_blueprint(vsp_api_core_bp)
+
+    # Settings / Overrides từ my_flask_app (nếu có)
+    if bp_vsp_settings_v1 is not None:
+        try:
+            app.register_blueprint(bp_vsp_settings_v1)
+            print("[VSP][UI] Registered bp_vsp_settings_v1 (my_flask_app).")
+        except Exception as e:
+            print("[VSP][UI][WARN] Không register được bp_vsp_settings_v1:", e)
+
+    if bp_vsp_overrides_v1 is not None:
+        try:
+            app.register_blueprint(bp_vsp_overrides_v1)
+            print("[VSP][UI] Registered bp_vsp_overrides_v1 (my_flask_app).")
+        except Exception as e:
+            print("[VSP][UI][WARN] Không register được bp_vsp_overrides_v1:", e)
+
+    @app.route("/")
+    def index():
+        # Cho UI cũ: / -> /security_bundle
+        return redirect("/security_bundle")
+
+    @app.route("/security_bundle")
+    def security_bundle():
+        # Template dashboard 2025 (5 tab)
+        return render_template("vsp_dashboard_2025.html")
+
+    return app
+
+
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8910, debug=True)

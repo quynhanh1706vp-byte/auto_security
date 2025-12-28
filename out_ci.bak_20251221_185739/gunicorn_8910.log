@@ -1,0 +1,135 @@
+[2025-12-15 05:10:55 +0700] [136729] [INFO] Starting gunicorn 23.0.0
+[2025-12-15 05:10:55 +0700] [136729] [INFO] Listening at: http://0.0.0.0:8910 (136729)
+[2025-12-15 05:10:55 +0700] [136729] [INFO] Using worker: gthread
+[2025-12-15 05:10:55 +0700] [136731] [INFO] Booting worker with pid: 136731
+[2025-12-15 05:10:55 +0700] [136732] [INFO] Booting worker with pid: 136732
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUN_API] skip blueprint already registered: vsp_run_api_v1
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUNV1_V16] installed /healthz
+[VSP_RUNV1_V16] healed url_map._rules_by_endpoint endpoints= 34
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1.run_v1 orig= run_v1
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1_fallback._fallback_run_v1 orig= _fallback_run_v1
+[VSP_RUNV1_V16] installed wrappers: 2
+[WINLAST] override runs_index_v3_fs_resolved: True endpoint= api_vsp_runs_index_v3_fs_resolved_winlast_v1
+[VSP_RUN_STATUS_V2_VIEW_WRAPPER_V3] ok=True info=api_vsp_run_status_v2_winlast_v6
+[VSP_RUN_STATUS_V2_FORCE_FINAL_FROM_ARTIFACTS_V1] ok=True info=api_vsp_run_status_v2_winlast_v6
+[VSP_WSGI_PREEMPT_V1] installed
+[VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_GITLEAKS_V1] installed
+[VSP_WRAP] wrapped vsp_run_api_v1.run_status_v1 /api/vsp/run_status_v1/<req_id>
+[VSP_WRAP] wrapped vsp_run_api_v1_fallback._fallback_run_status_v1 /api/vsp/run_status_v1/<req_id>
+[VSP_WRAP] wrapped api_vsp_run_status_v2_winlast_v6 /api/vsp/run_status_v2/<rid>
+[VSP_FORCE_WRAP_V2] wrapped api_vsp_run_status_v2_winlast_v6 /api/vsp/run_status_v2/<rid>
+[VSP_FORCE_WRAP_V2B] wrapped api_vsp_run_status_v2_winlast_v6 /api/vsp/run_status_v2/<rid>
+[VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_CODEQL_LAST_V1] installed
+[VSP_WSGI_UNWRAP] unwrapped to app
+[VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_CODEQL_LAST_V2] installed
+127.0.0.1 - - [15/Dec/2025:05:10:56 +0700] "GET /healthz HTTP/1.1" 200 36 "-" "curl/8.5.0"
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUN_API_FALLBACK] mounted /api/vsp/run_v1 + /api/vsp/run_status_v1/*
+[VSP_RUN_API] skip blueprint already registered: vsp_run_api_v1
+[VSP_RUN_API] OK registered: /api/vsp/run_v1 + /api/vsp/run_status_v1/<REQ_ID>
+[VSP_RUNV1_V16] installed /healthz
+[VSP_RUNV1_V16] healed url_map._rules_by_endpoint endpoints= 34
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1.run_v1 orig= run_v1
+[VSP_RUNV1_V16] wrapped endpoint= vsp_run_api_v1_fallback._fallback_run_v1 orig= _fallback_run_v1
+[VSP_RUNV1_V16] installed wrappers: 2
+[WINLAST] override runs_index_v3_fs_resolved: True endpoint= api_vsp_runs_index_v3_fs_resolved_winlast_v1
+[VSP_RUN_STATUS_V2_VIEW_WRAPPER_V3] ok=True info=api_vsp_run_status_v2_winlast_v6
+[VSP_RUN_STATUS_V2_FORCE_FINAL_FROM_ARTIFACTS_V1] ok=True info=api_vsp_run_status_v2_winlast_v6
+[VSP_WSGI_PREEMPT_V1] installed
+[VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_GITLEAKS_V1] installed
+[VSP_WRAP] wrapped vsp_run_api_v1.run_status_v1 /api/vsp/run_status_v1/<req_id>
+[VSP_WRAP] wrapped vsp_run_api_v1_fallback._fallback_run_status_v1 /api/vsp/run_status_v1/<req_id>
+[VSP_WRAP] wrapped api_vsp_run_status_v2_winlast_v6 /api/vsp/run_status_v2/<rid>
+[VSP_FORCE_WRAP_V2] wrapped api_vsp_run_status_v2_winlast_v6 /api/vsp/run_status_v2/<rid>
+[VSP_FORCE_WRAP_V2B] wrapped api_vsp_run_status_v2_winlast_v6 /api/vsp/run_status_v2/<rid>
+[VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_CODEQL_LAST_V1] installed
+[VSP_WSGI_UNWRAP] unwrapped to app
+[VSP_WSGI_BYTES_POSTPROCESS_STATUSV2_CODEQL_LAST_V2] installed
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "GET /healthz HTTP/1.1" 200 36 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "GET /api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1 HTTP/1.1" 200 215 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "GET /api/vsp/run_artifacts_index_v1/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 217 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "GET /api/vsp/run_findings_preview_v1/RUN_VSP_CI_20251215_034956?limit=3 HTTP/1.1" 200 290 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=html HTTP/1.1" 200 0 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=pdf HTTP/1.1" 200 0 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:12:25 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=zip HTTP/1.1" 200 0 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /vsp4 HTTP/1.1" 200 11952 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 9 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /static/css/vsp_ui_4tabs_commercial_v1.css HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /static/js/vsp_tabs_hash_router_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /static/js/vsp_runs_tab_8tools_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /static/js/vsp_datasource_tab_v1.js HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /static/js/vsp_ui_4tabs_commercial_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/runs_index_v3_fs_resolved?limit=20&hide_empty=0&filter=1 HTTP/1.1" 200 3293 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_032723 HTTP/1.1" 200 3469 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_032838 HTTP/1.1" 200 1983 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_030759 HTTP/1.1" 200 3469 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_031007 HTTP/1.1" 200 3349 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025832 HTTP/1.1" 200 1983 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025721 HTTP/1.1" 200 1983 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025446 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025053 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_022726 HTTP/1.1" 200 3276 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_005247 HTTP/1.1" 200 3063 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_001554 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_001335 HTTP/1.1" 200 563 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_224900 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_221213 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_194153 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_195042 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_194340 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_193914 HTTP/1.1" 200 565 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_192247 HTTP/1.1" 200 565 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_artifacts_index_v1/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 217 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=html&ci=%2Fhome%2Ftest%2FData%2FSECURITY-10-10-v4%2Fout_ci%2FVSP_CI_20251215_034956 HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=pdf&ci=%2Fhome%2Ftest%2FData%2FSECURITY-10-10-v4%2Fout_ci%2FVSP_CI_20251215_034956 HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=zip&ci=%2Fhome%2Ftest%2FData%2FSECURITY-10-10-v4%2Fout_ci%2FVSP_CI_20251215_034956 HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:14:19 +0700] "GET /api/vsp/run_artifacts_index_v1/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 217 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /vsp4 HTTP/1.1" 200 11952 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 9 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /static/css/vsp_ui_4tabs_commercial_v1.css HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /static/js/vsp_datasource_tab_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /static/js/vsp_runs_tab_8tools_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /static/js/vsp_ui_4tabs_commercial_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /static/js/vsp_tabs_hash_router_v1.js HTTP/1.1" 304 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/runs_index_v3_fs_resolved?limit=20&hide_empty=0&filter=1 HTTP/1.1" 200 3293 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_032723 HTTP/1.1" 200 3469 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_032838 HTTP/1.1" 200 1983 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_030759 HTTP/1.1" 200 3469 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_031007 HTTP/1.1" 200 3349 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025832 HTTP/1.1" 200 1983 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025721 HTTP/1.1" 200 1983 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025446 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_025053 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_022726 HTTP/1.1" 200 3276 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_005247 HTTP/1.1" 200 3063 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_001554 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_001335 HTTP/1.1" 200 563 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_224900 HTTP/1.1" 200 956 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_221213 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_194153 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_195042 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_194340 HTTP/1.1" 200 651 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:26 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_193914 HTTP/1.1" 200 565 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251214_192247 HTTP/1.1" 200 565 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "GET /api/vsp/run_artifacts_index_v1/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 217 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=html&ci=%2Fhome%2Ftest%2FData%2FSECURITY-10-10-v4%2Fout_ci%2FVSP_CI_20251215_034956 HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=pdf&ci=%2Fhome%2Ftest%2FData%2FSECURITY-10-10-v4%2Fout_ci%2FVSP_CI_20251215_034956 HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "HEAD /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=zip&ci=%2Fhome%2Ftest%2FData%2FSECURITY-10-10-v4%2Fout_ci%2FVSP_CI_20251215_034956 HTTP/1.1" 200 0 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:17:27 +0700] "GET /api/vsp/run_artifacts_index_v1/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 217 "http://127.0.0.1:8910/vsp4" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+127.0.0.1 - - [15/Dec/2025:05:20:04 +0700] "GET /api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1 HTTP/1.1" 200 215 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:20:04 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:20:04 +0700] "GET /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=html HTTP/1.1" 200 1036 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:21:04 +0700] "GET /api/vsp/runs_index_v3_fs_resolved?limit=1&hide_empty=0&filter=1 HTTP/1.1" 200 215 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:21:04 +0700] "GET /api/vsp/run_status_v2/RUN_VSP_CI_20251215_034956 HTTP/1.1" 200 2809 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:21:04 +0700] "GET /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=html HTTP/1.1" 200 1036 "-" "curl/8.5.0"
+127.0.0.1 - - [15/Dec/2025:05:21:16 +0700] "GET /api/vsp/run_export_v3/RUN_VSP_CI_20251215_034956?fmt=pdf HTTP/1.1" 404 194 "-" "curl/8.5.0"
