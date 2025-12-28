@@ -1,4 +1,11 @@
 
+# == COMMERCIAL: never commit artifacts (folder OR symlink) ==
+out_ci
+out_ci/
+ui/out_ci/
+**/out_ci/
+*.bak_*
+
 # local backups / generated
 *.bak_*
 out_ci/
