@@ -203,6 +203,7 @@ if(__VSP_P81_DASH_OK){ document.head.appendChild(sc); }
           if(!j || !j.ok) return;
           updateKPIs(j.counts||{});
           ensureCioBlock(j.counts||{}, {rid: rid, n: j.n||0});
+          if (window.__VSP_P963J_SET_COUNTS__) window.__VSP_P963J_SET_COUNTS__(j.counts||{});
         })
         .catch(function(e){ console.warn('[P963I] KPI v2 fetch failed', e); });
     }
@@ -213,3 +214,115 @@ if(__VSP_P81_DASH_OK){ document.head.appendChild(sc); }
     console.warn('[P963I] init error', e);
   }
 })(); 
+
+
+/* VSP_P963J_SYNC_LEGACY_KPI */
+;(function(){
+  try{
+    function norm(t){ return String(t||'').replace(/\s+/g,' ').trim().toUpperCase(); }
+    function isNumText(t){ return /^\d+$/.test(String(t||'').trim()); }
+
+    function findNumericTarget(scope){
+      if(!scope) return null;
+      // prefer common numeric nodes
+      var cand = scope.querySelector('.kpi-num,.num,.value,.count,strong,b,span,div');
+      if (cand && isNumText(cand.textContent)) return cand;
+
+      // fallback: first node in scope that is purely digits
+      var nodes = scope.querySelectorAll('strong,b,span,div');
+      for (var i=0;i<nodes.length;i++){
+        if (isNumText(nodes[i].textContent)) return nodes[i];
+      }
+      return null;
+    }
+
+    function setByLabel(label, value){
+      var L = norm(label);
+      var nodes = document.querySelectorAll('div,span,strong,b,h1,h2,h3,h4,h5');
+      for (var i=0;i<nodes.length;i++){
+        var t = norm(nodes[i].textContent);
+        if (t === L || t.startsWith(L+' ') || t.endsWith(' '+L)) {
+          var card = nodes[i].closest('.kpi-card,.card,.box,.panel,.stat,.metric') || nodes[i].parentElement;
+          if (!card) continue;
+
+          // try sibling next
+          var sib = nodes[i].nextElementSibling;
+          if (sib && isNumText(sib.textContent)) { sib.textContent = String(value); return true; }
+
+          // else search inside card
+          var num = findNumericTarget(card);
+          if (num) { num.textContent = String(value); return true; }
+        }
+      }
+      return false;
+    }
+
+    function syncLegacyStrip(counts){
+      var total = 0;
+      ['CRITICAL','HIGH','MEDIUM','LOW','INFO','TRACE'].forEach(function(k){ total += (counts[k]||0); });
+
+      var ok = 0;
+      ok += setByLabel('TOTAL', total) ? 1 : 0;
+      ok += setByLabel('CRITICAL', counts.CRITICAL||0) ? 1 : 0;
+      ok += setByLabel('HIGH', counts.HIGH||0) ? 1 : 0;
+      ok += setByLabel('MEDIUM', counts.MEDIUM||0) ? 1 : 0;
+      ok += setByLabel('LOW', counts.LOW||0) ? 1 : 0;
+      ok += setByLabel('INFO', counts.INFO||0) ? 1 : 0;
+      ok += setByLabel('TRACE', counts.TRACE||0) ? 1 : 0;
+
+      return ok;
+    }
+
+    function hideZeroLegacyStrip(){
+      // try to find a strip that contains labels TOTAL/CRITICAL/HIGH/MEDIUM/LOW/INFO and all numbers are 0
+      var text = document.body ? document.body.innerText || '' : '';
+      if (!text) return false;
+
+      var containers = document.querySelectorAll('.kpi-strip,.kpi-row,.stats,.metrics,.row,section,div');
+      for (var i=0;i<containers.length;i++){
+        var c = containers[i];
+        var tt = norm(c.textContent);
+        if (!(tt.includes('TOTAL') && tt.includes('CRITICAL') && tt.includes('HIGH') && tt.includes('MEDIUM'))) continue;
+
+        // count numeric nodes in this container
+        var nums = c.querySelectorAll('strong,b,span,div');
+        var seen = 0, zeros = 0;
+        for (var j=0;j<nums.length;j++){
+          var v = String(nums[j].textContent||'').trim();
+          if (!/^\d+$/.test(v)) continue;
+          seen += 1;
+          if (v === '0') zeros += 1;
+        }
+        if (seen >= 6 && zeros === seen) {
+          c.style.display = 'none';
+          console.log('[P963J] hidden legacy KPI strip (all zeros)');
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Hook into the existing P963I flow by re-running after KPI v2 fetch has updated the CIO block.
+    // If counts exist on window.__VSP_KPI_V2_COUNTS__ (we set below), use it.
+    function run(){
+      var counts = window.__VSP_KPI_V2_COUNTS__ || null;
+      if (!counts) { hideZeroLegacyStrip(); return; }
+      var n = syncLegacyStrip(counts);
+      console.log('[P963J] sync legacy KPI ok=', n);
+      if (n < 3) hideZeroLegacyStrip();
+    }
+
+    // expose a setter so P963I can store counts
+    window.__VSP_P963J_SET_COUNTS__ = function(counts){
+      window.__VSP_KPI_V2_COUNTS__ = counts || null;
+      setTimeout(run, 0);
+      setTimeout(run, 300);
+      setTimeout(run, 900);
+    };
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else setTimeout(run, 0);
+  }catch(e){
+    console.warn('[P963J] init error', e);
+  }
+})();
