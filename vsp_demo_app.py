@@ -19398,3 +19398,122 @@ def api_vsp_log_tail_v1():
     ok, err, out = _p920_tail_file(found, n=n)
     return _p920_json_ok({"ok": ok, "rid": rid, "tool": tool, "path": found, "err": err, "tail": out}, 200)
 
+
+### VSP_P963_KPI_COUNTS_V1 ###
+# KPI counts API: compute severity counts from run folder artifacts
+try:
+    from flask import jsonify, request
+except Exception:
+    pass
+
+def _vsp_p963_find_run_dir(rid: str):
+    roots = [
+        "/home/test/Data/SECURITY-10-10-v4/out_ci",
+        "/home/test/Data/SECURITY_BUNDLE/out",
+        "/home/test/Data/SECURITY_BUNDLE/out_ci",
+    ]
+    for root in roots:
+        d = Path(root) / rid
+        if d.is_dir():
+            return d, roots
+    return None, roots
+
+def _vsp_p963_extract_items(obj):
+    # returns list of findings (best-effort)
+    if obj is None:
+        return []
+    if isinstance(obj, list):
+        return obj
+    if isinstance(obj, dict):
+        for k in ("items","findings","results","data","rows"):
+            v = obj.get(k)
+            if isinstance(v, list):
+                return v
+        # sometimes unified JSON is nested
+        v = obj.get("unified") or obj.get("findings_unified")
+        if isinstance(v, dict):
+            for k in ("items","findings","results","rows"):
+                vv = v.get(k)
+                if isinstance(vv, list):
+                    return vv
+    return []
+
+def _vsp_p963_sev(it):
+    if not isinstance(it, dict):
+        return ""
+    for k in ("severity_norm","sev_norm","severity","sev","level","priority"):
+        v = it.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip().upper()
+    return ""
+
+def _vsp_p963_counts_from_items(items):
+    out = {"CRITICAL":0,"HIGH":0,"MEDIUM":0,"LOW":0,"INFO":0,"TRACE":0}
+    for it in items:
+        sev = _vsp_p963_sev(it)
+        if sev in out:
+            out[sev] += 1
+    return out
+
+@app.get("/api/vsp/kpi_counts_v1")
+def api_vsp_kpi_counts_v1():
+    rid = (request.args.get("rid") or "").strip()
+    if not rid:
+        return jsonify({"ok":False,"err":"missing rid","rid":"","counts":{}}), 400
+
+    run_dir, roots = _vsp_p963_find_run_dir(rid)
+    if not run_dir:
+        return jsonify({"ok":False,"err":"rid not found on disk","rid":rid,"roots":roots,"counts":{}}), 404
+
+    cand = [
+        run_dir / "reports" / "findings_unified_commercial.json",
+        run_dir / "findings_unified_commercial.json",
+        run_dir / "reports" / "findings_unified.json",
+        run_dir / "findings_unified.json",
+    ]
+
+    chosen = None
+    j = None
+    j_err = ""
+    for fp in cand:
+        if fp.is_file() and fp.stat().st_size > 10:
+            try:
+                j = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
+                chosen = str(fp)
+                break
+            except Exception as e:
+                j_err = f"{fp.name}: {e}"
+                continue
+
+    if chosen is None or j is None:
+        return jsonify({
+            "ok": False,
+            "err": "no usable json source",
+            "rid": rid,
+            "run_dir": str(run_dir),
+            "checked": [str(x) for x in cand],
+            "json_err": j_err,
+            "counts": {},
+        }), 200
+
+    items = _vsp_p963_extract_items(j)
+    counts = _vsp_p963_counts_from_items(items)
+
+    # degraded info (optional)
+    degraded_fp = run_dir / "degraded_tools.json"
+    degraded = None
+    if degraded_fp.is_file():
+        try:
+            degraded = json.loads(degraded_fp.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            degraded = None
+
+    return jsonify({
+        "ok": True,
+        "rid": rid,
+        "source": chosen,
+        "n": len(items),
+        "counts": counts,
+        "degraded": degraded,
+    }), 200
+
