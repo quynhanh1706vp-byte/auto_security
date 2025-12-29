@@ -1,317 +1,359 @@
-/* P915_SETTINGS_OPS_PANEL_CIO */
-/* VSP_SETTINGS_P405 - keep P404 panel, kill legacy cards reliably (limited reaper) */
+// P923B_SETTINGS_FULL_COMMERCIAL_V1 (syntax-safe, commercial-grade)
+// Goals:
+// - Never throw SyntaxError (node --check must pass)
+// - Render a full Settings page (CIO-friendly)
+// - Keep mounting Ops Panel (P920): journal/log_tail/evidence
+// - Be resilient if APIs change (show raw JSON)
 (function(){
   "use strict";
-  const log=(...a)=>console.log("[settings:p405]",...a);
 
-  const ROOT_ID="vsp_settings_p405_root";
+  const TAG = "P923B_SETTINGS_FULL_COMMERCIAL_V1";
+  const API = {
+    run_status: "/api/vsp/run_status_v1",
+    ops_latest: "/api/vsp/ops_latest_v1"
+  };
+  const OPS_JS = "/static/js/vsp_ops_panel_v1.js";
 
-  function el(tag, attrs, html){
-    const e=document.createElement(tag);
-    if(attrs) for(const [k,v] of Object.entries(attrs)){
-      if(k==="class") e.className=v;
-      else if(k==="style") e.setAttribute("style",v);
-      else e.setAttribute(k,v);
-    }
-    if(html!==undefined) e.innerHTML=html;
-    return e;
-  }
-
-  function cssOnce(){
-    if(document.getElementById("vsp_settings_css_p405")) return;
-    const css=`
-      html,body{ background:#0b1020; }
-      #${ROOT_ID}{ padding:16px; color:#eaeaea; }
-      #${ROOT_ID} .h1{ font-size:18px; margin:0 0 12px 0; }
-      #${ROOT_ID} .grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:12px; }
-      #${ROOT_ID} .card{ border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.18); border-radius:14px; padding:12px; }
-      #${ROOT_ID} .card h2{ font-size:13px; margin:0 0 10px 0; opacity:.9; }
-      #${ROOT_ID} table{ width:100%; border-collapse:collapse; font-size:12px; }
-      #${ROOT_ID} td,#${ROOT_ID} th{ border-bottom:1px solid rgba(255,255,255,.08); padding:6px; text-align:left; }
-      .vsp_p405_hidden{ display:none !important; }
-      @media (max-width: 1100px){ #${ROOT_ID} .grid{ grid-template-columns:1fr; } }
-    `;
-    document.head.appendChild(el("style",{id:"vsp_settings_css_p405"},css));
-  }
-
-  function neverHide(node){
-    if(!node) return true;
-    if(node === document.documentElement || node === document.body) return true;
-    // never hide our own root or its parents
-    const root=document.getElementById(ROOT_ID);
-    if(root && (node===root || node.contains(root) || root.contains(node))) return true;
-    return false;
-  }
-
-  function hideByTextOnce(){
-    const needles=[
-      "Gate summary (live)",
-      "Settings (live links + tool legend)",
-      "Settings (live links",
-      "Tools (8):",
-      "Exports:"
-      ,"PIN default (stored local)"
-      ,"Set AUTO"
-      ,"Set PIN GLOBAL"
-      ,"Set USE RID"
-      ,"Commercial behaviors"
-    
-];
-    const nodes=Array.from(document.querySelectorAll("section,article,div,pre"));
-    for(const n of nodes){
-      const t=(n.innerText||"").trim();
-      if(!t) continue;
-      if(!needles.some(x=>t.includes(x))) continue;
-
-      // climb to a card-like container but stop before body/html
-      let p=n;
-      for(let i=0;i<12 && p && p!==document.body; i++){
-        const cls=(p.className||"").toString();
-        const h=(p.getBoundingClientRect? p.getBoundingClientRect().height:0) || 0;
-        if(cls.includes("card")||cls.includes("panel")||cls.includes("container")||h>=160) break;
-        p=p.parentElement;
+  function el(tag, attrs, ...children){
+    const n = document.createElement(tag);
+    if (attrs){
+      for (const [k,v] of Object.entries(attrs)){
+        if (v === null || v === undefined) continue;
+        if (k === "class") n.className = String(v);
+        else if (k === "style") n.setAttribute("style", String(v));
+        else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+        else n.setAttribute(k, String(v));
       }
-      const target=p||n;
-      if(neverHide(target)) continue;
-      target.classList.add("vsp_p405_hidden");
-      target.setAttribute("data-vsp-legacy-hidden","1");
     }
+    for (const c of children.flat()){
+      if (c === null || c === undefined) continue;
+      if (typeof c === "string") n.appendChild(document.createTextNode(c));
+      else n.appendChild(c);
+    }
+    return n;
   }
 
-  async function ensureViewerLoaded(){
-    if(window.VSP && window.VSP.jsonViewer) return true;
-    return await new Promise((resolve)=>{
-      const s=document.createElement("script");
-      s.src="/static/js/vsp_json_viewer_v1.js?v="+Date.now();
-      s.onload=()=>resolve(true);
-      s.onerror=()=>resolve(false);
-      document.head.appendChild(s);
-    });
-  }
-  // P915_SETTINGS_OPS_PANEL_CIO
-  async function ensureOpsPanelLoaded(){
-    if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted) return true;
-    return await new Promise((resolve)=>{
-      try{
-        const id="vsp_ops_panel_v1_loader";
-        if(document.getElementById(id)) return resolve(true);
-        const sc=document.createElement("script");
-        sc.id=id;
-        sc.src="/static/js/vsp_ops_panel_v1.js?v="+Date.now();
-        sc.onload=()=>resolve(true);
-        sc.onerror=()=>resolve(false);
-        document.head.appendChild(sc);
-      }catch(e){ resolve(false); }
-    });
+  function safeJson(x){
+    try { return JSON.stringify(x, null, 2); } catch(e){ return String(x); }
   }
 
+  function collapse(title, bodyNode){
+    const wrap = el("div", {class:"vsp-card vsp-card--collapse"});
+    const btn = el("button", {class:"vsp-collapse-btn", type:"button"},
+      el("span", {class:"vsp-collapse-title"}, title),
+      el("span", {class:"vsp-collapse-icon"}, "▸")
+    );
+    const body = el("div", {class:"vsp-collapse-body", style:"display:none"});
+    body.appendChild(bodyNode);
 
+    let open = false;
+    function setOpen(v){
+      open = !!v;
+      body.style.display = open ? "block" : "none";
+      btn.querySelector(".vsp-collapse-icon").textContent = open ? "▾" : "▸";
+    }
+    btn.addEventListener("click", ()=>setOpen(!open));
+    setOpen(false);
 
-  async function fetchWithTimeout(url, timeoutMs){
-    const ms=timeoutMs||4500;
-    const ctl=new AbortController();
-    const t=setTimeout(()=>ctl.abort(), ms);
-    const t0=performance.now();
+    wrap.appendChild(btn);
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  async function fetchJson(url, timeoutMs){
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeoutMs || 8000);
     try{
-      const r=await fetch(url,{signal:ctl.signal,cache:"no-store",credentials:"same-origin"});
-      const text=await r.text();
-      let data=null; try{ data=JSON.parse(text);}catch(_){}
-      return {ok:r.ok,status:r.status,ms:(performance.now()-t0),text,data};
-    }catch(e){
-      const name=(e&&e.name)?e.name:"Error";
-      return {ok:false,status:0,ms:(performance.now()-t0),text:`${name}: ${String(e)}`,data:null};
-    }finally{ clearTimeout(t); }
-  }
-
-  function badgeFor(status, ok){
-    const cls = ok ? "ok" : (status===0 ? "mid" : "bad");
-    const label = ok ? "OK" : (status===0 ? "TIMEOUT/ABORT" : "ERR");
-    const style = cls==="ok" ? "background:rgba(0,255,0,.08)" :
-                  cls==="mid" ? "background:rgba(255,255,0,.08)" :
-                                "background:rgba(255,0,0,.08)";
-    return `<span style="${style};border:1px solid rgba(255,255,255,.15);padding:2px 8px;border-radius:999px;font-size:11px;">${label} ${status}</span>`;
-  }
-
-  function probeUrls(){
-    return [
-      "/api/vsp/runs_v3?limit=5&include_ci=1",
-      "/api/vsp/dashboard_kpis_v4",
-      "/api/vsp/top_findings_v2?limit=5",
-      "/api/vsp/trend_v1",
-      "/api/vsp/exports_v1",
-      "/api/vsp/run_status_v1",
-    ];
-  }
-
-  async function render(){
-    cssOnce();
-
-    // Ensure root exists once
-    let root=document.getElementById(ROOT_ID);
-    if(!root){
-      root=el("div",{id:ROOT_ID});
-      document.body.prepend(root);
+      const r = await fetch(url, {signal: ctrl.signal, cache:"no-store"});
+      const txt = await r.text();
+      let j = null;
+      try { j = JSON.parse(txt); } catch(e){ j = { raw: txt }; }
+      return { ok: r.ok, status: r.status, json: j };
+    } finally {
+      clearTimeout(t);
     }
-    root.innerHTML="";
-    root.appendChild(el("div",{class:"h1"},"Settings • P405 (legacy reaped)"));
+  }
 
-    const grid=el("div",{class:"grid"});
-    const left=el("div",{class:"card"});
-    const right=el("div",{class:"card"});
-    left.appendChild(el("h2",null,"Endpoint probes
-"));
-    right.appendChild(el("h2",null,"Raw JSON (stable collapsible)"));
+  function ensureRoot(){
+    // Prefer an existing app container if present; otherwise create one.
+    let root =
+      document.querySelector("#vsp_settings_root") ||
+      document.querySelector("#vsp_main") ||
+      document.querySelector("main") ||
+      document.querySelector("#app") ||
+      document.body;
 
-    const table=el("table");
-    table.innerHTML=`<thead><tr><th>Endpoint</th><th>Status</th><th>Time</th></tr></thead><tbody></tbody>`;
-    const tbody=table.querySelector("tbody");
-    left.appendChild(table);
-
-    const jsonBox=el("div");
-    right.appendChild(jsonBox);
-
-    grid.appendChild(left); grid.appendChild(right);
-    root.appendChild(grid);
-
-    // P915_SETTINGS_OPS_PANEL_CIO: Ops panel slot (CIO)
-    const opsCard = el("div",{class:"card"});
-    opsCard.appendChild(el("h2",null,"Ops Status (CIO)"));
-    opsCard.appendChild(el("div",{id:"vsp_ops_panel"},""));
-    root.appendChild(opsCard);
-
-    const urls=probeUrls();
-    const results=[];
-    for(const u of urls){
-      const r=await fetchWithTimeout(u,4500);
-      results.push({url:u,...r});
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td><code>${u}</code></td><td>${badgeFor(r.status,r.ok)}</td><td>${Math.round(r.ms)} ms</td>`;
-      tbody.appendChild(tr);
-    }
-
-    const viewerOk=await ensureViewerLoaded();
-    if(viewerOk && window.VSP && window.VSP.jsonViewer){
-      window.VSP.jsonViewer.render(jsonBox,{
-        tab:"settings",
-        ts:new Date().toISOString(),
-        probes: results.map(r=>({
-          url:r.url, ok:r.ok, status:r.status, ms:Math.round(r.ms),
-          data: (r.data!==null ? r.data : undefined),
-          text: (r.data===null ? (r.text||"").slice(0,900) : undefined),
-        }))
-      },{title:"Settings.probes",maxDepth:7});
+    // Always render into a dedicated root to avoid clobbering other tabs.
+    let host = document.querySelector("#vsp_settings_root");
+    if (!host){
+      host = el("div", {id:"vsp_settings_root", class:"vsp-settings-root"});
+      root.appendChild(host);
     } else {
-      jsonBox.innerHTML=`<pre style="white-space:pre-wrap;word-break:break-word;opacity:.9">${results.map(x=>x.text||"").join("\n\n")}</pre>`;
+      host.innerHTML = "";
     }
-
-    // P915_SETTINGS_OPS_PANEL_CIO: auto mount ops panel
-    try{
-      const host=document.getElementById("vsp_ops_panel");
-      if(host){
-        const ok = await ensureOpsPanelLoaded();
-        if(ok && window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){
-          window.VSPOpsPanel.ensureMounted();
-        } else {
-          host.innerHTML = '<div style="opacity:.85;font-size:12px">Ops panel not available</div>';
-        }
-      }
-    }catch(e){}
-
-
-    log("rendered");
+    return host;
   }
 
-  function startLimitedReaper(){
-    let n=0;
-    const max=40; // 10s // 20*250ms = 5s
-    const timer=setInterval(()=>{
-      try{ hideByTextOnce(); }catch(_){}
-      n++;
-      if(n>=max) clearInterval(timer);
-    },250);
-    // run immediately too
-    hideByTextOnce();
+  function ensureOpsPanelHost(container){
+    let h = container.querySelector("#vsp_ops_panel_host");
+    if (!h){
+      h = el("div", {id:"vsp_ops_panel_host"});
+      container.appendChild(h);
+    }
+    return h;
+  }
+
+  function loadOpsPanelJsOnce(cb){
+    if (window.VSPOpsPanel && typeof window.VSPOpsPanel.ensureMounted === "function"){
+      cb && cb();
+      return;
+    }
+    const id = "vsp_ops_panel_js";
+    if (document.getElementById(id)){
+      cb && cb();
+      return;
+    }
+    const s = el("script", {id, src: OPS_JS});
+    s.onload = ()=>{ cb && cb(); };
+    s.onerror = ()=>{ /* do not crash */ };
+    document.head.appendChild(s);
+  }
+
+  function renderPlaybook(){
+    return el("div", {},
+      el("div", {class:"vsp-muted"},
+        "Settings • Commercial Playbook (CIO/ISO-ready). ",
+        "Mục tiêu: ổn định, có bằng chứng, không crash, degrade-graceful."
+      ),
+      el("div", {class:"vsp-muted", style:"margin-top:6px"},
+        "Tabs chuẩn: Dashboard / Runs & Reports / Data Source / Settings / Rule Overrides."
+      )
+    );
+  }
+
+  function renderToolsBox(){
+    const items = [
+      ["Bandit (SAST)", "Python security checks → JSON."],
+      ["Semgrep (SAST)", "Ruleset → JSON/SARIF."],
+      ["Gitleaks (Secrets)", "Detect secrets → JSON."],
+      ["KICS (IaC)", "Scan IaC → JSON/SARIF (timeout/degraded supported)."],
+      ["Trivy (Vuln)", "Container/FS vuln → JSON."],
+      ["Syft (SBOM)", "Generate SBOM → JSON."],
+      ["Grype (SCA)", "Vuln from SBOM → JSON."],
+      ["CodeQL (Deep SAST)", "SARIF (timeout/degraded supported)."]
+    ];
+    const grid = el("div", {class:"vsp-grid"});
+    for (const [k, v] of items){
+      grid.appendChild(el("div", {class:"vsp-mini-card"},
+        el("div", {class:"vsp-mini-title"}, k),
+        el("div", {class:"vsp-mini-desc"}, v)
+      ));
+    }
+    return grid;
+  }
+
+  function renderNormBox(){
+    return el("div", {},
+      el("div", {class:"vsp-muted"}, "Severity normalization: CRITICAL / HIGH / MEDIUM / LOW / INFO / TRACE."),
+      el("div", {class:"vsp-muted", style:"margin-top:6px"},
+        "Gợi ý: mapping từ tool severity về 6 mức DevSecOps để gate & dashboard thống nhất."
+      )
+    );
+  }
+
+  function renderIsoBox(){
+    return el("div", {},
+      el("div", {class:"vsp-muted"},
+        "ISO 27001 mapping (skeleton): mục tiêu là traceable controls → findings → evidence → report."
+      )
+    );
+  }
+
+  function renderEndpointProbes(runStatus){
+    const wrap = el("div", {});
+    const head = el("div", {class:"vsp-muted"}, "Endpoint probes & Raw JSON (stable, collapsible).");
+    wrap.appendChild(head);
+
+    const probes = (runStatus && runStatus.json && (runStatus.json.probes || runStatus.json.endpoints)) || null;
+
+    // Table
+    if (Array.isArray(probes) && probes.length){
+      const table = el("table", {class:"vsp-table"});
+      table.appendChild(el("thead", {},
+        el("tr", {},
+          el("th", {}, "Endpoint"),
+          el("th", {}, "Status"),
+          el("th", {}, "Time")
+        )
+      ));
+      const tb = el("tbody", {});
+      for (const it of probes){
+        const ep = it.endpoint || it.path || it.url || "";
+        const st = String(it.status || it.code || it.http_code || "");
+        const ms = String(it.ms || it.time_ms || it.time || "");
+        tb.appendChild(el("tr", {},
+          el("td", {}, ep),
+          el("td", {}, st),
+          el("td", {}, ms)
+        ));
+      }
+      table.appendChild(tb);
+      wrap.appendChild(table);
+    } else {
+      wrap.appendChild(el("div", {class:"vsp-muted", style:"margin-top:8px"},
+        "Schema probes chưa đúng dạng array → hiển thị Raw JSON bên dưới."
+      ));
+    }
+
+    const raw = el("pre", {class:"vsp-pre"}, safeJson(runStatus && runStatus.json));
+    wrap.appendChild(raw);
+    return wrap;
+  }
+
+  function renderOpsStatus(runStatus, opsLatest){
+    const okStatus = (runStatus && runStatus.ok) ? "OK" : "DEGRADED";
+    const code = runStatus ? runStatus.status : 0;
+
+    const box = el("div", {class:"vsp-ops-box"},
+      el("div", {class:"vsp-ops-row"},
+        el("div", {class:"vsp-ops-k"}, "service"),
+        el("div", {class:"vsp-ops-v"}, (opsLatest && opsLatest.json && opsLatest.json.svc) ? opsLatest.json.svc : "(unknown)"),
+        el("div", {class:"vsp-ops-badge " + (okStatus==="OK" ? "ok":"bad")}, okStatus)
+      ),
+      el("div", {class:"vsp-ops-row"},
+        el("div", {class:"vsp-ops-k"}, "base"),
+        el("div", {class:"vsp-ops-v"}, location.origin),
+        el("div", {class:"vsp-ops-k"}, "http_code"),
+        el("div", {class:"vsp-ops-v"}, String(code))
+      ),
+      el("div", {class:"vsp-ops-row"},
+        el("button", {class:"vsp-btn", type:"button", onclick: ()=>location.reload()}, "Refresh"),
+        el("button", {class:"vsp-btn vsp-btn-secondary", type:"button", onclick: ()=>{
+          // open raw json in a new tab-like view: just alert pre text length safe
+          const j = { run_status: runStatus && runStatus.json, ops_latest: opsLatest && opsLatest.json };
+          const w = window.open("", "_blank");
+          if (w){ w.document.write("<pre>"+safeJson(j).replace(/</g,"&lt;")+"</pre>"); }
+        }}, "View JSON")
+      )
+    );
+
+    return box;
+  }
+
+  function injectTinyStyle(){
+    if (document.getElementById("vsp_settings_style_p923b")) return;
+    const css = `
+#vsp_settings_root{max-width:1100px;margin:18px auto;padding:6px 14px;color:#e8eefc}
+.vsp-muted{opacity:.78;font-size:12px;line-height:1.4}
+.vsp-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;margin:10px 0}
+.vsp-title{font-size:18px;font-weight:700;margin:0 0 6px}
+.vsp-sub{font-size:12px;opacity:.75;margin:0 0 10px}
+.vsp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vsp-mini-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px}
+.vsp-mini-title{font-weight:700;font-size:12px;margin-bottom:4px}
+.vsp-mini-desc{font-size:12px;opacity:.78}
+.vsp-collapse-btn{width:100%;display:flex;justify-content:space-between;align-items:center;background:transparent;border:0;color:inherit;padding:0;font-weight:700;cursor:pointer}
+.vsp-collapse-title{font-size:13px}
+.vsp-collapse-body{margin-top:10px}
+.vsp-pre{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;font-size:12px}
+.vsp-table{width:100%;border-collapse:collapse;margin-top:10px}
+.vsp-table th,.vsp-table td{border-bottom:1px solid rgba(255,255,255,.08);padding:8px;font-size:12px;text-align:left}
+.vsp-ops-box{background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px}
+.vsp-ops-row{display:flex;gap:10px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.vsp-ops-k{opacity:.7;font-size:12px;min-width:70px}
+.vsp-ops-v{font-size:12px}
+.vsp-ops-badge{margin-left:auto;padding:3px 10px;border-radius:999px;font-size:11px;border:1px solid rgba(255,255,255,.14)}
+.vsp-ops-badge.ok{background:rgba(34,197,94,.15)}
+.vsp-ops-badge.bad{background:rgba(239,68,68,.15)}
+.vsp-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#e8eefc;padding:6px 10px;font-size:12px;cursor:pointer}
+.vsp-btn:hover{background:rgba(255,255,255,.12)}
+.vsp-btn-secondary{opacity:.9}
+@media (max-width:820px){.vsp-grid{grid-template-columns:1fr}}
+`;
+    const st = document.createElement("style");
+    st.id = "vsp_settings_style_p923b";
+    st.textContent = css;
+    document.head.appendChild(st);
   }
 
   async function main(){
-    startLimitedReaper();
-    await render();
-    // reaper again after render (legacy may appear later)
-    startLimitedReaper();
-  }
+    injectTinyStyle();
 
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", main);
-  else main();
-})();
+    const host = ensureRoot();
+    const header = el("div", {class:"vsp-card"},
+      el("div", {class:"vsp-title"}, "Settings"),
+      el("div", {class:"vsp-sub"}, "Commercial • CIO/ISO-ready • " + TAG)
+    );
+    host.appendChild(header);
 
+    const playbook = el("div", {class:"vsp-card"}, renderPlaybook());
+    host.appendChild(playbook);
 
-/* VSP_P473_LOADER_SNIPPET_V1 */
-(function(){
-  try{
-    if (window.__VSP_SIDEBAR_FRAME_V1__) return;
-    if (document.getElementById("vsp_c_sidebar_v1_loader")) return;
-    var s=document.createElement("script");
-    s.id="vsp_c_sidebar_v1_loader";
-    s.src="/static/js/vsp_c_sidebar_v1.js?v="+Date.now();
-    document.head.appendChild(s);
-  }catch(e){}
-})();
+    const tools = el("div", {class:"vsp-card"},
+      el("div", {class:"vsp-title", style:"font-size:14px"}, "8-tool suite & artifacts"),
+      renderToolsBox()
+    );
+    host.appendChild(tools);
 
-// P916B_SETTINGS_AUTOMOUNT_OPS
-try{
-  (function(){
-    function loadOnce(src, cb){
+    host.appendChild(el("div", {class:"vsp-card"},
+      collapse("Degraded / Timeout policy (commercial)", el("div", {class:"vsp-muted"},
+        "KICS/CodeQL có thể timeout → pipeline không treo: đánh dấu degraded + vẫn xuất evidence/logs."
+      ))
+    ));
+
+    host.appendChild(el("div", {class:"vsp-card"},
+      collapse("Severity normalization (6 DevSecOps levels)", renderNormBox())
+    ));
+
+    host.appendChild(el("div", {class:"vsp-card"},
+      collapse("ISO 27001 mapping (skeleton)", renderIsoBox())
+    ));
+
+    // Fetch API status
+    const [rs, ops] = await Promise.all([
+      fetchJson(API.run_status, 8000).catch(()=>({ok:false,status:0,json:{error:"fetch_failed"}})),
+      fetchJson(API.ops_latest, 8000).catch(()=>({ok:false,status:0,json:{error:"fetch_failed"}})),
+    ]);
+
+    // Endpoint probes
+    host.appendChild(el("div", {class:"vsp-card"},
+      collapse("Endpoint probes (P405) + Raw JSON", renderEndpointProbes(rs))
+    ));
+
+    // Ops Panel Host + mount
+    const opsCard = el("div", {class:"vsp-card"});
+    opsCard.appendChild(el("div", {class:"vsp-title", style:"font-size:14px"}, "Ops Status (CIO)"));
+    opsCard.appendChild(renderOpsStatus(rs, ops));
+
+    const opsHost = ensureOpsPanelHost(opsCard);
+    opsHost.appendChild(el("div", {class:"vsp-muted", style:"margin-top:8px"},
+      "Ops panel details (journal / log tail / evidence.zip) will mount below if available."
+    ));
+    host.appendChild(opsCard);
+
+    loadOpsPanelJsOnce(()=>{
       try{
-        if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){ cb(); return; }
-        if(document.querySelector('script[data-vsp-ops="1"]')){ setTimeout(cb, 50); return; }
-        var sc=document.createElement("script");
-        sc.src=src;
-        sc.async=true;
-        sc.setAttribute("data-vsp-ops","1");
-        sc.onload=function(){ cb(); };
-        sc.onerror=function(){ console.warn("[P916B] ops script load failed"); };
-        document.head.appendChild(sc);
-      }catch(e){ console.warn("[P916B] loadOnce err", e); }
-    }
-    loadOnce("/static/js/vsp_ops_panel_v1.js?v="+Date.now(), function(){
-      try{
-        if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){
-          console.log("[P916B] ops panel mount");
+        if (window.VSPOpsPanel && typeof window.VSPOpsPanel.ensureMounted === "function"){
           window.VSPOpsPanel.ensureMounted();
         }
-      }catch(e){ console.warn("[P916B] mount err", e); }
+      } catch(e){ /* never crash */ }
     });
-  })();
-}catch(e){ console.warn("[P916B] inject err", e); }
-
-
-
-// P920_SETTINGS_LOAD_OPS_PANEL_V1
-(function(){
-  function loadOpsJs(){
-    try{
-      if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){ window.VSPOpsPanel.ensureMounted(true); return; }
-      if(document.querySelector('script[data-p920-ops="1"]')) return;
-      var s=document.createElement("script");
-      s.src="/static/js/vsp_ops_panel_v1.js?v="+Date.now();
-      s.async=true; s.dataset.p920Ops="1";
-      document.head.appendChild(s);
-    }catch(e){}
   }
-  function ensureHost(){
-    if(document.getElementById("vsp_ops_status_panel")) return;
-    // best effort: put under settings content container
-    var root = document.querySelector("#vsp_tab_settings") || document.querySelector("#main") || document.body;
-    var host = document.createElement("div");
-    host.id="vsp_ops_status_panel";
-    host.style.marginTop="12px";
-    // insert near end
-    root.appendChild(host);
+
+  // Only run on /c/settings (avoid accidental render on other tabs)
+  function shouldRun(){
+    const p = location.pathname || "";
+    return (p === "/c/settings" || p.endsWith("/c/settings"));
   }
-  if(document.readyState==="loading"){
-    document.addEventListener("DOMContentLoaded", function(){ ensureHost(); loadOpsJs(); });
-  }else{
-    ensureHost(); loadOpsJs();
+
+  if (!shouldRun()){
+    // Do nothing on other pages.
+    return;
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", ()=>{ main().catch(()=>{}); });
+  } else {
+    main().catch(()=>{});
   }
 })();
-
