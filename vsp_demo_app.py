@@ -19406,13 +19406,15 @@ try:
 except Exception:
     pass
 
+
 def _vsp_p963_find_run_dir(rid: str):
+    # Prefer SECURITY_BUNDLE outputs first (these have unified findings)
     roots = [
-        "/home/test/Data/SECURITY-10-10-v4/out_ci",
         "/home/test/Data/SECURITY_BUNDLE/out",
         "/home/test/Data/SECURITY_BUNDLE/out_ci",
+        "/home/test/Data/SECURITY-10-10-v4/out_ci",
     ]
-    for root in roots:
+for root in roots:
         d = Path(root) / rid
         if d.is_dir():
             return d, roots
