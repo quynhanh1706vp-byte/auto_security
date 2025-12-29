@@ -207,7 +207,7 @@ function boot(){
           render({CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0},{rid:'N/A',degraded:'no runs'});
           return;
         }
-        return getJSON('/api/vsp/kpi_counts_v1?rid=' + encodeURIComponent(rid)).then(function(j){
+        return getJSON('/api/vsp/kpi_counts_v2?rid=' + encodeURIComponent(rid)).then(function(j){
           var counts = (j && j.counts) ? j.counts : pickCounts(j);
           var meta = {rid: rid, degraded: (j && j.degraded) ? j.degraded : ''};
           render(counts, meta);

@@ -19406,15 +19406,13 @@ try:
 except Exception:
     pass
 
-
 def _vsp_p963_find_run_dir(rid: str):
-    # Prefer SECURITY_BUNDLE outputs first (these have unified findings)
     roots = [
+        "/home/test/Data/SECURITY-10-10-v4/out_ci",
         "/home/test/Data/SECURITY_BUNDLE/out",
         "/home/test/Data/SECURITY_BUNDLE/out_ci",
-        "/home/test/Data/SECURITY-10-10-v4/out_ci",
     ]
-for root in roots:
+    for root in roots:
         d = Path(root) / rid
         if d.is_dir():
             return d, roots
@@ -19516,6 +19514,94 @@ def api_vsp_kpi_counts_v1():
         "source": chosen,
         "n": len(items),
         "counts": counts,
+        "degraded": degraded,
+    }), 200
+
+
+### VSP_P963F_KPI_COUNTS_V2 ###
+@app.get("/api/vsp/kpi_counts_v2")
+def api_vsp_kpi_counts_v2():
+    # Pick best source across roots by max findings/items count (non-empty wins)
+    rid = (request.args.get("rid") or "").strip()
+    if not rid:
+        return jsonify({"ok":False,"err":"missing rid","rid":"","counts":{}}), 400
+
+    roots = [
+        "/home/test/Data/SECURITY_BUNDLE/out",
+        "/home/test/Data/SECURITY_BUNDLE/out_ci",
+        "/home/test/Data/SECURITY-10-10-v4/out_ci",
+    ]
+    cand_rel = [
+        "reports/findings_unified_commercial.json",
+        "findings_unified_commercial.json",
+        "reports/findings_unified.json",
+        "findings_unified.json",
+    ]
+
+    best_fp = None
+    best_items = []
+    best_root = None
+
+    for root in roots:
+        d = Path(root) / rid
+        if not d.is_dir():
+            continue
+        for rel in cand_rel:
+            fp = d / rel
+            try:
+                if (not fp.is_file()) or fp.stat().st_size < 10:
+                    continue
+                obj = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
+                items = []
+                if isinstance(obj, dict):
+                    if isinstance(obj.get("findings"), list):
+                        items = obj["findings"]
+                    elif isinstance(obj.get("items"), list):
+                        items = obj["items"]
+                elif isinstance(obj, list):
+                    items = obj
+                if len(items) > len(best_items):
+                    best_items = items
+                    best_fp = str(fp)
+                    best_root = root
+                if len(items) > 0:
+                    break
+            except Exception:
+                continue
+
+    if best_fp is None:
+        return jsonify({"ok":False,"err":"rid not found on disk","rid":rid,"roots":roots,"counts":{}}), 404
+
+    # counts by severity fields
+    out = {"CRITICAL":0,"HIGH":0,"MEDIUM":0,"LOW":0,"INFO":0,"TRACE":0}
+    def sev(it):
+        if not isinstance(it, dict): return ""
+        for k in ("severity_norm","sev_norm","severity","sev","level","priority"):
+            v = it.get(k)
+            if isinstance(v, str) and v.strip():
+                return v.strip().upper()
+        return ""
+    for it in best_items:
+        s = sev(it)
+        if s in out:
+            out[s] += 1
+
+    # degraded (optional)
+    run_dir = Path(best_root) / rid
+    degraded = None
+    fp = run_dir / "degraded_tools.json"
+    if fp.is_file():
+        try:
+            degraded = json.loads(fp.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            degraded = None
+
+    return jsonify({
+        "ok": True,
+        "rid": rid,
+        "source": best_fp,
+        "n": len(best_items),
+        "counts": out,
         "degraded": degraded,
     }), 200
 
