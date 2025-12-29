@@ -19007,6 +19007,14 @@ def api_vsp_run_status_v1_path(rid):
 
 @app.route("/api/vsp/run_status_v1")
 def api_vsp_run_status_v1_qs():
+    # P910H7_RUN_STATUS_NO_RID_GUARD
+    rid = (request.args.get('rid','') or '').strip()
+    rl = rid.lower()
+    if (not rid) or (rl in ('undefined','null','none','nan')) or rl.startswith('undefined'):
+        resp = jsonify({'ok': False, 'rid': None, 'state': 'NO_RID'})
+        resp.headers['X-VSP-RUNSTATUS-GUARD'] = 'P910H7'
+        return resp, 200
+
     rid = (request.args.get("rid","") or "").strip()
     if not rid:
         return jsonify({"ok": False, "err": "missing_rid"}), 400
@@ -19089,3 +19097,118 @@ def _p553b_bridge_run_status_v1(resp):
     except Exception:
         return resp
 
+
+
+
+# --- VSP_P1_OPS_LATEST_API_V2 ---
+
+# ---- OPS_LATEST_V1_CANON_P910C ----
+from pathlib import Path as _P910C_Path
+import json as _P910C_json
+import datetime as _P910C_dt
+
+def _p910c_pick_latest_release_dir():
+    root = _P910C_Path(__file__).resolve().parent
+    relroot = root / "out_ci" / "releases"
+    if not relroot.exists():
+        return None
+    dirs = sorted([d for d in relroot.glob("RELEASE_UI_*") if d.is_dir()],
+                  key=lambda p: p.stat().st_mtime, reverse=True)
+    return dirs[0] if dirs else None
+
+def _p910c_read_text(p, limit=200000):
+    try:
+        return _P910C_Path(p).read_text(encoding="utf-8", errors="replace")[:limit]
+    except Exception:
+        return ""
+
+def _p910c_read_json(p):
+    try:
+        return _P910C_json.loads(_P910C_Path(p).read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return None
+
+@app.get("/api/vsp/ops_latest_v1")
+def api_ops_latest_v1():
+    rel = _p910c_pick_latest_release_dir()
+    out = {
+        "ok": False,
+        "source": {"release_dir": "", "ops_dir": "", "ts": _P910C_dt.datetime.now().isoformat()},
+        "stamp": None,
+        "journal_tail": "",
+        "errors": []
+    }
+
+    if not rel:
+        out["errors"].append("no_release_dir")
+        return jsonify(out), 200
+
+    ops = rel / "evidence" / "ops"
+    out["source"]["release_dir"] = str(rel)
+    out["source"]["ops_dir"] = str(ops)
+
+    stamp_p = ops / "stamp" / "OPS_STAMP.json"
+    proof_p = ops / "proof" / "PROOF.txt"
+    health_dir = ops / "healthcheck"
+
+    stamp = _p910c_read_json(stamp_p) if stamp_p.exists() else None
+    out["stamp"] = stamp
+
+    journal_txt = ""
+    if isinstance(stamp, dict) and stamp.get("journal_tail"):
+        journal_txt = str(stamp.get("journal_tail"))
+    else:
+        cand = []
+        for n in ["journal_tail.txt","JOURNAL_TAIL.txt","journal.txt"]:
+            fp = ops / "stamp" / n
+            if fp.exists():
+                cand.append(fp)
+        if cand:
+            cand.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            journal_txt = _p910c_read_text(cand[0], limit=20000)
+    out["journal_tail"] = journal_txt
+
+    if health_dir.exists():
+        files = [p for p in health_dir.rglob("*") if p.is_file()]
+        if files:
+            files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            best = files[0]
+            out["source"]["health_file"] = str(best)
+            if best.suffix.lower()==".json":
+                out["healthcheck"] = _p910c_read_json(best)
+            else:
+                out["healthcheck_text"] = _p910c_read_text(best, limit=20000)
+
+    if proof_p.exists():
+        out["proof"] = _p910c_read_text(proof_p, limit=20000)
+
+    ok = False
+    if isinstance(stamp, dict):
+        http = stamp.get("http_code")
+        listen = stamp.get("listen")
+        ok = (str(http)=="200") and (str(listen) in ("1","true","True"))
+    out["ok"] = bool(ok)
+    return jsonify(out), 200
+# ---- end OPS_LATEST_V1_CANON_P910C ----
+
+
+    def _read_latest(base: _Path, rel: str):
+        try:
+            d = _latest_ts_dir(base)
+            if not d:
+                return None
+            f = d / rel
+            return {
+                "ts": d.name,
+                "path": str(f),
+                "ok": f.exists(),
+                "text": (f.read_text(encoding="utf-8", errors="replace")[:20000] if f.exists() else None),
+            }
+        except Exception as e:
+            return {"err": str(e)}
+
+    root = _Path(__file__).resolve().parent
+    stamp = _read_latest(root / "out_ci" / "ops_stamp", "OPS_STAMP.json")
+    proof = _read_latest(root / "out_ci" / "ops_proof", "PROOF.txt")
+    return jsonify({"ok": True, "ver": "p1_ops_latest_v1", "stamp": stamp, "proof": proof})
+# --- /VSP_P1_OPS_LATEST_API_V2 ---
