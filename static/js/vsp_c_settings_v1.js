@@ -1,3 +1,4 @@
+/* P915_SETTINGS_OPS_PANEL_CIO */
 /* VSP_SETTINGS_P405 - keep P404 panel, kill legacy cards reliably (limited reaper) */
 (function(){
   "use strict";
@@ -87,6 +88,24 @@
       document.head.appendChild(s);
     });
   }
+  // P915_SETTINGS_OPS_PANEL_CIO
+  async function ensureOpsPanelLoaded(){
+    if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted) return true;
+    return await new Promise((resolve)=>{
+      try{
+        const id="vsp_ops_panel_v1_loader";
+        if(document.getElementById(id)) return resolve(true);
+        const sc=document.createElement("script");
+        sc.id=id;
+        sc.src="/static/js/vsp_ops_panel_v1.js?v="+Date.now();
+        sc.onload=()=>resolve(true);
+        sc.onerror=()=>resolve(false);
+        document.head.appendChild(sc);
+      }catch(e){ resolve(false); }
+    });
+  }
+
+
 
   async function fetchWithTimeout(url, timeoutMs){
     const ms=timeoutMs||4500;
@@ -139,7 +158,8 @@
     const grid=el("div",{class:"grid"});
     const left=el("div",{class:"card"});
     const right=el("div",{class:"card"});
-    left.appendChild(el("h2",null,"Endpoint probes"));
+    left.appendChild(el("h2",null,"Endpoint probes
+"));
     right.appendChild(el("h2",null,"Raw JSON (stable collapsible)"));
 
     const table=el("table");
@@ -152,6 +172,12 @@
 
     grid.appendChild(left); grid.appendChild(right);
     root.appendChild(grid);
+
+    // P915_SETTINGS_OPS_PANEL_CIO: Ops panel slot (CIO)
+    const opsCard = el("div",{class:"card"});
+    opsCard.appendChild(el("h2",null,"Ops Status (CIO)"));
+    opsCard.appendChild(el("div",{id:"vsp_ops_panel"},""));
+    root.appendChild(opsCard);
 
     const urls=probeUrls();
     const results=[];
@@ -177,6 +203,20 @@
     } else {
       jsonBox.innerHTML=`<pre style="white-space:pre-wrap;word-break:break-word;opacity:.9">${results.map(x=>x.text||"").join("\n\n")}</pre>`;
     }
+
+    // P915_SETTINGS_OPS_PANEL_CIO: auto mount ops panel
+    try{
+      const host=document.getElementById("vsp_ops_panel");
+      if(host){
+        const ok = await ensureOpsPanelLoaded();
+        if(ok && window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){
+          window.VSPOpsPanel.ensureMounted();
+        } else {
+          host.innerHTML = '<div style="opacity:.85;font-size:12px">Ops panel not available</div>';
+        }
+      }
+    }catch(e){}
+
 
     log("rendered");
   }
@@ -216,3 +256,62 @@
     document.head.appendChild(s);
   }catch(e){}
 })();
+
+// P916B_SETTINGS_AUTOMOUNT_OPS
+try{
+  (function(){
+    function loadOnce(src, cb){
+      try{
+        if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){ cb(); return; }
+        if(document.querySelector('script[data-vsp-ops="1"]')){ setTimeout(cb, 50); return; }
+        var sc=document.createElement("script");
+        sc.src=src;
+        sc.async=true;
+        sc.setAttribute("data-vsp-ops","1");
+        sc.onload=function(){ cb(); };
+        sc.onerror=function(){ console.warn("[P916B] ops script load failed"); };
+        document.head.appendChild(sc);
+      }catch(e){ console.warn("[P916B] loadOnce err", e); }
+    }
+    loadOnce("/static/js/vsp_ops_panel_v1.js?v="+Date.now(), function(){
+      try{
+        if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){
+          console.log("[P916B] ops panel mount");
+          window.VSPOpsPanel.ensureMounted();
+        }
+      }catch(e){ console.warn("[P916B] mount err", e); }
+    });
+  })();
+}catch(e){ console.warn("[P916B] inject err", e); }
+
+
+
+// P920_SETTINGS_LOAD_OPS_PANEL_V1
+(function(){
+  function loadOpsJs(){
+    try{
+      if(window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted){ window.VSPOpsPanel.ensureMounted(true); return; }
+      if(document.querySelector('script[data-p920-ops="1"]')) return;
+      var s=document.createElement("script");
+      s.src="/static/js/vsp_ops_panel_v1.js?v="+Date.now();
+      s.async=true; s.dataset.p920Ops="1";
+      document.head.appendChild(s);
+    }catch(e){}
+  }
+  function ensureHost(){
+    if(document.getElementById("vsp_ops_status_panel")) return;
+    // best effort: put under settings content container
+    var root = document.querySelector("#vsp_tab_settings") || document.querySelector("#main") || document.body;
+    var host = document.createElement("div");
+    host.id="vsp_ops_status_panel";
+    host.style.marginTop="12px";
+    // insert near end
+    root.appendChild(host);
+  }
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", function(){ ensureHost(); loadOpsJs(); });
+  }else{
+    ensureHost(); loadOpsJs();
+  }
+})();
+

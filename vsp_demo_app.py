@@ -19212,3 +19212,189 @@ def api_ops_latest_v1():
     proof = _read_latest(root / "out_ci" / "ops_proof", "PROOF.txt")
     return jsonify({"ok": True, "ver": "p1_ops_latest_v1", "stamp": stamp, "proof": proof})
 # --- /VSP_P1_OPS_LATEST_API_V2 ---
+
+
+# ============================================================
+# P920_EVIDENCE_JOURNAL_LOGTAIL_V1
+# - evidence_zip_v1: download evidence.zip by rid
+# - journal_tail_v1: tail systemd journal (no-sudo best effort)
+# - log_tail_v1: tail tool logs by rid/tool
+# ============================================================
+
+def _p920_json_ok(payload, code=200, extra_headers=None):
+    try:
+        from flask import jsonify
+        resp = jsonify(payload)
+    except Exception:
+        # last resort
+        from flask import Response
+        import json as _json
+        resp = Response(_json.dumps(payload, ensure_ascii=False), mimetype="application/json")
+    resp.status_code = code
+    if extra_headers:
+        for k,v in extra_headers.items():
+            resp.headers[k] = v
+    return resp
+
+def _p920_is_bad_rid(x: str) -> bool:
+    if x is None:
+        return True
+    x = str(x).strip()
+    return x == "" or x.lower() in ("undefined","null","none","nan")
+
+def _p920_find_run_dir_candidates(rid: str):
+    # tolerate multiple layouts; return first existing dir
+    import os
+    candidates = [
+        f"/home/test/Data/SECURITY_BUNDLE/out/{rid}",
+        f"/home/test/Data/SECURITY_BUNDLE/out_ci/{rid}",
+        f"/home/test/Data/SECURITY_BUNDLE/ui/out_ci/{rid}",
+        f"/home/test/Data/SECURITY_BUNDLE/ui/out_ci/runs/{rid}",
+        f"/home/test/Data/SECURITY_BUNDLE/out_ci/VSP_CI_{rid}" if not rid.startswith("VSP_CI_") else f"/home/test/Data/SECURITY_BUNDLE/out_ci/{rid}",
+    ]
+    for p in candidates:
+        if p and os.path.isdir(p):
+            return p
+    return None
+
+def _p920_zip_evidence(run_dir: str, rid: str):
+    import os, zipfile, tempfile, datetime
+    allow_prefix = [run_dir]
+    # common evidence files (take if exist)
+    must_take = [
+        "SUMMARY.txt","run_gate_summary.json","run_gate.json","verdict_4t.json",
+        "run_manifest.json","run_evidence_index.json",
+        "findings_unified.json","findings_unified.csv","findings_unified.sarif",
+        "reports/findings_unified.csv","reports/findings_unified.sarif","reports/findings_unified.json",
+        "last_page.html","trace.zip","trace.zip.meta.json",
+        "ui_engine.log","steps_log.jsonl","net_summary.json","storage_state.json","auth_seed.json",
+    ]
+    # also include tool logs folders if exist
+    tool_dirs = ["bandit","semgrep","gitleaks","kics","trivy","syft","grype","codeql","logs","report","reports"]
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_zip = Path("/tmp") / f"vsp_evidence_{rid}_{ts}.zip"
+    with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        def add_file(rel):
+            fp = os.path.join(run_dir, rel)
+            if os.path.isfile(fp):
+                z.write(fp, arcname=rel)
+        for rel in must_take:
+            add_file(rel)
+        for td in tool_dirs:
+            tpath = os.path.join(run_dir, td)
+            if os.path.isdir(tpath):
+                for root, dirs, files in os.walk(tpath):
+                    for fn in files:
+                        fp = os.path.join(root, fn)
+                        # avoid huge binaries
+                        try:
+                            if os.path.getsize(fp) > 25*1024*1024:
+                                continue
+                        except Exception:
+                            pass
+                        relp = os.path.relpath(fp, run_dir)
+                        z.write(fp, arcname=relp)
+    return str(out_zip)
+
+def _p920_tail_file(path: str, n: int = 200):
+    import os
+    n = max(20, min(int(n or 200), 500))
+    # restrict to safe roots
+    roots = [
+        "/home/test/Data/SECURITY_BUNDLE",
+        "/home/test/Data/SECURITY_BUNDLE/ui/out_ci",
+        "/home/test/Data/SECURITY_BUNDLE/out_ci",
+    ]
+    rp = os.path.realpath(path)
+    if not any(rp.startswith(r + "/") or rp == r for r in roots):
+        return (False, f"denied_path:{rp}", "")
+    if not os.path.isfile(rp):
+        return (False, "missing_file", "")
+    try:
+        with open(rp, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()[-n:]
+        return (True, "", "".join(lines))
+    except Exception as e:
+        return (False, f"read_error:{e}", "")
+
+@app.get("/api/vsp/evidence_zip_v1")
+def api_vsp_evidence_zip_v1():
+    from flask import request
+    rid = (request.args.get("rid") or "").strip()
+    rid = unquote(rid)
+    if _p920_is_bad_rid(rid):
+        # for download routes: keep JSON 200 to avoid spam; UI should not auto-call
+        return _p920_json_ok({"ok": False, "err": "missing_rid", "rid": rid, "hint": "call ?rid=<RID>"}, 200)
+    run_dir = _p920_find_run_dir_candidates(rid)
+    if not run_dir:
+        return _p920_json_ok({"ok": False, "err": "run_dir_not_found", "rid": rid}, 404)
+    try:
+        zpath = _p920_zip_evidence(run_dir, rid)
+        return send_file(zpath, as_attachment=True, download_name=f"evidence_{rid}.zip", mimetype="application/zip")
+    except Exception as e:
+        return _p920_json_ok({"ok": False, "err": f"zip_failed:{e}", "rid": rid, "run_dir": run_dir}, 500)
+
+@app.get("/api/vsp/journal_tail_v1")
+def api_vsp_journal_tail_v1():
+    from flask import request
+    n = int(request.args.get("n") or 120)
+    svc = request.args.get("svc") or os.environ.get("VSP_UI_SVC") or "vsp-ui-8910.service"
+    cmd = ["journalctl","-u",svc,"-n",str(max(20,min(n,500))),"--no-pager","-o","short-iso"]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+        ok = (p.returncode == 0)
+        return _p920_json_ok({
+            "ok": ok,
+            "svc": svc,
+            "cmd": " ".join(cmd),
+            "rc": p.returncode,
+            "out": (p.stdout or "")[-20000:],
+            "err": (p.stderr or "")[-4000:],
+        }, 200)
+    except Exception as e:
+        return _p920_json_ok({"ok": False, "svc": svc, "err": str(e)}, 200)
+
+@app.get("/api/vsp/log_tail_v1")
+def api_vsp_log_tail_v1():
+    from flask import request
+    rid = (request.args.get("rid") or "").strip()
+    rid = unquote(rid)
+    tool = (request.args.get("tool") or "").strip().lower()
+    n = int(request.args.get("n") or 160)
+    # explicit path mode (still restricted by allowlist roots)
+    raw_path = request.args.get("path")
+    if raw_path:
+        ok, err, out = _p920_tail_file(unquote(raw_path), n=n)
+        return _p920_json_ok({"ok": ok, "mode":"path", "path": raw_path, "err": err, "tail": out}, 200)
+
+    if _p920_is_bad_rid(rid) or tool == "":
+        return _p920_json_ok({"ok": False, "err": "missing_rid_or_tool", "rid": rid, "tool": tool}, 200)
+
+    run_dir = _p920_find_run_dir_candidates(rid)
+    if not run_dir:
+        return _p920_json_ok({"ok": False, "err": "run_dir_not_found", "rid": rid}, 404)
+
+    # tool->candidate log paths (relative)
+    rels = [
+        f"{tool}/{tool}.log",
+        f"{tool}/{tool}.txt",
+        f"{tool}/tool.log",
+        f"{tool}/scan.log",
+        f"{tool}/{tool}_scan.log",
+        f"{tool}/{tool}.out",
+        f"logs/{tool}.log",
+        f"logs/{tool}.txt",
+    ]
+    import os
+    found = None
+    for rel in rels:
+        fp = os.path.join(run_dir, rel)
+        if os.path.isfile(fp):
+            found = fp
+            break
+    if not found:
+        return _p920_json_ok({"ok": False, "err": "log_not_found", "rid": rid, "tool": tool, "run_dir": run_dir, "tried": rels}, 404)
+
+    ok, err, out = _p920_tail_file(found, n=n)
+    return _p920_json_ok({"ok": ok, "rid": rid, "tool": tool, "path": found, "err": err, "tail": out}, 200)
+
