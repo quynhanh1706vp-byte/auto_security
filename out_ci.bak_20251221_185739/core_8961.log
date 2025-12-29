@@ -1,9 +1,0 @@
-nohup: đang bỏ qua dữ liệu vào
- * Serving Flask app 'app'
- * Debug mode: off
-[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:8961
- * Running on http://192.168.0.102:8961
-[33mPress CTRL+C to quit[0m
-127.0.0.1 - - [13/Dec/2025 19:54:42] "GET /api/vsp/runs_index_v3?limit=1 HTTP/1.1" 200 -

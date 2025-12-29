@@ -1,8 +1,0 @@
-/* VSP_P1_RID_AUTOFIX_NOOP_V1
- * Commercial Step-2 contract:
- * Dashboard must NOT run any "rid autofix" logic.
- */
-(()=> {
-  try { window.__vsp_rid_autofix_disabled_v1 = true; } catch(_){}
-  try { console.log("[VSP] rid_autofix DISABLED (commercial Step-2)"); } catch(_){}
-})();

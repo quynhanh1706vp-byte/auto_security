@@ -1,8 +1,0 @@
-/* VSP_FALLBACK_GATE_STORY_V1 (no-op, prevents crash) */
-(function(){
-  try{
-    window.VSP_GATE_STORY = window.VSP_GATE_STORY || {};
-    window.VSP_GATE_STORY.init = window.VSP_GATE_STORY.init || function(){ console.log("[VSP][FALLBACK] gate_story init"); };
-    console.log("[VSP][FALLBACK] vsp_dashboard_gate_story_v1.js loaded (fallback)");
-  }catch(e){}
-})();

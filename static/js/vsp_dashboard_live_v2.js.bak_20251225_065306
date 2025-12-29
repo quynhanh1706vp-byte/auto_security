@@ -1,8 +1,0 @@
-/* VSP_DASHBOARD_LIVE_V2 STUB (COMMERCIAL P0) */
-(function(){
-  'use strict';
-  try{
-    // Keep API surface so older code won't crash
-    window.VSP_DASHBOARD_LIVE_V2 = window.VSP_DASHBOARD_LIVE_V2 || function(){ return true; };
-  } catch(_){}
-})();

@@ -513,3 +513,63 @@ button:disabled{opacity:.5;cursor:not-allowed}
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
+
+
+// VSP_OPS_PANEL_SIDEBAR_HOOK_P910D
+(function(){
+  function want(){
+    try { return (location.pathname||"").indexOf("/c/settings")===0; } catch(e){ return false; }
+  }
+  function findAnchor(){
+    // prefer a visible content area instead of body
+    return document.querySelector("main")
+        || document.querySelector("#vsp_main")
+        || document.querySelector("#app")
+        || document.querySelector(".vsp-content")
+        || document.querySelector(".vsp-page")
+        || document.querySelector(".container")
+        || document.body;
+  }
+  function ensureHost(){
+    if(!want()) return null;
+    let h = document.getElementById("vsp_ops_panel");
+    if(h) return h;
+    const a = findAnchor(); if(!a) return null;
+    h = document.createElement("div");
+    h.id = "vsp_ops_panel";
+    h.style.margin = "12px 0 18px 0";
+    h.style.display = "block";
+    // inject near top but after any header bar if present
+    if(a.firstChild) a.insertBefore(h, a.firstChild);
+    else a.appendChild(h);
+    return h;
+  }
+  function load(cb){
+    if(window.VSPOpsPanel) return cb();
+    if(document.getElementById("VSP_OPS_PANEL_V1_LOADER")) return;
+    const s=document.createElement("script");
+    s.id="VSP_OPS_PANEL_V1_LOADER";
+    s.src="/static/js/vsp_ops_panel_v1.js?v="+Date.now();
+    s.onload=function(){ cb(); };
+    document.head.appendChild(s);
+  }
+  function run(){
+    if(!want()) return;
+    const host = ensureHost();
+    if(!host) return;
+    load(function(){
+      try { window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted(); } catch(e){}
+    });
+  }
+  // Run a few times to survive SPA rerenders
+  function burst(){
+    run();
+    setTimeout(run, 200);
+    setTimeout(run, 700);
+    setTimeout(run, 1500);
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", burst);
+  else burst();
+  window.addEventListener("popstate", function(){ setTimeout(burst, 50); });
+})();
+

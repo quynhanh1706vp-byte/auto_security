@@ -19,7 +19,7 @@ log "BASE=$BASE SVC=$SVC UNIT=$UNIT"
 log "== UI endpoints =="
 ok=0
 for p in "/api/vsp/healthz" "/api/vsp/healthz_v1" "/healthz" "/vsp5" "/c/dashboard"; do
-  code="$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 6 "$BASE$p" || true)"
+  code="$(curl --noproxy '*' -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 6 "$BASE$p" || true)"
   log "GET $p => $code"
   [ "$code" = "200" ] && ok=1
 done

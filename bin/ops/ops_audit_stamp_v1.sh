@@ -41,7 +41,7 @@ PYY
 
 # 5) UI endpoints
 for p in "/api/vsp/healthz" "/api/vsp/healthz_v1" "/healthz" "/vsp5" "/c/dashboard"; do
-  code="$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 6 "$BASE$p" || true)"
+  code="$(curl --noproxy '*' -sS -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 6 "$BASE$p" || true)"
   echo "$p $code" >> "$OUT/ui_endpoints.txt"
 done
 

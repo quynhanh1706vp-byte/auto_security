@@ -19,3 +19,21 @@ out_ci/
 ui/out_ci/
 **/out_ci/
 *.bak_*
+
+# --- commercial hygiene ---
+# backups
+*.bak
+*.bak_*
+*.bak_*/**
+*.broken_*
+*.pre_rescue_*
+wsgi_*.py.bak*
+wsgi_*.py.*.bak_*
+
+# trash folders
+trash_*/
+trash_*/**
+
+# build/run artifacts (should stay local)
+out_ci/
+out/

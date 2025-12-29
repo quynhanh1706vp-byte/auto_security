@@ -1822,3 +1822,52 @@
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
+
+
+// VSP_OPS_PANEL_SETTINGS_HOOK_P910C
+(function(){
+  function want(){
+    try { return (location.pathname||"").indexOf("/c/settings")===0; } catch(e){ return false; }
+  }
+  function findContainer(){
+    return document.querySelector("main")
+        || document.querySelector("#vsp_main")
+        || document.querySelector("#app")
+        || document.querySelector(".vsp-main")
+        || document.querySelector(".container")
+        || document.body;
+  }
+  function ensureHost(){
+    if(!want()) return;
+    if(document.getElementById("vsp_ops_panel")) return;
+    const c = findContainer(); if(!c) return;
+    const host = document.createElement("div");
+    host.id = "vsp_ops_panel";
+    host.style.margin = "12px 0 18px 0";
+    if(c.firstChild) c.insertBefore(host, c.firstChild);
+    else c.appendChild(host);
+  }
+  function loadScript(cb){
+    if(window.VSPOpsPanel) return cb();
+    if(document.getElementById("VSP_OPS_PANEL_V1_LOADER")) return;
+    const s=document.createElement("script");
+    s.id="VSP_OPS_PANEL_V1_LOADER";
+    s.src="/static/js/vsp_ops_panel_v1.js?v="+Date.now();
+    s.onload=function(){ cb(); };
+    document.head.appendChild(s);
+  }
+  function run(){
+    if(!want()) return;
+    ensureHost();
+    loadScript(function(){
+      try { window.VSPOpsPanel && window.VSPOpsPanel.ensureMounted(); } catch(e){}
+    });
+  }
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", function(){ run(); setTimeout(run,300); setTimeout(run,1200); });
+  } else {
+    run(); setTimeout(run,300); setTimeout(run,1200);
+  }
+  window.addEventListener("popstate", function(){ setTimeout(run,50); });
+})();
+
