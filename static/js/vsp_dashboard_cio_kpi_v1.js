@@ -221,3 +221,97 @@ function boot(){
     console.warn('[VSP CIO KPI] P963 patch init failed:', e);
   }
 })();
+
+
+/* VSP_P963G_WIRE_V2 */
+(function(){
+  try{
+    console.log('[VSP CIO KPI] P963G loaded', new Date().toISOString());
+
+    function ridFromURL(){
+      try{
+        var sp = new URLSearchParams(window.location.search || '');
+        var rid = sp.get('rid') || sp.get('RID') || '';
+        return String(rid||'').trim();
+      }catch(e){ return ''; }
+    }
+
+    function setText(sel, v){
+      var el = document.querySelector(sel);
+      if(!el) return false;
+      el.textContent = String(v);
+      return true;
+    }
+
+    function updateExistingKPIs(counts){
+      var total = 0;
+      ['CRITICAL','HIGH','MEDIUM','LOW','INFO','TRACE'].forEach(function(k){ total += (counts[k]||0); });
+
+      // common ids
+      setText('#kpi_total', total);
+      setText('#kpi_critical', counts.CRITICAL||0);
+      setText('#kpi_high', counts.HIGH||0);
+      setText('#kpi_medium', counts.MEDIUM||0);
+      setText('#kpi_low', counts.LOW||0);
+      setText('#kpi_info', counts.INFO||0);
+      setText('#kpi_trace', counts.TRACE||0);
+
+      // data attrs
+      ['TOTAL','CRITICAL','HIGH','MEDIUM','LOW','INFO','TRACE'].forEach(function(k){
+        var v = (k==='TOTAL') ? total : (counts[k]||0);
+        var el = document.querySelector('[data-kpi="'+k+'"],[data-kpi-key="'+k+'"],[data-sev="'+k+'"]');
+        if (el) el.textContent = String(v);
+      });
+    }
+
+    function forceBlock(counts, meta){
+      var root = document.getElementById('vsp_cio_kpi_root');
+      if(!root) return;
+
+      root.innerHTML = '';
+      var h = document.createElement('div');
+      h.className='vsp-cio-kpi-meta';
+      h.innerHTML = '<b>CIO KPI (v2)</b> rid=<code>'+String(meta && meta.rid || '')+'</code> n='+String(meta && meta.n || '')+'';
+      root.appendChild(h);
+
+      var g = document.createElement('div');
+      g.className='vsp-cio-kpi-grid';
+      ['CRITICAL','HIGH','MEDIUM','LOW','INFO','TRACE'].forEach(function(k){
+        var c = document.createElement('div');
+        c.className='vsp-cio-kpi-card';
+        c.innerHTML =
+          '<div class="vsp-cio-kpi-top"><div class="vsp-cio-kpi-title">'+k+'</div><div class="vsp-cio-kpi-num">'+(counts[k]||0)+'</div></div>' +
+          '<div class="vsp-cio-kpi-sub">click to drill-down</div>';
+        c.addEventListener('click', function(){
+          window.location.href = '/data_source?severity='+encodeURIComponent(k);
+        });
+        g.appendChild(c);
+      });
+      root.appendChild(g);
+    }
+
+    function fetchV2(rid){
+      return fetch('/api/vsp/kpi_counts_v2?rid='+encodeURIComponent(rid), {credentials:'same-origin'})
+        .then(function(r){ return r.json(); });
+    }
+
+    // Shadow boot: rid-from-URL first, else keep existing logic
+    if (typeof boot === 'function') {
+      var oldBoot = boot;
+      boot = function(){
+        var rid = ridFromURL();
+        if(!rid){ oldBoot(); return; }
+        fetchV2(rid).then(function(j){
+          var counts = (j && j.counts) ? j.counts : {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,INFO:0,TRACE:0};
+          updateExistingKPIs(counts);
+          forceBlock(counts, {rid: rid, n: (j && j.n)||0});
+        }).catch(function(e){
+          console.warn('[VSP CIO KPI] kpi_counts_v2 failed', e);
+          oldBoot();
+        });
+      };
+    }
+  }catch(e){
+    console.warn('[VSP CIO KPI] P963G init error', e);
+  }
+})();
