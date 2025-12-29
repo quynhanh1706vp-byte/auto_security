@@ -563,9 +563,10 @@ echo "[OK] ops_latest saved => $OUT/ops_latest.json"
 
 curl -sS -D "$OUT/journal.hdr" -o "$OUT/journal.json" "$BASE/api/vsp/journal_tail_v1?n=40" >/dev/null || true
 head -n 15 "$OUT/journal.hdr" | sed -n '1,15p'
-python3 - <<'PY'
-import json
-j=json.load(open("out_ci/p920_"+"'"$TS"'+"/journal.json","r",encoding="utf-8"))
+python3 - "$OUT" <<'PY'
+import json, sys, pathlib
+out = pathlib.Path(sys.argv[1])
+j = json.load(open(out/"journal.json", "r", encoding="utf-8"))
 print("journal ok=", j.get("ok"), "svc=", j.get("svc"))
 PY
 
